@@ -1,0 +1,4 @@
+site_name: rae
+nav:
+  - Home: README.md
+  - Guide: docs/README.md
