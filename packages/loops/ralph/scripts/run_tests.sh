@@ -9,3 +9,8 @@ run_mkdocs() {
 run_mkdocs() {
   printf '%s\n' 'mkdocs ready'
 }
+
+# current lane: verify_profile_install_and_repo_hygiene_workflows
+run_verify_profile_install_and_repo_hygiene_workflows() {
+  printf '%s\n' 'verify profile install and repo hygiene workflows ready'
+}
