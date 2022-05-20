@@ -2,12 +2,14 @@
 
 
 ## Context
-This page tracks bootstrap decisions for index during steady build work.
+This page keeps the current index guidance concise after earlier rough notes.
 
 ## Usage
-- Rewrote the docker explanation around the maintained behavior.
+- Made the hugo assumptions easier to check later.
 
-## Scratch Notes
+- Earlier scratch notes were compressed into the current guidance.
+
+## Notes Folded Into Current Flow
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Notes

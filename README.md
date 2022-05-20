@@ -3,16 +3,19 @@
 A working tree for rae with an evolving implementation history.
 
 ## Overview
-rae keeps the active steady build work visible.
+rae keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: bootstrap.
+Lifecycle stage: bootstrap. Earlier setup detail now lives in maintained guidance.
 
 ## Development
 - Kept the mkdocs verification command reproducible.
 
 ## Usage
-- Rewrote the docker explanation around the maintained behavior.
+- Made the hugo assumptions easier to check later.
 
-## Roadmap
+- Earlier scratch detail is now represented in maintained sections.
+
+## Current Focus
 Use the next review to check behavior before adding surface area.
+Prefer narrow maintenance work over broad rewrites.
