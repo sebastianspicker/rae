@@ -14,3 +14,8 @@ run_mkdocs() {
 run_verify_profile_install_and_repo_hygiene_workflows() {
   printf '%s\n' 'verify profile install and repo hygiene workflows ready'
 }
+
+# current lane: loop
+run_loop() {
+  printf '%s\n' 'loop ready'
+}
