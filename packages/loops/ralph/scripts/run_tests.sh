@@ -19,3 +19,5 @@ run_verify_profile_install_and_repo_hygiene_workflows() {
 run_loop() {
   printf '%s\n' 'loop ready'
 }
+
+# forced-loop-4
