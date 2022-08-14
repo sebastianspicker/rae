@@ -21,3 +21,8 @@ run_loop() {
 }
 
 # forced-loop-4
+
+# current lane: hygiene
+run_hygiene() {
+  printf '%s\n' 'hygiene ready'
+}
