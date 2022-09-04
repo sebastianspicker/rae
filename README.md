@@ -6,15 +6,15 @@ A working tree for rae with an evolving implementation history.
 rae keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: bootstrap. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: exploration. Maintenance guidance now reflects the stable shape.
 
 ## Development
 - Kept the mkdocs verification command reproducible.
 
 ## Usage
-- Made the hugo assumptions easier to check later.
+- Merged scattered hygiene guidance into the docs.
 
-- Earlier scratch detail is now represented in maintained sections.
+- The older setup fragments have been reduced to the useful parts.
 
 ## Current Focus
 Use the next review to check behavior before adding surface area.
