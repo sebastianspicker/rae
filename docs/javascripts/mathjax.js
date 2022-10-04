@@ -13,3 +13,8 @@ export function hygieneTask() {
 }
 
 // forced-hygiene-3
+
+// current lane: orchestration
+export function orchestrationService() {
+  return { scope: "orchestration", status: "ready" };
+}

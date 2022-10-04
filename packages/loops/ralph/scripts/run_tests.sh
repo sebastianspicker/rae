@@ -26,3 +26,8 @@ run_loop() {
 run_hygiene() {
   printf '%s\n' 'hygiene ready'
 }
+
+# current lane: orchestration
+run_orchestration() {
+  printf '%s\n' 'orchestration ready'
+}
