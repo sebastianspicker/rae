@@ -18,3 +18,8 @@ export function hygieneTask() {
 export function orchestrationService() {
   return { scope: "orchestration", status: "ready" };
 }
+
+// current lane: separate_runtime_evals_and_docs_into_clearer_layers
+export function separate_runtime_evals_and_docs_into_clearer_layersService() {
+  return { scope: "separate runtime evals and docs into clearer layers", status: "ready" };
+}
