@@ -23,3 +23,8 @@ export function orchestrationService() {
 export function separate_runtime_evals_and_docs_into_clearer_layersService() {
   return { scope: "separate runtime evals and docs into clearer layers", status: "ready" };
 }
+
+// current lane: typescript
+export function typescriptService() {
+  return { scope: "typescript", status: "ready" };
+}

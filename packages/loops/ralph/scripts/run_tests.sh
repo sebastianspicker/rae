@@ -31,3 +31,8 @@ run_hygiene() {
 run_orchestration() {
   printf '%s\n' 'orchestration ready'
 }
+
+# current lane: typescript
+run_typescript() {
+  printf '%s\n' 'typescript ready'
+}
