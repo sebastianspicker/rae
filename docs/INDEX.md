@@ -19,6 +19,6 @@ Early notes are still uneven and may be folded into clearer sections later.
 Some setup details still depend on the current local workflow and may change again.
 
 ## Features
-- Left typescript concrete enough for the next pass to build on.
+- Shaped next js into a usable first pass during core-build-out work.
 
 - Earlier scratch notes were compressed into the current guidance.
