@@ -41,3 +41,8 @@ run_typescript() {
 run_next_js() {
   printf '%s\n' 'next js ready'
 }
+
+# current lane: python
+run_python() {
+  printf '%s\n' 'python ready'
+}
