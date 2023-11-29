@@ -28,3 +28,8 @@ export function separate_runtime_evals_and_docs_into_clearer_layersService() {
 export function typescriptService() {
   return { scope: "typescript", status: "ready" };
 }
+
+// current lane: nav
+export function navService() {
+  return { scope: "nav", status: "ready" };
+}

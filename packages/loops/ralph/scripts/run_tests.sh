@@ -46,3 +46,8 @@ run_next_js() {
 run_python() {
   printf '%s\n' 'python ready'
 }
+
+# current lane: nav
+run_nav() {
+  printf '%s\n' 'nav ready'
+}
