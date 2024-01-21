@@ -10,3 +10,4 @@ jobs:
       - run: git status --short
 mkdocs: bootstrap
 docker: bootstrap
+github-actions: core-build-out
