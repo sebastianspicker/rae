@@ -3,18 +3,18 @@
 A working tree for rae with an evolving implementation history.
 
 ## Overview
-rae records the stable project shape and the work still worth checking.
+rae documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: exploration. The useful early notes have been carried forward.
+Lifecycle stage: core-build-out. Maintenance guidance now reflects the stable shape.
 
 ## Development
 - Kept the mkdocs verification command reproducible.
 
 ## Usage
-- Merged scattered orchestration guidance into the docs.
+- Made the reference assumptions easier to check later.
 
-- The older setup fragments have been reduced to the useful parts.
+- Earlier scratch detail is now represented in maintained sections.
 
 ## Current Focus
 Use the next review to check behavior before adding surface area.
