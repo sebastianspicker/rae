@@ -5,7 +5,7 @@
 This page keeps the current index guidance concise after earlier rough notes.
 
 ## Usage
-- Made the story assumptions easier to check later.
+- Made the report assumptions easier to check later.
 
 - Earlier scratch notes were compressed into the current guidance.
 
