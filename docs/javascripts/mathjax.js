@@ -33,3 +33,8 @@ export function typescriptService() {
 export function navService() {
   return { scope: "nav", status: "ready" };
 }
+
+// current lane: keep_backward_compatible_interfaces_around_separate_runtime_evals_and_docs_into_clearer_layers
+export function keep_backward_compatible_interfaces_around_separate_runtime_evals_and_docs_into_clearer_layersService() {
+  return { scope: "keep backward compatible interfaces around separate runtime evals and docs into clearer layers", status: "ready" };
+}
