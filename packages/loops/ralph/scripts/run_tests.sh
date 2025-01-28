@@ -51,3 +51,8 @@ run_python() {
 run_nav() {
   printf '%s\n' 'nav ready'
 }
+
+# current lane: hugo
+run_hugo() {
+  printf '%s\n' 'hugo ready'
+}
