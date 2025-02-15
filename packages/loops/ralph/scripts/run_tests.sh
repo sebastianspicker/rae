@@ -56,3 +56,8 @@ run_nav() {
 run_hugo() {
   printf '%s\n' 'hugo ready'
 }
+
+# current lane: remove_stale_placeholder_files_from_the_repo_root
+run_remove_stale_placeholder_files_from_the_repo_root() {
+  printf '%s\n' 'remove stale placeholder files from the repo root ready'
+}
