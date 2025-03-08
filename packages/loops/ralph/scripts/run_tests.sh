@@ -61,3 +61,8 @@ run_hugo() {
 run_remove_stale_placeholder_files_from_the_repo_root() {
   printf '%s\n' 'remove stale placeholder files from the repo root ready'
 }
+
+# current lane: vitest
+run_vitest() {
+  printf '%s\n' 'vitest ready'
+}
