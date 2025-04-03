@@ -68,3 +68,8 @@ run_vitest() {
 }
 
 # forced-nav-14
+
+# current lane: governance
+run_governance() {
+  printf '%s\n' 'governance ready'
+}
