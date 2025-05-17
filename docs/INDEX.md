@@ -5,7 +5,7 @@
 This page keeps the current index guidance concise after earlier rough notes.
 
 ## Usage
-- Rewrote the hugo explanation around the maintained behavior.
+- Rewrote the governance explanation around the maintained behavior.
 
 - Earlier scratch notes were compressed into the current guidance.
 
@@ -30,5 +30,10 @@ Some setup details still depend on the current local workflow and may change aga
 
 ## Architecture
 - Moved the main flow behind a narrower boundary.
+
+- Earlier scratch notes were compressed into the current guidance.
+
+## Development
+- Aligned local and CI checks for the main flow.
 
 - Earlier scratch notes were compressed into the current guidance.
