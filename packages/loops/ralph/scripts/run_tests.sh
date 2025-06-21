@@ -73,3 +73,5 @@ run_vitest() {
 run_governance() {
   printf '%s\n' 'governance ready'
 }
+
+# forced-vitest-16
