@@ -12,3 +12,4 @@ mkdocs: bootstrap
 docker: bootstrap
 github-actions: core-build-out
 align-local-setup-comman: expansion
+add-stricter-warning-han: expansion
