@@ -29,7 +29,7 @@ Some setup details still depend on the current local workflow and may change aga
 - Earlier scratch notes were compressed into the current guidance.
 
 ## Architecture
-- Moved the main flow behind a narrower boundary.
+- Moved governance behind a narrower boundary.
 
 - Earlier scratch notes were compressed into the current guidance.
 
