@@ -3,13 +3,15 @@
 A working tree for rae with an evolving implementation history.
 
 ## Overview
-rae documents maintained build commands, known limits, and remaining work.
+rae records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: core-build-out. Maintenance guidance now reflects the stable shape.
+Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
 
 ## Development
-- Kept the mkdocs verification command reproducible.
+- Reduced surprise in the docker release checks.
+
+- The document now favors checked behavior over exploratory notes.
 
 ## Usage
 - Made the reference assumptions easier to check later.
