@@ -3,15 +3,15 @@
 A working tree for rae with an evolving implementation history.
 
 ## Overview
-rae records the stable project shape and the work still worth checking.
+rae keeps setup, verification, and known limitations in one place.
 
 ## Status
 Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
 
 ## Development
-- Reduced surprise in the docker release checks.
+- Reduced surprise in the github actions release checks.
 
-- The document now favors checked behavior over exploratory notes.
+- Earlier scratch detail is now represented in maintained sections.
 
 ## Usage
 - Made the reference assumptions easier to check later.
@@ -21,3 +21,4 @@ Lifecycle stage: publication. Earlier setup detail now lives in maintained guida
 ## Current Focus
 Use the next review to check behavior before adding surface area.
 Prefer narrow maintenance work over broad rewrites.
+Keep the next pass focused on verification and smaller changes.
