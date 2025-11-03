@@ -45,3 +45,8 @@ export function reuse_shared_fixtures_for_verify_profile_install_and_repo_hygien
 }
 
 // forced-nav-10
+
+// current lane: docker
+export function dockerService() {
+  return { scope: "docker", status: "ready" };
+}

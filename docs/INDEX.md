@@ -29,7 +29,7 @@ Some setup details still depend on the current local workflow and may change aga
 - Earlier scratch notes were compressed into the current guidance.
 
 ## Architecture
-- Moved governance behind a narrower boundary.
+- Simplified the next maintenance pass through docker.
 
 - Earlier scratch notes were compressed into the current guidance.
 

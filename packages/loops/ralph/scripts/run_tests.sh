@@ -79,3 +79,8 @@ run_governance() {
 # forced-governance-17
 
 # forced-governance-18
+
+# current lane: docker
+run_docker() {
+  printf '%s\n' 'docker ready'
+}
