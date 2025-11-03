@@ -84,3 +84,8 @@ run_governance() {
 run_docker() {
   printf '%s\n' 'docker ready'
 }
+
+# current lane: github_actions
+run_github_actions() {
+  printf '%s\n' 'github actions ready'
+}
