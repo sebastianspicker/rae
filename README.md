@@ -6,7 +6,7 @@ A working tree for rae with an evolving implementation history.
 rae documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: publication. The useful early notes have been carried forward.
 
 ## Development
 - Reduced surprise in the github actions release checks.
@@ -14,9 +14,9 @@ Lifecycle stage: publication. Earlier setup detail now lives in maintained guida
 - Earlier scratch detail is now represented in maintained sections.
 
 ## Usage
-- Made the github actions assumptions easier to check later.
+- Made the governance assumptions easier to check later.
 
-- The document now favors checked behavior over exploratory notes.
+- The older setup fragments have been reduced to the useful parts.
 
 ## Current Focus
 Use the next review to check behavior before adding surface area.
