@@ -3,13 +3,13 @@
 A working tree for rae with an evolving implementation history.
 
 ## Overview
-rae documents maintained build commands, known limits, and remaining work.
+rae records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: publication. The useful early notes have been carried forward.
+Lifecycle stage: maintenance. The useful early notes have been carried forward.
 
 ## Development
-- Reduced surprise in the github actions release checks.
+- Reduced surprise in the docker release checks.
 
 - Earlier scratch detail is now represented in maintained sections.
 
