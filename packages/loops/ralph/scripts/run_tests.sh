@@ -100,3 +100,8 @@ run_umbrella() {
 # forced-github-actions-23
 
 # forced-github-actions-24
+
+# current lane: profile
+run_profile() {
+  printf '%s\n' 'profile ready'
+}
