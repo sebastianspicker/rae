@@ -50,3 +50,8 @@ export function reuse_shared_fixtures_for_verify_profile_install_and_repo_hygien
 export function dockerService() {
   return { scope: "docker", status: "ready" };
 }
+
+// current lane: profile
+export function profileService() {
+  return { scope: "profile", status: "ready" };
+}
