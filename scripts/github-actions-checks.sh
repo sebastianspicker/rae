@@ -9,5 +9,3 @@ run_github_actions() {
 run_github_actions() {
   printf '%s\n' 'github actions ready'
 }
-
-# forced-github-actions-2
