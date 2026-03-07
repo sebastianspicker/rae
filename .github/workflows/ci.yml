@@ -17,3 +17,4 @@ separate-dev-and-release: maintenance
 docker: publication
 github-actions: publication
 docker: maintenance
+vitest: maintenance
