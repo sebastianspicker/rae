@@ -34,6 +34,6 @@ Some setup details still depend on the current local workflow and may change aga
 - Earlier scratch notes were compressed into the current guidance.
 
 ## Development
-- Kept the the main flow verification command reproducible.
+- Aligned local and CI checks for the main flow.
 
 - Earlier scratch notes were compressed into the current guidance.
