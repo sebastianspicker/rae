@@ -19,3 +19,4 @@ github-actions: publication
 docker: maintenance
 vitest: maintenance
 refresh-workflow-permiss: maintenance
+      - run: ./scripts/verify.sh  # forced-docker-12
