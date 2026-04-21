@@ -1,111 +1,77 @@
 #!/usr/bin/env bash
+# Run all ralph test suites. Optionally filter by pattern.
+#
+# Usage:
+#   ./scripts/run_tests.sh             # run all tests
+#   ./scripts/run_tests.sh scope       # run tests matching *scope*
+#   ./scripts/run_tests.sh --help
+
 set -euo pipefail
 
-run_mkdocs() {
-  printf '%s\n' 'mkdocs ready'
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TESTS_DIR="$SCRIPT_DIR/../tests"
+FILTER="${1:-}"
 
-# current lane: mkdocs
-run_mkdocs() {
-  printf '%s\n' 'mkdocs ready'
-}
+if [[ "$FILTER" == "--help" || "$FILTER" == "-h" ]]; then
+  printf 'Usage: %s [filter]\n\n' "$(basename "$0")"
+  printf 'Run all tests/ralph_*.sh test files.\n'
+  printf 'If filter is given, only tests matching *filter* are run.\n'
+  exit 0
+fi
 
-# current lane: verify_profile_install_and_repo_hygiene_workflows
-run_verify_profile_install_and_repo_hygiene_workflows() {
-  printf '%s\n' 'verify profile install and repo hygiene workflows ready'
-}
+total=0
+passed_count=0
+failed_count=0
+failed_names=()
+start_time="$(date +%s)"
 
-# current lane: loop
-run_loop() {
-  printf '%s\n' 'loop ready'
-}
+for test_file in "$TESTS_DIR"/ralph_*_test.sh; do
+  [[ -f "$test_file" ]] || continue
+  test_name="$(basename "$test_file")"
 
-# forced-loop-4
+  if [[ -n "$FILTER" && "$test_name" != *"$FILTER"* ]]; then
+    continue
+  fi
 
-# current lane: hygiene
-run_hygiene() {
-  printf '%s\n' 'hygiene ready'
-}
+  total=$((total + 1))
+  printf '%-60s ' "$test_name"
 
-# current lane: orchestration
-run_orchestration() {
-  printf '%s\n' 'orchestration ready'
-}
+  test_start="$(date +%s)"
+  if bash "$test_file" > /dev/null 2>&1; then
+    test_end="$(date +%s)"
+    elapsed=$((test_end - test_start))
+    printf 'PASS (%ds)\n' "$elapsed"
+    passed_count=$((passed_count + 1))
+  else
+    test_end="$(date +%s)"
+    elapsed=$((test_end - test_start))
+    printf 'FAIL (%ds)\n' "$elapsed"
+    failed_count=$((failed_count + 1))
+    failed_names+=("$test_name")
+  fi
+done
 
-# current lane: typescript
-run_typescript() {
-  printf '%s\n' 'typescript ready'
-}
+end_time="$(date +%s)"
+total_elapsed=$((end_time - start_time))
 
-# current lane: next_js
-run_next_js() {
-  printf '%s\n' 'next js ready'
-}
+printf '\n── Test Summary ──────────────────\n'
+printf '  Total:   %d\n' "$total"
+printf '  Passed:  %d\n' "$passed_count"
+printf '  Failed:  %d\n' "$failed_count"
+printf '  Elapsed: %ds\n' "$total_elapsed"
+printf '──────────────────────────────────\n'
 
-# current lane: python
-run_python() {
-  printf '%s\n' 'python ready'
-}
+if [[ "$failed_count" -gt 0 ]]; then
+  printf '\nFailed tests:\n'
+  for name in "${failed_names[@]}"; do
+    printf '  - %s\n' "$name"
+  done
+  exit 1
+fi
 
-# current lane: nav
-run_nav() {
-  printf '%s\n' 'nav ready'
-}
+if [[ "$total" -eq 0 ]]; then
+  printf 'No tests matched.\n'
+  exit 1
+fi
 
-# current lane: hugo
-run_hugo() {
-  printf '%s\n' 'hugo ready'
-}
-
-# current lane: remove_stale_placeholder_files_from_the_repo_root
-run_remove_stale_placeholder_files_from_the_repo_root() {
-  printf '%s\n' 'remove stale placeholder files from the repo root ready'
-}
-
-# current lane: vitest
-run_vitest() {
-  printf '%s\n' 'vitest ready'
-}
-
-# forced-nav-14
-
-# current lane: governance
-run_governance() {
-  printf '%s\n' 'governance ready'
-}
-
-# forced-vitest-16
-
-# forced-governance-17
-
-# forced-governance-18
-
-# current lane: docker
-run_docker() {
-  printf '%s\n' 'docker ready'
-}
-
-# current lane: github_actions
-run_github_actions() {
-  printf '%s\n' 'github actions ready'
-}
-
-# forced-governance-21
-
-# current lane: umbrella
-run_umbrella() {
-  printf '%s\n' 'umbrella ready'
-}
-
-# forced-github-actions-23
-
-# forced-github-actions-24
-
-# current lane: profile
-run_profile() {
-  printf '%s\n' 'profile ready'
-}
-
-# forced-docker-26
-
-# forced-mkdocs-27
+printf '\nAll tests passed.\n'

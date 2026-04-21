@@ -1,0 +1,100 @@
+{
+  "benchmark_id": "review-loop-core",
+  "version": "1.0.0",
+  "tasks": [
+    {
+      "task_id": "review-loop-dev",
+      "title": "Record explain, fix approval, and ship review states for a dev orchestration run",
+      "split": "dev",
+      "family": "review-loop",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-review-loop",
+      "claim_links": [
+        "docs/reference/contracts/human-checkpoints.md",
+        "docs/research/frozen-benchmark-results.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "review-loop-dev",
+        "title": "Approve review-loop dev benchmark",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "review-loop-held-out",
+      "title": "Record explain, fix approval, and ship review states for a held-out orchestration run",
+      "split": "held-out",
+      "family": "review-loop",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-review-loop",
+      "claim_links": [
+        "docs/reference/contracts/human-checkpoints.md",
+        "docs/research/frozen-benchmark-results.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "review-loop-held-out",
+        "title": "Approve review-loop held-out benchmark",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "review-loop-stress",
+      "title": "Stress explain, fix approval, and ship review transitions under explicit approvals",
+      "split": "stress",
+      "family": "review-loop",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-review-loop",
+      "claim_links": [
+        "docs/reference/contracts/human-checkpoints.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "review-loop-stress",
+        "title": "Approve review-loop stress benchmark",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "review-loop-ablation",
+      "title": "Ablation review-loop benchmark for future approval-path variants",
+      "split": "ablation",
+      "family": "review-loop",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-review-loop",
+      "claim_links": [
+        "docs/research/frozen-benchmark-results.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "review-loop-ablation",
+        "title": "Approve review-loop ablation benchmark",
+        "required_for": "execution"
+      }
+    }
+  ]
+}

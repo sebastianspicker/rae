@@ -1,0 +1,312 @@
+from __future__ import annotations
+
+import json
+import pathlib
+import subprocess
+import sys
+import tempfile
+
+from benchmark_contracts_helpers import RESULTS_ROOT, ROOT, load_module, repo_rel, write_json, write_release_gate_fixture
+def test_release_gate_rejects_verification_evidence_outside_current_run_scope() -> None:
+    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="release-gate-forged-evidence-"
+    ) as tmp:
+        output_dir = pathlib.Path(tmp)
+        _, regression_path, ledger_path, _, run_card_path = write_release_gate_fixture(
+            output_dir,
+            split="dev",
+            run_id="tool-selection-core-dev-forged-evidence",
+            benchmark=benchmark,
+            calibration_payload={
+                "judge_id": "router",
+                "agreement_rate": 1.0,
+                "calibration_case_count": 4,
+                "status": "pass",
+            },
+            verification_evidence={
+                "required_types": ["command-log"],
+                "provided": [],
+                "summary": {
+                    "status": "complete",
+                    "provided_types": ["command-log"],
+                    "missing_types": [],
+                    "residual_gaps": [],
+                },
+            },
+        )
+        foreign_dir = output_dir.parent / "foreign-evidence"
+        foreign_command_log = foreign_dir / "foreign.command-result.json"
+        write_json(
+            foreign_command_log,
+            {
+                "argv": ["foreign"],
+                "cwd": ".",
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "",
+                "duration_seconds": 0.1,
+            },
+        )
+        run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
+        run_card["verification_evidence"]["provided"] = [
+            {
+                "task_id": "tool-selection-dev-orchestration",
+                "type": "command-log",
+                "path": repo_rel(foreign_command_log),
+            }
+        ]
+        write_json(run_card_path, run_card)
+        write_release_gate_fixture(
+            output_dir / "held-out-pass",
+            split="held-out",
+            run_id="tool-selection-core-held-out-pass",
+            benchmark=benchmark,
+            calibration_payload={
+                "judge_id": "router",
+                "agreement_rate": 1.0,
+                "calibration_case_count": 4,
+                "status": "pass",
+            },
+            release_gate_status="pass",
+        )
+        gate_output_path = (
+            output_dir / "release-gate-tool-selection-core-dev-forged-evidence.json"
+        )
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "evals/scripts/release_gate.py"),
+                "--benchmark-card",
+                str(benchmark_path),
+                "--run-card",
+                str(run_card_path),
+                "--regression-report",
+                str(regression_path),
+                "--ledger",
+                str(ledger_path),
+                "--output",
+                str(gate_output_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert completed.returncode != 0
+        gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
+        assert any(
+            "verification_evidence.provided[0] path outside current run scope" in issue
+            for issue in gate_report["issues"]
+        )
+
+
+def test_release_gate_does_not_mutate_run_card_outside_results_root() -> None:
+    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+
+    with tempfile.TemporaryDirectory(
+        prefix="release-gate-outside-run-card-"
+    ) as outside_tmp:
+        outside_dir = pathlib.Path(outside_tmp)
+        with tempfile.TemporaryDirectory(
+            dir=RESULTS_ROOT, prefix="release-gate-outside-run-card-output-"
+        ) as output_tmp:
+            output_dir = pathlib.Path(output_tmp)
+            result_path, regression_path, ledger_path, calibration_path, _ = (
+                write_release_gate_fixture(
+                    output_dir,
+                    split="dev",
+                    run_id="tool-selection-core-dev-outside-run-card",
+                    benchmark=benchmark,
+                    calibration_payload={
+                        "judge_id": "router",
+                        "agreement_rate": 1.0,
+                        "calibration_case_count": 4,
+                        "status": "pass",
+                    },
+                )
+            )
+            run_card_path = (
+                outside_dir / "run-card-tool-selection-core-dev-outside-run-card.json"
+            )
+            write_json(
+                run_card_path,
+                {
+                    "run_id": "tool-selection-core-dev-outside-run-card",
+                    "evidence_type": "benchmark-run",
+                    "benchmark_id": benchmark["benchmark_id"],
+                    "benchmark_version": benchmark["version"],
+                    "date": "2026-04-15",
+                    "split": "dev",
+                    "system": {
+                        "model": "rule-based-router-v1",
+                        "runtime": "umbrella-benchmark-runner",
+                    },
+                    "judge_version": "programmatic-router-judge-v1",
+                    "command": "python3 evals/scripts/run_benchmark.py",
+                    "result_path": repo_rel(result_path),
+                    "status": "pass",
+                    "task_spec_path": benchmark["task_specs_path"],
+                    "routed_runtime": "mixed",
+                    "trace_paths": [],
+                    "artifact_paths": [],
+                    "checkpoint_paths": [],
+                    "claim_links": benchmark["claim_links"],
+                    "ledger_path": repo_rel(ledger_path),
+                    "regression_report_path": repo_rel(regression_path),
+                    "judge_calibration_report_path": repo_rel(calibration_path),
+                    "cost_usd": 0.0,
+                    "latency_seconds": 0.1,
+                    "notes": "test fixture",
+                },
+            )
+            write_release_gate_fixture(
+                output_dir / "held-out-pass",
+                split="held-out",
+                run_id="tool-selection-core-held-out-pass",
+                benchmark=benchmark,
+                calibration_payload={
+                    "judge_id": "router",
+                    "agreement_rate": 1.0,
+                    "calibration_case_count": 4,
+                    "status": "pass",
+                },
+                release_gate_status="pass",
+            )
+            gate_output_path = (
+                output_dir
+                / "release-gate-tool-selection-core-dev-outside-run-card.json"
+            )
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "evals/scripts/release_gate.py"),
+                    "--benchmark-card",
+                    str(benchmark_path),
+                    "--run-card",
+                    str(run_card_path),
+                    "--regression-report",
+                    str(regression_path),
+                    "--ledger",
+                    str(ledger_path),
+                    "--output",
+                    str(gate_output_path),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            assert completed.returncode != 0
+            updated_run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
+            assert "release_gate_status" not in updated_run_card
+            assert "release_gate_report_path" not in updated_run_card
+
+
+def test_run_command_marks_timeouts_with_provenance() -> None:
+    common = load_module("evals_common", "evals/scripts/common.py")
+
+    result = common.run_command(
+        [sys.executable, "-c", "import time; time.sleep(0.2)"],
+        cwd=ROOT,
+        timeout_seconds=0.05,
+    )
+
+    assert result["returncode"] == 124
+    assert result["timed_out"] is True
+    assert result["timeout_seconds"] == 0.05
+    assert "timed out" in result["stderr"]
+
+
+def test_run_benchmark_propagates_calibration_subprocess_failures() -> None:
+    benchmark = json.loads(
+        (ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    broken_benchmark = {
+        **benchmark,
+        "benchmark_id": "tool-selection-core-bad-calibration",
+        "version": "1.0.9",
+        "judge_path": "evals/results/.tmp-bad-judge-config.json",
+    }
+    bad_judge_config = RESULTS_ROOT / ".tmp-bad-judge-config.json"
+    temp_benchmark_path = RESULTS_ROOT / ".tmp-bad-calibration.benchmark-card.json"
+    write_json(
+        bad_judge_config,
+        {
+            "judge_id": "router",
+            "judge_version": "v1",
+            "rubric_version": "v1",
+            "calibration_cases": [],
+        },
+    )
+    write_json(temp_benchmark_path, broken_benchmark)
+
+    try:
+        with tempfile.TemporaryDirectory(
+            dir=RESULTS_ROOT, prefix="run-benchmark-bad-calibration-"
+        ) as tmp:
+            output_dir = pathlib.Path(tmp) / "dev"
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "evals/scripts/run_benchmark.py"),
+                    "--benchmark-card",
+                    str(temp_benchmark_path),
+                    "--split",
+                    "dev",
+                    "--output-dir",
+                    str(output_dir),
+                ],
+                cwd=ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            assert completed.returncode != 0
+            assert "non-empty calibration_cases" in (
+                completed.stderr or completed.stdout
+            )
+    finally:
+        temp_benchmark_path.unlink(missing_ok=True)
+        bad_judge_config.unlink(missing_ok=True)
+
+
+def test_judge_task_rejects_semantically_invalid_json_artifact() -> None:
+    run_benchmark = load_module("evals_run_benchmark", "evals/scripts/run_benchmark.py")
+
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="judge-task-artifact-"
+    ) as tmp:
+        output_dir = pathlib.Path(tmp)
+        artifact_path = output_dir / "bad-artifact.json"
+        artifact_path.write_text("[]\n", encoding="utf-8")
+
+        judgment = run_benchmark.judge_task(
+            {"expected_runtime": "tool"},
+            "expected-run",
+            "tool",
+            {
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "",
+                "duration_seconds": 0.0,
+            },
+            [repo_rel(artifact_path)],
+            True,
+        )
+
+        assert judgment["verdict"] == "fail"
+        assert judgment["artifacts_ok"] is False
+        assert "artifact_missing" in judgment["failure_classes"]
+
+

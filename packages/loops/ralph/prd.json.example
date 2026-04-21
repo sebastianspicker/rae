@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0.0",
+  "project": "ralph-audit-template-example",
+  "defaults": {
+    "mode_default": "audit",
+    "max_stories_default": "all_open",
+    "model_default": "sonnet",
+    "reasoning_effort_default": "high",
+    "report_dir": ".claude/ralph-audit/audit",
+    "sandbox_by_mode": {
+      "audit": "read-only",
+      "linting": "read-only",
+      "fixing": "workspace-write"
+    },
+    "lint_detection_order": [
+      "package.json scripts (lint/test)",
+      "pyproject/requirements (ruff/pytest)",
+      "go.mod (go test ./...)",
+      "Cargo.toml (cargo test)",
+      "Makefile targets (make lint/test)"
+    ]
+  },
+  "stories": [
+    {
+      "id": "AUDIT-001",
+      "title": "Repository Surface Audit",
+      "priority": 1,
+      "mode": "audit",
+      "scope": [
+        "**/*",
+        "!**/.git/**",
+        "!**/node_modules/**",
+        "!**/vendor/**"
+      ],
+      "acceptance_criteria": [
+        "Created .claude/ralph-audit/audit/AUDIT-001-repository-surface.md with inventory and risks",
+        "Report includes path-based evidence and severity ordering"
+      ],
+      "passes": false,
+      "notes": "Read-only audit. No edits.",
+      "objective": "Create an evidence-first inventory of high-risk code and automation entry points.",
+      "steps": [
+        {
+          "id": "S01",
+          "title": "Define scope boundaries",
+          "actions": [
+            "Confirm included and excluded paths from story scope.",
+            "Document any areas that cannot be inspected."
+          ],
+          "expected_evidence": [
+            "Method section with explicit scope statement."
+          ],
+          "done_when": [
+            "Audit boundary is deterministic."
+          ]
+        },
+        {
+          "id": "S02",
+          "title": "Inventory critical surfaces",
+          "actions": [
+            "List top-level structure and runtime entrypoints.",
+            "Record unknown ownership or risky hotspots."
+          ],
+          "expected_evidence": [
+            "Path list with short risk notes."
+          ],
+          "done_when": [
+            "Inventory is complete enough for follow-up stories."
+          ]
+        },
+        {
+          "id": "S03",
+          "title": "Prioritize findings",
+          "actions": [
+            "Group findings by impact and confidence.",
+            "Deduplicate overlapping observations."
+          ],
+          "expected_evidence": [
+            "Severity-ordered findings section."
+          ],
+          "done_when": [
+            "Findings are actionable and non-duplicative."
+          ]
+        }
+      ],
+      "verification": [
+        "No repository files were modified.",
+        "Every finding references concrete files."
+      ],
+      "out_of_scope": [
+        "Any implementation change."
+      ]
+    },
+    {
+      "id": "LINT-001",
+      "title": "Best-Effort Check Baseline",
+      "priority": 10,
+      "mode": "linting",
+      "scope": [
+        "**/*",
+        "!**/.git/**",
+        "!**/node_modules/**",
+        "!**/vendor/**"
+      ],
+      "acceptance_criteria": [
+        "Created .claude/ralph-audit/audit/LINT-001-best-effort-checks.md with executed checks and results",
+        "Report states explicit no-op if no checks were auto-detected"
+      ],
+      "passes": false,
+      "notes": "Read-only linting pass.",
+      "objective": "Run detected quality checks and produce deterministic evidence output.",
+      "steps": [
+        {
+          "id": "S01",
+          "title": "Collect runner-detected checks",
+          "actions": [
+            "Read check candidates from prompt context.",
+            "Prepare commands in deterministic order."
+          ],
+          "expected_evidence": [
+            "Command list in method section."
+          ],
+          "done_when": [
+            "Check execution plan is explicit."
+          ]
+        },
+        {
+          "id": "S02",
+          "title": "Execute checks and collect output",
+          "actions": [
+            "Run each check candidate when possible.",
+            "Capture pass/fail or execution blockers."
+          ],
+          "expected_evidence": [
+            "Result table with command outcomes."
+          ],
+          "done_when": [
+            "All checks are accounted for."
+          ]
+        },
+        {
+          "id": "S03",
+          "title": "Classify results",
+          "actions": [
+            "Separate real failures from environment/tooling blockers.",
+            "Rank by impact."
+          ],
+          "expected_evidence": [
+            "Triage section with severity buckets."
+          ],
+          "done_when": [
+            "Report can drive safe fixing stories."
+          ]
+        }
+      ],
+      "verification": [
+        "No repository files were modified.",
+        "No speculative failures are reported as facts."
+      ],
+      "out_of_scope": [
+        "Applying fixes."
+      ]
+    },
+    {
+      "id": "FIX-001",
+      "title": "Safe Targeted Fixes",
+      "priority": 20,
+      "mode": "fixing",
+      "scope": [
+        "README.md",
+        "lib/ralph/*.sh",
+        "tests/*.sh",
+        "!**/vendor/**"
+      ],
+      "acceptance_criteria": [
+        "Created .claude/ralph-audit/audit/FIX-001-safe-targeted-fixes.md with implemented fixes and verification",
+        "Only in-scope files changed and relevant checks re-run"
+      ],
+      "passes": false,
+      "notes": "Apply only minimal, low-risk fixes tied to prior evidence.",
+      "objective": "Implement a small in-scope fix set and verify no scope violations.",
+      "steps": [
+        {
+          "id": "S01",
+          "title": "Select minimal fix set",
+          "actions": [
+            "Pick high-confidence issues from prior audit/lint reports.",
+            "Reject broad refactors."
+          ],
+          "expected_evidence": [
+            "Fix selection rationale."
+          ],
+          "done_when": [
+            "Fix plan remains story-scoped."
+          ]
+        },
+        {
+          "id": "S02",
+          "title": "Apply focused changes",
+          "actions": [
+            "Implement minimal edits to resolve selected issues.",
+            "Avoid unrelated file churn."
+          ],
+          "expected_evidence": [
+            "File-level change summary."
+          ],
+          "done_when": [
+            "Each edited file maps to one selected issue."
+          ]
+        },
+        {
+          "id": "S03",
+          "title": "Re-run relevant checks",
+          "actions": [
+            "Execute best-effort checks relevant to touched areas.",
+            "Report results and residual risk."
+          ],
+          "expected_evidence": [
+            "Post-fix verification section."
+          ],
+          "done_when": [
+            "Fix report is auditable and complete."
+          ]
+        }
+      ],
+      "verification": [
+        "No out-of-scope files changed.",
+        "Report links fixes to specific findings."
+      ],
+      "out_of_scope": [
+        "Architecture redesign.",
+        "Large-scale refactor."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+node_modules/
+.npm/
+.cache/
+.pnpm-store/
+dist/
+*.tsbuildinfo
+.pipeline/
+.worktrees/
+coverage/
+.vitest/
+__pycache__/
+*.pyc

@@ -1,4 +1,129 @@
-site_name: rae
+site_name: RAE
+site_description: Reliable Agentic Engineering
+repo_name: rae
+repo_url: https://github.com/sebastianspicker/rae
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.arithmatex:
+      generic: true
+  - tables
+  - toc:
+      permalink: true
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js
 nav:
-  - Home: README.md
-  - Guide: docs/README.md
+  - Home: INDEX.md
+  - Tutorials:
+      - First Pipeline: tutorials/first-pipeline.md
+      - First Ralph Run: tutorials/first-ralph-run.md
+      - First Profile Install: tutorials/first-profile-install.md
+  - How-To:
+      - Choose an Execution Model: how-to/choose-an-execution-model.md
+      - Run a Benchmark: how-to/run-a-benchmark.md
+      - Write a Contract: how-to/write-a-contract.md
+      - Add a Tool: how-to/add-a-tool.md
+      - Publish a Sanitized Profile: how-to/publish-a-sanitized-profile.md
+      - Reproduce a Result: how-to/reproduce-a-result.md
+  - Reference:
+      - Workflow Rubric: reference/workflow-rubric.md
+      - Repo Map: reference/repo-map.md
+      - Terminology: reference/terminology.md
+      - Architecture:
+          - System Overview: reference/architecture/system-overview.md
+          - Module Boundaries: reference/architecture/module-boundaries.md
+      - Contracts:
+          - Artifact Schemas: reference/contracts/artifact-schemas.md
+          - Task Specs: reference/contracts/task-specs.md
+          - Human Checkpoints: reference/contracts/human-checkpoints.md
+          - Result Ledger: reference/contracts/result-ledger.md
+          - Quality Gates: reference/contracts/quality-gates.md
+          - Report Types: reference/contracts/report-types.md
+      - CLI:
+          - Umbrella CLI: reference/cli/umbrella.md
+          - Orchestration CLI: reference/cli/orchestration.md
+          - Ralph CLI: reference/cli/ralph.md
+          - Repo Hygiene CLI: reference/cli/repo-hygiene.md
+      - Invariants:
+          - Safety Boundaries: reference/invariants/safety-boundaries.md
+          - Determinism Contracts: reference/invariants/determinism-contracts.md
+          - Provenance Requirements: reference/invariants/provenance-requirements.md
+      - Claims:
+          - Claims Ledger: reference/claims/claims-ledger.md
+          - Assumptions Register: reference/claims/assumptions-register.md
+          - Bibliography: reference/claims/bibliography.md
+          - Evidence Index: reference/claims/evidence-index.md
+          - Dossiers:
+              - Overview: reference/claims/dossiers/README.md
+              - CLM-007 Information Density: reference/claims/dossiers/clm-007-information-density.md
+              - CLM-008 Coordination Topology: reference/claims/dossiers/clm-008-coordination-topology.md
+              - CLM-010 Reproducibility Layers: reference/claims/dossiers/clm-010-reproducibility-layers.md
+              - CLM-014 Staged Separation: reference/claims/dossiers/clm-014-staged-separation.md
+              - CLM-015 Contract-Gate Distinction: reference/claims/dossiers/clm-015-contract-gate-distinction.md
+              - CLM-016 Cognitive Tiering: reference/claims/dossiers/clm-016-cognitive-tiering.md
+              - CLM-017 Documentation Reliability: reference/claims/dossiers/clm-017-documentation-reliability.md
+              - CLM-019 Validity Doctrine: reference/claims/dossiers/clm-019-validity-doctrine.md
+              - CLM-020 Layered Failure Model: reference/claims/dossiers/clm-020-layered-failure-model.md
+              - CLM-021 Negative Results: reference/claims/dossiers/clm-021-negative-results.md
+  - Explanation:
+      - Overview:
+          - Project Scope: explanation/overview/project-scope.md
+          - Decision Tree: explanation/overview/decision-tree.md
+      - Science:
+          - Abstract: explanation/science/abstract.md
+          - Problem Statement: explanation/science/problem-statement.md
+          - Information Theory: explanation/science/information-theory.md
+          - Coordination Cost: explanation/science/coordination-cost.md
+          - Drift and Self-Certification: explanation/science/drift-and-self-certification.md
+          - Contracts and Gates: explanation/science/contracts-and-gates.md
+          - Cognitive Tiering: explanation/science/cognitive-tiering.md
+          - Threats to Validity: explanation/science/threats-to-validity.md
+          - Limitations: explanation/science/limitations.md
+          - Negative Results: explanation/science/negative-results.md
+      - Supplementary:
+          - Notation: explanation/supplementary/notation.md
+          - Formal Model: explanation/supplementary/formal-model.md
+          - Design Axioms: explanation/supplementary/design-axioms.md
+          - Implementation Map: explanation/supplementary/implementation-map.md
+          - Model of Failure: explanation/supplementary/model-of-failure.md
+          - Robustness and Generalization: explanation/supplementary/robustness-and-generalization.md
+          - Judge Reliability: explanation/supplementary/judge-reliability.md
+          - Reproducibility: explanation/supplementary/reproducibility.md
+      - Companion:
+          - Workflow State Formalization: explanation/companion/workflow-state-formalization.md
+          - Drift and Error Propagation: explanation/companion/drift-error-propagation.md
+          - Coordination Topologies: explanation/companion/coordination-topologies.md
+          - Judge Measurement Model: explanation/companion/judge-measurement-model.md
+  - Research:
+      - Benchmark Protocol: research/benchmark-protocol.md
+      - Benchmark Catalog: research/benchmark-catalog.md
+      - Frozen Benchmark Results: research/frozen-benchmark-results.md
+      - Judge Calibration: research/judge-calibration.md
+      - Ablation Plan: research/ablation-plan.md
+      - Result Report Template: research/result-report-template.md
+      - Model Version Matrix: research/model-version-matrix.md
+      - Benchmark Cards: research/benchmark-cards/README.md
+      - Run Cards: research/run-cards/README.md
+  - Governance:
+      - Documentation Policy: governance/documentation-policy.md
+      - Citation Policy: governance/citation-policy.md
+      - Source Quality Policy: governance/source-quality-policy.md
+      - Release Criteria: governance/release-criteria.md
+      - Review Checklists: governance/review-checklists.md
+  - Case Studies:
+      - Phased Orchestration: case-studies/phased-orchestration.md
+      - Ralph Loop: case-studies/ralph-loop.md
+      - Agent Profiles: case-studies/agent-profiles.md
+      - Repo Hygiene Tools: case-studies/repo-hygiene-tools.md
+  - Migration:
+      - Source Repo Map: migration/source-repo-map.md
+      - Consolidation Plan: migration/consolidation-plan.md
+      - Deprecation Strategy: migration/deprecation-strategy.md
+      - Repo Audit Remediation Plan (Deprecated): migration/deprecated/repo-audit-remediation-plan.md

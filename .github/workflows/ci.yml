@@ -1,20 +1,31 @@
-name: Main verification
+name: ci
 
 on:
   push:
-    branches: [main]
+    branches:
+      - dev
   pull_request:
-    branches: [main]
+    branches:
+      - dev
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  check_1_verify:
-    name: "verify"
+  verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify checkout
-        run: git status --short
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install docs dependencies
+        run: python -m pip install -r requirements-docs.txt
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq git-filter-repo
+      - name: Verify
+        run: ./scripts/verify.sh

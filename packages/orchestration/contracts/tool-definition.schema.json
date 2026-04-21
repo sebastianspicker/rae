@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tool definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "description", "parameters"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_.-]+$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "parameters": {
+      "type": "object"
+    }
+  }
+}

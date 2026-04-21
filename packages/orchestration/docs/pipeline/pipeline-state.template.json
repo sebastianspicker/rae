@@ -1,0 +1,152 @@
+{
+  "run_id": "",
+  "created_at": "",
+  "current_phase": "arm",
+  "workspace": {
+    "mode": "main-repo",
+    "root": "",
+    "primary_repo_root": "",
+    "branch": "",
+    "worktree_path": null,
+    "cleanup_command": null
+  },
+  "phase_order": [
+    "arm",
+    "design",
+    "adversarial-review",
+    "plan",
+    "pmatch",
+    "build",
+    "quality-static",
+    "quality-tests",
+    "post-build",
+    "release-readiness"
+  ],
+  "completed_gates": [],
+  "artifacts": {
+    "brief": null,
+    "design": null,
+    "review": null,
+    "review_loop": null,
+    "plan": null,
+    "build": null,
+    "post_build": null,
+    "release_readiness": null,
+    "progress_summary": null,
+    "drift_reports": [],
+    "quality_reports": []
+  },
+  "config": {
+    "cognitive_tiers": {
+      "arm": "high_reasoning",
+      "design": "balanced",
+      "adversarial_review_lead": "high_reasoning",
+      "adversarial_review_reviewers": "fast",
+      "plan": "balanced",
+      "pmatch_extractors": "fast",
+      "pmatch_adjudicator": "balanced",
+      "build_lead": "balanced",
+      "build_worker": "fast",
+      "quality_static": "fast",
+      "quality_tests": "fast",
+      "post_build": "fast",
+      "release_readiness": "high_reasoning"
+    },
+    "activity_assignments": {
+      "arm_briefing": {
+        "tier": "high_reasoning",
+        "model_hint": "brief-architect",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "design_synthesis": {
+        "tier": "balanced",
+        "model_hint": "design-synthesizer",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "adversarial_review_lead": {
+        "tier": "high_reasoning",
+        "model_hint": "review-lead",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "plan_synthesis": {
+        "tier": "balanced",
+        "model_hint": "plan-synthesizer",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "pmatch_adjudicator": {
+        "tier": "balanced",
+        "model_hint": "drift-adjudicator",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "build_worker": {
+        "tier": "fast",
+        "model_hint": "build-worker",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "quality_static": {
+        "tier": "fast",
+        "model_hint": "quality-static",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "quality_tests_case": {
+        "tier": "fast",
+        "model_hint": "quality-tests",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "post_build": {
+        "tier": "fast",
+        "model_hint": "post-build",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      },
+      "release_readiness": {
+        "tier": "high_reasoning",
+        "model_hint": "release-readiness",
+        "runtime_name": "default",
+        "runtime_version": "v1"
+      }
+    },
+    "reviewer_roles": ["architect-reviewer", "security-engineer", "performance-engineer"],
+    "post_build": [
+      "denoise",
+      "quality-frontend",
+      "quality-backend",
+      "quality-docs",
+      "security-review"
+    ],
+    "orchestration_policy": {
+      "max_reviewers": 3,
+      "max_builders": 3,
+      "latency_budget_s": 3600,
+      "budget_usd": 50,
+      "lambda": 1,
+      "mu": 1,
+      "min_expected_gain": 0.1
+    },
+    "context_budgets": {
+      "design": 24000,
+      "adversarial-review": 18000,
+      "plan": 16000,
+      "pmatch": 12000,
+      "build_lead": 10000,
+      "build_worker": 8000
+    },
+    "feature_flags": {
+      "trace_v1": false,
+      "evaluation_v1": false,
+      "context_budget_v1": false,
+      "traceability_v1": false,
+      "drift_benchmark_v1": false,
+      "worktree_isolation_v1": false,
+      "activity_routing_v1": false
+    }
+  }
+}

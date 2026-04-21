@@ -1,0 +1,100 @@
+{
+  "benchmark_id": "observability-core",
+  "version": "1.0.0",
+  "tasks": [
+    {
+      "task_id": "observability-dev",
+      "title": "Emit normalized progress summary for a dev orchestration run",
+      "split": "dev",
+      "family": "observability",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-observability",
+      "claim_links": [
+        "packages/orchestration/README.md",
+        "docs/research/frozen-benchmark-results.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "observability-dev",
+        "title": "Approve observability dev benchmark",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "observability-held-out",
+      "title": "Emit normalized progress summary for a held-out orchestration run",
+      "split": "held-out",
+      "family": "observability",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-observability",
+      "claim_links": [
+        "packages/orchestration/README.md",
+        "docs/research/frozen-benchmark-results.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "observability-held-out",
+        "title": "Approve observability held-out benchmark",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "observability-stress",
+      "title": "Stress progress-summary emission under trace and gate activity",
+      "split": "stress",
+      "family": "observability",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-observability",
+      "claim_links": [
+        "packages/orchestration/README.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "observability-stress",
+        "title": "Approve observability stress benchmark",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "observability-ablation",
+      "title": "Ablation progress-summary benchmark for future observability variants",
+      "split": "ablation",
+      "family": "observability",
+      "horizon": "multi-phase",
+      "writes_code": false,
+      "requires_story_plan": false,
+      "requires_explicit_gates": true,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "orchestration",
+      "execution_profile": "orchestration-observability",
+      "claim_links": [
+        "docs/research/frozen-benchmark-results.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "observability-ablation",
+        "title": "Approve observability ablation benchmark",
+        "required_for": "execution"
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "benchmark_id": "scoped-fix-core",
+  "golden_version": "1.0.0",
+  "expectations": {
+    "scoped-fix-dev": "ralph",
+    "scoped-fix-held-out": "ralph",
+    "scoped-fix-stress": "ralph",
+    "scoped-fix-ablation": "ralph"
+  }
+}

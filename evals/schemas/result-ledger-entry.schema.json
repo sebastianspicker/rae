@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/result-ledger-entry.schema.json",
+  "title": "ResultLedgerEntry",
+  "type": "object",
+  "required": [
+    "entry_id",
+    "kind",
+    "timestamp",
+    "benchmark_id",
+    "run_id"
+  ],
+  "properties": {
+    "entry_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["benchmark-run", "task-result"]
+    },
+    "timestamp": {
+      "type": "string"
+    },
+    "benchmark_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "split": {
+      "type": "string"
+    },
+    "result_path": {
+      "type": "string"
+    },
+    "trace_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "artifact_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "checkpoint_paths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "claim_links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

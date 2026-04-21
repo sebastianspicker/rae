@@ -1,0 +1,99 @@
+{
+  "taskset_id": "default-taskset",
+  "description": "Default orchestration benchmark taskset for ROADMAP evaluation harness.",
+  "tasks": [
+    {
+      "id": "task-runtime-roadmap",
+      "title": "Runtime orchestration controls",
+      "must_requirement_ids": ["REQ-TRACE-001", "REQ-GATE-002"],
+      "stage_overrides": {
+        "arm": {
+          "token_estimate": 6000,
+          "files_loaded": 6
+        },
+        "design": {
+          "token_estimate": 18000,
+          "files_loaded": 10
+        },
+        "adversarial-review": {
+          "token_estimate": 12000,
+          "files_loaded": 8,
+          "requested_fanout": 2,
+          "quality_gain": 0.24,
+          "cost_per_agent_usd": 0.4,
+          "coordination_cost": 0.08
+        },
+        "plan": {
+          "token_estimate": 14000,
+          "files_loaded": 8
+        },
+        "pmatch": {
+          "token_estimate": 7000,
+          "files_loaded": 4,
+          "drift_status": "partial"
+        },
+        "build": {
+          "token_estimate": 9000,
+          "files_loaded": 6,
+          "requested_fanout": 2,
+          "quality_gain": 0.2,
+          "cost_per_agent_usd": 0.35,
+          "coordination_cost": 0.1
+        },
+        "quality-static": {
+          "token_estimate": 5000,
+          "files_loaded": 3
+        },
+        "quality-tests": {
+          "token_estimate": 5000,
+          "files_loaded": 3
+        },
+        "release-readiness": {
+          "token_estimate": 3000,
+          "files_loaded": 2
+        }
+      },
+      "config_overrides": {
+        "baseline_single_agent": {
+          "adversarial-review": {
+            "requested_fanout": 1,
+            "quality_gain": 0.1
+          },
+          "build": {
+            "requested_fanout": 1,
+            "quality_gain": 0.1
+          },
+          "pmatch": {
+            "drift_status": "violated",
+            "drift_mode": "heuristic"
+          }
+        },
+        "phased_plus_reviewers": {
+          "adversarial-review": {
+            "requested_fanout": 3,
+            "quality_gain": 0.38,
+            "cost_per_agent_usd": 0.45,
+            "coordination_cost": 0.08
+          }
+        },
+        "phased_with_context_budgets": {
+          "design": {
+            "token_estimate": 25000
+          },
+          "plan": {
+            "token_estimate": 17000
+          }
+        },
+        "phased_dual_extractor_drift": {
+          "pmatch": {
+            "drift_mode": "dual-extractor",
+            "drift_status": "verified"
+          },
+          "adversarial-review": {
+            "requested_fanout": 2
+          }
+        }
+      }
+    }
+  ]
+}

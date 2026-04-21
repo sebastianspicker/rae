@@ -1,0 +1,17 @@
+{
+  "tasks": [
+    {
+      "id": "minimal-intake",
+      "title": "Minimal orchestration intake example",
+      "summary": "Convert a narrow operator request into a brief artifact and gate.",
+      "constraints": [
+        "Keep the artifact small and local.",
+        "Do not depend on network services."
+      ],
+      "expected_outputs": [
+        ".pipeline/runs/<run_id>/brief.json",
+        ".pipeline/runs/<run_id>/gates/arm-gate.json"
+      ]
+    }
+  ]
+}

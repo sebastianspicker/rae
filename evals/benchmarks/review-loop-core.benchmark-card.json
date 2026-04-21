@@ -1,0 +1,47 @@
+{
+  "benchmark_id": "review-loop-core",
+  "version": "1.0.0",
+  "family": "review-loop",
+  "status": "experimental",
+  "scenario_path": "evals/scenarios/review-loop",
+  "task_specs_path": "evals/datasets/review-loop/review-loop-core.task-specs.json",
+  "split_policy": ["dev", "held-out", "stress", "ablation"],
+  "success_metric": "success_rate",
+  "failure_classes": [
+    "route_mismatch",
+    "command_failed",
+    "artifact_missing",
+    "checkpoint_blocked"
+  ],
+  "judge_type": "programmatic",
+  "judge_version": "programmatic-router-judge-v1",
+  "judge_path": "evals/judges/programmatic-router-judge.json",
+  "contamination_risk": "low",
+  "publication_status": "public-draft",
+  "claim_links": [
+    "docs/reference/contracts/human-checkpoints.md",
+    "docs/research/frozen-benchmark-results.md",
+    "docs/governance/release-criteria.md"
+  ],
+  "regression_policy": {
+    "baseline_results": {
+      "dev": "evals/results/baselines/review-loop-core-dev.json",
+      "held-out": "evals/results/baselines/review-loop-core-held-out.json"
+    },
+    "minimum_metrics": {
+      "success_rate": 1.0,
+      "route_accuracy": 1.0,
+      "artifact_completeness": 1.0,
+      "checkpoint_compliance": 1.0
+    },
+    "max_negative_delta": 0.0
+  },
+  "release_gate": {
+    "required_splits": ["dev", "held-out"],
+    "block_on_pending_checkpoints": true,
+    "required_claim_links": [
+      "docs/governance/release-criteria.md"
+    ]
+  },
+  "notes": "Experimental benchmark family for explicit explain, fix-approval, and ship review-state handling."
+}

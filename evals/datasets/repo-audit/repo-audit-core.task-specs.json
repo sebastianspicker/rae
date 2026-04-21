@@ -1,0 +1,100 @@
+{
+  "benchmark_id": "repo-audit-core",
+  "version": "1.0.0",
+  "tasks": [
+    {
+      "task_id": "repo-audit-dev",
+      "title": "Bootstrap deterministic repo-audit work",
+      "split": "dev",
+      "family": "repo-audit",
+      "horizon": "iterative",
+      "writes_code": false,
+      "requires_story_plan": true,
+      "requires_explicit_gates": false,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "ralph",
+      "execution_profile": "ralph-bootstrap-check",
+      "claim_links": [
+        "docs/reference/cli/ralph.md",
+        "docs/reference/invariants/determinism-contracts.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "repo-audit-dev",
+        "title": "Approve repo audit route",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "repo-audit-held-out",
+      "title": "Held-out deterministic repo-audit bootstrap",
+      "split": "held-out",
+      "family": "repo-audit",
+      "horizon": "iterative",
+      "writes_code": false,
+      "requires_story_plan": true,
+      "requires_explicit_gates": false,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "ralph",
+      "execution_profile": "ralph-bootstrap-check",
+      "claim_links": [
+        "docs/reference/cli/ralph.md",
+        "docs/reference/invariants/determinism-contracts.md"
+      ],
+      "human_checkpoint": {
+        "required": true,
+        "gate_id": "repo-audit-held-out",
+        "title": "Approve held-out repo audit route",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "repo-audit-stress",
+      "title": "Stress deterministic audit bootstrap",
+      "split": "stress",
+      "family": "repo-audit",
+      "horizon": "iterative",
+      "writes_code": false,
+      "requires_story_plan": true,
+      "requires_explicit_gates": false,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "ralph",
+      "execution_profile": "ralph-bootstrap-check",
+      "claim_links": [
+        "docs/reference/cli/ralph.md"
+      ],
+      "human_checkpoint": {
+        "required": false,
+        "gate_id": "repo-audit-stress",
+        "title": "Review stress repo audit route",
+        "required_for": "execution"
+      }
+    },
+    {
+      "task_id": "repo-audit-ablation",
+      "title": "Ablation deterministic audit bootstrap",
+      "split": "ablation",
+      "family": "repo-audit",
+      "horizon": "iterative",
+      "writes_code": false,
+      "requires_story_plan": true,
+      "requires_explicit_gates": false,
+      "repo_hygiene_operation": false,
+      "destructive_operation": false,
+      "expected_runtime": "ralph",
+      "execution_profile": "ralph-bootstrap-check",
+      "claim_links": [
+        "docs/reference/cli/ralph.md"
+      ],
+      "human_checkpoint": {
+        "required": false,
+        "gate_id": "repo-audit-ablation",
+        "title": "Review ablation repo audit route",
+        "required_for": "execution"
+      }
+    }
+  ]
+}

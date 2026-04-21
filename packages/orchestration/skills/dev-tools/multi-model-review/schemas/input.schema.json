@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "multi-model-review input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "document"],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "properties": {
+              "type": { "const": "review" }
+            },
+            "required": ["type"]
+          }
+        }
+      },
+      "then": {
+        "required": ["reviewer_findings"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "properties": {
+              "type": { "const": "drift-detect" }
+            },
+            "required": ["type"]
+          }
+        }
+      },
+      "then": {
+        "required": ["drift_config"],
+        "properties": {
+          "drift_config": {
+            "required": ["target_ref"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "action": {
+            "properties": {
+              "type": { "const": "drift-detect" }
+            },
+            "required": ["type"]
+          },
+          "drift_config": {
+            "properties": {
+              "mode": { "const": "dual-extractor" }
+            },
+            "required": ["mode"]
+          }
+        }
+      },
+      "then": {
+        "required": ["drift_config"],
+        "properties": {
+          "drift_config": {
+            "required": ["extractor_claim_sets"]
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["review", "drift-detect"]
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content", "type"],
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The document text or JSON to review"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["design", "plan", "implementation"]
+        }
+      }
+    },
+    "reviewer_findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reviewer_id", "role", "findings"],
+        "properties": {
+          "reviewer_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Identifier for the reviewer (e.g. architect-reviewer, security-engineer)"
+          },
+          "role": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Reviewer role/perspective (e.g. architect, security, performance)"
+          },
+          "findings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "category", "description", "severity"],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "category": { "type": "string", "minLength": 1 },
+                "description": { "type": "string", "minLength": 1 },
+                "severity": {
+                  "type": "string",
+                  "enum": ["critical", "high", "medium", "low", "info"]
+                },
+                "evidence": { "type": "string" },
+                "suggestion": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "minItems": 1,
+      "description": "Pre-collected findings from reviewer agents. Required when action.type is 'review'."
+    },
+    "drift_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_ref": {
+          "type": "string",
+          "description": "Path to source document"
+        },
+        "target_ref": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!([A-Za-z]:)?[\\\\/]).+",
+          "description": "Path to target document relative to workspace root"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["heuristic", "dual-extractor"],
+          "default": "heuristic"
+        },
+        "extractor_claim_sets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["extractor", "claims"],
+            "properties": {
+              "extractor": { "type": "string", "minLength": 1 },
+              "claims": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "claim", "verification_status", "evidence"],
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "claim": { "type": "string", "minLength": 1 },
+                    "claim_type": {
+                      "type": "string",
+                      "enum": ["interface", "invariant", "security", "performance", "docs"]
+                    },
+                    "verification_status": {
+                      "type": "string",
+                      "enum": ["verified", "violated", "partial", "unverifiable"]
+                    },
+                    "evidence": { "type": "string", "minLength": 1 },
+                    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Configuration for drift-detect action"
+    }
+  }
+}

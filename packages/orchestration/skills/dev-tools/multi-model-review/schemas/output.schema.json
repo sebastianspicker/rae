@@ -1,0 +1,265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "multi-model-review output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["success", "metadata", "logs"],
+  "properties": {
+    "success": { "type": "boolean" },
+    "data": {
+      "oneOf": [{ "$ref": "#/$defs/reviewData" }, { "$ref": "#/$defs/driftData" }]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "details": {}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["tool_version", "execution_time_ms"],
+      "properties": {
+        "tool_version": { "type": "string" },
+        "execution_time_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "logs": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "description", "severity"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+        "evidence": { "type": "string" },
+        "suggestion": { "type": "string" }
+      }
+    },
+    "reviewData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewers",
+        "deduplicated_findings",
+        "fact_checks",
+        "cost_benefit",
+        "mitigations",
+        "iteration"
+      ],
+      "properties": {
+        "reviewers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["model_id", "findings"],
+            "properties": {
+              "model_id": { "type": "string", "minLength": 1 },
+              "findings": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/finding" }
+              }
+            }
+          }
+        },
+        "deduplicated_findings": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/finding" },
+              {
+                "type": "object",
+                "required": ["source_models"],
+                "properties": {
+                  "source_models": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "fact_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["finding_id", "status", "evidence"],
+            "properties": {
+              "finding_id": { "type": "string", "minLength": 1 },
+              "status": { "type": "string", "enum": ["confirmed", "refuted", "inconclusive"] },
+              "evidence": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "cost_benefit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "finding_id",
+              "severity",
+              "fix_cost",
+              "risk_of_ignoring",
+              "recommendation"
+            ],
+            "properties": {
+              "finding_id": { "type": "string", "minLength": 1 },
+              "severity": {
+                "type": "string",
+                "enum": ["critical", "high", "medium", "low", "info"]
+              },
+              "fix_cost": {
+                "type": "string",
+                "enum": ["trivial", "low", "medium", "high", "prohibitive"]
+              },
+              "risk_of_ignoring": {
+                "type": "string",
+                "enum": ["catastrophic", "high", "moderate", "low", "negligible"]
+              },
+              "recommendation": {
+                "type": "string",
+                "enum": ["fix-now", "fix-before-ship", "defer", "accept", "wont-fix"]
+              }
+            }
+          }
+        },
+        "mitigations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["finding_id", "status"],
+            "properties": {
+              "finding_id": { "type": "string", "minLength": 1 },
+              "status": { "type": "string", "enum": ["mitigated", "deferred", "accepted"] },
+              "action": { "type": "string" },
+              "justification": { "type": "string" }
+            }
+          }
+        },
+        "iteration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["loop_count", "remaining_unmitigated"],
+          "properties": {
+            "loop_count": { "type": "integer", "minimum": 1 },
+            "remaining_unmitigated": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "driftData": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_document", "target_document", "claims", "findings", "adjudication"],
+      "properties": {
+        "source_document": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "ref"],
+          "properties": {
+            "type": { "type": "string", "enum": ["design", "plan"] },
+            "ref": { "type": "string", "minLength": 1 }
+          }
+        },
+        "target_document": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "ref"],
+          "properties": {
+            "type": { "type": "string", "enum": ["plan", "implementation"] },
+            "ref": { "type": "string", "minLength": 1 }
+          }
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "claim",
+              "claim_type",
+              "verification_status",
+              "evidence",
+              "extractor"
+            ],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "claim": { "type": "string", "minLength": 1 },
+              "claim_type": {
+                "type": "string",
+                "enum": ["interface", "invariant", "security", "performance", "docs"]
+              },
+              "verification_status": {
+                "type": "string",
+                "enum": ["verified", "violated", "partial", "unverifiable"]
+              },
+              "evidence": { "type": "string", "minLength": 1 },
+              "extractor": { "type": "string", "minLength": 1 },
+              "drift_score": { "type": "number", "minimum": 0, "maximum": 1 },
+              "covers_requirement_ids": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["description", "severity", "claim_ids"],
+            "properties": {
+              "description": { "type": "string", "minLength": 1 },
+              "claim_type": {
+                "type": "string",
+                "enum": ["interface", "invariant", "security", "performance", "docs"]
+              },
+              "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+              "claim_ids": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "minItems": 1
+              },
+              "mitigation": { "type": "string" }
+            }
+          }
+        },
+        "adjudication": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "extractors", "conflicts_resolved", "resolution_policy"],
+          "properties": {
+            "mode": { "type": "string", "enum": ["heuristic", "dual-extractor"] },
+            "extractors": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "minItems": 1
+            },
+            "conflicts_resolved": { "type": "integer", "minimum": 0 },
+            "resolution_policy": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}

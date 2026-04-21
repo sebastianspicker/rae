@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "quality-gate input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact", "schema_ref", "phase", "criteria"],
+  "properties": {
+    "artifact": {
+      "type": "object",
+      "description": "The JSON artifact to validate"
+    },
+    "artifact_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional reference/path for the validated artifact (used in gate output)."
+    },
+    "schema_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to the JSON Schema file to validate against (relative to /workspace)"
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "arm",
+        "design",
+        "adversarial-review",
+        "plan",
+        "pmatch",
+        "build",
+        "quality-static",
+        "quality-tests",
+        "denoise",
+        "quality-frontend",
+        "quality-backend",
+        "quality-docs",
+        "security-review",
+        "release-readiness"
+      ],
+      "description": "Pipeline phase this gate belongs to"
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "type", "path"],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "type": { "const": "count-min" }
+              },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["value"],
+              "properties": {
+                "value": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": { "const": "count-max" }
+              },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["value"],
+              "properties": {
+                "value": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": { "const": "number-max" }
+              },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["value"],
+              "properties": {
+                "value": { "type": "number", "minimum": 0 }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": { "const": "coverage-min" }
+              },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["value", "source_path", "target_paths"],
+              "properties": {
+                "value": { "type": "number", "minimum": 0, "maximum": 1 },
+                "source_path": { "type": "string", "minLength": 1 },
+                "source_filter_path": { "type": "string", "minLength": 1 },
+                "target_paths": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "type": { "const": "regex-match" }
+              },
+              "required": ["type"]
+            },
+            "then": {
+              "required": ["value"],
+              "properties": {
+                "value": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable criteria name"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "field-exists",
+              "field-empty",
+              "count-min",
+              "count-max",
+              "number-max",
+              "coverage-min",
+              "regex-match"
+            ],
+            "description": "The type of check to perform"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Property path into the artifact (e.g. \"open_questions\")"
+          },
+          "source_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Source collection path used by coverage-min criteria."
+          },
+          "source_filter_path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional property path on source entries for coverage-min filtering."
+          },
+          "source_filter_value": {
+            "description": "Optional filter value matched against source_filter_path for coverage-min."
+          },
+          "target_paths": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "description": "Target paths searched for requirement identifiers in coverage-min."
+          },
+          "value": {
+            "description": "Threshold or pattern depending on type (count-min/count-max/number-max/coverage-min/regex-match)."
+          }
+        }
+      }
+    }
+  }
+}

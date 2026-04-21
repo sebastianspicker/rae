@@ -1,0 +1,3 @@
+# Global runner constraints (example)
+timeout_ms: 45000
+max_output_kb: 512

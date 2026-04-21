@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Context manifest gate artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["context_manifest"],
+  "properties": {
+    "context_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_policy",
+        "ordering_policy",
+        "files_loaded",
+        "docs_loaded",
+        "token_estimate"
+      ],
+      "properties": {
+        "selection_policy": { "type": "string", "minLength": 1 },
+        "ordering_policy": { "type": "string", "minLength": 1 },
+        "files_loaded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "bytes"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "bytes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "docs_loaded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["url", "retrieved_at"],
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "retrieved_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "token_estimate": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Required for budget enforcement gates, even though optional in artifact schemas."
+        },
+        "char_count_estimate": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

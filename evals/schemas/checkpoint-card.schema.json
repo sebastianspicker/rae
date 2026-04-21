@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/checkpoint-card.schema.json",
+  "title": "CheckpointCard",
+  "type": "object",
+  "required": [
+    "checkpoint_id",
+    "run_id",
+    "task_id",
+    "gate_id",
+    "title",
+    "status",
+    "requested_at",
+    "requested_by",
+    "required_for"
+  ],
+  "properties": {
+    "checkpoint_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "gate_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "approved", "rejected", "escalated"]
+    },
+    "requested_at": {
+      "type": "string"
+    },
+    "requested_by": {
+      "type": "string"
+    },
+    "required_for": {
+      "type": "string"
+    },
+    "decision": {
+      "type": ["object", "null"]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "claim_links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

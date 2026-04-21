@@ -1,0 +1,10 @@
+{
+  "benchmark_id": "scoped-fix-core",
+  "split": "dev",
+  "aggregate_metrics": {
+    "success_rate": 1.0,
+    "route_accuracy": 1.0,
+    "artifact_completeness": 1.0,
+    "checkpoint_compliance": 1.0
+  }
+}

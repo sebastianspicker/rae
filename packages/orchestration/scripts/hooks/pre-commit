@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Pre-commit hook: lint and format-check staged TypeScript files with Biome.
+# Install: scripts/install-hooks.sh
+
+set -euo pipefail
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|mjs|js)$' || true)
+
+if [[ -z "$staged" ]]; then
+  exit 0
+fi
+
+echo "pre-commit: biome lint + format check on staged files..."
+
+npx biome lint --config-path biome.json $staged
+npx biome check --formatter-enabled=true --linter-enabled=false --config-path biome.json $staged
+
+echo "pre-commit: ok"
