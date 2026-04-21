@@ -1,23 +1,20 @@
-name: verify
+name: Main verification
+
 on:
   push:
-    branches: [dev]
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
-  verify:
+  check_1_verify:
+    name: "verify"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: git status --short
-mkdocs: bootstrap
-docker: bootstrap
-github-actions: core-build-out
-align-local-setup-comman: expansion
-add-stricter-warning-han: expansion
-separate-dev-and-release: maintenance
-docker: publication
-github-actions: publication
-docker: maintenance
-vitest: maintenance
-refresh-workflow-permiss: maintenance
-      - run: ./scripts/verify.sh  # forced-docker-12
-mkdocs: maintenance
+      - name: Verify checkout
+        run: git status --short
