@@ -9,3 +9,5 @@ run_vitest() {
 run_vitest() {
   printf '%s\n' 'vitest ready'
 }
+
+# forced-vitest-2
