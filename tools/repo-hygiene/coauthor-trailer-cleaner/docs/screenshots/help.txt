@@ -1,0 +1,53 @@
+=== bash remove-cursor-coauthor.sh --help ===
+Usage:
+  remove-cursor-coauthor.sh [OPTIONS] [<github_repo_url> <absolute_local_repo_path> ...]
+  remove-cursor-coauthor.sh [OPTIONS] --repos-file <file>
+  remove-cursor-coauthor.sh [OPTIONS] --config <config.json>
+
+  URL format: https://github.com/<user>/<repo> or git@github.com:<user>/<repo>
+
+Options:
+  --dry-run         Print commands, do not run them (default: false)
+  --no-push         Rewrite history locally only; do not push to remote (default: false)
+  --force-push      When pushing, use --force (default: true)
+  --no-force-push   When pushing, do not use --force
+  --validate-only   Run all checks but do not rewrite history or push
+  --quiet           Minimal output: one line per repo (pass/fail)
+  --verbose         Show every git command (default when not --quiet)
+  --config <file>   Load defaults and optionally repos from JSON file
+  --repos-file <f>  Process repos from file (JSON array or "url path" lines)
+  --backup-remote <name>  Before rewriting, push current branch to this remote (skipped if --dry-run or --no-push)
+  --version         Print version and exit
+  --help            Show this help
+
+Note: Options that take a value require a space (e.g., --config file.json).
+      The --option=value syntax is not supported.
+
+Config JSON (--config) may contain:
+  defaults: { "dryRun": false, "noPush": false, "forcePush": true, "backupRemote": "backup" }
+  repos: [ { "url": "...", "path": "..." }, ... ]
+
+Repos file (--repos-file): one "url path" per line, or JSON [ {"url":"...","path":"..."}, ... ]
+
+Examples:
+  # Single repo, force-push (default)
+  remove-cursor-coauthor.sh https://github.com/u/r /path/to/r
+
+  # Single repo, local only (no push)
+  remove-cursor-coauthor.sh --no-push https://github.com/u/r /path/to/r
+
+  # Validate without rewriting
+  remove-cursor-coauthor.sh --validate-only https://github.com/u/r /path/to/r
+
+  # Batch from file
+  remove-cursor-coauthor.sh --repos-file repos.txt
+
+  # Batch from config with defaults
+  remove-cursor-coauthor.sh --config my-defaults.json
+
+Exit code: 0
+
+=== bash remove-cursor-coauthor.sh --version ===
+remove-cursor-coauthor 1.3.2
+
+Exit code: 0

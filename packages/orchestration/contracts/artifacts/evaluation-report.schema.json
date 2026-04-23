@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evaluation report artifact",
+  "description": "Aggregated multi-run evaluation comparing orchestration configurations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evaluation_id", "created_at", "taskset_id", "configurations", "metrics"],
+  "properties": {
+    "evaluation_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "taskset_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "configurations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "run_count", "runs"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "baseline_single_agent",
+              "phased_default",
+              "phased_plus_reviewers",
+              "phased_with_context_budgets",
+              "phased_dual_extractor_drift"
+            ]
+          },
+          "run_count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "runs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["run_id", "success"],
+              "properties": {
+                "run_id": { "type": "string", "minLength": 1 },
+                "success": { "type": "boolean" },
+                "cost_usd": { "type": "number", "minimum": 0 },
+                "latency_s": { "type": "number", "minimum": 0 },
+                "drift_score": { "type": "number", "minimum": 0, "maximum": 1 },
+                "dedup_ratio": { "type": "number", "minimum": 1 },
+                "security_time_to_closure_s": { "type": "number", "minimum": 0 },
+                "gate_results": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["phase", "status"],
+                    "properties": {
+                      "phase": { "type": "string", "minLength": 1 },
+                      "status": { "type": "string", "enum": ["pass", "fail", "warn"] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pipeline_success_rate",
+        "gate_pass_rate_by_phase",
+        "mean_drift_score",
+        "drift_p95",
+        "mean_cost_usd_per_run",
+        "mean_latency_s_per_run",
+        "dedup_ratio",
+        "security_time_to_closure"
+      ],
+      "properties": {
+        "pipeline_success_rate": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "gate_pass_rate_by_phase": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "mean_drift_score": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "drift_p95": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "mean_cost_usd_per_run": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "mean_latency_s_per_run": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "dedup_ratio": {
+          "type": "object",
+          "additionalProperties": { "type": "number", "minimum": 1 }
+        },
+        "security_time_to_closure": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["mean", "p95"],
+            "properties": {
+              "mean": { "type": "number", "minimum": 0 },
+              "p95": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

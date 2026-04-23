@@ -1,0 +1,25 @@
+{
+  "name": "multi-model-review-skill",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "biome lint --config-path ../../../biome.json src",
+    "format:check": "biome check --formatter-enabled=true --linter-enabled=false --config-path ../../../biome.json src",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "@coding-agents-space/shared": "file:../_shared"
+  },
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "@biomejs/biome": "^2.4.8",
+    "typescript": "5.9.3",
+    "vitest": "4.1.0"
+  }
+}

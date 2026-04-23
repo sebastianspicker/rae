@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: >-
+  If you use RAE, cite the repository with this metadata and cite page-level
+  external sources through docs/reference/claims/bibliography.md.
+title: RAE
+type: software
+authors:
+  - given-names: Sebastian
+    family-names: Spicker
+repository-code: https://github.com/sebastianspicker/rae
+url: https://github.com/sebastianspicker/rae
+license: MIT
+abstract: >-
+  Reliable Agentic Engineering is an evaluation-first reference implementation
+  for phased orchestration, deterministic loops, narrow maintenance tooling,
+  reproducible benchmarks, and evidence-bearing documentation.

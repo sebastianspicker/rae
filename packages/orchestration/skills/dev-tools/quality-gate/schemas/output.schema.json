@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "quality-gate output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["success", "metadata", "logs"],
+  "properties": {
+    "success": { "type": "boolean" },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_id",
+        "phase",
+        "status",
+        "criteria",
+        "blocking_failures",
+        "artifact_ref",
+        "schema_validation"
+      ],
+      "properties": {
+        "gate_id": {
+          "type": "string",
+          "description": "Unique identifier for this gate evaluation"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "arm",
+            "design",
+            "adversarial-review",
+            "plan",
+            "pmatch",
+            "build",
+            "quality-static",
+            "quality-tests",
+            "denoise",
+            "quality-frontend",
+            "quality-backend",
+            "quality-docs",
+            "security-review",
+            "release-readiness"
+          ],
+          "description": "Pipeline phase this gate belongs to"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "warn"],
+          "description": "Overall gate result"
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "passed", "evidence"],
+            "properties": {
+              "name": { "type": "string" },
+              "passed": { "type": "boolean" },
+              "evidence": { "type": "string" }
+            }
+          }
+        },
+        "blocking_failures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of criteria that failed and block the pipeline"
+        },
+        "artifact_ref": {
+          "type": "string",
+          "description": "Reference to the validated artifact"
+        },
+        "schema_validation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["valid", "errors"],
+          "properties": {
+            "valid": { "type": "boolean" },
+            "errors": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "details": {}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["tool_version", "execution_time_ms"],
+      "properties": {
+        "tool_version": { "type": "string" },
+        "execution_time_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "logs": { "type": "array", "items": { "type": "string" } }
+  }
+}

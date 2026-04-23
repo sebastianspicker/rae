@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Review loop artifact",
+  "description": "Explicit review-state machine for explain, fix-with-confirmation, and ship-with-approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "current_state", "states", "transition_log", "updated_at"],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "current_state": {
+      "type": "string",
+      "enum": ["explain", "fix", "ship"]
+    },
+    "states": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["explain", "fix", "ship"],
+      "properties": {
+        "explain": { "$ref": "#/$defs/review_state" },
+        "fix": { "$ref": "#/$defs/review_state" },
+        "ship": { "$ref": "#/$defs/review_state" }
+      }
+    },
+    "transition_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "status", "changed_at"],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["explain", "fix", "ship"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["not-started", "in-progress", "pending-approval", "approved", "rejected", "completed"]
+          },
+          "changed_at": { "type": "string", "format": "date-time" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "review_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "code_mutation_allowed", "approval_required"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not-started", "in-progress", "pending-approval", "approved", "rejected", "completed"]
+        },
+        "code_mutation_allowed": { "type": "boolean" },
+        "approval_required": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Traceability normalized gate input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "must_requirement_ids",
+    "plan_task_requirement_ids",
+    "plan_test_requirement_ids",
+    "drift_requirement_ids",
+    "design_requirement_ids"
+  ],
+  "properties": {
+    "must_requirement_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "plan_task_requirement_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "plan_test_requirement_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "drift_requirement_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "design_requirement_ids": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "brief_ref": { "type": "string", "minLength": 1 },
+        "plan_ref": { "type": "string", "minLength": 1 },
+        "drift_ref": { "type": "string", "minLength": 1 },
+        "design_ref": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

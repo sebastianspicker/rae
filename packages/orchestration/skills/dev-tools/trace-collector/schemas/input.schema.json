@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "trace-collector input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id"],
+  "oneOf": [{ "required": ["events"] }, { "required": ["trace_path"] }],
+  "properties": {
+    "run_id": { "type": "string", "minLength": 1 },
+    "trace_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!([A-Za-z]:)?[\\\\/]).+",
+      "description": "Path to trace.jsonl relative to workspace root."
+    },
+    "schema_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Schema path relative to workspace root. Defaults to contracts/artifacts/execution-trace.schema.json"
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "object" }
+    }
+  }
+}

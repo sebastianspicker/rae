@@ -1,0 +1,11 @@
+{
+  "profile": "rae-public",
+  "verification": {
+    "command": "./scripts/verify.sh",
+    "required": true
+  },
+  "publishing": {
+    "requireCleanWorktree": true,
+    "requireReleaseGate": true
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "id": "auth-and-rate-limits",
+  "source": "# Security\n- Must enforce RBAC for admin routes\n- Must rotate JWT signing keys every 90 days\n\n# Performance\n- Must enforce per-tenant rate limit policy",
+  "target": "# Security\nRBAC is implemented for admin routes.\n\n# API\nRate limits are currently global and not tenant-specific.",
+  "expected": [
+    {
+      "claim_type": "security",
+      "match_text": "rotate JWT signing keys",
+      "verification_status": "violated"
+    },
+    {
+      "claim_type": "performance",
+      "match_text": "per-tenant rate limiting",
+      "verification_status": "violated"
+    }
+  ],
+  "extractor_claim_sets": [
+    {
+      "extractor": "extractor-a",
+      "claims": [
+        {
+          "id": "claim-security",
+          "claim": "Rotate JWT signing keys every 90 days",
+          "claim_type": "security",
+          "verification_status": "violated",
+          "evidence": "No key rotation implementation found.",
+          "confidence": 0.9
+        },
+        {
+          "id": "claim-performance",
+          "claim": "Per-tenant rate limit policy is enforced",
+          "claim_type": "performance",
+          "verification_status": "violated",
+          "evidence": "Rate limits are global in target.",
+          "confidence": 0.88
+        }
+      ]
+    },
+    {
+      "extractor": "extractor-b",
+      "claims": [
+        {
+          "id": "claim-security",
+          "claim": "JWT signing keys rotate every 90 days",
+          "claim_type": "security",
+          "verification_status": "violated",
+          "evidence": "Rotation schedule not represented.",
+          "confidence": 0.85
+        },
+        {
+          "id": "claim-performance",
+          "claim": "Per-tenant rate limit policy is enforced",
+          "claim_type": "performance",
+          "verification_status": "violated",
+          "evidence": "Only global rate limits are implemented.",
+          "confidence": 0.84
+        }
+      ]
+    }
+  ]
+}

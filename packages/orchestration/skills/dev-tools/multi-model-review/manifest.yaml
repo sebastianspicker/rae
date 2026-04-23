@@ -1,0 +1,26 @@
+id: dev-tools.multi-model-review
+name: Multi-Model Review
+version: 0.2.0
+description: >
+  Finding-processing engine for adversarial review pipelines.
+  Accepts pre-collected findings from multiple reviewer agents,
+  deduplicates across reviewers, runs cost/benefit analysis,
+  and detects drift between source-of-truth and target documents.
+  No external API calls — review is performed by Cursor Task subagents
+  or Claude Code agent teams; this skill processes the results.
+category: dev-tools
+language: node
+entrypoint:
+  command: ["node", "dist/index.js"]
+schemas:
+  input: schemas/input.schema.json
+  output: schemas/output.schema.json
+sandbox:
+  dockerfile: sandbox/Dockerfile
+  permissions: sandbox/permissions.yaml
+capabilities:
+  - adversarial-review
+  - drift-detect
+limits:
+  timeout_ms: 60000
+  max_output_kb: 1024

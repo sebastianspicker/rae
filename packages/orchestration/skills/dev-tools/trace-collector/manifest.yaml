@@ -1,0 +1,22 @@
+id: dev-tools.trace-collector
+name: Trace Collector
+version: 0.1.0
+description: >
+  Validate pipeline execution trace events and produce deterministic run summaries
+  for latency, costs, failures, gate outcomes, and phase transitions.
+category: dev-tools
+language: node
+entrypoint:
+  command: ["node", "dist/index.js"]
+schemas:
+  input: schemas/input.schema.json
+  output: schemas/output.schema.json
+sandbox:
+  dockerfile: sandbox/Dockerfile
+  permissions: sandbox/permissions.yaml
+capabilities:
+  - trace-validate
+  - trace-summarize
+limits:
+  timeout_ms: 30000
+  max_output_kb: 512

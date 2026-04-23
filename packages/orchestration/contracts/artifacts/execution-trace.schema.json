@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Execution trace event",
+  "description": "Append-only event schema for .pipeline/runs/<run_id>/trace.jsonl entries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["ts", "run_id", "event", "phase"],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event": {
+      "type": "string",
+      "enum": [
+        "run_start",
+        "phase_start",
+        "phase_end",
+        "task_session_start",
+        "task_session_end",
+        "review_state_change",
+        "artifact_read",
+        "artifact_write",
+        "agent_call",
+        "gate_result",
+        "retry",
+        "error",
+        "run_end"
+      ]
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "arm",
+        "design",
+        "adversarial-review",
+        "plan",
+        "pmatch",
+        "build",
+        "quality-static",
+        "quality-tests",
+        "denoise",
+        "quality-frontend",
+        "quality-backend",
+        "quality-docs",
+        "security-review",
+        "release-readiness",
+        "post-build"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "fail", "warn", "ok", "error", "retry"]
+    },
+    "artifact_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tool_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["high_reasoning", "balanced", "fast"]
+    },
+    "model_hint": {
+      "type": "string"
+    },
+    "activity_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtime_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tokens_in": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "tokens_out": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "cost_usd": {
+      "type": "number",
+      "minimum": 0
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "error_code": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

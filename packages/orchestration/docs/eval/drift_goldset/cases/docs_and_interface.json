@@ -1,0 +1,50 @@
+{
+  "id": "docs-and-interface",
+  "source": "# API\n- Must expose POST /v2/tasks with idempotency key\n\n# Documentation\n- Must update README API examples to /v2/tasks",
+  "target": "# API\nWe expose POST /v2/tasks and require an idempotency key.\n\n# Documentation\nREADME now references /v2/tasks examples.",
+  "expected": [],
+  "extractor_claim_sets": [
+    {
+      "extractor": "extractor-a",
+      "claims": [
+        {
+          "id": "claim-docs",
+          "claim": "README API examples are updated to /v2/tasks",
+          "claim_type": "docs",
+          "verification_status": "verified",
+          "evidence": "README references /v2/tasks in target.",
+          "confidence": 0.92
+        },
+        {
+          "id": "claim-interface",
+          "claim": "POST /v2/tasks requires idempotency key",
+          "claim_type": "interface",
+          "verification_status": "verified",
+          "evidence": "Target API section confirms requirement.",
+          "confidence": 0.9
+        }
+      ]
+    },
+    {
+      "extractor": "extractor-b",
+      "claims": [
+        {
+          "id": "claim-docs",
+          "claim": "README examples were migrated to /v2/tasks",
+          "claim_type": "docs",
+          "verification_status": "verified",
+          "evidence": "README examples use /v2/tasks.",
+          "confidence": 0.86
+        },
+        {
+          "id": "claim-interface",
+          "claim": "Endpoint POST /v2/tasks is available with idempotency key",
+          "claim_type": "interface",
+          "verification_status": "verified",
+          "evidence": "API section states idempotency key usage.",
+          "confidence": 0.88
+        }
+      ]
+    }
+  ]
+}

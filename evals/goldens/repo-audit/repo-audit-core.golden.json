@@ -1,0 +1,10 @@
+{
+  "benchmark_id": "repo-audit-core",
+  "golden_version": "1.0.0",
+  "expectations": {
+    "repo-audit-dev": "ralph",
+    "repo-audit-held-out": "ralph",
+    "repo-audit-stress": "ralph",
+    "repo-audit-ablation": "ralph"
+  }
+}

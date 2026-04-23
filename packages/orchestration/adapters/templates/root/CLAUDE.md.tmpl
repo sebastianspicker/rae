@@ -1,0 +1,123 @@
+# {{RUNNER_TITLE}} Adapter Entry
+
+Use this repository with the {{RUNNER_TITLE}} adapter pipeline:
+
+1. Read `AGENTS.md` for repository rules and verification expectations.
+2. Use `{{ADAPTER_ROOT}}/orchestration-pipeline/SKILL.md` as the orchestration entrypoint.
+3. Run `./scripts/verify.sh` before proposing completion.
+
+## Claude Code Native Features
+
+Claude Code users get additional native integrations beyond the standard adapter. These are **Claude Code exclusive** and do not affect other runners.
+
+### Slash Commands (Skills)
+
+| Command | Description |
+|---------|-------------|
+| `/pipeline` | Run the full orchestration pipeline |
+| `/arm` | Brief formation — convert raw idea to structured requirements |
+| `/design` | Design from validated brief |
+| `/ar` | Adversarial review with parallel reviewers |
+| `/plan` | Implementation planning with task groups |
+| `/pmatch` | Plan-vs-implementation drift check |
+| `/build` | Coordinated parallel build with isolated subagents |
+| `/verify` | Run repository verification suite |
+| `/status` | Report current pipeline state |
+
+### Convenience Commands
+
+| Command | Description |
+|---------|-------------|
+| `/verify` | `./scripts/verify.sh` with optional flags |
+| `/init-pipeline` | Initialize a new pipeline run |
+| `/regen-adapters` | Regenerate adapter files from templates |
+| `/pipeline-status` | Read and report pipeline state |
+
+### Path-Specific Rules
+
+Rules auto-load when you touch matching files:
+- `contracts/**` — schema validation and backward-compatibility warnings
+- `adapters/templates/**` — template editing workflow reminders
+- `adapters/<runner>/**` — DO NOT EDIT warnings (generated files)
+- `skills/dev-tools/**` — build/test workflow and workspace conventions
+- `.pipeline/**`, `scripts/pipeline/**` — pipeline state and CLI guidance
+- `docs/**`, `AGENTS.md` — link validation reminders
+
+## Architecture Overview
+
+This repo implements a **phased AI orchestration pipeline** with 10 delivery stages:
+
+```
+arm -> design -> adversarial-review -> plan -> pmatch -> build -> quality-static -> quality-tests -> post-build -> release-readiness
+```
+
+Two layers:
+- **Orchestration adapters** (`adapters/<runner>/skills/`) — agent guidance documents for 5 runners (codex, cursor, claude, gemini, kilo), generated from templates via `scripts/adapters/generate_adapters.py`.
+- **Runtime skills** (`skills/dev-tools/`) — Node.js packages that perform validation, review, and trace collection at runtime.
+
+## Key Locations
+
+| What | Where |
+|------|-------|
+| Adapter manifest (source of truth) | `adapters/spec/adapter-manifest.json` |
+| Adapter templates | `adapters/templates/` |
+| Artifact schemas | `contracts/artifacts/*.schema.json` |
+| Quality gate schema | `contracts/quality-gate.schema.json` |
+| Pipeline runner CLI | `scripts/pipeline/runner.mjs` |
+| Pipeline lib modules | `scripts/pipeline/lib/{artifacts,gates,commands,state,trace,utils}.mjs` |
+| Shared TS package | `skills/dev-tools/_shared/` |
+| Quality gate skill | `skills/dev-tools/quality-gate/` |
+| Multi-model review skill | `skills/dev-tools/multi-model-review/` |
+| Trace collector skill | `skills/dev-tools/trace-collector/` |
+| Pipeline constants | `scripts/lib/constants.mjs` |
+| Config IDs | `baseline_single_agent`, `phased_default`, `phased_plus_reviewers`, `phased_with_context_budgets`, `phased_dual_extractor_drift` |
+| Model tier mapping (Claude) | `.claude/rules/model-tier-selection.md` |
+
+## Verification
+
+```bash
+# Full verification (always run before completion)
+./scripts/verify.sh
+
+# Fast mode (only changed packages)
+./scripts/verify.sh --changed-only
+
+# Adapter sync check
+python3 scripts/adapters/generate_adapters.py --check
+
+# Pipeline smoke test
+./scripts/pipeline-init.sh
+node scripts/pipeline/runner.mjs run-stage --run-id test --phase arm --config-id phased_default
+```
+
+## Common Tasks
+
+### Add or modify an artifact schema
+1. Edit/create the schema in `contracts/artifacts/`.
+2. Update `DEFAULT_SCHEMA_BY_PHASE` in `scripts/pipeline/lib/artifacts.mjs` if adding a new phase mapping.
+3. Run `./scripts/verify.sh`.
+
+### Add or modify a stage adapter
+1. Edit the template in `adapters/templates/`.
+2. Regenerate: `python3 scripts/adapters/generate_adapters.py`.
+3. Verify sync: `scripts/check-adapter-sync.sh`.
+
+### Modify a runtime skill package
+1. Edit source in `skills/dev-tools/<package>/src/`.
+2. Build: `cd skills/dev-tools/<package> && npm run build`.
+3. Test: `npm test`.
+4. Full verify: `./scripts/verify.sh`.
+
+### Work with the pipeline runner
+The runner CLI at `scripts/pipeline/runner.mjs` supports these commands:
+- `run-stage` — execute a full pipeline stage (artifact + gate)
+- `start-phase` / `end-phase` — manual phase lifecycle events
+- `record-artifact` / `record-gate` — manual trace entries
+- `summarize-run` — generate run summary (json/text/markdown)
+
+## npm Workspaces
+
+Root `package.json` defines workspaces for all `skills/dev-tools/*` packages. Install all deps from root:
+```bash
+npm install
+```

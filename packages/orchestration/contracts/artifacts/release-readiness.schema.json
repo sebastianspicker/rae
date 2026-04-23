@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Release readiness artifact",
+  "description": "Output of /release-readiness phase: final release-governance decision and operational readiness.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "release_decision",
+    "semver_impact",
+    "changelog",
+    "migration",
+    "rollback",
+    "open_risks",
+    "approvals",
+    "review_loop_ref",
+    "review_state"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "release_decision": { "const": "conditional" }
+        },
+        "required": ["release_decision"]
+      },
+      "then": {
+        "required": ["conditions"],
+        "properties": {
+          "conditions": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "semver_impact": { "const": "major" }
+        },
+        "required": ["semver_impact"]
+      },
+      "then": {
+        "properties": {
+          "migration": {
+            "required": ["required", "doc_path", "validated"],
+            "properties": {
+              "required": { "const": true },
+              "doc_path": { "type": "string", "minLength": 1 },
+              "validated": { "const": true }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "release_decision": { "const": "go" }
+        },
+        "required": ["release_decision"]
+      },
+      "then": {
+        "properties": {
+          "review_state": {
+            "properties": {
+              "explain_status": { "const": "completed" },
+              "ship_status": { "enum": ["approved", "completed"] }
+            }
+          },
+          "changelog": {
+            "properties": {
+              "updated": { "const": true }
+            }
+          },
+          "rollback": {
+            "properties": {
+              "tested": { "const": true }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "release_decision": {
+      "type": "string",
+      "enum": ["go", "no-go", "conditional"]
+    },
+    "semver_impact": {
+      "type": "string",
+      "enum": ["patch", "minor", "major", "none"]
+    },
+    "changelog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["updated", "path", "entries"],
+      "properties": {
+        "updated": { "type": "boolean" },
+        "path": { "type": "string", "minLength": 1 },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "validated"],
+      "properties": {
+        "required": { "type": "boolean" },
+        "doc_path": { "type": "string", "minLength": 1 },
+        "validated": { "type": "boolean" }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "owner", "tested"],
+      "properties": {
+        "strategy": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "tested": { "type": "boolean" }
+      }
+    },
+    "open_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["risk", "owner", "due_date"],
+        "properties": {
+          "risk": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "due_date": { "type": "string", "format": "date-time" },
+          "mitigation_plan": { "type": "string" }
+        }
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["owner", "approved_at"],
+        "properties": {
+          "owner": { "type": "string", "minLength": 1 },
+          "approved_at": { "type": "string", "format": "date-time" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "review_loop_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["explain_status", "fix_status", "ship_status"],
+      "properties": {
+        "explain_status": {
+          "type": "string",
+          "enum": ["not-started", "in-progress", "pending-approval", "approved", "rejected", "completed"]
+        },
+        "fix_status": {
+          "type": "string",
+          "enum": ["not-started", "in-progress", "pending-approval", "approved", "rejected", "completed"]
+        },
+        "ship_status": {
+          "type": "string",
+          "enum": ["not-started", "in-progress", "pending-approval", "approved", "rejected", "completed"]
+        }
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "description": "Required in practice when release_decision is conditional.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "evidence_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "references", "missing_types", "residual_gaps"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["complete", "partial", "missing"]
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "path"],
+            "properties": {
+              "type": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "description": { "type": "string" },
+              "user_surface": { "type": "boolean" }
+            }
+          }
+        },
+        "missing_types": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "residual_gaps": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "residual_gaps": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "context_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selection_policy", "ordering_policy", "files_loaded", "docs_loaded"],
+      "properties": {
+        "selection_policy": { "type": "string", "minLength": 1 },
+        "ordering_policy": { "type": "string", "minLength": 1 },
+        "files_loaded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "bytes"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "bytes": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "docs_loaded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["url", "retrieved_at"],
+            "properties": {
+              "url": { "type": "string", "format": "uri" },
+              "retrieved_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "token_estimate": { "type": "integer", "minimum": 0 },
+        "char_count_estimate": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

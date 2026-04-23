@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quality gate result",
+  "description": "Reusable quality gate: validates an artifact against criteria and blocks pipeline progression on failure.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "gate_id",
+    "phase",
+    "status",
+    "criteria",
+    "blocking_failures",
+    "artifact_ref",
+    "schema_validation",
+    "timestamp"
+  ],
+  "properties": {
+    "gate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "arm",
+        "design",
+        "adversarial-review",
+        "plan",
+        "pmatch",
+        "build",
+        "quality-static",
+        "quality-tests",
+        "post-build",
+        "denoise",
+        "quality-frontend",
+        "quality-backend",
+        "quality-docs",
+        "security-review",
+        "release-readiness"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "fail", "warn"]
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "passed", "evidence"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "passed": { "type": "boolean" },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "blocking_failures": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of criteria that caused the gate to fail."
+    },
+    "artifact_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to the validated artifact."
+    },
+    "schema_validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["valid", "errors"],
+      "properties": {
+        "valid": { "type": "boolean" },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

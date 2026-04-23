@@ -1,22 +1,31 @@
-name: verify
+name: ci
+
 on:
   push:
-    branches: [dev]
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+  workflow_dispatch:
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: git status --short
-mkdocs: bootstrap
-docker: bootstrap
-github-actions: core-build-out
-align-local-setup-comman: expansion
-add-stricter-warning-han: expansion
-separate-dev-and-release: maintenance
-docker: publication
-github-actions: publication
-docker: maintenance
-vitest: maintenance
-refresh-workflow-permiss: maintenance
-      - run: ./scripts/verify.sh  # forced-docker-12
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install docs dependencies
+        run: python -m pip install -r requirements-docs.txt
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq git-filter-repo
+      - name: Verify
+        run: ./scripts/verify.sh

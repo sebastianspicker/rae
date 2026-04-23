@@ -1,0 +1,26 @@
+=== node scripts/pipeline/runner.mjs --help ===
+Usage: node scripts/pipeline/runner.mjs <command> [options]
+
+Commands:
+  run-stage       --run-id <id> --phase <phase> [options]
+  start-phase     --run-id <id> --phase <phase>
+  end-phase       --run-id <id> --phase <phase> [--status <ok|error>]
+  record-artifact --run-id <id> --phase <phase> --artifact-ref <path> [--action <read|write>]
+  record-gate     --run-id <id> --phase <phase> --status <pass|fail|warn> [--gate-id <id>]
+  summarize-run   --run-id <id> [--format <json|text|markdown>] [--output <path>]
+
+run-stage options:
+  --run-id <id>           Run identifier (from pipeline-init.sh)
+  --phase <phase>         Pipeline phase to execute
+  --config-id <id>        Configuration profile (default: phased_default)
+  --taskset <path>        Path to taskset JSON file
+  --task-id <id>          Task within taskset (default: first task)
+  --artifact-ref <path>   Override artifact output path
+  --schema-ref <path>     Override schema reference
+  --input-artifact <path> Read artifact from this path instead of generating
+  --gate-status <status>  Force gate status (pass|warn|fail)
+  --requested-fanout <n>  Override fan-out count for review/build phases
+
+Phases: arm, design, adversarial-review, plan, pmatch, build, quality-static, quality-tests, post-build, release-readiness
+
+Exit code: 0

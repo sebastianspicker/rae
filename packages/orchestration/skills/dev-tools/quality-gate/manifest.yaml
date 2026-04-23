@@ -1,0 +1,22 @@
+id: dev-tools.quality-gate
+name: Quality Gate
+version: 0.1.0
+description: >
+  Validate artifacts against JSON Schema and run acceptance criteria.
+  Emits structured pass/fail gate results for pipeline orchestration.
+category: dev-tools
+language: node
+entrypoint:
+  command: ["node", "dist/index.js"]
+schemas:
+  input: schemas/input.schema.json
+  output: schemas/output.schema.json
+sandbox:
+  dockerfile: sandbox/Dockerfile
+  permissions: sandbox/permissions.yaml
+capabilities:
+  - validate
+  - gate-check
+limits:
+  timeout_ms: 30000
+  max_output_kb: 256

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Config for coauthor-trailer-cleaner.sh",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "defaults": {
+      "description": "Default options applied to all repositories unless overridden by CLI flags",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dryRun": {
+          "description": "Preview commands without executing them",
+          "type": "boolean"
+        },
+        "noPush": {
+          "description": "Rewrite history locally without pushing to remote",
+          "type": "boolean"
+        },
+        "forcePush": {
+          "description": "Use --force when pushing rewritten history",
+          "type": "boolean"
+        },
+        "backupRemote": {
+          "description": "Name of a remote to push backup branches to before rewriting",
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        }
+      }
+    },
+    "targets": {
+      "description": "Co-author identities to remove from commit trailers",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "email"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Display name in the trailer",
+            "type": "string",
+            "minLength": 1
+          },
+          "email": {
+            "description": "Email address in the trailer",
+            "type": "string",
+            "minLength": 3,
+            "pattern": "^[^<>\\s]+@[^<>\\s]+$"
+          }
+        }
+      }
+    },
+    "repos": {
+      "description": "List of repositories to process",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url", "path"],
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "GitHub repository URL (HTTPS, SSH, or git@ format)",
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(https://github\\.com/|git@github\\.com:|ssh://git@github\\.com/).+/.+"
+          },
+          "path": {
+            "description": "Absolute local filesystem path to the repository clone",
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^/"
+          }
+        }
+      }
+    }
+  }
+}

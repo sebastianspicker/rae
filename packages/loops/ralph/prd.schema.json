@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/.claude/ralph-audit/prd.schema.json",
+  "title": "Ralph Audit Loop PRD Schema",
+  "description": "Generic, mode-aware story execution plan for the Ralph audit loop.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "defaults",
+    "stories"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branch_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "branchName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "defaults": {
+      "$ref": "#/$defs/defaults"
+    },
+    "stories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/story"
+      }
+    }
+  },
+  "$defs": {
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode_default",
+        "max_stories_default",
+        "model_default",
+        "reasoning_effort_default",
+        "report_dir",
+        "sandbox_by_mode",
+        "lint_detection_order"
+      ],
+      "properties": {
+        "mode_default": {
+          "type": "string",
+          "enum": ["audit", "linting", "fixing"]
+        },
+        "max_stories_default": {
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "string",
+              "const": "all_open"
+            }
+          ]
+        },
+        "model_default": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reasoning_effort_default": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "report_dir": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        },
+        "sandbox_by_mode": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["audit", "linting", "fixing"],
+          "properties": {
+            "audit": {
+              "type": "string",
+              "const": "read-only"
+            },
+            "linting": {
+              "type": "string",
+              "const": "read-only"
+            },
+            "fixing": {
+              "type": "string",
+              "const": "workspace-write"
+            }
+          }
+        },
+        "lint_detection_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "story": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "priority",
+        "mode",
+        "scope",
+        "acceptance_criteria",
+        "passes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^(AUDIT|LINT|FIX)-[0-9]{3}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["audit", "linting", "fixing"]
+        },
+        "scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "contains": {
+            "type": "string",
+            "pattern": "^Created\\s+`?[^`\\s]+`?(\\s+.*)?$"
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        "passes": {
+          "type": "boolean"
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/story_step"
+          }
+        },
+        "verification": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "report_path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+\\.md$"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "skipped": {
+          "type": "boolean"
+        },
+        "skip_reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skipped_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "passes": {
+                "const": true
+              }
+            },
+            "required": ["passes"]
+          },
+          "then": {
+            "required": ["report_path", "completed_at"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "passes": {
+                "const": false
+              }
+            },
+            "required": ["passes"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["report_path"]
+                },
+                {
+                  "required": ["completed_at"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "skipped": {
+                "const": true
+              }
+            },
+            "required": ["skipped"]
+          },
+          "then": {
+            "required": ["skip_reason", "skipped_at"],
+            "properties": {
+              "passes": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "skipped": {
+                "const": false
+              }
+            },
+            "required": ["skipped"]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["skip_reason"]
+                },
+                {
+                  "required": ["skipped_at"]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "story_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "actions",
+        "expected_evidence",
+        "done_when"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "done_when": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

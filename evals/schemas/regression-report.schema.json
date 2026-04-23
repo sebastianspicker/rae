@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/regression-report.schema.json",
+  "title": "RegressionReport",
+  "type": "object",
+  "required": [
+    "report_id",
+    "benchmark_id",
+    "split",
+    "generated_at",
+    "status",
+    "aggregate_metrics",
+    "baseline_metrics",
+    "issues"
+  ],
+  "properties": {
+    "report_id": {
+      "type": "string"
+    },
+    "benchmark_id": {
+      "type": "string"
+    },
+    "split": {
+      "type": "string",
+      "enum": ["dev", "held-out", "stress", "ablation"]
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "fail"]
+    },
+    "baseline_result_path": {
+      "type": "string"
+    },
+    "aggregate_metrics": {
+      "type": "object"
+    },
+    "baseline_metrics": {
+      "type": "object"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

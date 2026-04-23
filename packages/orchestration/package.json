@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "workspaces": [
+    "skills/dev-tools/_shared",
+    "skills/dev-tools/quality-gate",
+    "skills/dev-tools/multi-model-review",
+    "skills/dev-tools/trace-collector"
+  ],
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "vitest": "4.1.0"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "defaults": {
+    "dryRun": false,
+    "noPush": true,
+    "forcePush": true,
+    "backupRemote": "backup"
+  },
+  "targets": [
+    {
+      "name": "Cursor",
+      "email": "cursoragent@cursor.com"
+    },
+    {
+      "name": "Pair Bot",
+      "email": "pairbot@example.com"
+    }
+  ],
+  "repos": [
+    {
+      "url": "https://github.com/<username>/<reponame>",
+      "path": "/path/to/<reponame>"
+    }
+  ]
+}

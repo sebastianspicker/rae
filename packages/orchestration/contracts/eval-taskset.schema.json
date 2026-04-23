@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evaluation taskset",
+  "description": "Taskset contract for scripts/eval/run-matrix.sh and scripts/eval/run-matrix.mjs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["taskset_id", "tasks"],
+  "properties": {
+    "taskset_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "must_requirement_ids"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "must_requirement_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "stage_overrides": {
+            "$ref": "#/$defs/stageOverrideMap"
+          },
+          "config_overrides": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "baseline_single_agent": { "$ref": "#/$defs/stageOverrideMap" },
+              "phased_default": { "$ref": "#/$defs/stageOverrideMap" },
+              "phased_plus_reviewers": { "$ref": "#/$defs/stageOverrideMap" },
+              "phased_with_context_budgets": { "$ref": "#/$defs/stageOverrideMap" },
+              "phased_dual_extractor_drift": { "$ref": "#/$defs/stageOverrideMap" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "stageOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gate_status": {
+          "type": "string",
+          "enum": ["pass", "warn", "fail"]
+        },
+        "token_estimate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "char_count_estimate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files_loaded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quality_gain": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cost_per_agent_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "coordination_cost": {
+          "type": "number",
+          "minimum": 0
+        },
+        "requested_fanout": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "traceability_gap": {
+          "type": "boolean"
+        },
+        "context_manifest_present": {
+          "type": "boolean"
+        },
+        "drift_mode": {
+          "type": "string",
+          "enum": ["heuristic", "dual-extractor"]
+        },
+        "drift_status": {
+          "type": "string",
+          "enum": ["verified", "partial", "violated", "unverifiable"]
+        }
+      }
+    },
+    "stageOverrideMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "arm": { "$ref": "#/$defs/stageOverride" },
+        "design": { "$ref": "#/$defs/stageOverride" },
+        "adversarial-review": { "$ref": "#/$defs/stageOverride" },
+        "plan": { "$ref": "#/$defs/stageOverride" },
+        "pmatch": { "$ref": "#/$defs/stageOverride" },
+        "build": { "$ref": "#/$defs/stageOverride" },
+        "quality-static": { "$ref": "#/$defs/stageOverride" },
+        "quality-tests": { "$ref": "#/$defs/stageOverride" },
+        "post-build": { "$ref": "#/$defs/stageOverride" },
+        "release-readiness": { "$ref": "#/$defs/stageOverride" }
+      }
+    }
+  }
+}
