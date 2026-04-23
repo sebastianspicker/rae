@@ -59,3 +59,8 @@ export function profileService() {
 // forced-profile-13
 
 // forced-docker-14
+
+// current lane: mkdocs
+export function mkdocsService() {
+  return { scope: "mkdocs", status: "ready" };
+}
