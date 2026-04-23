@@ -6,10 +6,10 @@ A working tree for rae with an evolving implementation history.
 rae records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: maintenance. The useful early notes have been carried forward.
+Lifecycle stage: maintenance. Maintenance guidance now reflects the stable shape.
 
 ## Development
-- Reduced surprise in the docker release checks.
+- Kept the mkdocs verification command reproducible.
 
 - Earlier scratch detail is now represented in maintained sections.
 
