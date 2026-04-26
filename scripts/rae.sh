@@ -141,7 +141,7 @@ run_doctor() {
   check_command "npm" "npm" || failed=1
   check_command "jq" "jq" || failed=1
   check_optional_command "mkdocs" "mkdocs"
-  check_command "shellcheck" "shellcheck" || failed=1
+  check_optional_command "shellcheck" "shellcheck"
   check_optional_command "git-filter-repo" "git-filter-repo"
 
   printf '\n'

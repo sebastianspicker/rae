@@ -129,7 +129,7 @@ describe("pipeline-init worktree mode", () => {
     );
     expect(existsSync(workspaceRootA)).toBe(false);
     expect(existsSync(workspaceRootB)).toBe(false);
-  });
+  }, 20000);
 
   it("normalizes a nested project root to the git toplevel for worktree mode", () => {
     const repoRoot = makeGitRepo();

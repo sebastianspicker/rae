@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 
@@ -57,7 +57,7 @@ def relative_to_directory(path: pathlib.Path, root: pathlib.Path) -> pathlib.Pat
 
 
 def now_utc() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 def iso_timestamp() -> str:
