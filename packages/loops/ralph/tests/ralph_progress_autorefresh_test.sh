@@ -31,15 +31,16 @@ prepare_repo() {
 }
 
 run_case() {
-  local tmpdir bindir rc
+  local tmpdir bindir rc total_stories
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
 
   make_fake_tool "$bindir/claude"
   prepare_repo "$tmpdir/repo"
+  total_stories="$(jq '.stories | length' "$tmpdir/repo/prd.json")"
 
-  if ! grep -q 'Stories passed: `0/10`' "$tmpdir/repo/progress.txt"; then
+  if ! grep -q "Stories passed: \`0/$total_stories\`" "$tmpdir/repo/progress.txt"; then
     fail_case "progress-autorefresh" "unexpected initial progress snapshot" "$tmpdir/repo/progress.txt" "$tmpdir"
   fi
 
@@ -54,7 +55,7 @@ run_case() {
   if [[ "$rc" -ne 0 ]]; then
     fail_case "progress-autorefresh" "expected success, got rc=$rc" "$tmpdir/out.log" "$tmpdir"
   fi
-  if ! grep -q 'Stories passed: `1/10`' "$tmpdir/repo/progress.txt"; then
+  if ! grep -q "Stories passed: \`1/$total_stories\`" "$tmpdir/repo/progress.txt"; then
     fail_case "progress-autorefresh" "progress snapshot was not auto-refreshed after story completion" "$tmpdir/repo/progress.txt" "$tmpdir"
   fi
 

@@ -47,6 +47,8 @@ Do not publish:
 ## Current security boundaries
 
 - public agent profiles must remain machine-agnostic
+- public profile installers must refuse symlinked managed paths and manifest
+  backup paths that escape the target tree
 - benchmark artifacts must avoid sensitive repository content
 - maintenance tooling examples must avoid destructive defaults
 - evaluation and publication gates must reject forged or out-of-bounds evidence
