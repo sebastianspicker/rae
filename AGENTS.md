@@ -38,6 +38,8 @@ Package-local docs remain the command-level source of truth. Add guidance here
 - Escalate when requested work crosses an undeclared boundary.
 - Escalate when `verify` or `guard` commands are missing for a non-trivial task.
 - Escalate when user-surface or high-risk changes lack visible proof.
+- Escalate when profile installers or cleanup tools would follow symlinked
+  managed paths or manifest-provided paths outside the declared target tree.
 - Use worktree-backed execution for long-horizon or parallel efforts that should
   not share one checkout.
 - Prefer the smallest adequate runtime: tool before Ralph, Ralph before
