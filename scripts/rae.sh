@@ -63,6 +63,8 @@ require_command() {
 
 resolve_input_path() {
   local input="$1"
+  # Commands are often launched from subdirectories; resolve user-provided
+  # relative paths against the caller's directory, not the script directory.
   if [[ "$input" = /* ]]; then
     printf '%s\n' "$input"
   else

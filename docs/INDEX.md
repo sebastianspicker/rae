@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-28
 source_of_truth: docs
 evidence_links: reference/claims/evidence-index.md
 ---
@@ -19,6 +19,18 @@ If you are new to the repo, read in this order:
 5. [Benchmark Protocol](research/benchmark-protocol.md)
 6. [Frozen Benchmark Results](research/frozen-benchmark-results.md)
 7. [Documentation Policy](governance/documentation-policy.md)
+
+## Maintainer orientation
+
+For code work, start with the public entrypoints before reading individual
+modules:
+
+- `README.md` explains why the repo exists and which surface owns each layer.
+- [Repo Map](reference/repo-map.md) maps directories to responsibilities.
+- [Umbrella CLI](reference/cli/umbrella.md) maps operator commands to the
+  imported runtimes.
+- [Module Boundaries](reference/architecture/module-boundaries.md) explains
+  which module owns behavior when docs and package-local instructions overlap.
 
 ## Documentation modes
 

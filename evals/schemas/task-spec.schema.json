@@ -89,7 +89,14 @@
       "enum": ["orchestration", "ralph", "tool"]
     },
     "execution_profile": {
-      "type": "string"
+      "type": "string",
+      "enum": [
+        "orchestration-init",
+        "orchestration-review-loop",
+        "orchestration-observability",
+        "ralph-bootstrap-check",
+        "coauthor-validate"
+      ]
     },
     "workflow_verb": {
       "type": "string",

@@ -3,7 +3,7 @@ status: historical
 owner: loops
 last_reviewed: 2026-04-12
 source_of_truth: editorial
-evidence_links: ../migration/source-repo-map.md
+evidence_links: ../archive/migration/source-repo-map.md
 ---
 
 # Case Study: Ralph Loop

@@ -20,9 +20,26 @@ from common import (
 
 
 ROUTER_VERSION = "router-rule-v1"
+# Execution profiles are intentionally closed. A task may request a profile,
+# but the profile must still match the runtime selected by the router.
+EXECUTION_COMMANDS = {
+    "orchestration-init": "./scripts/rae.sh workflow long-horizon init <workspace>",
+    "orchestration-review-loop": "./scripts/rae.sh orchestrate record-review-state --run-id <run_id> --state explain|fix|ship --status <status>",
+    "orchestration-observability": "./scripts/rae.sh orchestrate summarize-progress --run-id <run_id>",
+    "ralph-bootstrap-check": "./scripts/rae.sh workflow repo-audit bootstrap <repo> && MODE=audit ./.claude/ralph-audit/ralph.sh --check",
+    "coauthor-validate": "./scripts/rae.sh hygiene coauthor-cleaner --validate-only --no-push <url> <path>",
+}
+EXECUTION_PROFILE_RUNTIMES = {
+    "orchestration-init": "orchestration",
+    "orchestration-review-loop": "orchestration",
+    "orchestration-observability": "orchestration",
+    "ralph-bootstrap-check": "ralph",
+    "coauthor-validate": "tool",
+}
 
 
 def route_task(task: dict[str, Any]) -> dict[str, Any]:
+    """Choose the smallest runtime that satisfies the task's explicit signals."""
     reasons: list[str] = []
 
     if task.get("repo_hygiene_operation") or task.get("destructive_operation"):
@@ -44,29 +61,34 @@ def route_task(task: dict[str, Any]) -> dict[str, Any]:
         runtime = "ralph"
         reasons.append("defaulting to the smaller deterministic loop")
 
-    execution_profile = str(task.get("execution_profile") or "")
-    if not execution_profile:
+    if "execution_profile" not in task or task["execution_profile"] is None:
         execution_profile = {
             "orchestration": "orchestration-init",
             "ralph": "ralph-bootstrap-check",
             "tool": "coauthor-validate",
         }[runtime]
-
-    command_preview = {
-        "orchestration-init": "./scripts/rae.sh workflow long-horizon init <workspace>",
-        "orchestration-arm": "./scripts/rae.sh orchestrate run-stage --run-id <run_id> --phase arm --taskset <taskset>",
-        "orchestration-review-loop": "./scripts/rae.sh orchestrate record-review-state --run-id <run_id> --state explain|fix|ship --status <status>",
-        "orchestration-observability": "./scripts/rae.sh orchestrate summarize-progress --run-id <run_id>",
-        "ralph-bootstrap-check": "./scripts/rae.sh workflow repo-audit bootstrap <repo> && MODE=audit ./.claude/ralph-audit/ralph.sh --check",
-        "coauthor-validate": "./scripts/rae.sh hygiene coauthor-cleaner --validate-only --no-push <url> <path>",
-        "route-only": "./scripts/rae.sh task route --task-spec <task-spec>",
-    }.get(execution_profile, "./scripts/rae.sh help")
+    else:
+        execution_profile = task["execution_profile"]
+        if not isinstance(execution_profile, str) or not execution_profile:
+            raise ValueError("execution_profile must be a non-empty string")
+        if execution_profile not in EXECUTION_COMMANDS:
+            valid = ", ".join(sorted(EXECUTION_COMMANDS))
+            raise ValueError(
+                f"unknown execution_profile: {execution_profile}. Valid profiles: {valid}"
+            )
+    profile_runtime = EXECUTION_PROFILE_RUNTIMES[execution_profile]
+    if profile_runtime != runtime:
+        raise ValueError(
+            f"execution_profile {execution_profile} is for runtime {profile_runtime}, "
+            f"not routed runtime {runtime}"
+        )
 
     return {
         "runtime": runtime,
         "execution_profile": execution_profile,
+        "profile_runtime": profile_runtime,
         "reasons": reasons,
-        "command_preview": command_preview,
+        "command_preview": EXECUTION_COMMANDS[execution_profile],
     }
 
 
@@ -78,6 +100,7 @@ def build_run_card(
     routed: dict[str, Any],
     run_id: str,
 ) -> dict[str, Any]:
+    """Build a planned run card before execution creates evidence artifacts."""
     run_card = {
         "run_id": run_id,
         "evidence_type": "benchmark-run",

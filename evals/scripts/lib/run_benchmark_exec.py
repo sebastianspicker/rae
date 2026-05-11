@@ -1,3 +1,5 @@
+"""Executable benchmark task runners for the umbrella runtime families."""
+
 from __future__ import annotations
 
 import json
@@ -27,9 +29,12 @@ from lib.run_benchmark_evidence import (
     write_command_result,
     write_task_spec,
 )
+
+
 def execute_orchestration(
     task: dict[str, Any], output_dir: pathlib.Path
 ) -> dict[str, Any]:
+    """Exercise the long-horizon initialization path and capture its artifacts."""
     workspace = create_task_workspace(output_dir, task["task_id"])
     init_result = run_command(
         [
@@ -64,9 +69,7 @@ def execute_orchestration_review_loop(
     task: dict[str, Any], output_dir: pathlib.Path
 ) -> dict[str, Any]:
     workspace = create_task_workspace(output_dir, task["task_id"])
-    orchestration_root, init_result, run_id = init_isolated_orchestration_workspace(
-        workspace, "benchmark-review-loop"
-    )
+    orchestration_root, init_result, run_id = init_isolated_orchestration_workspace(workspace)
 
     explain_result = run_command(
         [
@@ -137,9 +140,7 @@ def execute_orchestration_observability(
     task: dict[str, Any], output_dir: pathlib.Path
 ) -> dict[str, Any]:
     workspace = create_task_workspace(output_dir, task["task_id"])
-    orchestration_root, init_result, run_id = init_isolated_orchestration_workspace(
-        workspace, "benchmark-observability"
-    )
+    orchestration_root, init_result, run_id = init_isolated_orchestration_workspace(workspace)
 
     start_result = run_command(
         [
@@ -304,6 +305,7 @@ def judge_task(
     artifact_paths: list[str],
     checkpoint_ok: bool,
 ) -> dict[str, Any]:
+    """Apply the programmatic pass/fail rules for one benchmark task."""
     failures: list[str] = []
     route_ok = routed_runtime == task["expected_runtime"]
     if not route_ok:
@@ -350,6 +352,7 @@ def execute_task(
     checkpoint_mode: str,
     benchmark: dict[str, Any],
 ) -> dict[str, Any]:
+    """Route, execute, judge, and write evidence for one task."""
     routed = route_task(task)
     task_spec_path = write_task_spec(output_dir, task)
     checkpoint_paths, checkpoint_ok, checkpoint_results = create_checkpoint(
@@ -367,19 +370,7 @@ def execute_task(
     elif routed["execution_profile"] == "coauthor-validate":
         execution = execute_tool(task, output_dir)
     else:
-        execution = {
-            "command_result": {
-                "argv": ["route-only"],
-                "cwd": repo_relpath(ROOT),
-                "returncode": 0,
-                "stdout": "",
-                "stderr": "",
-                "duration_seconds": 0.0,
-            },
-            "trace_paths": [],
-            "artifact_paths": [],
-            "workspace": repo_relpath(output_dir),
-        }
+        raise ValueError(f"unknown execution_profile: {routed['execution_profile']}")
 
     if checkpoint_results:
         execution["command_result"] = merge_command_results(
@@ -462,4 +453,3 @@ def execute_task(
         "route_run_card_path": repo_relpath(planned_result_path),
         "workspace": execution["workspace"],
     }
-

@@ -3,7 +3,7 @@ status: experimental
 owner: profiles
 last_reviewed: 2026-04-12
 source_of_truth: profiles/agent-environments
-evidence_links: ../migration/source-repo-map.md
+evidence_links: ../archive/migration/source-repo-map.md
 ---
 
 # First Profile Install

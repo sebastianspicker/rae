@@ -1,39 +1,14 @@
 #!/usr/bin/env node
-import { existsSync } from "node:fs";
 import { CONFIG_IDS as CONFIG_ID_LIST, DEFAULT_CONFIG_ID, PHASE_ORDER } from "../lib/constants.mjs";
 import { badInput } from "./lib/errors.mjs";
-import { toNumber, coalesce, mergeStageProfile } from "./lib/utils.mjs";
 import {
-  activateWorkspaceForRun,
   ensureRunDirs,
-  gateFileNameForPhase,
-  getRepoRoot,
-  getRunDir,
   loadPipelineState,
-  readJsonStrict,
-  resolveWithinDirectory,
-  resolveWithinRepo,
   resolveWorkspaceRootForRun,
-  toWorkspaceRelative,
   withLockedState,
-  writeJson,
 } from "./lib/state.mjs";
-import { appendTraceEvent, ensureTraceFile, hasEvent } from "./lib/trace.mjs";
-import { buildArtifactForPhase, phaseArtifactDefaults } from "./lib/artifacts.mjs";
-import { buildRequirementCoverageLedger } from "./lib/traceability.mjs";
-import {
-  QUALITY_GATE_PHASES,
-  emitGate,
-  emitRetryEventIfNeeded,
-  evaluateContextBudgetGate,
-  evaluateTraceabilityGate,
-  gateStatusFromPhaseAndProfile,
-  runPolicyDecision,
-  runQualityGate,
-  stageGateInput,
-  updateStateAfterArtifact,
-  worstStatus,
-} from "./lib/gates.mjs";
+import { appendTraceEvent } from "./lib/trace.mjs";
+import { emitRetryEventIfNeeded, gateStatusFromPhaseAndProfile } from "./lib/gates.mjs";
 import {
   printUsage,
   runEndPhase,
@@ -46,16 +21,10 @@ import {
 } from "./lib/commands.mjs";
 import {
   appendTaskSessionEvent,
-  contextBudgetForPhase,
   ensureStateForRun,
   loadTasksetTask,
-  normalizeTaskSession,
-  phaseTokenForContextBudget,
   resolveActivityProfile,
   resolveCognitiveTier,
-  resolveArtifactRefForRun,
-  resolveOptionalArtifactRefForRun,
-  resolveTaskCase,
   resolveTaskSession,
   stageProfileFromTask,
 } from "./lib/runner-helpers-a.mjs";
@@ -125,6 +94,9 @@ function runStage(options) {
   ensureStateForRun(state, runId);
   appendRunStartIfMissing(runId, state, root);
 
+  // run-stage is both an operator command and a benchmark fixture path. It
+  // records task context, emits a phase artifact, evaluates auxiliary gates,
+  // then commits state exactly once under the pipeline-state lock.
   const taskContext = loadTasksetTask(options.taskset, options["task-id"]);
   const taskSession = resolveTaskSession(phase, taskContext, options);
   const activityProfile = resolveActivityProfile(phase, state, taskSession);
@@ -138,16 +110,16 @@ function runStage(options) {
   });
 
   if (taskContext?.taskset_path) {
-      appendTraceEvent(
-        runId,
-        {
-          event: "artifact_read",
-          phase,
-          artifact_ref: taskContext.taskset_path,
-          status: "ok",
-        },
-        root,
-      );
+    appendTraceEvent(
+      runId,
+      {
+        event: "artifact_read",
+        phase,
+        artifact_ref: taskContext.taskset_path,
+        status: "ok",
+      },
+      root,
+    );
   }
   emitRetryEventIfNeeded(runId, phase, root);
 
@@ -180,18 +152,6 @@ function runStage(options) {
   );
   appendTaskSessionEvent(runId, phase, "task_session_start", "ok", taskSession, root);
 
-  let policyDecision = null;
-  if (phase === "adversarial-review" || phase === "build") {
-    policyDecision = runPolicyDecision({
-      runId,
-      phase,
-      state,
-      stageProfile,
-      requestedFanoutOverride: options["requested-fanout"],
-      root,
-    });
-  }
-
   const { artifact, artifactRef, schemaRef } = resolveAndWriteArtifact({
     runId,
     phase,
@@ -199,7 +159,6 @@ function runStage(options) {
     options,
     taskContext,
     stageProfile,
-    policyDecision,
     state,
     root,
   });
@@ -251,7 +210,6 @@ function runStage(options) {
     config_id: configId,
     gate: primaryGate,
     auxiliary_gates: extraGates,
-    policy_decision: policyDecision,
     artifact_ref: artifactRef,
     schema_ref: schemaRef,
     task_session: taskSession?.session ?? null,

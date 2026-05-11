@@ -18,7 +18,7 @@ description: "Claude adapter orchestrator for the full phased workflow. Advances
 - Human control points: critical transitions require explicit approvals.
 - Capability allocation: use tiered model assignment by stage responsibility.
 - Context minimization: transfer only required artifacts between stages.
-- Policy-driven parallelism: choose reviewer/builder fan-out via `config.orchestration_policy`.
+- Explicit parallelism: use only reviewer/builder assignments already present in the approved plan.
 
 ## Stage order
 

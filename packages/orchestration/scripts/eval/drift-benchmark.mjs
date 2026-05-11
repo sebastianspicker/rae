@@ -194,7 +194,7 @@ function main() {
   const repoRoot = resolve(args.root);
   const casesDir = resolve(repoRoot, "docs/eval/drift_goldset/cases");
   const outPath = resolveWithinRepo(args.output, repoRoot);
-  const workspaceTmpRoot = resolve(repoRoot, ".pipeline", "tmp");
+  const workspaceTmpRoot = resolveWithinRepo(".pipeline/tmp", repoRoot);
 
   const thresholds = {
     precision: args.precisionMin,

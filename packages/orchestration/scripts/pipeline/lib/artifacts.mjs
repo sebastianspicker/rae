@@ -1,5 +1,9 @@
 /**
  * Phase-specific artifact builders and defaults.
+ *
+ * These builders create deterministic fixture artifacts for tests, evals, and
+ * smoke runs. Human-authored production artifacts should be supplied through
+ * --input-artifact and then validated by the same gate path.
  */
 import { badInput } from "./errors.mjs";
 import { nowIso } from "./trace.mjs";
@@ -92,6 +96,8 @@ export function buildContextManifest({ phase, stageProfile, budget }) {
 }
 
 function buildTaskContextManifest(scopeRef) {
+  // Task sessions carry a tiny explicit context manifest so traceability tests
+  // can distinguish "no context contract" from "small scoped context".
   return {
     selection_policy: "task-scoped-minimal",
     ordering_policy: "owned-files-first-then-requirements",
@@ -122,7 +128,6 @@ export function defaultRequirementIds(task) {
 export function driftStatusForConfig(configId, stageProfile) {
   if (stageProfile.drift_status) return stageProfile.drift_status;
   if (configId === "baseline_single_agent") return "violated";
-  if (configId === "phased_plus_reviewers") return "partial";
   if (configId === "phased_with_context_budgets") return "partial";
   if (configId === "phased_dual_extractor_drift") return "verified";
   return "partial";
@@ -193,23 +198,54 @@ function buildDesignArtifact({ requirements, now }) {
   };
 }
 
-function buildAdversarialReviewArtifact({ requirements, reviewedBy }) {
-  const reviewerCount = Math.max(1, reviewedBy);
-  const reviewers = Array.from({ length: reviewerCount }, (_, idx) => ({
-    model_id: `reviewer-${idx + 1}`,
-    findings: [
-      {
-        id: `finding-${idx + 1}`,
-        trace_id: `finding-trace-${idx + 1}`,
-        category: "robustness",
-        description: "Check requirement linkage remains intact.",
-        severity: "medium",
-        covers_requirement_ids: [requirements[0]],
-        evidence: "review signal",
-        suggestion: "Keep coverage-min enforced",
-      },
-    ],
-  }));
+function buildAdversarialReviewArtifact({ requirements }) {
+  const reviewers = [
+    {
+      model_id: "architect-reviewer",
+      findings: [
+        {
+          id: "finding-1",
+          trace_id: "finding-trace-1",
+          category: "robustness",
+          description: "Check requirement linkage remains intact.",
+          severity: "medium",
+          covers_requirement_ids: [requirements[0]],
+          evidence: "review signal",
+          suggestion: "Keep coverage-min enforced",
+        },
+      ],
+    },
+    {
+      model_id: "security-engineer",
+      findings: [
+        {
+          id: "finding-2",
+          trace_id: "finding-trace-2",
+          category: "robustness",
+          description: "Check trust-boundary assumptions remain explicit.",
+          severity: "medium",
+          covers_requirement_ids: [requirements[0]],
+          evidence: "review signal",
+          suggestion: "Keep security findings evidence-backed",
+        },
+      ],
+    },
+    {
+      model_id: "performance-engineer",
+      findings: [
+        {
+          id: "finding-3",
+          trace_id: "finding-trace-3",
+          category: "robustness",
+          description: "Check gate execution does not add avoidable work.",
+          severity: "medium",
+          covers_requirement_ids: [requirements[0]],
+          evidence: "review signal",
+          suggestion: "Keep pipeline work bounded",
+        },
+      ],
+    },
+  ];
 
   return {
     reviewers,
@@ -293,7 +329,9 @@ function buildPlanArtifact({ requirements, stageProfile }) {
                   max_attempts: 2,
                   retry_behavior: "restart-fresh-session",
                 },
-                context_manifest: buildTaskContextManifest("scripts/pipeline/tests/runner-stage.test.mjs"),
+                context_manifest: buildTaskContextManifest(
+                  "scripts/pipeline/tests/runner-stage.test.mjs",
+                ),
                 covers_requirement_ids: testCoverage,
                 setup: "Initialize pipeline",
                 assertion: "Run stage completes",
@@ -373,7 +411,7 @@ function buildBuildArtifact({ requirements }) {
   return {
     trace_id: "build-trace-1",
     summary: "Build phase executed by runner",
-    outputs: ["scripts/pipeline/runner.mjs", "scripts/pipeline/lib/policy.mjs"],
+    outputs: ["scripts/pipeline/runner.mjs"],
     covers_requirement_ids: [...requirements],
   };
 }
@@ -461,15 +499,7 @@ const PHASE_BUILDERS = {
   "release-readiness": (ctx) => buildReleaseReadinessArtifact(ctx),
 };
 
-export function buildArtifactForPhase({
-  phase,
-  runId,
-  configId,
-  task,
-  stageProfile,
-  policyDecision,
-  budget,
-}) {
+export function buildArtifactForPhase({ phase, runId, configId, task, stageProfile, budget }) {
   const builder = PHASE_BUILDERS[phase];
   if (!builder) return null;
 
@@ -477,9 +507,8 @@ export function buildArtifactForPhase({
   if (!requirements.length)
     throw badInput("requirements array must not be empty for artifact generation");
   const contextManifest = buildContextManifest({ phase, stageProfile, budget });
-  const reviewedBy = Math.max(1, policyDecision?.chosen_fanout ?? 1);
   const now = nowIso();
 
-  const artifact = builder({ requirements, task, runId, configId, stageProfile, reviewedBy, now });
+  const artifact = builder({ requirements, task, runId, configId, stageProfile, now });
   return contextManifest ? { ...artifact, context_manifest: contextManifest } : artifact;
 }

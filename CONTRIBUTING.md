@@ -48,5 +48,5 @@ This currently includes umbrella verification plus:
 
 ## Branching
 
-- `dev` is the active branch
-- keep initial public scaffold history concise
+- `main` is the public release branch and default GitHub branch
+- keep public-release history concise and review the full diff before merging

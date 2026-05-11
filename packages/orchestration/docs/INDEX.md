@@ -7,7 +7,7 @@
 
 ## Platform and Operation
 - [PLATFORMS](PLATFORMS.md): adapter and platform support model.
-- [ORCHESTRATION_POLICY](ORCHESTRATION_POLICY.md): policy controls used by pipeline orchestration.
+- [ORCHESTRATION_POLICY](ORCHESTRATION_POLICY.md): explicit boundaries for orchestration parallelism.
 
 ## Scientific Foundation
 - [SCIENTIFIC_FOUNDATION](SCIENTIFIC_FOUNDATION.md): formal model and rationale.
@@ -15,4 +15,3 @@
 
 ## Pipeline State Template
 - [pipeline-state.template.json](pipeline/pipeline-state.template.json): baseline state schema/example for pipeline runs.
-

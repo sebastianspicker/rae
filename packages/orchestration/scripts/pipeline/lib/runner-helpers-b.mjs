@@ -3,11 +3,9 @@ import { PHASE_ORDER } from "../../lib/constants.mjs";
 import {
   gateFileNameForPhase,
   getRepoRoot,
-  getRunDir,
   readJsonStrict,
   resolveWithinRepo,
   toWorkspaceRelative,
-  withLockedState,
   writeJson,
 } from "./state.mjs";
 import { appendTraceEvent, ensureTraceFile, hasEvent } from "./trace.mjs";
@@ -17,8 +15,6 @@ import {
   emitGate,
   evaluateContextBudgetGate,
   evaluateTraceabilityGate,
-  gateStatusFromPhaseAndProfile,
-  runPolicyDecision,
   runQualityGate,
   stageGateInput,
   updateStateAfterArtifact,
@@ -75,7 +71,6 @@ export function resolveAndWriteArtifact({
   options,
   taskContext,
   stageProfile,
-  policyDecision,
   state,
   root,
 }) {
@@ -90,6 +85,8 @@ export function resolveAndWriteArtifact({
     const budget = contextBudgetForPhase(phaseTokenForContextBudget(phase), state);
 
     if (options["input-artifact"]) {
+      // Preserve caller-supplied artifacts exactly; the runner adds evidence
+      // events and gate results around them instead of rewriting their content.
       const inputAbs = resolveWithinRepo(options["input-artifact"], root);
       appendTraceEvent(
         runId,
@@ -111,7 +108,6 @@ export function resolveAndWriteArtifact({
         configId,
         task: taskContext?.task,
         stageProfile,
-        policyDecision,
         budget,
       });
       if (artifact) {
@@ -173,10 +169,20 @@ export function resolveAndWriteArtifact({
   return { artifact, artifactRef, schemaRef };
 }
 
-export function evaluateAuxiliaryGates({ runId, phase, artifact, artifactRef, schemaRef, state, root }) {
+export function evaluateAuxiliaryGates({
+  runId,
+  phase,
+  artifact,
+  artifactRef,
+  schemaRef,
+  state,
+  root,
+}) {
   const gateStatuses = [];
   const extraGates = [];
 
+  // Auxiliary gates can worsen the primary phase gate, but they are emitted as
+  // separate artifacts so operators can see which invariant actually failed.
   const budget = contextBudgetForPhase(phaseTokenForContextBudget(phase), state);
   if (artifact && budget) {
     const budgetGate = evaluateContextBudgetGate({
@@ -200,7 +206,8 @@ export function evaluateAuxiliaryGates({ runId, phase, artifact, artifactRef, sc
       runId,
       phase,
       state,
-      resolveArtifactRef: (nextRunId, artifactPath) => resolveArtifactRefForRun(nextRunId, artifactPath, root),
+      resolveArtifactRef: (nextRunId, artifactPath) =>
+        resolveArtifactRefForRun(nextRunId, artifactPath, root),
       resolveOptionalArtifactRef: (nextRunId, artifactPath) =>
         resolveOptionalArtifactRefForRun(nextRunId, artifactPath, root),
       root,

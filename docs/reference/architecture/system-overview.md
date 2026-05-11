@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-28
 source_of_truth: README.md
 evidence_links: ../claims/evidence-index.md
 ---
@@ -65,6 +65,23 @@ sharing:
 5. If the result is used for comparison or publication, register it through the
    `evals/` metadata model.
 6. Update claim-bearing docs only after evidence and provenance are available.
+
+## Artifact flow
+
+RAE treats artifacts as the boundary between doing work and claiming that the
+work is reliable. The important artifact families are:
+
+- `.pipeline/runs/<run-id>/`
+  Orchestration state, traces, stage artifacts, gates, review-loop state, and
+  progress summaries.
+- `evals/results/`
+  Benchmark run cards, command-result transcripts, regression reports, release
+  gate reports, and result ledgers.
+- `profiles/agent-environments/`
+  Sanitized operator profile material and installation regression fixtures.
+
+New code should either produce one of these artifacts, validate one of these
+artifacts, or stay inside the package-local runtime that owns the behavior.
 
 ## Thesis validation
 

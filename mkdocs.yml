@@ -122,8 +122,10 @@ nav:
       - Ralph Loop: case-studies/ralph-loop.md
       - Agent Profiles: case-studies/agent-profiles.md
       - Repo Hygiene Tools: case-studies/repo-hygiene-tools.md
-  - Migration:
-      - Source Repo Map: migration/source-repo-map.md
-      - Consolidation Plan: migration/consolidation-plan.md
-      - Deprecation Strategy: migration/deprecation-strategy.md
-      - Repo Audit Remediation Plan (Deprecated): migration/deprecated/repo-audit-remediation-plan.md
+  - Archive:
+      - Migration:
+          - Source Repo Map: archive/migration/source-repo-map.md
+          - Consolidation Plan: archive/migration/consolidation-plan.md
+          - Deprecation Strategy: archive/migration/deprecation-strategy.md
+      - Audits:
+          - 2026-04-17 Repo Audit Remediation Plan: archive/audits/2026-04-17-repo-audit-remediation-plan.md

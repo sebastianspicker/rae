@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
+import re
 import sys
 from typing import Any
 
@@ -25,8 +26,53 @@ from router import ROUTER_VERSION
 from lib.run_benchmark_evidence import (
     aggregate_verification_evidence,
     load_optional_json_artifact,
+    validate_artifact_id,
 )
 from lib.run_benchmark_exec import execute_task
+
+REPO_RELATIVE_PATH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
+
+
+def resolve_repo_child_path(path_str: Any, base: pathlib.Path, label: str) -> pathlib.Path:
+    if not isinstance(path_str, str) or not path_str:
+        raise SystemExit(f"{label} must be a non-empty repository-relative path")
+    if not REPO_RELATIVE_PATH_RE.fullmatch(path_str):
+        raise SystemExit(f"{label} contains unsupported characters")
+    candidate = pathlib.Path(path_str)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise SystemExit(f"{label} must not be absolute or contain parent traversal")
+    resolved = (ROOT / candidate).resolve(strict=False)
+    if not is_within_directory(resolved, base):
+        raise SystemExit(f"{label} must point under {repo_relpath(base)}")
+    return resolved
+
+
+def validate_benchmark_inputs(
+    benchmark: dict[str, Any], task_bundle: dict[str, Any]
+) -> None:
+    try:
+        validate_artifact_id(benchmark.get("benchmark_id", ""), "benchmark_id")
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    for label in ("version", "judge_version", "judge_path", "task_specs_path"):
+        if not isinstance(benchmark.get(label), str) or not benchmark[label]:
+            raise SystemExit(f"benchmark {label} must be a non-empty string")
+    resolve_repo_child_path(
+        benchmark["task_specs_path"], ROOT / "evals/datasets", "task_specs_path"
+    )
+    resolve_repo_child_path(benchmark["judge_path"], ROOT, "judge_path")
+    tasks = task_bundle.get("tasks")
+    if not isinstance(tasks, list):
+        raise SystemExit("task bundle tasks must be an array")
+    for task in tasks:
+        if not isinstance(task, dict):
+            raise SystemExit("task bundle tasks must be objects")
+        try:
+            validate_artifact_id(task.get("task_id", ""), "task_id")
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
+
+
 def aggregate_results(task_results: list[dict[str, Any]]) -> dict[str, float]:
     total = len(task_results)
     passes = sum(1 for result in task_results if result["judge"]["verdict"] == "pass")
@@ -156,8 +202,13 @@ def main() -> int:
 
     benchmark_card_path = pathlib.Path(args.benchmark_card).resolve()
     benchmark = load_json(benchmark_card_path)
-    tasks_path = (ROOT / benchmark["task_specs_path"]).resolve()
+    tasks_path = resolve_repo_child_path(
+        benchmark.get("task_specs_path"),
+        ROOT / "evals/datasets",
+        "task_specs_path",
+    )
     task_bundle = load_json(tasks_path)
+    validate_benchmark_inputs(benchmark, task_bundle)
     tasks = [task for task in task_bundle["tasks"] if task["split"] == args.split]
     if not tasks:
         raise SystemExit(f"no tasks found for split {args.split}")

@@ -46,7 +46,6 @@
             "properties": {
               "baseline_single_agent": { "$ref": "#/$defs/stageOverrideMap" },
               "phased_default": { "$ref": "#/$defs/stageOverrideMap" },
-              "phased_plus_reviewers": { "$ref": "#/$defs/stageOverrideMap" },
               "phased_with_context_budgets": { "$ref": "#/$defs/stageOverrideMap" },
               "phased_dual_extractor_drift": { "$ref": "#/$defs/stageOverrideMap" }
             }
@@ -75,22 +74,6 @@
         "files_loaded": {
           "type": "integer",
           "minimum": 0
-        },
-        "quality_gain": {
-          "type": "number",
-          "minimum": 0
-        },
-        "cost_per_agent_usd": {
-          "type": "number",
-          "minimum": 0
-        },
-        "coordination_cost": {
-          "type": "number",
-          "minimum": 0
-        },
-        "requested_fanout": {
-          "type": "integer",
-          "minimum": 1
         },
         "traceability_gap": {
           "type": "boolean"

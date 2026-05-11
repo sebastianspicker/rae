@@ -2,47 +2,22 @@
 
 ## Objective
 
-Use multi-agent orchestration only when expected quality gain exceeds additional inference and coordination cost.
+Keep orchestration explicit. The runtime does not auto-scale reviewer or builder
+fan-out from cost estimates, budgets, or inferred quality gain.
 
-## Scoring function
+## Rule
 
-For candidate agent count `n`:
+- Use the stage order and gates defined by the pipeline.
+- Use only reviewer or builder assignments already declared in the approved
+  phase contract or artifact.
+- Do not add extra workers during runtime execution.
+- If a task needs more parallel work, update the plan first and re-run the
+  relevant gate.
 
-`delta(n) = quality_gain(n) - lambda * cost_delta(n) - mu * coordination_cost(n)`
+## Runtime Guardrails
 
-Run multi-agent orchestration only when:
-
-`delta(n) > min_expected_gain`
-
-Otherwise fallback to the single-agent baseline.
-
-## Inputs
-
-- `quality_gain(n)`: estimated error reduction vs. single-agent baseline.
-- `cost_delta(n)`: expected additional runtime/inference cost vs. single-agent baseline.
-- `coordination_cost(n)`: expected overhead from fan-out, merge, and adjudication.
-- `lambda`: cost sensitivity.
-- `mu`: coordination sensitivity.
-- `min_expected_gain`: minimum positive gain to justify orchestration.
-
-## Defaults
-
-- `max_reviewers = 3`
-- `max_builders = 3`
-- `latency_budget_s = 3600`
-- `budget_usd = 50`
-- `lambda = 1.0`
-- `mu = 1.0`
-- `min_expected_gain = 0.10`
-
-## Runtime guardrails
-
-- Never exceed `max_reviewers` or `max_builders`.
-- If `budget_usd` would be exceeded, reduce parallelism and log policy fallback in trace.
-- If `latency_budget_s` would be exceeded, prefer lower fan-out configuration.
-- Every policy decision must be written to trace as `event=agent_call` with `metadata.policy_decision`.
-
-## Versioning
-
-- Store active policy parameters in `.pipeline/pipeline-state.json` under `config.orchestration_policy`.
-- Emit each policy decision in trace events (`event=agent_call`, `metadata.policy_decision`) so runs remain auditable against the active policy parameters.
+- Pipeline state stores feature flags, context budgets, cognitive tiers, and
+  artifact pointers.
+- It does not store automatic fan-out policy parameters.
+- Trace events record executed phases, artifact reads/writes, task sessions, and
+  gate outcomes. They do not record synthetic policy decisions.
