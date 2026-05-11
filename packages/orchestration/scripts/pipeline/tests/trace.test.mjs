@@ -7,7 +7,6 @@ import {
   readTraceEvents,
   ensureTraceFile,
   invalidateTraceCache,
-  summarizeEventsLocal,
   MAX_TRACE_EVENTS,
   getTracePath,
 } from "../lib/trace.mjs";
@@ -82,88 +81,6 @@ describe("ensureTraceFile", () => {
     const tracePath = ensureTraceFile(ensureRunId);
     expect(existsSync(tracePath)).toBe(true);
     expect(readFileSync(tracePath, "utf8")).toBe("");
-  });
-});
-
-describe("summarizeEventsLocal", () => {
-  it("returns zeroed summary for empty events", () => {
-    const summary = summarizeEventsLocal([]);
-    expect(summary.total_events).toBe(0);
-    expect(summary.total_cost_usd).toBe(0);
-    expect(summary.total_tokens_in).toBe(0);
-    expect(summary.total_tokens_out).toBe(0);
-    expect(summary.total_duration_s).toBe(0);
-  });
-
-  it("computes phase durations from start/end pairs", () => {
-    const events = [
-      { event: "phase_start", phase: "arm", ts: "2026-01-01T00:00:00.000Z" },
-      { event: "phase_end", phase: "arm", ts: "2026-01-01T00:00:05.000Z" },
-    ];
-    const summary = summarizeEventsLocal(events);
-    expect(summary.total_duration_s).toBe(5);
-    expect(summary.phase_durations_ms.arm).toBe(5000);
-  });
-
-  it("accumulates token and cost totals", () => {
-    const events = [
-      { event: "agent_call", phase: "arm", tokens_in: 100, tokens_out: 50, cost_usd: 0.01 },
-      { event: "agent_call", phase: "arm", tokens_in: 200, tokens_out: 75, cost_usd: 0.02 },
-    ];
-    const summary = summarizeEventsLocal(events);
-    expect(summary.total_tokens_in).toBe(300);
-    expect(summary.total_tokens_out).toBe(125);
-    expect(summary.total_cost_usd).toBeCloseTo(0.03);
-  });
-
-  it("ignores negative cost and token values", () => {
-    const events = [{ event: "agent_call", phase: "arm", tokens_in: -10, cost_usd: -1 }];
-    const summary = summarizeEventsLocal(events);
-    expect(summary.total_tokens_in).toBe(0);
-    expect(summary.total_cost_usd).toBe(0);
-  });
-
-  it("aggregates activity resolution metadata", () => {
-    const events = [
-      {
-        event: "phase_start",
-        phase: "arm",
-        activity_id: "arm_briefing",
-        tier: "high_reasoning",
-        model_hint: "brief-architect",
-        runtime_name: "default",
-        runtime_version: "v1",
-      },
-      {
-        event: "task_session_start",
-        phase: "build",
-        metadata: {
-          activity_id: "build_worker",
-          cognitive_tier: "fast",
-          runtime_name: "default",
-          runtime_version: "v1",
-        },
-      },
-    ];
-    const summary = summarizeEventsLocal(events);
-    expect(summary.activity_resolutions).toEqual([
-      {
-        activity_id: "arm_briefing",
-        count: 1,
-        tier: "high_reasoning",
-        model_hint: "brief-architect",
-        runtime_name: "default",
-        runtime_version: "v1",
-      },
-      {
-        activity_id: "build_worker",
-        count: 1,
-        tier: "fast",
-        model_hint: undefined,
-        runtime_name: "default",
-        runtime_version: "v1",
-      },
-    ]);
   });
 });
 

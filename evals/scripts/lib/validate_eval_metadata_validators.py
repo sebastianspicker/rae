@@ -31,6 +31,9 @@ from lib.validate_eval_metadata_contracts import (
     validate_judge_config,
     validate_verification_evidence,
 )
+from router import EXECUTION_PROFILE_RUNTIMES
+
+
 def validate_benchmark_card(path: pathlib.Path) -> tuple[str, str]:
     data = load_json(path)
     if not isinstance(data, dict):
@@ -285,6 +288,8 @@ def validate_task_bundle(path: pathlib.Path) -> None:
     tasks = data.get("tasks")
     if not isinstance(tasks, list) or not tasks:
         raise ValueError(f"{path.relative_to(ROOT)} must contain non-empty tasks")
+    task_schema = load_json(EVALS / "schemas/task-spec.schema.json")
+    execution_profiles = set(task_schema["properties"]["execution_profile"]["enum"])
     seen: set[str] = set()
     for task in tasks:
         if not isinstance(task, dict):
@@ -302,6 +307,21 @@ def validate_task_bundle(path: pathlib.Path) -> None:
         if task.get("expected_runtime") not in RUNTIME_CHOICES:
             raise ValueError(
                 f"{path.relative_to(ROOT)} task {task_id} has invalid expected_runtime"
+            )
+        execution_profile = task.get("execution_profile")
+        if execution_profile is not None and (
+            not isinstance(execution_profile, str)
+            or execution_profile not in execution_profiles
+        ):
+            raise ValueError(
+                f"{path.relative_to(ROOT)} task {task_id} has invalid execution_profile"
+            )
+        if (
+            execution_profile is not None
+            and EXECUTION_PROFILE_RUNTIMES[execution_profile] != task["expected_runtime"]
+        ):
+            raise ValueError(
+                f"{path.relative_to(ROOT)} task {task_id} execution_profile does not match expected_runtime"
             )
         workflow_verb = task.get("workflow_verb")
         if workflow_verb is not None and workflow_verb not in WORKFLOW_VERBS:

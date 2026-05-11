@@ -308,11 +308,6 @@ cat > "$pipeline_dir/pipeline-state.json" <<EOF
         "runtime_version": "v1"
       }
     },
-    "reviewer_roles": [
-      "architect-reviewer",
-      "security-engineer",
-      "performance-engineer"
-    ],
     "post_build": [
       "denoise",
       "quality-frontend",
@@ -320,15 +315,6 @@ cat > "$pipeline_dir/pipeline-state.json" <<EOF
       "quality-docs",
       "security-review"
     ],
-    "orchestration_policy": {
-      "max_reviewers": 3,
-      "max_builders": 3,
-      "latency_budget_s": 3600,
-      "budget_usd": 50,
-      "lambda": 1,
-      "mu": 1,
-      "min_expected_gain": 0.1
-    },
     "context_budgets": {
       "design": 24000,
       "adversarial-review": 18000,

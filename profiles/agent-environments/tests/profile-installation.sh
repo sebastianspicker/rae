@@ -58,6 +58,19 @@ if bash "$ROOT_DIR/installers/install-profile.sh" "$SYMLINK_TARGET" >/dev/null 2
 fi
 test ! -e "$OUTSIDE_PROFILE_DIR/config.toml"
 
+SYMLINK_FILE_TARGET="$TMP_DIR/symlink-file-target"
+OUTSIDE_PROFILE_FILE="$TMP_DIR/outside-profile-file"
+mkdir -p "$SYMLINK_FILE_TARGET/scripts" "$SYMLINK_FILE_TARGET/.codex"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$SYMLINK_FILE_TARGET/scripts/verify.sh"
+chmod +x "$SYMLINK_FILE_TARGET/scripts/verify.sh"
+printf 'outside file\n' >"$OUTSIDE_PROFILE_FILE"
+ln -s "$OUTSIDE_PROFILE_FILE" "$SYMLINK_FILE_TARGET/.codex/config.toml"
+if bash "$ROOT_DIR/installers/install-profile.sh" --force "$SYMLINK_FILE_TARGET" >/dev/null 2>&1; then
+  printf 'installer should reject symlinked managed profile files\n' >&2
+  exit 1
+fi
+[[ "$(cat "$OUTSIDE_PROFILE_FILE")" == 'outside file' ]]
+
 TAMPER_TARGET="$TMP_DIR/tamper-target"
 OUTSIDE_BACKUP="$TMP_DIR/outside-backup.txt"
 mkdir -p "$TAMPER_TARGET/scripts"

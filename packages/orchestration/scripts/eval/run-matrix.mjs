@@ -158,7 +158,7 @@ function loadTaskset(root, tasksetRef) {
 }
 
 function applyConfigToPipelineState(root, configId, mode) {
-  const statePath = resolve(root, ".pipeline/pipeline-state.json");
+  const statePath = resolveWithinRepo(".pipeline/pipeline-state.json", root);
   const state = readJsonStrict(statePath);
 
   const featureFlags = state?.config?.feature_flags ?? {};
@@ -175,14 +175,8 @@ function applyConfigToPipelineState(root, configId, mode) {
     featureFlags.drift_benchmark_v1 = configId === "phased_dual_extractor_drift";
   }
 
-  const policy = state?.config?.orchestration_policy ?? {};
-  policy.max_reviewers =
-    configId === "phased_plus_reviewers" ? 3 : configId === "baseline_single_agent" ? 1 : 2;
-  policy.max_builders = configId === "baseline_single_agent" ? 1 : 2;
-
   state.config = state.config ?? {};
   state.config.feature_flags = featureFlags;
-  state.config.orchestration_policy = policy;
 
   writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
@@ -231,7 +225,7 @@ function main() {
     return { taskset: loaded.taskset, tasksetRel: loaded.rel };
   })();
 
-  const evalDir = resolve(root, ".pipeline/evaluations", args.evalId);
+  const evalDir = resolveWithinRepo(`.pipeline/evaluations/${args.evalId}`, root);
   const matrixPath = resolve(evalDir, "matrix.json");
   const reportPath = resolve(evalDir, "evaluation-report.json");
   mkdirSync(evalDir, { recursive: true });

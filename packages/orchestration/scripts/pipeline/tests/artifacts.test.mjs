@@ -76,7 +76,6 @@ describe("buildArtifactForPhase", () => {
     configId: "phased_default",
     task: { id: "t1", must_requirement_ids: ["REQ-001"] },
     stageProfile: {},
-    policyDecision: null,
     budget: null,
   };
 
@@ -97,9 +96,8 @@ describe("buildArtifactForPhase", () => {
     const result = buildArtifactForPhase({
       ...baseConfig,
       phase: "adversarial-review",
-      policyDecision: { chosen_fanout: 2 },
     });
-    expect(result.reviewers).toHaveLength(2);
+    expect(result.reviewers).toHaveLength(3);
     expect(result.deduplicated_findings).toHaveLength(1);
   });
 
@@ -195,8 +193,7 @@ describe("driftStatusForConfig", () => {
     expect(driftStatusForConfig("phased_dual_extractor_drift", {})).toBe("verified");
   });
 
-  it("returns partial for other phased configs", () => {
-    expect(driftStatusForConfig("phased_plus_reviewers", {})).toBe("partial");
+  it("returns partial for context-budget config", () => {
     expect(driftStatusForConfig("phased_with_context_budgets", {})).toBe("partial");
   });
 

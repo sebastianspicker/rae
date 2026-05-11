@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import os
 import pathlib
-import shutil
 import subprocess
 import time
 import uuid
@@ -20,6 +19,7 @@ RESULTS_ROOT = EVALS / "results"
 
 
 def _nearest_existing_ancestor(path: pathlib.Path) -> pathlib.Path:
+    """Find the deepest existing path before resolving containment checks."""
     current = path.resolve(strict=False)
     while not current.exists() and current != current.parent:
         current = current.parent
@@ -27,6 +27,7 @@ def _nearest_existing_ancestor(path: pathlib.Path) -> pathlib.Path:
 
 
 def is_within_directory(path: pathlib.Path, root: pathlib.Path) -> bool:
+    """Check containment for paths that may not exist yet."""
     resolved_root = root.resolve()
     resolved_path = path.resolve(strict=False)
     current = _nearest_existing_ancestor(resolved_path)
@@ -42,6 +43,7 @@ def is_within_directory(path: pathlib.Path, root: pathlib.Path) -> bool:
 
 
 def relative_to_directory(path: pathlib.Path, root: pathlib.Path) -> pathlib.Path:
+    """Return a relative path after proving it cannot escape root."""
     resolved_root = root.resolve()
     resolved_path = path.resolve(strict=False)
     current = _nearest_existing_ancestor(resolved_path)
@@ -109,6 +111,7 @@ def run_command(
     env: dict[str, str] | None = None,
     timeout_seconds: float | None = 300.0,
 ) -> dict[str, Any]:
+    """Run a local command and return the transcript as benchmark evidence."""
     started = time.monotonic()
     try:
         completed = subprocess.run(
@@ -154,11 +157,6 @@ def run_command(
     }
 
 
-def copy_file(src: pathlib.Path, dst: pathlib.Path) -> None:
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
-
-
 def repo_relpath(path: pathlib.Path) -> str:
     return ensure_relative_to_root(path)
 
@@ -177,10 +175,6 @@ def metric_ratio(numerator: int, denominator: int) -> float:
     if denominator == 0:
         return 1.0
     return round(numerator / denominator, 4)
-
-
-def existing_paths(paths: list[str]) -> list[str]:
-    return [path for path in paths if (ROOT / path).exists()]
 
 
 def path_exists(path_str: str) -> bool:

@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Repository verification for the public scaffold."""
+"""Repository-level checks for docs, links, eval metadata, and MkDocs.
+
+Package-local regression suites live under their owning runtime. This script
+only checks the umbrella surfaces that make repository claims visible and
+publishable.
+"""
 
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import subprocess
 import sys
-import os
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -19,6 +24,7 @@ SOURCE_LINK_RE = re.compile(r"bibliography\.md#src-[A-Za-z0-9._-]+")
 
 
 def path_within_root(path: pathlib.Path) -> bool:
+    """Return True when an existing or future path stays under the repo root."""
     resolved = path.resolve(strict=False)
     current = resolved if resolved.exists() else resolved.parent
     root = ROOT.resolve()
@@ -92,6 +98,7 @@ def validate_links() -> None:
 
 
 def validate_doc_source_density() -> None:
+    """Require claim-bearing docs to cite enough bibliography entries."""
     for path in iter_markdown_files():
         text = path.read_text(encoding="utf-8")
         count = len(set(SOURCE_LINK_RE.findall(text)))

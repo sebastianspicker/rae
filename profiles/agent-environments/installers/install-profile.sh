@@ -35,7 +35,10 @@ reject_managed_symlinks() {
     "$TARGET_DIR/.rae-profile-backups" \
     "$TARGET_DIR/.rae-profile-backups/.codex" \
     "$TARGET_DIR/.rae-profile-backups/.claude" \
-    "$TARGET_DIR/.rae-profile-backups/docs"; do
+    "$TARGET_DIR/.rae-profile-backups/docs" \
+    "$TARGET_DIR/.codex/config.toml" \
+    "$TARGET_DIR/.claude/settings.json" \
+    "$TARGET_DIR/docs/agent-operator-policy.md"; do
     reject_symlink_path "$path"
   done
 }

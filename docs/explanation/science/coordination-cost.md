@@ -70,7 +70,7 @@ That difference is architectural, not cosmetic.
 
 ## Proposition 2: parallelization is justified only when net benefit stays positive
 
-The imported orchestration policy uses the decision pattern:
+The orchestration rationale uses the decision pattern:
 
 $$
 \Delta(n) = B(n) - \lambda C_{\text{infer}}(n) - \mu C_{\text{coord}}(n)

@@ -32,6 +32,5 @@ export function printUsage(phases) {
   process.stdout.write(`  --schema-ref <path>     Override schema reference\n`);
   process.stdout.write(`  --input-artifact <path> Read artifact from this path instead of generating\n`);
   process.stdout.write(`  --gate-status <status>  Force gate status (pass|warn|fail)\n`);
-  process.stdout.write(`  --requested-fanout <n>  Override fan-out count for review/build phases\n`);
   process.stdout.write(`\nPhases: ${phases.join(", ")}\n`);
 }

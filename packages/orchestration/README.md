@@ -234,7 +234,6 @@ The `--config-id` flag selects a pipeline configuration profile:
 |-----------|-------------|
 | `phased_default` | Standard 10-phase pipeline (default) |
 | `baseline_single_agent` | Single-agent baseline for comparison |
-| `phased_plus_reviewers` | Default pipeline with additional reviewer roles |
 | `phased_with_context_budgets` | Enforced token/file budgets per phase |
 | `phased_dual_extractor_drift` | Dual-extractor drift detection in pmatch |
 
@@ -274,7 +273,7 @@ python3 scripts/adapters/generate_adapters.py --check  # verify sync
 | [`docs/SCIENTIFIC_FOUNDATION.md`](docs/SCIENTIFIC_FOUNDATION.md) | Formal mathematical model and research citations |
 | [`docs/SCIENTIFIC_IMPLEMENTATION_MAP.md`](docs/SCIENTIFIC_IMPLEMENTATION_MAP.md) | Theory-to-code mapping |
 | [`docs/PLATFORMS.md`](docs/PLATFORMS.md) | Platform adapter support model |
-| [`docs/ORCHESTRATION_POLICY.md`](docs/ORCHESTRATION_POLICY.md) | Fan-out policy and budget controls |
+| [`docs/ORCHESTRATION_POLICY.md`](docs/ORCHESTRATION_POLICY.md) | Explicit parallelism boundary |
 | [`docs/REPO_MAP.md`](docs/REPO_MAP.md) | Directory and file organization |
 
 ## Contributing

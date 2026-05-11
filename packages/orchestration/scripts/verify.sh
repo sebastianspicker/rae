@@ -121,6 +121,8 @@ run_core_checks
 if [ "$SKIP_INSTALL" -eq 0 ]; then
   echo "==> npm install (workspaces)"
   (cd "$root_dir" && npm install)
+  echo "==> npm audit (workspaces)"
+  (cd "$root_dir" && npm audit --audit-level=moderate)
 fi
 
 # Build skill packages (required by runner-stage integration tests)

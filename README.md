@@ -1,5 +1,7 @@
 # RAE
 
+[![ci](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml)
+
 Reliable Agentic Engineering.
 
 Evaluation-first reference implementation for reliable agentic engineering:
@@ -87,6 +89,13 @@ RAE-shaped targets, with templates, safe install/remove scripts, and regression
 tests.
 
 ## Quick Start
+
+Requirements:
+
+- Python 3.11+
+- Node.js 20+
+- `bash`, `git`, `jq`, `rg`, and `shellcheck`
+- Python docs dependencies from `requirements-docs.txt`
 
 Install and verify:
 
@@ -221,11 +230,21 @@ That structure is intended to stop four common failure modes:
 - [Documentation Index](docs/INDEX.md)
 - [Project Scope](docs/explanation/overview/project-scope.md)
 - [System Overview](docs/reference/architecture/system-overview.md)
+- [Repo Map](docs/reference/repo-map.md)
+- [Umbrella CLI](docs/reference/cli/umbrella.md)
 - [Claims Ledger](docs/reference/claims/claims-ledger.md)
 - [Evidence Index](docs/reference/claims/evidence-index.md)
 - [Benchmark Protocol](docs/research/benchmark-protocol.md)
 - [Frozen Benchmark Results](docs/research/frozen-benchmark-results.md)
 - [Profile Publication Guide](docs/how-to/publish-a-sanitized-profile.md)
+
+For a new maintainer, the fastest mental model is:
+
+1. `./scripts/rae.sh` is the stable operator entrypoint.
+2. Package-local docs remain the source of truth for runtime behavior.
+3. `evals/` records what was run, what artifacts were produced, and whether a
+   claim can use the result.
+4. `docs/reference/claims/` decides how far documentation claims may go.
 
 ## Verification
 

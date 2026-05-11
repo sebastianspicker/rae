@@ -17,11 +17,7 @@
         },
         "adversarial-review": {
           "token_estimate": 12000,
-          "files_loaded": 8,
-          "requested_fanout": 2,
-          "quality_gain": 0.24,
-          "cost_per_agent_usd": 0.4,
-          "coordination_cost": 0.08
+          "files_loaded": 8
         },
         "plan": {
           "token_estimate": 14000,
@@ -34,11 +30,7 @@
         },
         "build": {
           "token_estimate": 9000,
-          "files_loaded": 6,
-          "requested_fanout": 2,
-          "quality_gain": 0.2,
-          "cost_per_agent_usd": 0.35,
-          "coordination_cost": 0.1
+          "files_loaded": 6
         },
         "quality-static": {
           "token_estimate": 5000,
@@ -55,25 +47,9 @@
       },
       "config_overrides": {
         "baseline_single_agent": {
-          "adversarial-review": {
-            "requested_fanout": 1,
-            "quality_gain": 0.1
-          },
-          "build": {
-            "requested_fanout": 1,
-            "quality_gain": 0.1
-          },
           "pmatch": {
             "drift_status": "violated",
             "drift_mode": "heuristic"
-          }
-        },
-        "phased_plus_reviewers": {
-          "adversarial-review": {
-            "requested_fanout": 3,
-            "quality_gain": 0.38,
-            "cost_per_agent_usd": 0.45,
-            "coordination_cost": 0.08
           }
         },
         "phased_with_context_budgets": {
@@ -88,9 +64,6 @@
           "pmatch": {
             "drift_mode": "dual-extractor",
             "drift_status": "verified"
-          },
-          "adversarial-review": {
-            "requested_fanout": 2
           }
         }
       }
