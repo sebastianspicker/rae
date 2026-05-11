@@ -34,6 +34,90 @@ def test_run_benchmark_rejects_output_dir_outside_results_root() -> None:
     )
 
 
+def test_run_benchmark_rejects_unsafe_benchmark_id_before_writing() -> None:
+    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    benchmark = {**benchmark, "benchmark_id": "x/../../../outside"}
+    temp_benchmark_path = RESULTS_ROOT / ".tmp-unsafe-benchmark-id.json"
+    write_json(temp_benchmark_path, benchmark)
+
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="rae-benchmark-unsafe-benchmark-id-"
+    ) as tmp:
+        output_dir = pathlib.Path(tmp)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "evals/scripts/run_benchmark.py"),
+                "--benchmark-card",
+                str(temp_benchmark_path),
+                "--split",
+                "dev",
+                "--output-dir",
+                str(output_dir),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    temp_benchmark_path.unlink(missing_ok=True)
+    assert completed.returncode != 0
+    assert "benchmark_id must match" in (completed.stderr or completed.stdout)
+
+
+def test_run_benchmark_rejects_unsafe_task_id_before_writing() -> None:
+    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    task_bundle_path = ROOT / "evals/datasets/.tmp-unsafe-task-id.task-specs.json"
+    benchmark = {
+        **benchmark,
+        "benchmark_id": "tmp-unsafe-task-id",
+        "task_specs_path": "evals/datasets/.tmp-unsafe-task-id.task-specs.json",
+    }
+    task_bundle = {
+        "benchmark_id": "tmp-unsafe-task-id",
+        "version": "1.0.0",
+        "tasks": [
+            {
+                "task_id": "../../outside",
+                "split": "dev",
+                "expected_runtime": "ralph",
+            }
+        ],
+    }
+    temp_benchmark_path = RESULTS_ROOT / ".tmp-unsafe-task-id.benchmark-card.json"
+    write_json(task_bundle_path, task_bundle)
+    write_json(temp_benchmark_path, benchmark)
+
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="rae-benchmark-unsafe-task-id-"
+    ) as tmp:
+        output_dir = pathlib.Path(tmp)
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "evals/scripts/run_benchmark.py"),
+                "--benchmark-card",
+                str(temp_benchmark_path),
+                "--split",
+                "dev",
+                "--output-dir",
+                str(output_dir),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    temp_benchmark_path.unlink(missing_ok=True)
+    task_bundle_path.unlink(missing_ok=True)
+    assert completed.returncode != 0
+    assert "task_id must match" in (completed.stderr or completed.stdout)
+
+
 def test_run_benchmark_accepts_output_dir_under_results_root() -> None:
     results_root = pathlib.Path(os.path.realpath(RESULTS_ROOT))
     with tempfile.TemporaryDirectory(
@@ -269,5 +353,3 @@ def test_release_gate_fails_when_calibration_agreement_is_below_threshold() -> N
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
         assert gate_report["status"] == "fail"
         assert any("agreement_rate" in issue for issue in gate_report["issues"])
-
-

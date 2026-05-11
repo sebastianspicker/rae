@@ -195,3 +195,158 @@ def test_validate_eval_metadata_rejects_invalid_workflow_verb_in_task_bundle() -
 
         assert completed.returncode != 0
         assert "invalid workflow_verb" in (completed.stderr or completed.stdout)
+
+
+def test_validate_eval_metadata_rejects_invalid_execution_profile_in_task_bundle() -> None:
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="validate-invalid-execution-profile-"
+    ) as tmp:
+        task_bundle_path = pathlib.Path(tmp) / "invalid.task-specs.json"
+        write_json(
+            task_bundle_path,
+            {
+                "benchmark_id": "tmp-invalid-execution-profile",
+                "version": "1.0.0",
+                "tasks": [
+                    {
+                        "task_id": "tmp-invalid-execution-profile",
+                        "title": "invalid execution profile",
+                        "split": "dev",
+                        "family": "tmp",
+                        "horizon": "single-step",
+                        "expected_runtime": "tool",
+                        "execution_profile": "orchestration-arm",
+                    }
+                ],
+            },
+        )
+
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert completed.returncode != 0
+        assert "invalid execution_profile" in (completed.stderr or completed.stdout)
+
+
+def test_validate_eval_metadata_rejects_execution_profile_runtime_mismatch() -> None:
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="validate-execution-profile-runtime-mismatch-"
+    ) as tmp:
+        task_bundle_path = pathlib.Path(tmp) / "mismatch.task-specs.json"
+        write_json(
+            task_bundle_path,
+            {
+                "benchmark_id": "tmp-execution-profile-runtime-mismatch",
+                "version": "1.0.0",
+                "tasks": [
+                    {
+                        "task_id": "tmp-execution-profile-runtime-mismatch",
+                        "title": "execution profile runtime mismatch",
+                        "split": "dev",
+                        "family": "tmp",
+                        "horizon": "single-step",
+                        "expected_runtime": "tool",
+                        "execution_profile": "orchestration-init",
+                    }
+                ],
+            },
+        )
+
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert completed.returncode != 0
+        assert "execution_profile does not match expected_runtime" in (
+            completed.stderr or completed.stdout
+        )
+
+
+def test_router_rejects_execution_profile_runtime_mismatch() -> None:
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="route-execution-profile-mismatch-"
+    ) as tmp:
+        tmp_path = pathlib.Path(tmp)
+        task_path = tmp_path / "task.json"
+        output_path = tmp_path / "run-card.json"
+        write_json(
+            task_path,
+            {
+                "task_id": "tmp-profile-runtime-mismatch",
+                "title": "profile runtime mismatch",
+                "split": "dev",
+                "family": "tmp",
+                "horizon": "single-step",
+                "expected_runtime": "tool",
+                "destructive_operation": True,
+                "execution_profile": "orchestration-init",
+            },
+        )
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "evals/scripts/router.py"),
+                "--task-spec",
+                str(task_path),
+                "--output",
+                str(output_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert completed.returncode != 0
+        assert "not routed runtime tool" in (completed.stderr or completed.stdout)
+
+
+def test_router_rejects_non_string_execution_profile() -> None:
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="route-invalid-execution-profile-type-"
+    ) as tmp:
+        tmp_path = pathlib.Path(tmp)
+        task_path = tmp_path / "task.json"
+        output_path = tmp_path / "run-card.json"
+        write_json(
+            task_path,
+            {
+                "task_id": "tmp-invalid-execution-profile-type",
+                "title": "invalid execution profile type",
+                "split": "dev",
+                "family": "tmp",
+                "horizon": "single-step",
+                "expected_runtime": "ralph",
+                "execution_profile": False,
+            },
+        )
+
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(ROOT / "evals/scripts/router.py"),
+                "--task-spec",
+                str(task_path),
+                "--output",
+                str(output_path),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+        assert completed.returncode != 0
+        assert "execution_profile must be a non-empty string" in (
+            completed.stderr or completed.stdout
+        )

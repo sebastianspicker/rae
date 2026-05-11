@@ -42,7 +42,7 @@ Focus on these patterns:
 - [ ] JSON parsing of large files: check trace.mjs readTraceEvents, traceability.mjs loadOptionalJson
 - [ ] Algorithm complexity: check multi-model-review/src/lib/dedup.ts similarity computation (O(n^2)?)
 - [ ] Regex compilation: check criteria.ts for repeated regex compilation in hot paths
-- [ ] Fan-out policy: check policy.mjs decideFanout for NaN/edge cases
+- [ ] Parallelism boundary: verify reviewer assignments are explicit and not runtime-expanded
 - [ ] Document findings under "## Performance Findings" with severity
 
 ### Task 5: Consolidate and deduplicate

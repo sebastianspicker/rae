@@ -8,8 +8,7 @@
 
 - A repeatable, comparable evaluation harness across runs and configurations:
 - baseline (single-agent, no phased gates),
-- phased pipeline (current),
-- phased + N reviewers,
+- phased pipeline (current, with explicit parallelism boundary),
 - phased + context budget enforcement,
 - phased + different drift modes.
 
@@ -117,7 +116,7 @@ optional—it is the mechanism that turns the theory into control.
 
 ---
 
-### Gap D — Orchestration policy: when to use multiple agents and how many (P1)
+### Gap D — Orchestration boundary: keep parallelism explicit (P1)
 
 **What the repo has:**
 
@@ -127,57 +126,14 @@ optional—it is the mechanism that turns the theory into control.
 
 **What was missing in the original baseline:**
 
-- A decision procedure to choose:
-- single-agent vs multi-agent,
-- number of reviewers/builders,
-- whether to run a phase in parallel or sequentially.
-
-This is especially important because the 2025 orchestration paper argues
-orchestration isn’t always beneficial; it depends on performance/cost
-differentials under realistic conditions.
+- An explicit boundary for when reviewer or builder parallelism is allowed.
+- A guard against adding workers during runtime from inferred quality or cost
+  estimates.
 
 **Implemented repository changes (Feb 2026):**
 
-- Added `config.orchestration_policy` to pipeline-state template:
-  - `max_reviewers`, `max_builders`
-  - `budget_usd` (optional), `latency_budget_s` (optional)
-  - `min_expected_gain` threshold
-- Added a policy specification in docs:
+- Added an explicit parallelism boundary in docs:
   - `docs/ORCHESTRATION_POLICY.md`
-- Added runtime policy computation:
-  - `scripts/pipeline/lib/policy.mjs`
-  - Policy decisions emitted as `agent_call` trace events in `scripts/pipeline/runner.mjs`.
-
-A simple policy model (start here)
-
-Let:
-
-- $Q(n)$ be expected quality (or error reduction) with $n$ agents
-- $C_{\text{coord}}(n)$ coordination cost
-- $C_{\text{inf}}(n)$ inference/runtime cost
-
-Orchestrate if:
-
-$$
-\Delta(n) = \big(Q(n)-Q(1)\big) -
-\lambda\big(C_{\text{inf}}(n)-C_{\text{inf}}(1)\big) -
-\mu C_{\text{coord}}(n) > 0
-$$
-
-Use the existing coordination model:
-
-$$
-C_{\text{coord}}(n)\approx \alpha\frac{n(n-1)}{2}
-\quad\text{(unstructured)}
-\qquad
-C_{\text{coord}}(n)\approx \alpha(n-1)
-\quad\text{(hub-and-spoke)}
-$$
-
-and explicitly prefer hub-and-spoke (lead + workers) because it scales linearly
-in edges.
-
-This ties the mathematical justification to a concrete control knob.
 
 ### Gap E — End-to-end traceability across artifacts (P1)
 

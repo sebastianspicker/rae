@@ -12,6 +12,7 @@ ralph_mktemp_init
 
 RUNNER="$ROOT_DIR/ralph.sh"
 PRD_FILE="$ROOT_DIR/prd.json"
+[[ -f "$PRD_FILE" ]] || PRD_FILE="$ROOT_DIR/prd.json.example"
 PRD_SCHEMA_FILE="$ROOT_DIR/prd.schema.json"
 PRD_VALIDATE_FILTER_FILE="$ROOT_DIR/prd.validate.jq"
 POLICY_FILE="$ROOT_DIR/INSTRUCTIONS.md"

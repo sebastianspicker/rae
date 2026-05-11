@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-28
 source_of_truth: README.md
 evidence_links: claims/evidence-index.md
 ---
@@ -40,6 +40,25 @@ Use package-local docs for command truth and umbrella docs for:
 - claim quality
 - publication constraints
 - stable umbrella entrypoints
+
+## Maintainer data flow
+
+Most repository flows follow the same path:
+
+1. An operator enters through `./scripts/rae.sh`.
+2. The umbrella harness dispatches to orchestration, Ralph, evals, or a narrow
+   hygiene tool.
+3. The selected runtime writes local artifacts such as `.pipeline/` state,
+   benchmark run cards, command-result transcripts, checkpoints, or ledgers.
+4. Validators in `scripts/verify_repo.py`, `evals/scripts/`, and package-local
+   verification scripts decide whether those artifacts are usable evidence.
+5. Claim-bearing docs link to the evidence layer instead of asserting behavior
+   directly.
+
+Generated or mirrored surfaces should be edited at their declared source of
+truth. In particular, orchestration adapter files under
+`packages/orchestration/adapters/<runner>/` are generated from templates, while
+package-local runtime behavior stays under the package that owns it.
 
 ## Thesis validation
 

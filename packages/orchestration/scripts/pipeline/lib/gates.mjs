@@ -6,7 +6,6 @@ import { resolve } from "node:path";
 import { SKILL_ENTRYPOINTS } from "../../lib/constants.mjs";
 import { badInput } from "./errors.mjs";
 import { spawnSkillTool } from "./subprocess.mjs";
-import { coalesce } from "./utils.mjs";
 import {
   gateFileNameForPhase,
   getRunDir,
@@ -18,8 +17,7 @@ import {
   toWorkspaceRelative,
   writeJson,
 } from "./state.mjs";
-import { appendTraceEvent, nowIso, readTraceEvents, summarizeEventsLocal } from "./trace.mjs";
-import { decideFanout } from "./policy.mjs";
+import { appendTraceEvent, nowIso, readTraceEvents } from "./trace.mjs";
 import { evaluateMustTraceability } from "./traceability.mjs";
 
 export const QUALITY_GATE_PHASES = new Set([
@@ -307,6 +305,8 @@ export function evaluateTraceabilityGate({
   const flags = state?.config?.feature_flags ?? {};
   const enforce = parseBooleanFlag(flags.traceability_v1);
 
+  // Plan/build traceability is only meaningful after brief and plan artifacts
+  // exist. Missing inputs produce a gate artifact instead of a silent skip.
   const briefRef = state?.artifacts?.brief ?? "brief.json";
   const planRef = state?.artifacts?.plan ?? "plan.json";
   const designRef = state?.artifacts?.design ?? "design.json";
@@ -393,45 +393,4 @@ export function evaluateTraceabilityGate({
     gateFileOverride: `${phase}-traceability-gate.json`,
     root,
   });
-}
-
-export function runPolicyDecision({ runId, phase, state, stageProfile, requestedFanoutOverride, root = getRepoRoot() }) {
-  const summaryPath = resolve(getRunDir(runId, root), "trace.summary.json");
-  const summaryFromDisk = readJson(summaryPath, null);
-  const summary = summaryFromDisk ?? summarizeEventsLocal(readTraceEvents(runId, root));
-
-  const requestedFanout = coalesce(
-    requestedFanoutOverride,
-    stageProfile.requested_fanout,
-    phase === "adversarial-review"
-      ? state?.config?.orchestration_policy?.max_reviewers
-      : state?.config?.orchestration_policy?.max_builders,
-    1,
-  );
-
-  const decision = decideFanout({
-    phase,
-    policy: state?.config?.orchestration_policy ?? {},
-    traceSummary: summary,
-    requestedFanout,
-    qualityGainEstimate: stageProfile.quality_gain,
-    costPerAgentUsd: stageProfile.cost_per_agent_usd,
-    coordinationCost: stageProfile.coordination_cost,
-  });
-
-  appendTraceEvent(
-    runId,
-    {
-      event: "agent_call",
-      phase,
-      status: "ok",
-      tool_name: "policy-engine",
-      metadata: {
-        policy_decision: decision,
-      },
-    },
-    root,
-  );
-
-  return decision;
 }

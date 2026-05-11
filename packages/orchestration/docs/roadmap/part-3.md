@@ -45,7 +45,7 @@ P0 — Evaluation and observability baseline
 P1 — “Make the theory enforceable”
 
 - Completed: context manifests + per-phase budget gates
-- Completed: orchestration policy (runtime fanout decisions)
+- Completed: explicit parallelism boundary; runtime does not auto-scale fan-out
 - Completed: end-to-end traceability (requirements -> tasks -> tests -> drift)
 
 P2 — “Improve measurement and robustness”
@@ -88,7 +88,7 @@ Everything proposed here extends that same stance:
 
 - traces make gates measurable at system level,
 - evaluation harness makes claims repeatable,
-- policies make parallelism economically rational,
+- plans make parallelism explicit,
 - traceability makes intent preservation auditable.
 
 That is exactly the difference between:

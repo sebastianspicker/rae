@@ -29,7 +29,7 @@ Launch one Task subagent per task group. Each builder receives only:
 - required file excerpts,
 - relevant verification commands.
 - Start a fresh task session for each planned `execution_session.session_id`; do not inherit failed reasoning from prior tasks.
-- Enforce `config.orchestration_policy.max_builders` and active budget constraints from pipeline state.
+- Use only the builder assignments declared in `plan.json`; do not add extra workers during build.
 - Respect `builder_tier` from each task group in `plan.json` to select the appropriate model tier for that builder.
 
 ### 2. Supervise and unblock

@@ -294,7 +294,7 @@ export function resolveReviewLoopSnapshot(runId, phase, root) {
 
   const reviewLoop = readJsonStrict(reviewLoopAbs, "review-loop.json");
   return {
-      review_loop_ref: toWorkspaceRelative(reviewLoopAbs, root),
+    review_loop_ref: toWorkspaceRelative(reviewLoopAbs, root),
     review_state: {
       explain_status: reviewLoop?.states?.explain?.status ?? "not-started",
       fix_status: reviewLoop?.states?.fix?.status ?? "not-started",

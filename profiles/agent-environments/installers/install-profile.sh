@@ -19,6 +19,30 @@ usage() {
   printf 'Usage: %s [--force] <target-dir>\n' "$0" >&2
 }
 
+reject_symlink_path() {
+  local path="$1"
+  if [[ -L "$path" ]]; then
+    printf 'refusing to use symlinked profile path: %s\n' "$path" >&2
+    exit 1
+  fi
+}
+
+reject_managed_symlinks() {
+  for path in \
+    "$TARGET_DIR/.codex" \
+    "$TARGET_DIR/.claude" \
+    "$TARGET_DIR/docs" \
+    "$TARGET_DIR/.rae-profile-backups" \
+    "$TARGET_DIR/.rae-profile-backups/.codex" \
+    "$TARGET_DIR/.rae-profile-backups/.claude" \
+    "$TARGET_DIR/.rae-profile-backups/docs" \
+    "$TARGET_DIR/.codex/config.toml" \
+    "$TARGET_DIR/.claude/settings.json" \
+    "$TARGET_DIR/docs/agent-operator-policy.md"; do
+    reject_symlink_path "$path"
+  done
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
   --force)
@@ -36,18 +60,27 @@ while [[ $# -gt 0 ]]; do
 done
 
 TARGET_DIR="${1:-}"
-MANIFEST_PATH="$TARGET_DIR/.rae-profile-install.json"
-BACKUP_ROOT="$TARGET_DIR/.rae-profile-backups"
 
 if [[ -z "$TARGET_DIR" ]]; then
   usage
   exit 2
 fi
 
+if [[ ! -d "$TARGET_DIR" ]]; then
+  printf 'target directory does not exist: %s\n' "$TARGET_DIR" >&2
+  exit 1
+fi
+
+TARGET_DIR="$(cd "$TARGET_DIR" && pwd -P)"
+MANIFEST_PATH="$TARGET_DIR/.rae-profile-install.json"
+BACKUP_ROOT="$TARGET_DIR/.rae-profile-backups"
+
 if [[ ! -f "$TARGET_DIR/scripts/verify.sh" ]]; then
   printf 'unsupported target: expected an RAE-shaped repo with scripts/verify.sh at %s\n' "$TARGET_DIR" >&2
   exit 1
 fi
+
+reject_managed_symlinks
 
 for target in \
   "$TARGET_DIR/.codex/config.toml" \

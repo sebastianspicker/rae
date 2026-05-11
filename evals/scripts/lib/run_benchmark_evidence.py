@@ -1,3 +1,5 @@
+"""Evidence helpers for executable benchmark runs."""
+
 from __future__ import annotations
 
 import json
@@ -14,12 +16,23 @@ from common import (
     repo_relpath,
     run_command,
 )
+
+ARTIFACT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def validate_artifact_id(value: str, label: str) -> str:
+    if not isinstance(value, str) or not ARTIFACT_ID_RE.fullmatch(value):
+        raise ValueError(f"{label} must match ^[a-z0-9][a-z0-9-]*$")
+    return value
+
+
 def parse_run_id(stdout: str) -> str | None:
     match = re.search(r"run_id:\s+([a-z0-9-]+)", stdout)
     return match.group(1) if match else None
 
 
 def create_task_workspace(output_dir: pathlib.Path, task_id: str) -> pathlib.Path:
+    task_id = validate_artifact_id(task_id, "task_id")
     workspace = output_dir / "workspaces" / task_id
     workspace.mkdir(parents=True, exist_ok=True)
     return workspace
@@ -41,6 +54,7 @@ def merge_command_results(*results: dict[str, Any]) -> dict[str, Any]:
 
 
 def write_task_spec(output_dir: pathlib.Path, task: dict[str, Any]) -> pathlib.Path:
+    validate_artifact_id(task["task_id"], "task_id")
     path = output_dir / "task-specs" / f"{task['task_id']}.json"
     dump_json(path, task)
     return path
@@ -49,6 +63,7 @@ def write_task_spec(output_dir: pathlib.Path, task: dict[str, Any]) -> pathlib.P
 def write_command_result(
     output_dir: pathlib.Path, task_id: str, command_result: dict[str, Any]
 ) -> pathlib.Path:
+    task_id = validate_artifact_id(task_id, "task_id")
     path = output_dir / "command-results" / f"{task_id}.command-result.json"
     dump_json(path, command_result)
     return path
@@ -73,6 +88,7 @@ def build_task_verification_evidence(
     artifact_paths: list[str],
     checkpoint_paths: list[str],
 ) -> dict[str, Any]:
+    """Map produced artifacts to the evidence types required by a task."""
     required_evidence = task.get("delegation_contract", {}).get("required_evidence", [])
     required_types = sorted(
         {
@@ -185,6 +201,7 @@ def build_task_verification_evidence(
 def aggregate_verification_evidence(
     task_results: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    """Summarize evidence completeness across all tasks in a benchmark split."""
     provided: list[dict[str, Any]] = []
     required_types: set[str] = set()
     provided_types: set[str] = set()
@@ -230,9 +247,9 @@ def aggregate_verification_evidence(
 
 
 def init_isolated_orchestration_workspace(
-    workspace: pathlib.Path, branch_prefix: str
+    workspace: pathlib.Path,
 ) -> tuple[pathlib.Path, dict[str, Any], str]:
-    del branch_prefix  # current isolation uses a copied workspace, not a git branch
+    """Copy orchestration into a benchmark workspace while reusing dependencies."""
     source_root = ROOT / "packages/orchestration"
     package_root = workspace / "packages-orchestration"
 
@@ -250,6 +267,9 @@ def init_isolated_orchestration_workspace(
         current_path = pathlib.Path(current_root)
         dirnames[:] = [name for name in dirnames if name not in ignored_dirs]
         if "node_modules" in dirnames:
+            # The copied workspace must be isolated from generated pipeline state,
+            # but reinstalling every workspace package per benchmark task would
+            # make the deterministic eval path unnecessarily slow.
             src_node_modules = current_path / "node_modules"
             rel_path = src_node_modules.relative_to(source_root)
             dst_node_modules = package_root / rel_path
@@ -327,5 +347,3 @@ def create_checkpoint(
         checkpoint_ok = load_optional_json_artifact(repo_relpath(checkpoint_path))
         approved = bool(checkpoint_ok and checkpoint_ok.get("status") == "approved")
     return [repo_relpath(checkpoint_path)], approved, checkpoint_results
-
-

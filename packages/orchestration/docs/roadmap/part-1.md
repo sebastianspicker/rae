@@ -5,7 +5,7 @@
 - [x] Gap A (P0): execution trace contract, runtime emission, and trace-collector validation/summaries are implemented.
 - [x] Gap B (P0): evaluation-report contract, matrix runner, schema-validated tasksets, and metric aggregation are implemented.
 - [x] Gap C (P1): context manifests and runtime budget gates (`count-max`, `number-max`) are implemented.
-- [x] Gap D (P1): deterministic orchestration policy is documented, configured, and enforced at runtime.
+- [x] Gap D (P1): explicit orchestration parallelism boundary is documented.
 - [x] Gap E (P1): end-to-end traceability linkage and MUST-coverage gates are implemented.
 - [x] Gap F (P2): drift taxonomy, goldset, and precision/recall/F1 benchmark thresholds are implemented.
 
@@ -33,7 +33,7 @@ The analysis sections below are intentionally retained as scientific rationale a
 - Gap A: `contracts/artifacts/execution-trace.schema.json`, `scripts/pipeline/lib/trace.mjs`, `skills/dev-tools/trace-collector/`
 - Gap B: `contracts/artifacts/evaluation-report.schema.json`, `scripts/eval/run-matrix.mjs`, `scripts/eval/aggregate.mjs`, `scripts/eval/lib/taskset-validate.mjs`
 - Gap C: `contracts/artifacts/*context_manifest*`, `skills/dev-tools/quality-gate/src/lib/criteria.ts`, `scripts/pipeline/runner.mjs`
-- Gap D: `docs/ORCHESTRATION_POLICY.md`, `docs/pipeline/pipeline-state.template.json`, `scripts/pipeline/lib/policy.mjs`
+- Gap D: `docs/ORCHESTRATION_POLICY.md`, `docs/pipeline/pipeline-state.template.json`
 - Gap E: `contracts/artifacts/traceability-check.schema.json`, `scripts/pipeline/lib/traceability.mjs`, `scripts/pipeline/runner.mjs`
 - Gap F: `docs/eval/drift_goldset/`, `scripts/eval/drift-benchmark.mjs`
 
@@ -138,8 +138,8 @@ is effective only if there are performance/cost differentials between agents
 under realistic constraints.
 
 **Implication for this repo:**  
-The repo should add an explicit policy layer that decides when to go
-multi-agent (and how many agents) based on budget + expected marginal value.
+The repo should keep parallelism explicit in approved artifacts and avoid
+runtime fan-out from inferred budget or marginal-value estimates.
 
 ### 2.4 Evaluation & observability for MAS is becoming a first-class research area
 

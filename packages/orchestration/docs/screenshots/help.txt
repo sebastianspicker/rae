@@ -7,7 +7,9 @@ Commands:
   end-phase       --run-id <id> --phase <phase> [--status <ok|error>]
   record-artifact --run-id <id> --phase <phase> --artifact-ref <path> [--action <read|write>]
   record-gate     --run-id <id> --phase <phase> --status <pass|fail|warn> [--gate-id <id>]
+  record-review-state --run-id <id> --state <explain|fix|ship> --status <status> [--note <text>]
   summarize-run   --run-id <id> [--format <json|text|markdown>] [--output <path>]
+  summarize-progress --run-id <id> [--format <json|text|markdown>] [--output <path>]
 
 run-stage options:
   --run-id <id>           Run identifier (from pipeline-init.sh)
@@ -15,11 +17,11 @@ run-stage options:
   --config-id <id>        Configuration profile (default: phased_default)
   --taskset <path>        Path to taskset JSON file
   --task-id <id>          Task within taskset (default: first task)
+  --test-case-id <id>     Test case within the selected task (default: first test case)
   --artifact-ref <path>   Override artifact output path
   --schema-ref <path>     Override schema reference
   --input-artifact <path> Read artifact from this path instead of generating
   --gate-status <status>  Force gate status (pass|warn|fail)
-  --requested-fanout <n>  Override fan-out count for review/build phases
 
 Phases: arm, design, adversarial-review, plan, pmatch, build, quality-static, quality-tests, post-build, release-readiness
 
