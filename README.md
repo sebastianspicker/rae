@@ -2,6 +2,8 @@
 
 [![ci](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/138a23bb9a53432d899877961b8d2ab2)](https://app.codacy.com/gh/sebastianspicker/rae/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13179/badge)](https://www.bestpractices.dev/projects/13179)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sebastianspicker/rae/badge)](https://scorecard.dev/viewer/?uri=github.com/sebastianspicker/rae)
 [![License: MIT](https://img.shields.io/github/license/sebastianspicker/rae)](LICENSE)
 
 Reliable Agentic Engineering.
