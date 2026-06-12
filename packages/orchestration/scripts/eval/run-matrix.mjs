@@ -20,7 +20,7 @@ function parseArgs(argv) {
     {
       defaults: {
         root: process.cwd(),
-        evalId: `eval-${new Date().toISOString().replace(/[-:.]/g, "").replace("Z", "Z")}`,
+        evalId: `eval-${new Date().toISOString().replace(/[-:.]/g, "")}`,
         taskset: "docs/eval/tasksets/default.json",
         repeats: 1,
         mode: "shadow",
