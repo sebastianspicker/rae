@@ -36,9 +36,9 @@ export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$root_dir/.cache/npm}"
 
 # Color output (only when stdout is a terminal)
 if [ -t 1 ]; then
-  GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; NC='\033[0m'
+  GREEN='\033[0;32m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 else
-  GREEN=''; RED=''; YELLOW=''; BOLD=''; NC=''
+  GREEN=''; RED=''; BOLD=''; NC=''
 fi
 
 step_ok()   { echo -e "${GREEN}PASS${NC}: $1"; }
@@ -139,7 +139,7 @@ step_ok "runner CLI loads successfully"
 
 # Runner lib unit tests
 step_info "runner lib tests"
-(cd "$root_dir/scripts/pipeline" && npx vitest run --reporter=verbose 2>&1) || { step_fail "runner lib tests"; exit 1; }
+(cd "$root_dir/scripts/pipeline" && "$root_dir/node_modules/.bin/vitest" run --reporter=verbose 2>&1) || { step_fail "runner lib tests"; exit 1; }
 step_ok "runner lib tests passed"
 
 export SKIP_INSTALL
@@ -196,6 +196,7 @@ fi
 if [ ${#packages[@]} -eq 0 ]; then
   :
 elif [ "$PARALLEL" -eq 1 ] && [ ${#packages[@]} -gt 1 ]; then
+  # shellcheck disable=SC2016
   printf "%s\n" "${packages[@]}" | xargs -n 1 -P 3 bash -c 'verify_pkg "$1"' _
 else
   for pkg in "${packages[@]}"; do
