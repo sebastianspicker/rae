@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /packages/orchestration
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /packages/orchestration/skills/dev-tools/multi-model-review/sandbox
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /packages/orchestration/skills/dev-tools/quality-gate/sandbox
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /packages/orchestration/skills/dev-tools/trace-collector/sandbox
+    schedule:
+      interval: weekly

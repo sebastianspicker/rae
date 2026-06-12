@@ -4,7 +4,8 @@
 
 Please report security issues privately before opening a public issue.
 
-- Preferred route: email the maintainer listed on the repository hosting page.
+- Preferred route: email the maintainer listed on
+  [the repository hosting page](https://github.com/sebastianspicker/rae).
 - Include: affected path(s), reproduction steps, impact, and whether public
   disclosure appears to have already occurred.
 
