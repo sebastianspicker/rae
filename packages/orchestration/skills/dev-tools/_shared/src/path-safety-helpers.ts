@@ -32,16 +32,19 @@ export function resolveRoot(root: string, label: string): string {
 
 export function resolveExistingAncestor(resolved: string): string {
   let ancestor = resolved;
-  while (true) {
+  let parent = path.dirname(ancestor);
+  while (ancestor !== parent) {
     try {
       // Canonicalizing the root-confined candidate is required to detect symlink escapes.
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       return realpathSync(ancestor);
     } catch (err: unknown) {
       if ((err as { code?: string }).code !== "ENOENT") throw err;
-      const parent = path.dirname(ancestor);
-      if (parent === ancestor) throw err;
       ancestor = parent;
+      parent = path.dirname(ancestor);
     }
   }
+  // The filesystem root is the final existing ancestor for a root-confined candidate.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  return realpathSync(ancestor);
 }

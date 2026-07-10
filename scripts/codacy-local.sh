@@ -69,11 +69,11 @@ require_native_version() {
 }
 
 run_native_policy_analysis() {
-  local -a python_files
-  local -a bandit_test_ids
-  local -a supported_bandit_test_ids
-  local -a unsupported_bandit_test_ids
-  local -A supported_bandit_tests
+  local -a python_files=()
+  local -a bandit_test_ids=()
+  local -a supported_bandit_test_ids=()
+  local -a unsupported_bandit_test_ids=()
+  local -A supported_bandit_tests=()
   local bandit_tests
 
   printf 'Running native Ruff analysis...\n'
