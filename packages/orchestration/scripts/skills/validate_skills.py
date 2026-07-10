@@ -9,7 +9,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -38,7 +37,9 @@ def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[Ski
             end_idx = i
             break
     if end_idx is None:
-        return None, None, [SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")]
+        return None, None, [
+            SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")
+        ]
 
     front = "\n".join(lines[1:end_idx])
     name = None
@@ -83,10 +84,16 @@ def _validate_skill_dir(skill_dir: Path) -> list[SkillError]:
         if not NAME_RE.match(name):
             errors.append(SkillError(skill_md, f"Invalid name: {name!r}"))
         if name != skill_dir.name:
-            errors.append(SkillError(skill_md, f"name {name!r} does not match directory {skill_dir.name!r}"))
+            errors.append(
+                SkillError(skill_md, f"name {name!r} does not match directory {skill_dir.name!r}")
+            )
 
     if description is not None and not (1 <= len(description) <= 1024):
-        errors.append(SkillError(skill_md, f"description length out of range ({len(description)}; must be 1..1024)"))
+        errors.append(
+            SkillError(
+                skill_md, f"description length out of range ({len(description)}; must be 1..1024)"
+            )
+        )
 
     body = _read_text(skill_md)
     line_count = body.count("\n") + 1
@@ -142,7 +149,9 @@ def _parse_roots(args: argparse.Namespace) -> list[Path]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate skill roots against AgentSkills constraints.")
+    parser = argparse.ArgumentParser(
+        description="Validate skill roots against AgentSkills constraints."
+    )
     parser.add_argument(
         "--roots",
         default="",

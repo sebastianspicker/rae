@@ -38,7 +38,7 @@ function validateWithSchema(
   schema: Record<string, unknown>,
   data: unknown,
 ): { valid: boolean; errors: unknown[] } {
-  const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
+  const ajv = new Ajv({ allErrors: false, strict: false, validateSchema: false });
   registerFormats(ajv);
   const validate = ajv.compile(schema);
   const valid = validate(data);

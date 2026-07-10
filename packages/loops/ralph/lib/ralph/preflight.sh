@@ -33,7 +33,8 @@ run_security_preflight_check() {
 
   mapfile -t detected < <(printf '%s\n' "${detected[@]}" | sort -u)
 
-  joined="$(IFS=,; printf '%s' "${detected[*]}")"
+  printf -v joined '%s,' "${detected[@]}"
+  joined="${joined%,}"
   log_event "WARN security_preflight=detected vars=$joined"
   printf '[ralph][WARN] Security preflight detected sensitive environment variables: %s\n' "$joined" >&2
   printf '[ralph][WARN] Use least privilege and unset unneeded secrets for autonomous runs.\n' >&2

@@ -144,7 +144,7 @@ export function readPhaseGate(runId, phase, root = getRepoRoot()) {
 
 export function emitRetryEventIfNeeded(runId, phase, root = getRepoRoot()) {
   const previousGate = readPhaseGate(runId, phase, root);
-  if (!previousGate || previousGate.status !== "fail") {
+  if (previousGate?.status !== "fail") {
     return null;
   }
 

@@ -9,7 +9,6 @@ import re
 import sys
 from pathlib import Path
 
-
 TOKEN_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
 
@@ -56,7 +55,9 @@ def compare_or_write(
             old = current.splitlines() if current is not None else []
             new = content.splitlines()
             diff = "\n".join(
-                difflib.unified_diff(old, new, fromfile=f"{path} (current)", tofile=f"{path} (expected)", n=2)
+                difflib.unified_diff(
+                    old, new, fromfile=f"{path} (current)", tofile=f"{path} (expected)", n=2
+                )
             )
             diffs.append(diff)
         return False
@@ -85,10 +86,16 @@ def resolve_runner_titles(manifest: dict) -> dict[str, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Generate adapter files from templates and validate sync with committed outputs."
+        description=(
+            "Generate adapter files from templates and validate sync with committed outputs."
+        )
     )
-    parser.add_argument("--check", action="store_true", help="Check mode: do not write files, fail on drift.")
-    parser.add_argument("--runner", action="append", help="Limit generation/check to one or more runner IDs.")
+    parser.add_argument(
+        "--check", action="store_true", help="Check mode: do not write files, fail on drift."
+    )
+    parser.add_argument(
+        "--runner", action="append", help="Limit generation/check to one or more runner IDs."
+    )
     parser.add_argument(
         "--manifest",
         default="adapters/spec/adapter-manifest.json",
@@ -164,12 +171,16 @@ def main() -> int:
                 raise FileNotFoundError(f"Missing template for stage '{stage}': {tmpl}")
 
             rendered = render_template(tmpl, values)
-            target_path = resolve_repo_path(root, target_rel, f"runner '{runner_id}' stage '{stage}'")
+            target_path = resolve_repo_path(
+                root, target_rel, f"runner '{runner_id}' stage '{stage}'"
+            )
             if compare_or_write(target_path, rendered, args.check, diffs):
                 writes += 1
 
             if runner_id == "cursor" and cursor_mirror_root:
-                mirror_root = resolve_repo_path(root, cursor_mirror_root, "legacy_mirrors.cursor_skills_root")
+                mirror_root = resolve_repo_path(
+                    root, cursor_mirror_root, "legacy_mirrors.cursor_skills_root"
+                )
                 mirror = mirror_root / stage_dir / "SKILL.md"
                 if compare_or_write(mirror, rendered, args.check, diffs, optional=True):
                     writes += 1
@@ -182,14 +193,18 @@ def main() -> int:
             if not pipeline_tmpl.exists():
                 raise FileNotFoundError(f"Missing pipeline skill template: {pipeline_tmpl}")
             rendered_pipeline = render_template(pipeline_tmpl, values)
-            pipeline_path = resolve_repo_path(root, pipeline_skill_rel, f"runner '{runner_id}' pipeline_skill")
+            pipeline_path = resolve_repo_path(
+                root, pipeline_skill_rel, f"runner '{runner_id}' pipeline_skill"
+            )
             if compare_or_write(pipeline_path, rendered_pipeline, args.check, diffs):
                 writes += 1
 
         if runner_id == "codex" and codex_playbook_target:
             legacy_tmpl = template_root / "skills" / "orchestration" / "SKILL.md.tmpl"
             rendered_legacy = render_template(legacy_tmpl, values)
-            legacy_path = resolve_repo_path(root, codex_playbook_target, "legacy_mirrors.codex_playbook")
+            legacy_path = resolve_repo_path(
+                root, codex_playbook_target, "legacy_mirrors.codex_playbook"
+            )
             if compare_or_write(legacy_path, rendered_legacy, args.check, diffs, optional=True):
                 writes += 1
 
@@ -201,7 +216,9 @@ def main() -> int:
             if not root_tmpl.exists():
                 raise FileNotFoundError(f"Missing root entry template: {root_tmpl}")
             rendered_root = render_template(root_tmpl, values)
-            target = resolve_repo_path(root, root_entry_path, f"legacy root entry for '{runner_id}'")
+            target = resolve_repo_path(
+                root, root_entry_path, f"legacy root entry for '{runner_id}'"
+            )
             if compare_or_write(target, rendered_root, args.check, diffs, optional=True):
                 writes += 1
 

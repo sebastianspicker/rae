@@ -27,12 +27,6 @@
   - [3.2 Reliability Gains from Gates](#32-reliability-gains-from-gates)
   - [3.3 Optimal Team Size Under Coordination Cost](#33-optimal-team-size-under-coordination-cost)
 - [4. How This Repository Implements These Principles](#4-how-this-repository-implements-these-principles)
-  - [4.1 Canonical Phases and Typed Artifacts](#41-canonical-phases-and-typed-artifacts)
-  - [4.2 Runtime Skills](#42-runtime-skills)
-  - [4.3 Why the Old “Orchestration Playground” Degraded](#43-why-the-old-orchestration-playground-degraded)
-- [5. Further Integrations](#5-further-integrations)
-- [Glossary](#glossary)
-- [References](#references)
 
 ---
 

@@ -15,7 +15,7 @@ function loadSchema(pathFromRepoRoot: string): Record<string, unknown> {
 function validateAgainst(schemaPath: string, data: unknown): { valid: boolean; errors: unknown[] } {
   const schema = loadSchema(schemaPath);
   const ajv = new Ajv({
-    allErrors: true,
+    allErrors: false,
     strict: false,
     validateSchema: false,
     validateFormats: false,

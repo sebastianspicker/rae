@@ -1,16 +1,16 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { spawnSync } from "node:child_process";
 import {
+  existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
-  existsSync,
-  realpathSync,
-  mkdirSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { spawnSync } from "node:child_process";
+import { join, resolve } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const PIPELINE_INIT = join(REPO_ROOT, "scripts/pipeline-init.sh");
@@ -38,8 +38,12 @@ function makeGitRepo() {
 }
 
 function parseField(output, field) {
-  const match = output.match(new RegExp(`${field}:\\s+(.+)`));
-  return match ? match[1].trim() : "";
+  const prefix = `${field}:`;
+  const line = output
+    .split("\n")
+    .map((candidate) => candidate.trimStart())
+    .find((candidate) => candidate.startsWith(prefix));
+  return line ? line.slice(prefix.length).trim() : "";
 }
 
 afterEach(() => {
@@ -85,7 +89,11 @@ describe("pipeline-init worktree mode", () => {
     expect(cleanup.status).toBe(0);
     expect(existsSync(workspaceRoot)).toBe(false);
 
-    const cleanupAgain = run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT);
+    const cleanupAgain = run(
+      "bash",
+      [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot],
+      REPO_ROOT,
+    );
     expect(cleanupAgain.status).toBe(0);
     expect(cleanupAgain.stdout).toContain("already-absent");
 
@@ -121,12 +129,12 @@ describe("pipeline-init worktree mode", () => {
     expect(branchList.stdout).toContain(branchA);
     expect(branchList.stdout).toContain(branchB);
 
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootA], REPO_ROOT).status).toBe(
-      0,
-    );
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootB], REPO_ROOT).status).toBe(
-      0,
-    );
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootA], REPO_ROOT).status,
+    ).toBe(0);
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootB], REPO_ROOT).status,
+    ).toBe(0);
     expect(existsSync(workspaceRootA)).toBe(false);
     expect(existsSync(workspaceRootB)).toBe(false);
   });
@@ -150,9 +158,9 @@ describe("pipeline-init worktree mode", () => {
     expect(workspaceRoot).toContain(`${canonicalRepoRoot}/.worktrees/`);
     expect(existsSync(join(nestedRoot, ".pipeline", "pipeline-state.json"))).toBe(false);
 
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status).toBe(
-      0,
-    );
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
+    ).toBe(0);
   });
 
   it("resumes run commands against the isolated worktree from the primary repo", () => {
@@ -165,13 +173,26 @@ describe("pipeline-init worktree mode", () => {
 
     const record = run(
       "node",
-      [runnerPath, "record-review-state", "--run-id", runId, "--state", "explain", "--status", "completed"],
+      [
+        runnerPath,
+        "record-review-state",
+        "--run-id",
+        runId,
+        "--state",
+        "explain",
+        "--status",
+        "completed",
+      ],
       REPO_ROOT,
     );
     expect(record.status).toBe(0);
-    expect(existsSync(join(workspaceRoot, ".pipeline", "runs", runId, "review-loop.json"))).toBe(true);
+    expect(existsSync(join(workspaceRoot, ".pipeline", "runs", runId, "review-loop.json"))).toBe(
+      true,
+    );
     expect(existsSync(join(REPO_ROOT, ".pipeline", "runs", runId, "review-loop.json"))).toBe(false);
 
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status).toBe(0);
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
+    ).toBe(0);
   });
 });

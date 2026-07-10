@@ -92,6 +92,46 @@ def validate_checkpoint_statuses(
     return statuses, issues
 
 
+def _validate_command_log(path: pathlib.Path, label: str) -> list[str]:
+    if path.is_dir() or path.suffix != ".json":
+        return [f"{label} command-log must point to a JSON file"]
+    payload = load_json(path)
+    if not isinstance(payload, dict):
+        return [f"{label} command-log must be a JSON object"]
+    required_keys = {"argv", "returncode", "stdout", "stderr", "duration_seconds"}
+    missing = sorted(required_keys - set(payload))
+    return [f"{label} command-log missing keys: {', '.join(missing)}"] if missing else []
+
+
+def _validate_json_evidence(
+    path: pathlib.Path,
+    evidence_type: str,
+    evidence_path_ref: str,
+    label: str,
+    run_id: object,
+) -> list[str]:
+    if path.is_dir():
+        return [f"{label} must point to a JSON file, not a directory"]
+    payload = load_json(path)
+    if not isinstance(payload, dict):
+        return [f"{label} must point to a JSON object"]
+    issues: list[str] = []
+    if payload.get("run_id") is not None and payload.get("run_id") != run_id:
+        issues.append(f"{label} run_id mismatch: {evidence_path_ref}")
+    if evidence_type == "checkpoint":
+        if payload.get("run_id") != run_id:
+            issues.append(f"{label} checkpoint run_id mismatch: {evidence_path_ref}")
+        if "status" not in payload:
+            issues.append(f"{label} checkpoint missing status: {evidence_path_ref}")
+        return issues
+    required_keys = EVIDENCE_TYPE_JSON_KEYS.get(evidence_type)
+    if required_keys and not any(key in payload for key in required_keys):
+        issues.append(
+            f"{label} does not match claimed type {evidence_type}: {evidence_path_ref}"
+        )
+    return issues
+
+
 def validate_verification_evidence_entry(
     entry: dict[str, Any],
     *,
@@ -99,7 +139,6 @@ def validate_verification_evidence_entry(
     run_card: dict[str, Any],
     run_card_path: pathlib.Path,
 ) -> list[str]:
-    issues: list[str] = []
     evidence_type = entry.get("type")
     evidence_path_ref = entry.get("path")
     entry_label = f"verification_evidence.provided[{index}]"
@@ -117,61 +156,22 @@ def validate_verification_evidence_entry(
         return [f"{entry_label} missing path: {evidence_path_ref}"]
 
     if evidence_type == "artifact":
-        return issues
+        return []
 
     if evidence_type == "trace":
-        if evidence_path.suffix not in {".jsonl", ".log"}:
-            issues.append(
-                f"{entry_label} trace path must be .jsonl or .log: {evidence_path_ref}"
-            )
-        return issues
-
-    if evidence_type == "command-log":
-        if evidence_path.is_dir() or evidence_path.suffix != ".json":
-            issues.append(f"{entry_label} command-log must point to a JSON file")
-            return issues
-        payload = load_json(evidence_path)
-        if not isinstance(payload, dict):
-            issues.append(f"{entry_label} command-log must be a JSON object")
-            return issues
-        required_keys = {"argv", "returncode", "stdout", "stderr", "duration_seconds"}
-        missing = sorted(required_keys - set(payload))
-        if missing:
-            issues.append(
-                f"{entry_label} command-log missing keys: {', '.join(missing)}"
-            )
-        return issues
-
-    if evidence_path.is_dir():
-        issues.append(f"{entry_label} must point to a JSON file, not a directory")
-        return issues
-
-    payload = load_json(evidence_path)
-    if not isinstance(payload, dict):
-        issues.append(f"{entry_label} must point to a JSON object")
-        return issues
-
-    payload_run_id = payload.get("run_id")
-    if payload_run_id is not None and payload_run_id != run_card.get("run_id"):
-        issues.append(f"{entry_label} run_id mismatch: {evidence_path_ref}")
-
-    if evidence_type == "checkpoint":
-        if payload.get("run_id") != run_card.get("run_id"):
-            issues.append(
-                f"{entry_label} checkpoint run_id mismatch: {evidence_path_ref}"
-            )
-        if "status" not in payload:
-            issues.append(
-                f"{entry_label} checkpoint missing status: {evidence_path_ref}"
-            )
-        return issues
-
-    required_keys = EVIDENCE_TYPE_JSON_KEYS.get(evidence_type)
-    if required_keys and not any(key in payload for key in required_keys):
-        issues.append(
-            f"{entry_label} does not match claimed type {evidence_type}: {evidence_path_ref}"
+        return (
+            []
+            if evidence_path.suffix in {".jsonl", ".log"}
+            else [f"{entry_label} trace path must be .jsonl or .log: {evidence_path_ref}"]
         )
 
-    return issues
-
+    if evidence_type == "command-log":
+        return _validate_command_log(evidence_path, entry_label)
+    return _validate_json_evidence(
+        evidence_path,
+        evidence_type,
+        evidence_path_ref,
+        entry_label,
+        run_card.get("run_id"),
+    )
 

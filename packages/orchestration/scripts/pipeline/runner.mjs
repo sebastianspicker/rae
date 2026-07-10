@@ -1,14 +1,5 @@
 #!/usr/bin/env node
 import { CONFIG_IDS as CONFIG_ID_LIST, DEFAULT_CONFIG_ID, PHASE_ORDER } from "../lib/constants.mjs";
-import { badInput } from "./lib/errors.mjs";
-import {
-  ensureRunDirs,
-  loadPipelineState,
-  resolveWorkspaceRootForRun,
-  withLockedState,
-} from "./lib/state.mjs";
-import { appendTraceEvent } from "./lib/trace.mjs";
-import { emitRetryEventIfNeeded, gateStatusFromPhaseAndProfile } from "./lib/gates.mjs";
 import {
   printUsage,
   runEndPhase,
@@ -19,6 +10,8 @@ import {
   runSummarizeProgress,
   runSummarizeRun,
 } from "./lib/commands.mjs";
+import { badInput } from "./lib/errors.mjs";
+import { emitRetryEventIfNeeded, gateStatusFromPhaseAndProfile } from "./lib/gates.mjs";
 import {
   appendTaskSessionEvent,
   ensureStateForRun,
@@ -36,16 +29,32 @@ import {
   recordPhaseCompletion,
   resolveAndWriteArtifact,
 } from "./lib/runner-helpers-b.mjs";
+import {
+  ensureRunDirs,
+  loadPipelineState,
+  resolveWorkspaceRootForRun,
+  withLockedState,
+} from "./lib/state.mjs";
+import { appendTraceEvent } from "./lib/trace.mjs";
 
 const PHASES = PHASE_ORDER;
 const CONFIG_IDS = new Set(CONFIG_ID_LIST);
+const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor", "toString"]);
+
+function assertSafeKey(key, label) {
+  if (UNSAFE_KEYS.has(key)) {
+    throw badInput(`${label} is not allowed: ${key}`);
+  }
+}
 
 function parseOptions(argv) {
-  const out = { _: [] };
+  const out = Object.create(null);
+  out._ = [];
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
     if (token.startsWith("--")) {
       const key = token.slice(2);
+      assertSafeKey(key, "option name");
       const next = argv[i + 1];
       if (next && !next.startsWith("--")) {
         out[key] = next;
@@ -200,7 +209,13 @@ function runStage(options) {
       taskSession,
       root,
     );
-    recordPhaseCompletion({ runId, phase, state: lockedState, primaryGate, root });
+    recordPhaseCompletion({
+      runId,
+      phase,
+      state: lockedState,
+      primaryGate,
+      root,
+    });
   });
 
   const result = {
@@ -228,16 +243,16 @@ const ctx = {
   appendRunEndIfMissing,
 };
 
-const COMMANDS = {
-  "start-phase": (opts) => runStartPhase(opts, ctx),
-  "end-phase": (opts) => runEndPhase(opts, ctx),
-  "record-artifact": (opts) => runRecordArtifact(opts, ctx),
-  "record-gate": (opts) => runRecordGate(opts, ctx),
-  "record-review-state": (opts) => runRecordReviewState(opts, ctx),
-  "summarize-run": (opts) => runSummarizeRun(opts, ctx),
-  "summarize-progress": (opts) => runSummarizeProgress(opts, ctx),
-  "run-stage": runStage,
-};
+const COMMANDS = new Map([
+  ["start-phase", (opts) => runStartPhase(opts, ctx)],
+  ["end-phase", (opts) => runEndPhase(opts, ctx)],
+  ["record-artifact", (opts) => runRecordArtifact(opts, ctx)],
+  ["record-gate", (opts) => runRecordGate(opts, ctx)],
+  ["record-review-state", (opts) => runRecordReviewState(opts, ctx)],
+  ["summarize-run", (opts) => runSummarizeRun(opts, ctx)],
+  ["summarize-progress", (opts) => runSummarizeProgress(opts, ctx)],
+  ["run-stage", runStage],
+]);
 
 function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -246,10 +261,11 @@ function main() {
     return;
   }
 
-  const handler = COMMANDS[command];
+  assertSafeKey(command, "command");
+  const handler = COMMANDS.get(command);
   if (!handler) {
     throw badInput(
-      `unknown command: ${command}. Available commands: ${Object.keys(COMMANDS).join(", ")}`,
+      `unknown command: ${command}. Available commands: ${[...COMMANDS.keys()].join(", ")}`,
     );
   }
   handler(parseOptions(rest));
@@ -263,19 +279,29 @@ function main() {
  * @see scripts/pipeline/lib/subprocess.mjs
  * @see scripts/pipeline/lib/errors.mjs toolError()
  */
-const ERROR_HINTS = {
-  E_QUALITY_GATE_MISSING: "Hint: Run 'npm run build' in skills/dev-tools/quality-gate/",
-  E_QUALITY_GATE_TIMEOUT:
+const ERROR_HINTS = new Map([
+  ["E_QUALITY_GATE_MISSING", "Hint: Run 'npm run build' in skills/dev-tools/quality-gate/"],
+  [
+    "E_QUALITY_GATE_TIMEOUT",
     "Hint: Quality-gate subprocess timed out. Check for large artifacts or increase timeout.",
-  E_QUALITY_GATE_SIGNAL: "Hint: Quality-gate subprocess was killed. Check system resources.",
-  E_QUALITY_GATE_EMPTY: "Hint: Quality-gate returned no output. Verify the skill builds cleanly.",
-  E_TRACE_COLLECTOR_MISSING: "Hint: Run 'npm run build' in skills/dev-tools/trace-collector/",
-  E_TRACE_COLLECTOR_TIMEOUT: "Hint: Trace-collector subprocess timed out. Check trace.jsonl size.",
-  E_TRACE_COLLECTOR_EMPTY:
+  ],
+  ["E_QUALITY_GATE_SIGNAL", "Hint: Quality-gate subprocess was killed. Check system resources."],
+  [
+    "E_QUALITY_GATE_EMPTY",
+    "Hint: Quality-gate returned no output. Verify the skill builds cleanly.",
+  ],
+  ["E_TRACE_COLLECTOR_MISSING", "Hint: Run 'npm run build' in skills/dev-tools/trace-collector/"],
+  [
+    "E_TRACE_COLLECTOR_TIMEOUT",
+    "Hint: Trace-collector subprocess timed out. Check trace.jsonl size.",
+  ],
+  [
+    "E_TRACE_COLLECTOR_EMPTY",
     "Hint: Trace-collector returned no output. Verify the skill builds cleanly.",
-  E_BAD_INPUT: "Hint: Run 'node scripts/pipeline/runner.mjs --help' for usage.",
-  E_BAD_TRACE: "Hint: Check trace.jsonl for malformed lines.",
-};
+  ],
+  ["E_BAD_INPUT", "Hint: Run 'node scripts/pipeline/runner.mjs --help' for usage."],
+  ["E_BAD_TRACE", "Hint: Check trace.jsonl for malformed lines."],
+]);
 
 try {
   main();
@@ -283,7 +309,7 @@ try {
   const code = error?.code || "E_UNKNOWN";
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`${code}: ${message}\n`);
-  const hint = ERROR_HINTS[code];
+  const hint = typeof code === "string" ? ERROR_HINTS.get(code) : undefined;
   if (hint) {
     process.stderr.write(`${hint}\n`);
   }

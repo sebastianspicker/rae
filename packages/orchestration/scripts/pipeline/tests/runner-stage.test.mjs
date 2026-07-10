@@ -2,16 +2,17 @@
  * Integration tests for the runner.mjs CLI — specifically the run-stage command.
  * These tests spawn runner.mjs as a subprocess to exercise the real entrypoint.
  */
-import { describe, it, expect } from "vitest";
+
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
 import {
-  TEST_RUN_ID,
   initState,
   pipelineDirForTest,
   registerStateLifecycle,
   runDirForTest,
   runRunner,
+  TEST_RUN_ID,
   writeEmptyBriefFixture,
   writeReviewLoopFixture,
   writeTasksetFixture,
@@ -34,6 +35,22 @@ describe("runner.mjs CLI", () => {
       const result = runRunner(["bogus-command"]);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain("unknown command");
+    });
+
+    it.each([
+      "__proto__",
+      "constructor",
+      "toString",
+    ])("rejects the unsafe command key %s", (command) => {
+      const result = runRunner([command]);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("command is not allowed");
+    });
+
+    it.each(["__proto__", "constructor", "toString"])("rejects the unsafe option key %s", (key) => {
+      const result = runRunner(["run-stage", `--${key}`, "value"]);
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("option name is not allowed");
     });
   });
 });
@@ -384,7 +401,7 @@ describe("run-stage", () => {
       expect(events.some((event) => event.event === "run_end")).toBe(true);
 
       const summary = runRunner(["summarize-run", "--run-id", TEST_RUN_ID]);
-      expect(summary.status).toBe(0);
+      expect(summary.status, summary.stderr).toBe(0);
       const output = JSON.parse(summary.stdout);
       expect(output.summary.total_wall_clock_s).toBeTypeOf("number");
       expect(output.summary.total_wall_clock_s).toBeGreaterThanOrEqual(0);

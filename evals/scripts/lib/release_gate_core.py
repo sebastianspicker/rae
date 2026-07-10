@@ -9,6 +9,7 @@ import pathlib
 from typing import Any
 
 from common import RESULTS_ROOT, dump_json, iso_timestamp, load_json, path_exists, repo_relpath
+
 from lib.release_gate_helpers import (
     path_under_results,
     path_within_run_scope,
@@ -18,6 +19,8 @@ from lib.release_gate_helpers import (
     validate_checkpoint_statuses,
     validate_verification_evidence_entry,
 )
+
+
 def release_gated_evidence_issues(
     benchmark: dict[str, Any], run_card: dict[str, Any], run_card_path: pathlib.Path
 ) -> list[str]:

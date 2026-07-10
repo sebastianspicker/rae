@@ -18,7 +18,7 @@ function loadSchema(pathFromRepoRoot: string): Record<string, unknown> {
 function expectSchemaValid(schemaPath: string, data: unknown): void {
   const schema = loadSchema(schemaPath);
   const ajv = new Ajv({
-    allErrors: true,
+    allErrors: false,
     strict: false,
     validateSchema: false,
     validateFormats: false,
@@ -31,7 +31,7 @@ function expectSchemaValid(schemaPath: string, data: unknown): void {
 function expectSchemaInvalid(schemaPath: string, data: unknown): void {
   const schema = loadSchema(schemaPath);
   const ajv = new Ajv({
-    allErrors: true,
+    allErrors: false,
     strict: false,
     validateSchema: false,
     validateFormats: false,

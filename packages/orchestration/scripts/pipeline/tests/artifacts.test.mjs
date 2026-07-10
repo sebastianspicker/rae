@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 import {
-  phaseArtifactDefaults,
-  DEFAULT_SCHEMA_BY_PHASE,
   buildArtifactForPhase,
+  DEFAULT_SCHEMA_BY_PHASE,
   defaultRequirementIds,
   driftStatusForConfig,
+  phaseArtifactDefaults,
 } from "../lib/artifacts.mjs";
 
 describe("phaseArtifactDefaults", () => {
@@ -122,32 +122,55 @@ describe("buildArtifactForPhase", () => {
   });
 
   it("builds quality-static artifact", () => {
-    const result = buildArtifactForPhase({ ...baseConfig, phase: "quality-static" });
+    const result = buildArtifactForPhase({
+      ...baseConfig,
+      phase: "quality-static",
+    });
     expect(result.audit_type).toBe("static");
     expect(result.violations).toEqual([]);
   });
 
   it("builds quality-tests artifact", () => {
-    const result = buildArtifactForPhase({ ...baseConfig, phase: "quality-tests" });
+    const result = buildArtifactForPhase({
+      ...baseConfig,
+      phase: "quality-tests",
+    });
     expect(result.audit_type).toBe("tests");
     expect(result.coverage_ledger).toBeDefined();
     expect(result.qc_summary).toBeDefined();
   });
 
   it("builds release-readiness artifact", () => {
-    const result = buildArtifactForPhase({ ...baseConfig, phase: "release-readiness" });
+    const result = buildArtifactForPhase({
+      ...baseConfig,
+      phase: "release-readiness",
+    });
     expect(result.release_decision).toBe("go");
     expect(result.approvals).toHaveLength(1);
   });
 
   it("returns null for post-build phase", () => {
-    const result = buildArtifactForPhase({ ...baseConfig, phase: "post-build" });
+    const result = buildArtifactForPhase({
+      ...baseConfig,
+      phase: "post-build",
+    });
     expect(result).toBeNull();
   });
 
   it("returns null for unknown phase", () => {
-    const result = buildArtifactForPhase({ ...baseConfig, phase: "nonexistent" });
+    const result = buildArtifactForPhase({
+      ...baseConfig,
+      phase: "nonexistent",
+    });
     expect(result).toBeNull();
+  });
+
+  it.each([
+    "__proto__",
+    "constructor",
+    "toString",
+  ])("does not dispatch through the unsafe phase key %s", (phase) => {
+    expect(buildArtifactForPhase({ ...baseConfig, phase })).toBeNull();
   });
 
   it("includes context_manifest when budget is provided", () => {

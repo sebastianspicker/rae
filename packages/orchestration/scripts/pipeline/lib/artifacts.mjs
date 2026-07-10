@@ -24,20 +24,35 @@ export const DEFAULT_SCHEMA_BY_PHASE = {
 export function phaseArtifactDefaults(phase) {
   switch (phase) {
     case "arm":
-      return { artifactRef: "brief.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
+      return {
+        artifactRef: "brief.json",
+        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
+      };
     case "design":
-      return { artifactRef: "design.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
+      return {
+        artifactRef: "design.json",
+        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
+      };
     case "adversarial-review":
-      return { artifactRef: "review.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
+      return {
+        artifactRef: "review.json",
+        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
+      };
     case "plan":
-      return { artifactRef: "plan.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
+      return {
+        artifactRef: "plan.json",
+        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
+      };
     case "pmatch":
       return {
         artifactRef: "drift-reports/pmatch.json",
         schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
       };
     case "build":
-      return { artifactRef: "build.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
+      return {
+        artifactRef: "build.json",
+        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
+      };
     case "quality-static":
       return {
         artifactRef: "quality-reports/static.json",
@@ -51,7 +66,10 @@ export function phaseArtifactDefaults(phase) {
     case "post-build":
       return { artifactRef: null, schemaRef: null };
     case "release-readiness":
-      return { artifactRef: "release-readiness.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
+      return {
+        artifactRef: "release-readiness.json",
+        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
+      };
     default:
       throw badInput(`unknown phase: ${phase}`);
   }
@@ -141,15 +159,36 @@ function buildArmArtifact({ requirements, task }) {
       description: `Requirement ${idx + 1} for ${task?.id ?? "task"}`,
       priority: "must",
     })),
-    constraints: [{ type: "hard", description: "Must keep contracts valid", source: "taskset" }],
-    non_goals: [{ description: "No external deployment", reason: "Out of scope for evaluation" }],
+    constraints: [
+      {
+        type: "hard",
+        description: "Must keep contracts valid",
+        source: "taskset",
+      },
+    ],
+    non_goals: [
+      {
+        description: "No external deployment",
+        reason: "Out of scope for evaluation",
+      },
+    ],
     style: {
       tone: "technical",
       patterns: ["phase-scoped"],
       conventions: ["typed-artifacts"],
     },
-    key_concepts: [{ term: "traceability", definition: "Requirement linkage across artifacts" }],
-    decisions: [{ decision: "Use phased orchestration", rationale: "Deterministic gate control" }],
+    key_concepts: [
+      {
+        term: "traceability",
+        definition: "Requirement linkage across artifacts",
+      },
+    ],
+    decisions: [
+      {
+        decision: "Use phased orchestration",
+        rationale: "Deterministic gate control",
+      },
+    ],
     open_questions: [],
   };
 }
@@ -158,7 +197,12 @@ function buildDesignArtifact({ requirements, now }) {
   return {
     analysis: {
       summary: "Design is constrained by contracts and gateability.",
-      principles: [{ principle: "Minimize context noise", implication: "Phase-local manifests" }],
+      principles: [
+        {
+          principle: "Minimize context noise",
+          implication: "Phase-local manifests",
+        },
+      ],
     },
     constraints_classification: [
       {
@@ -174,7 +218,13 @@ function buildDesignArtifact({ requirements, now }) {
     approach: {
       description: "Generate artifacts per phase and enforce gates.",
       rationale: "Keeps runner deterministic.",
-      components: [{ name: "runner", responsibility: "Phase transitions", interfaces: ["CLI"] }],
+      components: [
+        {
+          name: "runner",
+          responsibility: "Phase transitions",
+          interfaces: ["CLI"],
+        },
+      ],
     },
     research: [
       {
@@ -193,7 +243,11 @@ function buildDesignArtifact({ requirements, now }) {
       },
     ],
     iteration_history: [
-      { iteration: 1, changes: "Initial design", rationale: "Enable runtime gates" },
+      {
+        iteration: 1,
+        changes: "Initial design",
+        rationale: "Enable runtime gates",
+      },
     ],
   };
 }
@@ -366,7 +420,10 @@ function buildPmatchArtifact({ requirements, runId, configId, stageProfile }) {
 
   return {
     source_document: { type: "plan", ref: `.pipeline/runs/${runId}/plan.json` },
-    target_document: { type: "implementation", ref: "scripts/pipeline/runner.mjs" },
+    target_document: {
+      type: "implementation",
+      ref: "scripts/pipeline/runner.mjs",
+    },
     claims: [
       {
         id: "drift-1",
@@ -483,24 +540,30 @@ function buildReleaseReadinessArtifact({ now }) {
       fix_status: "completed",
       ship_status: "approved",
     },
-    approvals: [{ owner: "release-lead", approved_at: now, notes: "automated taskset run" }],
+    approvals: [
+      {
+        owner: "release-lead",
+        approved_at: now,
+        notes: "automated taskset run",
+      },
+    ],
   };
 }
 
-const PHASE_BUILDERS = {
-  arm: (ctx) => buildArmArtifact(ctx),
-  design: (ctx) => buildDesignArtifact(ctx),
-  "adversarial-review": (ctx) => buildAdversarialReviewArtifact(ctx),
-  plan: (ctx) => buildPlanArtifact(ctx),
-  pmatch: (ctx) => buildPmatchArtifact(ctx),
-  build: (ctx) => buildBuildArtifact(ctx),
-  "quality-static": () => buildQualityArtifact("static"),
-  "quality-tests": () => buildQualityArtifact("tests"),
-  "release-readiness": (ctx) => buildReleaseReadinessArtifact(ctx),
-};
+const PHASE_BUILDERS = new Map([
+  ["arm", (ctx) => buildArmArtifact(ctx)],
+  ["design", (ctx) => buildDesignArtifact(ctx)],
+  ["adversarial-review", (ctx) => buildAdversarialReviewArtifact(ctx)],
+  ["plan", (ctx) => buildPlanArtifact(ctx)],
+  ["pmatch", (ctx) => buildPmatchArtifact(ctx)],
+  ["build", (ctx) => buildBuildArtifact(ctx)],
+  ["quality-static", () => buildQualityArtifact("static")],
+  ["quality-tests", () => buildQualityArtifact("tests")],
+  ["release-readiness", (ctx) => buildReleaseReadinessArtifact(ctx)],
+]);
 
 export function buildArtifactForPhase({ phase, runId, configId, task, stageProfile, budget }) {
-  const builder = PHASE_BUILDERS[phase];
+  const builder = PHASE_BUILDERS.get(phase);
   if (!builder) return null;
 
   const requirements = defaultRequirementIds(task);
@@ -509,6 +572,13 @@ export function buildArtifactForPhase({ phase, runId, configId, task, stageProfi
   const contextManifest = buildContextManifest({ phase, stageProfile, budget });
   const now = nowIso();
 
-  const artifact = builder({ requirements, task, runId, configId, stageProfile, now });
+  const artifact = builder({
+    requirements,
+    task,
+    runId,
+    configId,
+    stageProfile,
+    now,
+  });
   return contextManifest ? { ...artifact, context_manifest: contextManifest } : artifact;
 }
