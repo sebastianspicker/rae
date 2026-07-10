@@ -47,21 +47,8 @@ jobs:
       - name: Sanitize CodeQL result locations
         if: ${{ always() }}
         run: |
-          jq -s '[
-            .[].runs[] | .results[]? |
-            {
-              ruleId,
-              level,
-              locations: [
-                .locations[]?.physicalLocation |
-                {
-                  artifactUri: .artifactLocation.uri,
-                  startLine: .region.startLine,
-                  startColumn: .region.startColumn
-                }
-              ]
-            }
-          ]' ../results/*.sarif > codeql-${{ matrix.language }}-sanitized.json
+          jq -s -f scripts/sanitize-codeql-report.jq \
+            ../results/*.sarif > codeql-${{ matrix.language }}-sanitized.json
           cat codeql-${{ matrix.language }}-sanitized.json
 
       - name: Upload sanitized CodeQL result locations
