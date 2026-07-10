@@ -68,6 +68,12 @@ require_native_version() {
   native_tool_versions+=("${tool_id}:${actual_version}")
 }
 
+join_with_commas() {
+  printf '%s' "$1"
+  shift
+  printf ',%s' "$@"
+}
+
 run_native_policy_analysis() {
   local -a python_files=()
   local -a bandit_test_ids=()
@@ -106,10 +112,10 @@ print("\n".join(sorted(MANAGER.plugins_by_id)))
   done
   if [[ "${#unsupported_bandit_test_ids[@]}" -gt 0 ]]; then
     printf 'ERROR: configured Bandit patterns unavailable in native Bandit: %s\n' \
-      "$(IFS=,; printf '%s' "${unsupported_bandit_test_ids[*]}")" >&2
+      "$(join_with_commas "${unsupported_bandit_test_ids[@]}")" >&2
     return 1
   fi
-  bandit_tests="$(IFS=,; printf '%s' "${bandit_test_ids[*]}")"
+  bandit_tests="$(join_with_commas "${bandit_test_ids[@]}")"
   (
     cd "$ROOT_DIR"
     bandit --quiet --tests "$bandit_tests" "${python_files[@]}"
@@ -173,6 +179,9 @@ run_codacy analyze --config-file "$SUPPORTED_TOOLS_CONFIG_FILE" --fail-if-missin
 analysis_exit=$?
 set -e
 
+jq -f "$ROOT_DIR/scripts/sanitize-codacy-report.jq" \
+  "$RAW_REPORT_FILE" > "$SANITIZED_REPORT_FILE"
+
 jq -e --argjson expected_tools "$(printf '%s\n' "${EXPECTED_TOOLS[@]}" | jq -R . | jq -s .)" '
   (.errors | length == 0)
   and (.toolResults | length > 0)
@@ -183,9 +192,6 @@ jq -e --argjson expected_tools "$(printf '%s\n' "${EXPECTED_TOOLS[@]}" | jq -R .
     "$RAW_REPORT_FILE" >&2
   exit 2
 }
-
-jq -f "$ROOT_DIR/scripts/sanitize-codacy-report.jq" \
-  "$RAW_REPORT_FILE" > "$SANITIZED_REPORT_FILE"
 
 issue_count="$(jq '.issues | length' "$SANITIZED_REPORT_FILE")"
 if [[ "$issue_count" -ne 0 ]]; then

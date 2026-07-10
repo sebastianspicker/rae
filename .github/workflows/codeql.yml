@@ -62,6 +62,7 @@ jobs:
               ]
             }
           ]' ../results/*.sarif > codeql-${{ matrix.language }}-sanitized.json
+          cat codeql-${{ matrix.language }}-sanitized.json
 
       - name: Upload sanitized CodeQL result locations
         if: ${{ always() }}
