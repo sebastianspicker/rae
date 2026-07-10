@@ -18,16 +18,25 @@ from common import (
     today_iso,
 )
 
-
 ROUTER_VERSION = "router-rule-v1"
 # Execution profiles are intentionally closed. A task may request a profile,
 # but the profile must still match the runtime selected by the router.
 EXECUTION_COMMANDS = {
     "orchestration-init": "./scripts/rae.sh workflow long-horizon init <workspace>",
-    "orchestration-review-loop": "./scripts/rae.sh orchestrate record-review-state --run-id <run_id> --state explain|fix|ship --status <status>",
-    "orchestration-observability": "./scripts/rae.sh orchestrate summarize-progress --run-id <run_id>",
-    "ralph-bootstrap-check": "./scripts/rae.sh workflow repo-audit bootstrap <repo> && MODE=audit ./.claude/ralph-audit/ralph.sh --check",
-    "coauthor-validate": "./scripts/rae.sh hygiene coauthor-cleaner --validate-only --no-push <url> <path>",
+    "orchestration-review-loop": (
+        "./scripts/rae.sh orchestrate record-review-state --run-id <run_id> "
+        "--state explain|fix|ship --status <status>"
+    ),
+    "orchestration-observability": (
+        "./scripts/rae.sh orchestrate summarize-progress --run-id <run_id>"
+    ),
+    "ralph-bootstrap-check": (
+        "./scripts/rae.sh workflow repo-audit bootstrap <repo> && MODE=audit "
+        "./.claude/ralph-audit/ralph.sh --check"
+    ),
+    "coauthor-validate": (
+        "./scripts/rae.sh hygiene coauthor-cleaner --validate-only --no-push <url> <path>"
+    ),
 }
 EXECUTION_PROFILE_RUNTIMES = {
     "orchestration-init": "orchestration",

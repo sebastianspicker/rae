@@ -2,24 +2,25 @@ import type { Criterion, CriterionResult } from "../types.js";
 
 const MAX_REGEX_PATTERN_LENGTH = 256;
 const MAX_REGEX_TARGET_LENGTH = 4096;
+const BACKSLASH = String.fromCharCode(92);
 
-function hasUnescapedChar(pattern: string, target: string): boolean {
+const hasUnescapedChar = (pattern: string, target: string): boolean => {
   let escaped = false;
   for (const ch of pattern) {
     if (escaped) {
       escaped = false;
       continue;
     }
-    if (ch === "\\") {
+    if (ch === BACKSLASH) {
       escaped = true;
       continue;
     }
     if (ch === target) return true;
   }
   return false;
-}
+};
 
-function isPotentiallyUnsafeRegex(pattern: string): boolean {
+const isPotentiallyUnsafeRegex = (pattern: string): boolean => {
   if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return true;
 
   // Backreferences, groups/lookarounds and alternation are common ReDoS primitives.
@@ -30,12 +31,15 @@ function isPotentiallyUnsafeRegex(pattern: string): boolean {
   if (/(\.\*|\.\+)/.test(pattern)) return true;
   if (/[+*?]{2,}/.test(pattern)) return true;
   if (/\{\d+,\}/.test(pattern) || /\{,\d+\}/.test(pattern)) return true;
+  // Repeating the same quantified atom creates exponentially many equivalent
+  // partitions even without groups or alternation (for example, a*a*a*...b).
+  if (/((?:\\.|\[[^\]]*\]|[^\\]))[+*](?:\1[+*])+/u.test(pattern)) return true;
 
   return false;
-}
+};
 
-function resolvePath(obj: Record<string, unknown>, path: string): unknown {
-  const DISALLOWED_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
+const resolvePath = (obj: Record<string, unknown>, path: string): unknown => {
+  const DISALLOWED_SEGMENTS = new Set(["__proto__", "prototype", "constructor", "toString"]);
   const segments = path.split(".");
   let current: unknown = obj;
   for (const seg of segments) {
@@ -48,12 +52,12 @@ function resolvePath(obj: Record<string, unknown>, path: string): unknown {
     if (!Object.hasOwn(current, seg)) {
       return undefined;
     }
-    current = (current as Record<string, unknown>)[seg];
+    current = Reflect.get(current, seg);
   }
   return current;
-}
+};
 
-function collectStringValues(value: unknown): string[] {
+const collectStringValues = (value: unknown): string[] => {
   if (typeof value === "string") {
     return [value];
   }
@@ -66,9 +70,9 @@ function collectStringValues(value: unknown): string[] {
     );
   }
   return [];
-}
+};
 
-function extractTraceId(value: unknown): string | undefined {
+const extractTraceId = (value: unknown): string | undefined => {
   if (typeof value === "string" && value.length > 0) {
     return value;
   }
@@ -83,9 +87,9 @@ function extractTraceId(value: unknown): string | undefined {
     return record.id;
   }
   return undefined;
-}
+};
 
-function checkFieldExists(artifact: Record<string, unknown>, path: string): CriterionResult {
+const checkFieldExists = (artifact: Record<string, unknown>, path: string): CriterionResult => {
   const val = resolvePath(artifact, path);
   const exists = val !== undefined && val !== null;
   return {
@@ -95,9 +99,9 @@ function checkFieldExists(artifact: Record<string, unknown>, path: string): Crit
       ? `Field "${path}" exists with type ${typeof val}`
       : `Field "${path}" is missing or null`,
   };
-}
+};
 
-function checkFieldEmpty(artifact: Record<string, unknown>, path: string): CriterionResult {
+const checkFieldEmpty = (artifact: Record<string, unknown>, path: string): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -114,13 +118,13 @@ function checkFieldEmpty(artifact: Record<string, unknown>, path: string): Crite
       ? `Field "${path}" is an empty array`
       : `Field "${path}" has ${val.length} item(s), expected 0`,
   };
-}
+};
 
-function checkCountMin(
+const checkCountMin = (
   artifact: Record<string, unknown>,
   path: string,
   minValue: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -148,13 +152,13 @@ function checkCountMin(
     passed,
     evidence: `Field "${path}" has ${val.length} item(s), minimum required: ${min}`,
   };
-}
+};
 
-function checkCountMax(
+const checkCountMax = (
   artifact: Record<string, unknown>,
   path: string,
   maxValue: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -182,13 +186,13 @@ function checkCountMax(
     passed,
     evidence: `Field "${path}" has ${val.length} item(s), maximum allowed: ${max}`,
   };
-}
+};
 
-function checkNumberMax(
+const checkNumberMax = (
   artifact: Record<string, unknown>,
   path: string,
   maxValue: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (typeof val !== "number" || !Number.isFinite(val)) {
     return {
@@ -210,12 +214,12 @@ function checkNumberMax(
     passed,
     evidence: `Field "${path}" value is ${val}, maximum allowed: ${maxValue}`,
   };
-}
+};
 
-function checkCoverageMin(
+const checkCoverageMin = (
   artifact: Record<string, unknown>,
   criterion: Criterion,
-): CriterionResult {
+): CriterionResult => {
   const threshold = criterion.value;
   if (
     typeof threshold !== "number" ||
@@ -295,13 +299,13 @@ function checkCoverageMin(
     passed,
     evidence: `coverage=${ratio.toFixed(4)} threshold=${threshold.toFixed(4)} matched=${matched.length}/${sourceIds.length} missing=${missing.join(", ") || "none"}`,
   };
-}
+};
 
-function checkRegexMatch(
+const checkRegexMatch = (
   artifact: Record<string, unknown>,
   path: string,
   pattern: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (typeof val !== "string") {
     return {
@@ -333,6 +337,7 @@ function checkRegexMatch(
   }
   let re: RegExp;
   try {
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp,javascript_dos_rule-non-literal-regexp -- pattern and target lengths are bounded and unsafe constructs are rejected above
     re = new RegExp(pattern);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -350,32 +355,36 @@ function checkRegexMatch(
       ? `Field "${path}" matches pattern /${pattern}/`
       : `Field "${path}" value "${val}" does not match /${pattern}/`,
   };
-}
+};
 
 type CriterionEvaluator = (
   artifact: Record<string, unknown>,
   criterion: Criterion,
 ) => CriterionResult;
 
-const EVALUATORS: Record<string, CriterionEvaluator> = {
-  "field-exists": (a, c) => checkFieldExists(a, c.path),
-  "field-empty": (a, c) => checkFieldEmpty(a, c.path),
-  "count-min": (a, c) => checkCountMin(a, c.path, c.value),
-  "count-max": (a, c) => checkCountMax(a, c.path, c.value),
-  "number-max": (a, c) => checkNumberMax(a, c.path, c.value),
-  "coverage-min": (a, c) => checkCoverageMin(a, c),
-  "regex-match": (a, c) => checkRegexMatch(a, c.path, c.value),
-};
+const EVALUATORS = new Map<string, CriterionEvaluator>([
+  ["field-exists", (a, c) => checkFieldExists(a, c.path)],
+  ["field-empty", (a, c) => checkFieldEmpty(a, c.path)],
+  ["count-min", (a, c) => checkCountMin(a, c.path, c.value)],
+  ["count-max", (a, c) => checkCountMax(a, c.path, c.value)],
+  ["number-max", (a, c) => checkNumberMax(a, c.path, c.value)],
+  ["coverage-min", (a, c) => checkCoverageMin(a, c)],
+  ["regex-match", (a, c) => checkRegexMatch(a, c.path, c.value)],
+]);
 
 export function evaluateCriteria(
   artifact: Record<string, unknown>,
   criteria: Criterion[],
 ): CriterionResult[] {
   return criteria.map((c) => {
-    const evaluator = EVALUATORS[c.type];
+    const evaluator = EVALUATORS.get(c.type);
     const result = evaluator
       ? evaluator(artifact, c)
-      : { name: "", passed: false, evidence: `Unknown criterion type: ${c.type}` };
+      : {
+          name: "",
+          passed: false,
+          evidence: `Unknown criterion type: ${c.type}`,
+        };
     result.name = c.name;
     return result;
   });

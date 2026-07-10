@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 import importlib.util
+import json
 import os
 import pathlib
 import shutil
 import sys
-
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RESULTS_ROOT = ROOT / "evals" / "results"
@@ -219,4 +218,3 @@ def write_release_gate_fixture(
         run_card["verification_evidence"] = verification_evidence
     write_json(run_card_path, run_card)
     return result_path, regression_path, ledger_path, calibration_path, run_card_path
-

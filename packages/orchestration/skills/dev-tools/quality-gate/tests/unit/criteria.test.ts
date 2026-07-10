@@ -1,5 +1,5 @@
 import fc from "fast-check";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { evaluateCriteria } from "../../src/lib/criteria.js";
 
 describe("evaluateCriteria", () => {
@@ -40,14 +40,22 @@ describe("evaluateCriteria", () => {
   describe("field-empty", () => {
     it("passes when array is empty", () => {
       const results = evaluateCriteria({ open_questions: [] }, [
-        { name: "no-open-questions", type: "field-empty", path: "open_questions" },
+        {
+          name: "no-open-questions",
+          type: "field-empty",
+          path: "open_questions",
+        },
       ]);
       expect(results[0].passed).toBe(true);
     });
 
     it("fails when array is non-empty", () => {
       const results = evaluateCriteria({ open_questions: ["Why?"] }, [
-        { name: "no-open-questions", type: "field-empty", path: "open_questions" },
+        {
+          name: "no-open-questions",
+          type: "field-empty",
+          path: "open_questions",
+        },
       ]);
       expect(results[0].passed).toBe(false);
       expect(results[0].evidence).toContain("1 item");
@@ -55,7 +63,11 @@ describe("evaluateCriteria", () => {
 
     it("fails when field is not an array", () => {
       const results = evaluateCriteria({ open_questions: "not an array" }, [
-        { name: "no-open-questions", type: "field-empty", path: "open_questions" },
+        {
+          name: "no-open-questions",
+          type: "field-empty",
+          path: "open_questions",
+        },
       ]);
       expect(results[0].passed).toBe(false);
       expect(results[0].evidence).toContain("not an array");
@@ -67,7 +79,12 @@ describe("evaluateCriteria", () => {
       fc.assert(
         fc.property(fc.array(fc.integer()), fc.nat({ max: 100 }), (items, min) => {
           const results = evaluateCriteria({ items }, [
-            { name: "min-items", type: "count-min", path: "items", value: min },
+            {
+              name: "min-items",
+              type: "count-min",
+              path: "items",
+              value: min,
+            },
           ]);
 
           expect(results[0].passed).toBe(items.length >= min);
@@ -122,7 +139,12 @@ describe("evaluateCriteria", () => {
       fc.assert(
         fc.property(fc.array(fc.integer()), fc.nat({ max: 100 }), (items, max) => {
           const results = evaluateCriteria({ items }, [
-            { name: "max-items", type: "count-max", path: "items", value: max },
+            {
+              name: "max-items",
+              type: "count-max",
+              path: "items",
+              value: max,
+            },
           ]);
 
           expect(results[0].passed).toBe(items.length <= max);
@@ -149,14 +171,24 @@ describe("evaluateCriteria", () => {
   describe("number-max", () => {
     it("passes when number is within budget", () => {
       const results = evaluateCriteria({ token_estimate: 900 }, [
-        { name: "token-budget", type: "number-max", path: "token_estimate", value: 1000 },
+        {
+          name: "token-budget",
+          type: "number-max",
+          path: "token_estimate",
+          value: 1000,
+        },
       ]);
       expect(results[0].passed).toBe(true);
     });
 
     it("fails when number exceeds budget", () => {
       const results = evaluateCriteria({ token_estimate: 1200 }, [
-        { name: "token-budget", type: "number-max", path: "token_estimate", value: 1000 },
+        {
+          name: "token-budget",
+          type: "number-max",
+          path: "token_estimate",
+          value: 1000,
+        },
       ]);
       expect(results[0].passed).toBe(false);
     });
@@ -214,14 +246,24 @@ describe("evaluateCriteria", () => {
   describe("regex-match", () => {
     it("passes when string matches pattern", () => {
       const results = evaluateCriteria({ version: "1.2.3" }, [
-        { name: "semver", type: "regex-match", path: "version", value: "^\\d+\\.\\d+\\.\\d+$" },
+        {
+          name: "semver",
+          type: "regex-match",
+          path: "version",
+          value: "^\\d+\\.\\d+\\.\\d+$",
+        },
       ]);
       expect(results[0].passed).toBe(true);
     });
 
     it("fails when string does not match", () => {
       const results = evaluateCriteria({ version: "latest" }, [
-        { name: "semver", type: "regex-match", path: "version", value: "^\\d+\\.\\d+\\.\\d+$" },
+        {
+          name: "semver",
+          type: "regex-match",
+          path: "version",
+          value: "^\\d+\\.\\d+\\.\\d+$",
+        },
       ]);
       expect(results[0].passed).toBe(false);
       expect(results[0].evidence).toContain("does not match");
@@ -229,7 +271,12 @@ describe("evaluateCriteria", () => {
 
     it("fails when field is not a string", () => {
       const results = evaluateCriteria({ version: 123 }, [
-        { name: "semver", type: "regex-match", path: "version", value: "^\\d+$" },
+        {
+          name: "semver",
+          type: "regex-match",
+          path: "version",
+          value: "^\\d+$",
+        },
       ]);
       expect(results[0].passed).toBe(false);
       expect(results[0].evidence).toContain("not a string");
@@ -245,10 +292,68 @@ describe("evaluateCriteria", () => {
 
     it("rejects potentially unsafe regex patterns", () => {
       const results = evaluateCriteria({ version: "1.2.3" }, [
-        { name: "unsafe", type: "regex-match", path: "version", value: "^(safe)$" },
+        {
+          name: "unsafe",
+          type: "regex-match",
+          path: "version",
+          value: "^(safe)$",
+        },
       ]);
       expect(results[0].passed).toBe(false);
       expect(results[0].evidence).toContain("potentially unsafe");
+    });
+
+    it("rejects overlong patterns before compilation", () => {
+      const results = evaluateCriteria({ version: "1.2.3" }, [
+        {
+          name: "too-long",
+          type: "regex-match",
+          path: "version",
+          value: "a".repeat(257),
+        },
+      ]);
+      expect(results[0].passed).toBe(false);
+      expect(results[0].evidence).toContain("potentially unsafe");
+    });
+
+    it("rejects oversized target strings and nested-quantifier attack patterns", () => {
+      const oversized = evaluateCriteria({ value: "a".repeat(4097) }, [
+        {
+          name: "oversized",
+          type: "regex-match",
+          path: "value",
+          value: "^a+$",
+        },
+      ]);
+      const nested = evaluateCriteria({ value: `${"a".repeat(1000)}!` }, [
+        {
+          name: "nested",
+          type: "regex-match",
+          path: "value",
+          value: "^(a+)+$",
+        },
+      ]);
+
+      expect(oversized[0].passed).toBe(false);
+      expect(oversized[0].evidence).toContain("too large");
+      expect(nested[0].passed).toBe(false);
+      expect(nested[0].evidence).toContain("potentially unsafe");
+    });
+
+    it("rejects repeated quantified atoms without evaluating them", () => {
+      const startedAt = performance.now();
+      const repeated = evaluateCriteria({ value: "a".repeat(30) }, [
+        {
+          name: "adjacent-quantifiers",
+          type: "regex-match",
+          path: "value",
+          value: `^${"a*".repeat(12)}b$`,
+        },
+      ]);
+
+      expect(repeated[0].passed).toBe(false);
+      expect(repeated[0].evidence).toContain("potentially unsafe");
+      expect(performance.now() - startedAt).toBeLessThan(100);
     });
   });
 
@@ -263,6 +368,20 @@ describe("evaluateCriteria", () => {
     it("fails on missing nested path", () => {
       const results = evaluateCriteria({ meta: {} }, [
         { name: "has-author", type: "field-exists", path: "meta.author" },
+      ]);
+      expect(results[0].passed).toBe(false);
+    });
+
+    it.each([
+      "__proto__",
+      "prototype",
+      "constructor",
+      "toString",
+    ])("rejects the unsafe path segment %s even when it is an own property", (segment) => {
+      const artifact = Object.create(null) as Record<string, unknown>;
+      artifact[segment] = "secret";
+      const results = evaluateCriteria(artifact, [
+        { name: "unsafe", type: "field-exists", path: segment },
       ]);
       expect(results[0].passed).toBe(false);
     });

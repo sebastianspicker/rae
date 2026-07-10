@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createAjvInstance } from "@coding-agents-space/shared";
 import { collectTrace } from "../../src/lib/trace.js";
 
 describe("collectTrace", () => {
@@ -360,6 +359,4 @@ describe("collectTrace", () => {
     rmSync(workspaceRoot, { recursive: true, force: true });
     rmSync(outsideRoot, { recursive: true, force: true });
   });
-
-
 });

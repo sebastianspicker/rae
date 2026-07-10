@@ -6,7 +6,15 @@ import subprocess
 import sys
 import tempfile
 
-from benchmark_contracts_helpers import RESULTS_ROOT, ROOT, repo_rel, write_json, write_release_gate_fixture
+from benchmark_contracts_helpers import (
+    RESULTS_ROOT,
+    ROOT,
+    repo_rel,
+    write_json,
+    write_release_gate_fixture,
+)
+
+
 def test_validate_eval_metadata_discovers_generated_run_card_names() -> None:
     benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
     benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
@@ -31,7 +39,8 @@ def test_validate_eval_metadata_discovers_generated_run_card_names() -> None:
         invalid_payload.pop("result_path", None)
         write_json(run_card_path, invalid_payload)
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -82,7 +91,8 @@ def test_release_gate_accepts_valid_benchmark_run_contract() -> None:
             output_dir / "release-gate-tool-selection-core-dev-example.json"
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),
@@ -167,7 +177,8 @@ def test_release_gate_ignores_stale_passing_run_cards_for_required_split() -> No
             output_dir
             / "release-gate-tool-selection-core-held-out-stale-required-split.json"
         )
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),
@@ -257,7 +268,8 @@ def test_release_gate_fails_when_required_verification_evidence_is_missing() -> 
             output_dir / "release-gate-tool-selection-core-dev-missing-evidence.json"
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),
@@ -338,7 +350,8 @@ def test_release_gate_rejects_checkpoint_outside_current_run_scope() -> None:
             output_dir / "release-gate-tool-selection-core-dev-forged-checkpoint.json"
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),
@@ -365,5 +378,3 @@ def test_release_gate_rejects_checkpoint_outside_current_run_scope() -> None:
             "checkpoint path outside current run scope" in issue
             for issue in gate_report["issues"]
         )
-
-

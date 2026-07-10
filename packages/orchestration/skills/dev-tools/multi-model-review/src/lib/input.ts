@@ -10,20 +10,64 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function assertNoUnexpectedProperties(
+const assertNoUnexpectedProperties = (
   value: Record<string, unknown>,
   allowedKeys: readonly string[],
   context: string,
-): void {
+): void => {
   const allowed = new Set(allowedKeys);
   for (const key of Object.keys(value)) {
     if (!allowed.has(key)) {
-      throw badInput(`Unexpected property "${key}" in ${context}`);
+      throw badInput(`Unexpected property ${JSON.stringify(key)} in ${context}`);
     }
   }
-}
+};
 
-function validateExtractorClaimSets(claimSets: unknown): void {
+const validateExtractorClaim = (claim: unknown): void => {
+  if (!isObjectRecord(claim)) throw badInput("Each extractor claim must be an object");
+  assertNoUnexpectedProperties(
+    claim,
+    ["id", "claim", "claim_type", "verification_status", "evidence", "confidence"],
+    "extractor claim",
+  );
+  if (typeof claim.id !== "string" || claim.id.length === 0) {
+    throw badInput("Each extractor claim must include a non-empty id");
+  }
+  if (typeof claim.claim !== "string" || claim.claim.length === 0) {
+    throw badInput("Each extractor claim must include a non-empty claim");
+  }
+  validateExtractorClaimMetadata(claim);
+};
+
+const validateExtractorClaimMetadata = (claim: Record<string, unknown>): void => {
+  if (
+    typeof claim.verification_status !== "string" ||
+    !DRIFT_VERIFICATION_STATUSES.has(claim.verification_status)
+  ) {
+    throw badInput(
+      "Each extractor claim verification_status must be one of: verified, violated, partial, unverifiable",
+    );
+  }
+  if (
+    claim.claim_type !== undefined &&
+    (typeof claim.claim_type !== "string" || !DRIFT_CLAIM_TYPES.has(claim.claim_type))
+  ) {
+    throw badInput(
+      "Each extractor claim claim_type must be one of: interface, invariant, security, performance, docs",
+    );
+  }
+  if (typeof claim.evidence !== "string" || claim.evidence.length === 0) {
+    throw badInput("Each extractor claim must include non-empty evidence");
+  }
+  if (
+    claim.confidence !== undefined &&
+    (typeof claim.confidence !== "number" || claim.confidence < 0 || claim.confidence > 1)
+  ) {
+    throw badInput("extractor claim confidence must be a number between 0 and 1");
+  }
+};
+
+const validateExtractorClaimSets = (claimSets: unknown): void => {
   if (!Array.isArray(claimSets) || claimSets.length !== 2) {
     throw badInput(
       "drift_config.extractor_claim_sets must contain exactly 2 claim sets in dual-extractor mode",
@@ -41,50 +85,45 @@ function validateExtractorClaimSets(claimSets: unknown): void {
       throw badInput("Each extractor_claim_set requires a non-empty claims array");
     }
     for (const claim of claimSet.claims) {
-      if (!isObjectRecord(claim)) {
-        throw badInput("Each extractor claim must be an object");
-      }
-      assertNoUnexpectedProperties(
-        claim,
-        ["id", "claim", "claim_type", "verification_status", "evidence", "confidence"],
-        "extractor claim",
-      );
-      if (typeof claim.id !== "string" || claim.id.length === 0) {
-        throw badInput("Each extractor claim must include a non-empty id");
-      }
-      if (typeof claim.claim !== "string" || claim.claim.length === 0) {
-        throw badInput("Each extractor claim must include a non-empty claim");
-      }
-      if (
-        typeof claim.verification_status !== "string" ||
-        !DRIFT_VERIFICATION_STATUSES.has(claim.verification_status)
-      ) {
-        throw badInput(
-          "Each extractor claim verification_status must be one of: verified, violated, partial, unverifiable",
-        );
-      }
-      if (
-        claim.claim_type !== undefined &&
-        (typeof claim.claim_type !== "string" || !DRIFT_CLAIM_TYPES.has(claim.claim_type))
-      ) {
-        throw badInput(
-          "Each extractor claim claim_type must be one of: interface, invariant, security, performance, docs",
-        );
-      }
-      if (typeof claim.evidence !== "string" || claim.evidence.length === 0) {
-        throw badInput("Each extractor claim must include non-empty evidence");
-      }
-      if (
-        claim.confidence !== undefined &&
-        (typeof claim.confidence !== "number" || claim.confidence < 0 || claim.confidence > 1)
-      ) {
-        throw badInput("extractor claim confidence must be a number between 0 and 1");
-      }
+      validateExtractorClaim(claim);
     }
   }
-}
+};
 
-function validateReviewerFindings(reviewerFindings: unknown): void {
+const validateReviewerFinding = (finding: unknown): void => {
+  if (!isObjectRecord(finding)) throw badInput("Each reviewer finding must be an object");
+  assertNoUnexpectedProperties(
+    finding,
+    ["id", "category", "description", "severity", "evidence", "suggestion"],
+    "reviewer finding",
+  );
+  if (typeof finding.id !== "string" || finding.id.length === 0) {
+    throw badInput("Each reviewer finding must include a non-empty id");
+  }
+  if (typeof finding.category !== "string" || finding.category.length === 0) {
+    throw badInput("Each reviewer finding must include a non-empty category");
+  }
+  if (typeof finding.description !== "string" || finding.description.length === 0) {
+    throw badInput("Each reviewer finding must include a non-empty description");
+  }
+  validateReviewerFindingMetadata(finding);
+};
+
+const validateReviewerFindingMetadata = (finding: Record<string, unknown>): void => {
+  if (typeof finding.severity !== "string" || !REVIEW_SEVERITIES.has(finding.severity)) {
+    throw badInput(
+      "Each reviewer finding severity must be one of: critical, high, medium, low, info",
+    );
+  }
+  if (finding.evidence !== undefined && typeof finding.evidence !== "string") {
+    throw badInput("Each reviewer finding evidence must be a string when provided");
+  }
+  if (finding.suggestion !== undefined && typeof finding.suggestion !== "string") {
+    throw badInput("Each reviewer finding suggestion must be a string when provided");
+  }
+};
+
+const validateReviewerFindings = (reviewerFindings: unknown): void => {
   if (!Array.isArray(reviewerFindings)) {
     throw badInput("reviewer_findings must be an array when provided");
   }
@@ -114,41 +153,14 @@ function validateReviewerFindings(reviewerFindings: unknown): void {
       throw badInput("Each reviewer_findings entry requires a non-empty findings array");
     }
     for (const finding of reviewer.findings) {
-      if (!isObjectRecord(finding)) {
-        throw badInput("Each reviewer finding must be an object");
-      }
-      assertNoUnexpectedProperties(
-        finding,
-        ["id", "category", "description", "severity", "evidence", "suggestion"],
-        "reviewer finding",
-      );
-      if (typeof finding.id !== "string" || finding.id.length === 0) {
-        throw badInput("Each reviewer finding must include a non-empty id");
-      }
-      if (typeof finding.category !== "string" || finding.category.length === 0) {
-        throw badInput("Each reviewer finding must include a non-empty category");
-      }
-      if (typeof finding.description !== "string" || finding.description.length === 0) {
-        throw badInput("Each reviewer finding must include a non-empty description");
-      }
-      if (typeof finding.severity !== "string" || !REVIEW_SEVERITIES.has(finding.severity)) {
-        throw badInput(
-          "Each reviewer finding severity must be one of: critical, high, medium, low, info",
-        );
-      }
-      if (finding.evidence !== undefined && typeof finding.evidence !== "string") {
-        throw badInput("Each reviewer finding evidence must be a string when provided");
-      }
-      if (finding.suggestion !== undefined && typeof finding.suggestion !== "string") {
-        throw badInput("Each reviewer finding suggestion must be a string when provided");
-      }
+      validateReviewerFinding(finding);
     }
   }
-}
+};
 
-function validateDriftConfig(
+const validateDriftConfig = (
   driftConfig: unknown,
-): { targetRef?: string; driftMode: DriftMode; hasExtractorClaimSets: boolean } | undefined {
+): { targetRef?: string; driftMode: DriftMode; hasExtractorClaimSets: boolean } | undefined => {
   if (driftConfig === undefined) {
     return undefined;
   }
@@ -161,16 +173,7 @@ function validateDriftConfig(
     "drift_config",
   );
 
-  let targetRef: string | undefined;
-  if ("target_ref" in driftConfig) {
-    if (typeof driftConfig.target_ref !== "string") {
-      throw badInput("drift_config.target_ref must be a string when provided");
-    }
-    if (driftConfig.target_ref.length > 0 && path.isAbsolute(driftConfig.target_ref)) {
-      throw badInput("drift_config.target_ref must resolve within workspaceRoot");
-    }
-    targetRef = driftConfig.target_ref;
-  }
+  const targetRef = validateTargetRef(driftConfig);
   if (driftConfig.source_ref !== undefined && typeof driftConfig.source_ref !== "string") {
     throw badInput("drift_config.source_ref must be a string when provided");
   }
@@ -192,7 +195,54 @@ function validateDriftConfig(
   }
 
   return { targetRef, driftMode, hasExtractorClaimSets };
-}
+};
+
+const validateTargetRef = (driftConfig: Record<string, unknown>): string | undefined => {
+  if (!("target_ref" in driftConfig)) return undefined;
+  if (typeof driftConfig.target_ref !== "string") {
+    throw badInput("drift_config.target_ref must be a string when provided");
+  }
+  if (driftConfig.target_ref.length > 0 && path.isAbsolute(driftConfig.target_ref)) {
+    throw badInput("drift_config.target_ref must resolve within workspaceRoot");
+  }
+  return driftConfig.target_ref;
+};
+
+const validateActionAndDocument = (input: Input): void => {
+  if (!isObjectRecord(input.action)) throw badInput("action must be an object");
+  assertNoUnexpectedProperties(input.action as Record<string, unknown>, ["type"], "action");
+  if (!input.action.type || !["review", "drift-detect"].includes(input.action.type)) {
+    throw badInput("action.type must be 'review' or 'drift-detect'");
+  }
+  if (!isObjectRecord(input.document)) throw badInput("document must be an object");
+  assertNoUnexpectedProperties(
+    input.document as Record<string, unknown>,
+    ["content", "type"],
+    "document",
+  );
+  if (!input.document.content || typeof input.document.content !== "string") {
+    throw badInput("document.content is required");
+  }
+  if (!input.document.type || !["design", "plan", "implementation"].includes(input.document.type)) {
+    throw badInput("document.type must be design, plan, or implementation");
+  }
+};
+
+const validateDriftAction = (
+  input: Input,
+  config: { targetRef?: string; driftMode: DriftMode; hasExtractorClaimSets: boolean } | undefined,
+): void => {
+  if (!config?.targetRef)
+    throw badInput("drift_config.target_ref is required for drift-detect action");
+  if (config.driftMode === "dual-extractor" && !config.hasExtractorClaimSets) {
+    throw badInput(
+      "drift_config.extractor_claim_sets must contain exactly 2 claim sets in dual-extractor mode",
+    );
+  }
+  if (!["design", "plan"].includes(input.document.type)) {
+    throw badInput("drift-detect requires document.type to be design or plan");
+  }
+};
 
 export function validateInput(input: Input): void {
   if (!isObjectRecord(input)) {
@@ -204,31 +254,7 @@ export function validateInput(input: Input): void {
     "input",
   );
 
-  if (!isObjectRecord(input.action)) {
-    throw badInput("action must be an object");
-  }
-  assertNoUnexpectedProperties(input.action as Record<string, unknown>, ["type"], "action");
-  if (!input.action.type || !["review", "drift-detect"].includes(input.action.type)) {
-    throw badInput("action.type must be 'review' or 'drift-detect'");
-  }
-
-  if (!isObjectRecord(input.document)) {
-    throw badInput("document must be an object");
-  }
-  assertNoUnexpectedProperties(
-    input.document as Record<string, unknown>,
-    ["content", "type"],
-    "document",
-  );
-  if (!input.document.content || typeof input.document.content !== "string") {
-    throw badInput("document.content is required");
-  }
-  if (
-    !input?.document?.type ||
-    !["design", "plan", "implementation"].includes(input.document.type)
-  ) {
-    throw badInput("document.type must be design, plan, or implementation");
-  }
+  validateActionAndDocument(input);
 
   if (input.reviewer_findings !== undefined) {
     validateReviewerFindings(input.reviewer_findings);
@@ -242,18 +268,5 @@ export function validateInput(input: Input): void {
     return;
   }
 
-  if (!validatedDriftConfig?.targetRef) {
-    throw badInput("drift_config.target_ref is required for drift-detect action");
-  }
-  if (
-    validatedDriftConfig.driftMode === "dual-extractor" &&
-    !validatedDriftConfig.hasExtractorClaimSets
-  ) {
-    throw badInput(
-      "drift_config.extractor_claim_sets must contain exactly 2 claim sets in dual-extractor mode",
-    );
-  }
-  if (!["design", "plan"].includes(input.document.type)) {
-    throw badInput("drift-detect requires document.type to be design or plan");
-  }
+  validateDriftAction(input, validatedDriftConfig);
 }

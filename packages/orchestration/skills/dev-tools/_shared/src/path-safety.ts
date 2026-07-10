@@ -1,4 +1,4 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { badInput } from "./errors.js";
 
@@ -70,17 +70,14 @@ export function resolveWithinWorkspace(
     throw badInput(outOfRootMessage);
   }
 
-  try {
-    const resolvedReal = realpathSync(resolved);
-    const resolvedRel = path.relative(root, resolvedReal);
-    if (resolvedRel.startsWith("..") || path.isAbsolute(resolvedRel)) {
-      throw badInput(outOfRootMessage);
-    }
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code !== "ENOENT") {
-      throw err;
-    }
+  let existingAncestor = resolved;
+  while (!existsSync(existingAncestor) && existingAncestor !== path.dirname(existingAncestor)) {
+    existingAncestor = path.dirname(existingAncestor);
+  }
+  const ancestorReal = realpathSync(existingAncestor);
+  const ancestorRelative = path.relative(root, ancestorReal);
+  if (ancestorRelative.startsWith("..") || path.isAbsolute(ancestorRelative)) {
+    throw badInput(outOfRootMessage);
   }
 
   return resolved;

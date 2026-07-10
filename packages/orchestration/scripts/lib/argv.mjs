@@ -4,6 +4,14 @@ function badInput(message) {
   return err;
 }
 
+const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor", "toString"]);
+
+function assertSafeKey(key, label) {
+  if (UNSAFE_KEYS.has(key)) {
+    throw badInput(`${label} is not allowed: ${key}`);
+  }
+}
+
 function parseBoolean(raw, flagName) {
   if (typeof raw === "boolean") return raw;
   if (raw === "true" || raw === "1") return true;
@@ -15,7 +23,7 @@ export function parseArgs(spec, argv) {
   const defaults = spec?.defaults ?? {};
   const optionSpec = spec?.options ?? {};
   const allowPositionals = spec?.allowPositionals === true;
-  const out = { ...defaults };
+  const out = Object.assign(Object.create(null), defaults);
   const positionals = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -30,12 +38,14 @@ export function parseArgs(spec, argv) {
 
     const eqIdx = token.indexOf("=");
     const rawKey = token.slice(2, eqIdx === -1 ? undefined : eqIdx);
-    const specEntry = optionSpec[rawKey];
-    if (!specEntry) {
+    assertSafeKey(rawKey, "option name");
+    if (!Object.hasOwn(optionSpec, rawKey)) {
       throw badInput(`Unknown argument: --${rawKey}`);
     }
+    const specEntry = optionSpec[rawKey];
 
     const outputKey = specEntry.key ?? rawKey;
+    assertSafeKey(outputKey, "option output key");
     const type = specEntry.type ?? "string";
     const hasInline = eqIdx !== -1;
     const inlineValue = hasInline ? token.slice(eqIdx + 1) : undefined;
@@ -87,6 +97,7 @@ export function parseArgs(spec, argv) {
   for (const [flag, entry] of Object.entries(optionSpec)) {
     if (!entry.required) continue;
     const key = entry.key ?? flag;
+    assertSafeKey(key, "required option key");
     const value = out[key];
     if (value === undefined || value === null || value === "") {
       throw badInput(`Missing required argument: --${flag}`);

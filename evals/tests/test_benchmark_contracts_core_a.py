@@ -7,11 +7,20 @@ import subprocess
 import sys
 import tempfile
 
-from benchmark_contracts_helpers import RESULTS_ROOT, ROOT, install_path_mirror, write_json, write_release_gate_fixture
+from benchmark_contracts_helpers import (
+    RESULTS_ROOT,
+    ROOT,
+    install_path_mirror,
+    write_json,
+    write_release_gate_fixture,
+)
+
+
 def test_run_benchmark_rejects_output_dir_outside_results_root() -> None:
     with tempfile.TemporaryDirectory(prefix="rae-benchmark-outside-") as tmp:
         output_dir = pathlib.Path(tmp)
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/run_benchmark.py"),
@@ -45,7 +54,8 @@ def test_run_benchmark_rejects_unsafe_benchmark_id_before_writing() -> None:
         dir=RESULTS_ROOT, prefix="rae-benchmark-unsafe-benchmark-id-"
     ) as tmp:
         output_dir = pathlib.Path(tmp)
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/run_benchmark.py"),
@@ -95,7 +105,8 @@ def test_run_benchmark_rejects_unsafe_task_id_before_writing() -> None:
         dir=RESULTS_ROOT, prefix="rae-benchmark-unsafe-task-id-"
     ) as tmp:
         output_dir = pathlib.Path(tmp)
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/run_benchmark.py"),
@@ -124,7 +135,8 @@ def test_run_benchmark_accepts_output_dir_under_results_root() -> None:
         dir=results_root, prefix="rae-benchmark-inside-"
     ) as tmp:
         output_dir = pathlib.Path(tmp) / "dev"
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/run_benchmark.py"),
@@ -152,7 +164,8 @@ def test_run_benchmark_returns_non_zero_when_release_gate_fails() -> None:
         dir=results_root, prefix="rae-benchmark-release-gate-fail-"
     ) as tmp:
         output_dir = pathlib.Path(tmp) / "dev"
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/run_benchmark.py"),
@@ -179,7 +192,8 @@ def test_rae_doctor_reports_missing_rg_dependency() -> None:
     with tempfile.TemporaryDirectory(prefix="rae-doctor-path-") as tmp:
         bin_dir = pathlib.Path(tmp)
         install_path_mirror(bin_dir)
-        completed = subprocess.run(
+        # B603 rationale: fixed Bash executable and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             ["bash", str(ROOT / "scripts/rae.sh"), "doctor"],
             cwd=ROOT,
             text=True,
@@ -195,7 +209,8 @@ def test_rae_doctor_reports_missing_rg_dependency() -> None:
     with tempfile.TemporaryDirectory(prefix="rae-doctor-no-rg-") as tmp:
         bin_dir = pathlib.Path(tmp)
         install_path_mirror(bin_dir, exclude={"rg"})
-        completed = subprocess.run(
+        # B603 rationale: fixed Bash executable and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             ["bash", str(ROOT / "scripts/rae.sh"), "doctor"],
             cwd=ROOT,
             text=True,
@@ -210,7 +225,8 @@ def test_rae_doctor_reports_missing_rg_dependency() -> None:
 
 
 def test_rae_worktree_help_lists_supervision_commands() -> None:
-    completed = subprocess.run(
+    # B603 rationale: fixed Bash executable and repository test entrypoint.
+    completed = subprocess.run(  # nosec B603
         ["bash", str(ROOT / "scripts/rae.sh"), "worktree", "help"],
         cwd=ROOT,
         text=True,
@@ -261,7 +277,8 @@ def test_release_gate_fails_when_required_split_evidence_is_missing() -> None:
             output_dir / "release-gate-tool-selection-core-held-out-required-splits.json"
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),
@@ -328,7 +345,8 @@ def test_release_gate_fails_when_calibration_agreement_is_below_threshold() -> N
             output_dir / "release-gate-tool-selection-core-dev-low-calibration.json"
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),

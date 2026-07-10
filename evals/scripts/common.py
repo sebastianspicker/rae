@@ -6,16 +6,36 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import shutil
 import subprocess
+import sys
 import time
 import uuid
 from datetime import UTC, date, datetime
 from typing import Any
 
-
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 EVALS = ROOT / "evals"
 RESULTS_ROOT = EVALS / "results"
+ORCHESTRATION_ROOT = ROOT / "packages" / "orchestration"
+
+
+def _resolve_trusted_executables() -> dict[str, pathlib.Path]:
+    """Resolve the small executable allowlist once, before caller-provided env changes."""
+    python = pathlib.Path(sys.executable).resolve()
+    trusted = {
+        "python": python,
+        "python3": python,
+        pathlib.Path(sys.executable).name: python,
+    }
+    for name in ("node", "bash", "git"):
+        executable = shutil.which(name)
+        if executable is not None:
+            trusted[name] = pathlib.Path(executable).resolve()
+    return trusted
+
+
+_TRUSTED_EXECUTABLES = _resolve_trusted_executables()
 
 
 def _nearest_existing_ancestor(path: pathlib.Path) -> pathlib.Path:
@@ -104,6 +124,78 @@ def relative_to_root(input_path: str | pathlib.Path) -> str:
     return ensure_relative_to_root(pathlib.Path(input_path))
 
 
+def _coerce_subprocess_output(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    raise RuntimeError("subprocess returned malformed non-text output")
+
+
+def _find_package_root(cwd: pathlib.Path) -> pathlib.Path:
+    current = cwd.resolve()
+    while True:
+        if (current / "package.json").is_file():
+            return current
+        if current == current.parent:
+            raise ValueError("node commands require a cwd beneath a package root")
+        current = current.parent
+
+
+def _resolve_trusted_executable(
+    requested: str, env: dict[str, str] | None
+) -> tuple[str, pathlib.Path]:
+    alias = pathlib.Path(requested).name
+    trusted = _TRUSTED_EXECUTABLES.get(alias)
+    if trusted is None:
+        raise ValueError(f"unsupported executable: {requested}")
+    if pathlib.Path(requested).is_absolute():
+        if pathlib.Path(requested).resolve() != trusted:
+            raise ValueError(f"untrusted executable path: {requested}")
+        return alias, trusted
+    if requested != alias:
+        raise ValueError(
+            f"executable must be an allowlisted name or trusted absolute path: {requested}"
+        )
+    effective_path = (env or os.environ).get("PATH")
+    visible = shutil.which(alias, path=effective_path) if effective_path else None
+    if visible is None or pathlib.Path(visible).resolve() != trusted:
+        raise ValueError(f"PATH-shadowed or unavailable executable: {alias}")
+    return alias, trusted
+
+
+def _resolve_node_entrypoint(prepared: list[str], cwd: pathlib.Path) -> None:
+    if len(prepared) < 2 or prepared[1].startswith("-"):
+        raise ValueError("node commands require a package-confined entrypoint")
+    package_root = _find_package_root(cwd)
+    entrypoint = pathlib.Path(prepared[1])
+    if not entrypoint.is_absolute():
+        entrypoint = cwd / entrypoint
+    entrypoint = entrypoint.resolve(strict=True)
+    try:
+        entrypoint.relative_to(package_root)
+    except ValueError as exc:
+        raise ValueError("node entrypoint must resolve below the package root") from exc
+    prepared[1] = str(entrypoint)
+
+
+def _prepare_command(
+    argv: list[str], cwd: pathlib.Path, env: dict[str, str] | None
+) -> list[str]:
+    if not isinstance(argv, list) or not argv or not all(isinstance(arg, str) for arg in argv):
+        raise ValueError("argv must be a non-empty list of strings")
+    if any("\x00" in arg for arg in argv):
+        raise ValueError("argv must not contain NUL bytes")
+
+    alias, trusted = _resolve_trusted_executable(argv[0], env)
+    prepared = [str(trusted), *argv[1:]]
+    if alias == "node":
+        _resolve_node_entrypoint(prepared, cwd)
+    return prepared
+
+
 def run_command(
     argv: list[str],
     *,
@@ -112,11 +204,15 @@ def run_command(
     timeout_seconds: float | None = 300.0,
 ) -> dict[str, Any]:
     """Run a local command and return the transcript as benchmark evidence."""
+    requested_argv = list(argv)
+    command_cwd = (cwd or ROOT).resolve()
+    prepared_argv = _prepare_command(argv, command_cwd, env)
     started = time.monotonic()
     try:
-        completed = subprocess.run(
-            argv,
-            cwd=cwd or ROOT,
+        # B603 rationale: executable and entrypoint were resolved against the trusted allowlist.
+        completed = subprocess.run(  # nosec B603
+            prepared_argv,
+            cwd=command_cwd,
             env=env,
             text=True,
             capture_output=True,
@@ -125,8 +221,8 @@ def run_command(
         )
     except subprocess.TimeoutExpired as exc:
         duration = round(time.monotonic() - started, 4)
-        stdout = exc.stdout if isinstance(exc.stdout, str) else ""
-        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        stdout = _coerce_subprocess_output(exc.stdout)
+        stderr = _coerce_subprocess_output(exc.stderr)
         timeout_label = (
             f"{timeout_seconds:g}"
             if isinstance(timeout_seconds, (int, float))
@@ -134,8 +230,8 @@ def run_command(
         )
         message = f"command timed out after {timeout_label}s"
         return {
-            "argv": argv,
-            "cwd": relative_to_root(cwd or ROOT),
+            "argv": requested_argv,
+            "cwd": relative_to_root(command_cwd),
             "returncode": 124,
             "stdout": stdout,
             "stderr": f"{stderr.rstrip()}\n{message}".strip(),
@@ -144,13 +240,15 @@ def run_command(
             "timeout_seconds": timeout_seconds,
         }
 
+    if isinstance(completed.returncode, bool) or not isinstance(completed.returncode, int):
+        raise RuntimeError("subprocess returned malformed exit status")
     duration = round(time.monotonic() - started, 4)
     return {
-        "argv": argv,
-        "cwd": relative_to_root(cwd or ROOT),
+        "argv": requested_argv,
+        "cwd": relative_to_root(command_cwd),
         "returncode": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "stdout": _coerce_subprocess_output(completed.stdout),
+        "stderr": _coerce_subprocess_output(completed.stderr),
         "duration_seconds": duration,
         "timed_out": False,
         "timeout_seconds": timeout_seconds,

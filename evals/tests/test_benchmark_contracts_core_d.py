@@ -6,7 +6,15 @@ import subprocess
 import sys
 import tempfile
 
-from benchmark_contracts_helpers import RESULTS_ROOT, ROOT, repo_rel, write_json, write_release_gate_fixture
+from benchmark_contracts_helpers import (
+    RESULTS_ROOT,
+    ROOT,
+    repo_rel,
+    write_json,
+    write_release_gate_fixture,
+)
+
+
 def test_release_gate_fails_when_calibration_report_is_missing() -> None:
     benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
     benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
@@ -104,7 +112,9 @@ def test_release_gate_fails_when_calibration_report_is_missing() -> None:
                 "command": "python3 evals/scripts/run_benchmark.py",
                 "result_path": repo_rel(result_path),
                 "status": "pass",
-                "task_spec_path": "evals/datasets/tool-selection/tool-selection-core.task-specs.json",
+                "task_spec_path": (
+                    "evals/datasets/tool-selection/tool-selection-core.task-specs.json"
+                ),
                 "routed_runtime": "mixed",
                 "trace_paths": [],
                 "artifact_paths": [],
@@ -134,7 +144,8 @@ def test_release_gate_fails_when_calibration_report_is_missing() -> None:
             release_gate_status="pass",
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/release_gate.py"),
@@ -185,7 +196,8 @@ def test_validate_eval_metadata_rejects_invalid_workflow_verb_in_task_bundle() -
             },
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -221,7 +233,8 @@ def test_validate_eval_metadata_rejects_invalid_execution_profile_in_task_bundle
             },
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -257,7 +270,8 @@ def test_validate_eval_metadata_rejects_execution_profile_runtime_mismatch() -> 
             },
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -292,7 +306,8 @@ def test_router_rejects_execution_profile_runtime_mismatch() -> None:
             },
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/router.py"),
@@ -331,7 +346,8 @@ def test_router_rejects_non_string_execution_profile() -> None:
             },
         )
 
-        completed = subprocess.run(
+        # B603 rationale: fixed interpreter and repository test entrypoint.
+        completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
                 str(ROOT / "evals/scripts/router.py"),
