@@ -174,18 +174,48 @@ function appendAssertion(
   const id = `drift-${index + 1}`;
   const score = claimMatchScore(assertion, target);
   const status = toVerificationStatus(score);
+  appendAssertionClaim(claims, id, assertion, heading, score, status);
+  appendAssertionFinding(findings, id, assertion, heading, status);
+  return index + 1;
+}
+
+function appendAssertionClaim(
+  claims: DriftClaim[],
+  id: string,
+  assertion: string,
+  heading: string,
+  score: number,
+  status: DriftVerificationStatus,
+): void {
   claims.push({
     id,
     claim: assertion,
     claim_type: classifyClaimType(assertion),
     verification_status: status,
-    evidence:
-      status === "verified"
-        ? `Strong keyword overlap (${Math.round(score * 100)}%) in target`
-        : `Claim from source section "${heading}" not fully reflected in target (overlap: ${score < 0 ? "n/a" : `${Math.round(score * 100)}%`})`,
+    evidence: assertionEvidence(status, heading, score),
     extractor: "rule-based-drift-detector",
     drift_score: toDriftScore(status),
   });
+}
+
+function assertionEvidence(
+  status: DriftVerificationStatus,
+  heading: string,
+  score: number,
+): string {
+  if (status === "verified")
+    return `Strong keyword overlap (${Math.round(score * 100)}%) in target`;
+  const overlap = score < 0 ? "n/a" : `${Math.round(score * 100)}%`;
+  return `Claim from source section "${heading}" not fully reflected in target (overlap: ${overlap})`;
+}
+
+function appendAssertionFinding(
+  findings: DriftFinding[],
+  id: string,
+  assertion: string,
+  heading: string,
+  status: DriftVerificationStatus,
+): void {
   if (status !== "verified")
     findings.push({
       description: `Assertion from "${heading}" is ${status}: "${assertion}"`,
@@ -195,7 +225,6 @@ function appendAssertion(
       mitigation:
         "Verify this requirement is addressed in the target artifact and update implementation or plan accordingly.",
     });
-  return index + 1;
 }
 
 export function detectDriftFromExtractorClaims(

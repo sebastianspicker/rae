@@ -9,6 +9,11 @@ function writeValidTraceFixture(workspaceRoot: string): void {
   const traceDir = join(workspaceRoot, ".pipeline", "runs", "run-1");
   mkdirSync(schemaDir, { recursive: true });
   mkdirSync(traceDir, { recursive: true });
+  writeTraceSchema(schemaDir);
+  writeTraceEvents(traceDir);
+}
+
+function writeTraceSchema(schemaDir: string): void {
   writeFileSync(
     join(schemaDir, "execution-trace.schema.json"),
     JSON.stringify({
@@ -22,6 +27,9 @@ function writeValidTraceFixture(workspaceRoot: string): void {
     }),
     "utf8",
   );
+}
+
+function writeTraceEvents(traceDir: string): void {
   const trace = [
     {
       ts: "2026-02-22T12:00:00Z",

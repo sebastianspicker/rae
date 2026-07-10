@@ -34,13 +34,17 @@ export function buildProgressArtifact(runId, state, summary, progress, updatedAt
     gate_totals: progress.totals,
     blockers: progress.blockers,
     activity_summary: summary.activity_resolutions ?? [],
-    cost_summary: {
-      total_cost_usd: summary.total_cost_usd ?? 0,
-      total_tokens_in: summary.total_tokens_in ?? 0,
-      total_tokens_out: summary.total_tokens_out ?? 0,
-    },
+    cost_summary: progressCostSummary(summary),
     next_action: progress.nextAction,
     updated_at: updatedAt,
+  };
+}
+
+function progressCostSummary(summary) {
+  return {
+    total_cost_usd: summary.total_cost_usd ?? 0,
+    total_tokens_in: summary.total_tokens_in ?? 0,
+    total_tokens_out: summary.total_tokens_out ?? 0,
   };
 }
 

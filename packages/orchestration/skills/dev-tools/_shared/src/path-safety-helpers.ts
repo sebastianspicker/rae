@@ -1,4 +1,4 @@
-import { existsSync, realpathSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import path from "node:path";
 import { badInput } from "./errors.js";
 
@@ -21,6 +21,8 @@ export function assertSafeRelative(ref: string, normalized: string, message: str
 
 export function resolveRoot(root: string, label: string): string {
   try {
+    // The operator-supplied workspace root must be canonicalized before confinement checks.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     return realpathSync(path.resolve(root));
   } catch (err: unknown) {
     if ((err as { code?: string }).code === "ENOENT") throw badInput(`${label} does not exist`);
@@ -30,7 +32,16 @@ export function resolveRoot(root: string, label: string): string {
 
 export function resolveExistingAncestor(resolved: string): string {
   let ancestor = resolved;
-  while (!existsSync(ancestor) && ancestor !== path.dirname(ancestor))
-    ancestor = path.dirname(ancestor);
-  return realpathSync(ancestor);
+  while (true) {
+    try {
+      // Canonicalizing the root-confined candidate is required to detect symlink escapes.
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      return realpathSync(ancestor);
+    } catch (err: unknown) {
+      if ((err as { code?: string }).code !== "ENOENT") throw err;
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) throw err;
+      ancestor = parent;
+    }
+  }
 }

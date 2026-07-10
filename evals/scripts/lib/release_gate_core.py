@@ -295,22 +295,43 @@ def _append_result_contract_issues(
     card_path: pathlib.Path,
     split: object,
 ) -> None:
-    if not card.get("result_path"):
-        return
-    path = resolve_repo_path(str(card["result_path"]))
-    if not path_under_results(path):
-        issues.append("run card result_path is outside evals/results")
-        return
-    if not path_within_run_scope(path, card_path):
-        issues.append("run card result_path is outside current run scope")
-        return
-    if not path.exists():
-        issues.append("benchmark result artifact missing")
+    path = _result_contract_path(issues, card, card_path)
+    if path is None:
         return
     result = load_json(path)
     if not isinstance(result, dict):
         issues.append("benchmark result must be a JSON object")
         return
+    _append_result_identity_issues(issues, result, benchmark, card, split)
+    _append_result_content_issues(issues, result)
+
+
+def _result_contract_path(
+    issues: list[str], card: dict[str, Any], card_path: pathlib.Path
+) -> pathlib.Path | None:
+    result_path = card.get("result_path")
+    if not result_path:
+        return None
+    path = resolve_repo_path(str(result_path))
+    if not path_under_results(path):
+        issues.append("run card result_path is outside evals/results")
+        return None
+    if not path_within_run_scope(path, card_path):
+        issues.append("run card result_path is outside current run scope")
+        return None
+    if not path.exists():
+        issues.append("benchmark result artifact missing")
+        return None
+    return path
+
+
+def _append_result_identity_issues(
+    issues: list[str],
+    result: dict[str, Any],
+    benchmark: dict[str, Any],
+    card: dict[str, Any],
+    split: object,
+) -> None:
     checks = (
         ("run_id", card.get("run_id"), "benchmark result run_id mismatch"),
         ("benchmark_id", benchmark["benchmark_id"], "benchmark result benchmark_id mismatch"),
@@ -320,6 +341,9 @@ def _append_result_contract_issues(
     for key, expected, message in checks:
         if result.get(key) != expected:
             issues.append(message)
+
+
+def _append_result_content_issues(issues: list[str], result: dict[str, Any]) -> None:
     if "fail_count" not in result or "task_count" not in result:
         issues.append("benchmark result missing failure summary")
     elif "aggregate_metrics" not in result:

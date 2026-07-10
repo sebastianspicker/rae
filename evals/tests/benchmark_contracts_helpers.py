@@ -5,8 +5,10 @@ import json
 import os
 import pathlib
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
+
+# B404 rationale: this test helper uses trusted executables and repository-confined argv.
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RESULTS_ROOT = ROOT / "evals" / "results"
@@ -57,26 +59,28 @@ def install_command_shims(bin_dir: pathlib.Path, *, exclude: set[str] | None = N
         os.symlink(require_command_path(name), bin_dir / name)
 
 
-def install_path_mirror(bin_dir: pathlib.Path, *, exclude: set[str] | None = None) -> None:
-    exclude = exclude or set()
-    seen: set[str] = set()
+def executable_path_candidates() -> list[pathlib.Path]:
+    candidates: list[pathlib.Path] = []
     for dir_path in os.environ.get("PATH", "").split(os.pathsep):
-        if not dir_path:
-            continue
         path_dir = pathlib.Path(dir_path)
-        if not path_dir.is_dir():
-            continue
-        for candidate in path_dir.iterdir():
-            try:
-                is_file = candidate.is_file()
-                executable = os.access(candidate, os.X_OK)
-            except PermissionError:
-                continue
-            if not is_file or not executable:
-                continue
-            name = candidate.name
-            if name in exclude or name in seen:
-                continue
+        if dir_path and path_dir.is_dir():
+            candidates.extend(path_dir.iterdir())
+    return candidates
+
+
+def is_executable_file(candidate: pathlib.Path) -> bool:
+    try:
+        return candidate.is_file() and os.access(candidate, os.X_OK)
+    except PermissionError:
+        return False
+
+
+def install_path_mirror(bin_dir: pathlib.Path, *, exclude: set[str] | None = None) -> None:
+    excluded = exclude or set()
+    seen: set[str] = set()
+    for candidate in executable_path_candidates():
+        name = candidate.name
+        if is_executable_file(candidate) and name not in excluded and name not in seen:
             seen.add(name)
             os.symlink(candidate, bin_dir / name)
 

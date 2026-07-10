@@ -47,28 +47,37 @@ def resolve_repo_child_path(path_str: Any, base: pathlib.Path, label: str) -> pa
     return resolved
 
 
-def validate_benchmark_inputs(benchmark: dict[str, Any], task_bundle: dict[str, Any]) -> None:
+def validate_artifact_id_or_exit(value: Any, label: str) -> None:
     try:
-        validate_artifact_id(benchmark.get("benchmark_id", ""), "benchmark_id")
+        validate_artifact_id(value, label)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
+
+
+def validate_required_benchmark_fields(benchmark: dict[str, Any]) -> None:
     for label in ("version", "judge_version", "judge_path", "task_specs_path"):
         if not isinstance(benchmark.get(label), str) or not benchmark[label]:
             raise SystemExit(f"benchmark {label} must be a non-empty string")
-    resolve_repo_child_path(
-        benchmark["task_specs_path"], ROOT / "evals/datasets", "task_specs_path"
-    )
-    resolve_repo_child_path(benchmark["judge_path"], ROOT, "judge_path")
+
+
+def validate_task_bundle(task_bundle: dict[str, Any]) -> None:
     tasks = task_bundle.get("tasks")
     if not isinstance(tasks, list):
         raise SystemExit("task bundle tasks must be an array")
     for task in tasks:
         if not isinstance(task, dict):
             raise SystemExit("task bundle tasks must be objects")
-        try:
-            validate_artifact_id(task.get("task_id", ""), "task_id")
-        except ValueError as exc:
-            raise SystemExit(str(exc)) from exc
+        validate_artifact_id_or_exit(task.get("task_id", ""), "task_id")
+
+
+def validate_benchmark_inputs(benchmark: dict[str, Any], task_bundle: dict[str, Any]) -> None:
+    validate_artifact_id_or_exit(benchmark.get("benchmark_id", ""), "benchmark_id")
+    validate_required_benchmark_fields(benchmark)
+    resolve_repo_child_path(
+        benchmark["task_specs_path"], ROOT / "evals/datasets", "task_specs_path"
+    )
+    resolve_repo_child_path(benchmark["judge_path"], ROOT, "judge_path")
+    validate_task_bundle(task_bundle)
 
 
 def aggregate_results(task_results: list[dict[str, Any]]) -> dict[str, float]:
@@ -263,6 +272,18 @@ def report_calibration_failure(result: dict[str, Any]) -> int:
     return result["returncode"] or 1
 
 
+def task_paths(task_results: list[dict[str, Any]], path_key: str) -> list[str]:
+    return [path for result in task_results for path in result[path_key]]
+
+
+def run_card_status(task_results: list[dict[str, Any]]) -> str:
+    return "pass" if all(item["judge"]["verdict"] != "fail" for item in task_results) else "fail"
+
+
+def task_latency_seconds(task_results: list[dict[str, Any]]) -> float:
+    return round(sum(result["command_result"]["duration_seconds"] for result in task_results), 4)
+
+
 def build_run_card(
     benchmark: dict[str, Any],
     split: str,
@@ -284,32 +305,23 @@ def build_run_card(
         "judge_version": benchmark["judge_version"],
         "command": "python3 evals/scripts/run_benchmark.py",
         "result_path": repo_relpath(result_path),
-        "status": "pass"
-        if all(item["judge"]["verdict"] != "fail" for item in task_results)
-        else "fail",
+        "status": run_card_status(task_results),
         "task_spec_path": benchmark["task_specs_path"],
         "routed_runtime": "mixed",
         "router": {
             "version": ROUTER_VERSION,
             "decision_mode": "per-task",
         },
-        "trace_paths": sorted({path for result in task_results for path in result["trace_paths"]}),
-        "artifact_paths": sorted(
-            {path for result in task_results for path in result["artifact_paths"]}
-        ),
-        "checkpoint_paths": [
-            path for result in task_results for path in result["checkpoint_paths"]
-        ],
+        "trace_paths": sorted(set(task_paths(task_results, "trace_paths"))),
+        "artifact_paths": sorted(set(task_paths(task_results, "artifact_paths"))),
+        "checkpoint_paths": task_paths(task_results, "checkpoint_paths"),
         "verification_evidence": aggregate_verification_evidence(task_results),
         "claim_links": benchmark.get("claim_links", []),
         "ledger_path": repo_relpath(ledger_path),
         "regression_report_path": repo_relpath(regression_path),
         "judge_calibration_report_path": repo_relpath(calibration_path),
         "cost_usd": 0.0,
-        "latency_seconds": round(
-            sum(result["command_result"]["duration_seconds"] for result in task_results),
-            4,
-        ),
+        "latency_seconds": task_latency_seconds(task_results),
         "notes": f"Executed {len(task_results)} task(s) for split {split}.",
     }
 
@@ -358,16 +370,23 @@ def run_release_gate(
     return release_gate_path, gate_result
 
 
+def release_gate_report_message(release_gate_path: pathlib.Path) -> str:
+    if not release_gate_path.exists():
+        return ""
+    gate_report = load_optional_json_artifact(repo_relpath(release_gate_path)) or {}
+    issues = gate_report.get("issues")
+    return "\n".join(str(issue) for issue in issues) if isinstance(issues, list) and issues else ""
+
+
 def release_gate_failure_message(
     gate_result: dict[str, Any], release_gate_path: pathlib.Path
 ) -> str:
-    message = gate_result["stderr"].strip()
-    if not message and release_gate_path.exists():
-        gate_report = load_optional_json_artifact(repo_relpath(release_gate_path)) or {}
-        issues = gate_report.get("issues")
-        if isinstance(issues, list) and issues:
-            message = "\n".join(str(issue) for issue in issues)
-    return message or gate_result["stdout"] or "release gate failed"
+    return (
+        gate_result["stderr"].strip()
+        or release_gate_report_message(release_gate_path)
+        or gate_result["stdout"]
+        or "release gate failed"
+    )
 
 
 def main() -> int:

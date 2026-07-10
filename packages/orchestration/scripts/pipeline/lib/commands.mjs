@@ -223,9 +223,7 @@ export function runSummarizeRun(options, { requireOption, ensureStateForRun }) {
   const runId = requireOption(options, "run-id");
   const root = resolveWorkspaceRootForRun(runId);
   const format = options.format || "json";
-  if (!SUMMARY_FORMATS.has(format)) {
-    throw badInput("--format must be one of: json, text, markdown");
-  }
+  validateSummaryFormat(format);
   const outputRef = options.output;
   const state = loadPipelineState(root);
   ensureStateForRun(state, runId);
@@ -233,22 +231,28 @@ export function runSummarizeRun(options, { requireOption, ensureStateForRun }) {
   const summary = summarizeRun(runId, root);
 
   const jsonPayload = { success: true, run_id: runId, summary };
-
   const rendered =
     format === "json" ? "" : renderRunSummary(runSummaryView(runId, summary, PHASES), format);
+  const outputPath = writeRunSummaryOutput(outputRef, root, format, jsonPayload, rendered);
+  emitRunSummary({ format, outputPath, jsonPayload, runId, rendered });
+}
 
-  let outputPath;
-  if (outputRef) {
-    const outputAbs = resolveWithinRepo(outputRef, root);
-    mkdirSync(dirname(outputAbs), { recursive: true });
-    if (format === "json") {
-      writeFileSync(outputAbs, `${JSON.stringify(jsonPayload, null, 2)}\n`, "utf8");
-    } else {
-      writeFileSync(outputAbs, rendered, "utf8");
-    }
-    outputPath = toWorkspaceRelative(outputAbs, root);
+function validateSummaryFormat(format) {
+  if (!SUMMARY_FORMATS.has(format)) {
+    throw badInput("--format must be one of: json, text, markdown");
   }
+}
 
+function writeRunSummaryOutput(outputRef, root, format, jsonPayload, rendered) {
+  if (!outputRef) return null;
+  const outputAbs = resolveWithinRepo(outputRef, root);
+  mkdirSync(dirname(outputAbs), { recursive: true });
+  const content = format === "json" ? `${JSON.stringify(jsonPayload, null, 2)}\n` : rendered;
+  writeFileSync(outputAbs, content, "utf8");
+  return toWorkspaceRelative(outputAbs, root);
+}
+
+function emitRunSummary({ format, outputPath, jsonPayload, runId, rendered }) {
   if (format === "json") {
     const payload = outputPath ? { ...jsonPayload, format, output_ref: outputPath } : jsonPayload;
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);

@@ -94,7 +94,7 @@ run_native_policy_analysis() {
   fi
   mapfile -t supported_bandit_test_ids < <(python -c '
 from bandit.core.extension_loader import MANAGER
-print("\\n".join(sorted(MANAGER.plugins_by_id)))
+print("\n".join(sorted(MANAGER.plugins_by_id)))
 ')
   for test_id in "${supported_bandit_test_ids[@]}"; do
     supported_bandit_tests["$test_id"]=1

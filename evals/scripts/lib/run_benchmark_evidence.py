@@ -93,12 +93,21 @@ def evidence_entry(task_id: str, evidence_type: str, path: str, description: str
     return {"task_id": task_id, "type": evidence_type, "path": path, "description": description}
 
 
-def add_artifact_evidence(
+def add_evidence_entry(
+    task_id: str,
+    path: str,
+    evidence_type: str,
+    description: str,
+    provided: list[dict[str, Any]],
+    provided_types: set[str],
+) -> None:
+    provided.append(evidence_entry(task_id, evidence_type, path, description))
+    provided_types.add(evidence_type)
+
+
+def add_json_artifact_evidence(
     task_id: str, path: str, provided: list[dict[str, Any]], provided_types: set[str]
 ) -> None:
-    if path != next(entry["path"] for entry in provided if entry["type"] == "command-log"):
-        provided.append(evidence_entry(task_id, "artifact", path, "execution artifact"))
-        provided_types.add("artifact")
     artifact = load_optional_json_artifact(path)
     if not artifact:
         return
@@ -107,13 +116,26 @@ def add_artifact_evidence(
         ("qc_summary", "qc-summary", "quality coverage summary"),
     ):
         if key in artifact:
-            provided.append(evidence_entry(task_id, evidence_type, path, description))
-            provided_types.add(evidence_type)
+            add_evidence_entry(task_id, path, evidence_type, description, provided, provided_types)
     if "open_risks" in artifact or "review_state" in artifact:
-        provided.append(
-            evidence_entry(task_id, "risk-summary", path, "residual risk or review summary")
+        add_evidence_entry(
+            task_id,
+            path,
+            "risk-summary",
+            "residual risk or review summary",
+            provided,
+            provided_types,
         )
-        provided_types.add("risk-summary")
+
+
+def add_artifact_evidence(
+    task_id: str, path: str, provided: list[dict[str, Any]], provided_types: set[str]
+) -> None:
+    if path != next(entry["path"] for entry in provided if entry["type"] == "command-log"):
+        add_evidence_entry(
+            task_id, path, "artifact", "execution artifact", provided, provided_types
+        )
+    add_json_artifact_evidence(task_id, path, provided, provided_types)
 
 
 def evidence_status(required_types: list[str], provided_types: set[str]) -> tuple[str, list[str]]:
