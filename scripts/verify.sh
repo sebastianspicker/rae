@@ -24,6 +24,7 @@ trap cleanup EXIT
 
 require_command bash python3 git rg node npm jq mkdocs shellcheck
 
+bash "$ROOT_DIR/scripts/test-codacy-report-sanitizer.sh"
 python3 "$ROOT_DIR/scripts/verify_repo.py"
 python3 -m pytest evals/tests tests
 bash "$ROOT_DIR/evals/harness/run-local.sh" validate
