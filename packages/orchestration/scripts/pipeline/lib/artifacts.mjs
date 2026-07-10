@@ -6,6 +6,7 @@
  * --input-artifact and then validated by the same gate path.
  */
 import { badInput } from "./errors.mjs";
+import { buildDesignArtifact } from "./artifact-design.mjs";
 import { nowIso } from "./trace.mjs";
 import { toNumber } from "./utils.mjs";
 
@@ -22,58 +23,25 @@ export const DEFAULT_SCHEMA_BY_PHASE = {
 };
 
 export function phaseArtifactDefaults(phase) {
-  switch (phase) {
-    case "arm":
-      return {
-        artifactRef: "brief.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "design":
-      return {
-        artifactRef: "design.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "adversarial-review":
-      return {
-        artifactRef: "review.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "plan":
-      return {
-        artifactRef: "plan.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "pmatch":
-      return {
-        artifactRef: "drift-reports/pmatch.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "build":
-      return {
-        artifactRef: "build.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "quality-static":
-      return {
-        artifactRef: "quality-reports/static.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "quality-tests":
-      return {
-        artifactRef: "quality-reports/tests.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "post-build":
-      return { artifactRef: null, schemaRef: null };
-    case "release-readiness":
-      return {
-        artifactRef: "release-readiness.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    default:
-      throw badInput(`unknown phase: ${phase}`);
-  }
+  const artifactRef = ARTIFACT_REF_BY_PHASE[phase];
+  if (artifactRef === undefined) throw badInput(`unknown phase: ${phase}`);
+  return artifactRef === null
+    ? { artifactRef: null, schemaRef: null }
+    : { artifactRef, schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
 }
+
+const ARTIFACT_REF_BY_PHASE = {
+  arm: "brief.json",
+  design: "design.json",
+  "adversarial-review": "review.json",
+  plan: "plan.json",
+  pmatch: "drift-reports/pmatch.json",
+  build: "build.json",
+  "quality-static": "quality-reports/static.json",
+  "quality-tests": "quality-reports/tests.json",
+  "post-build": null,
+  "release-readiness": "release-readiness.json",
+};
 
 export function buildContextManifest({ phase, stageProfile, budget }) {
   if (stageProfile.context_manifest_present === false) {
@@ -193,65 +161,6 @@ function buildArmArtifact({ requirements, task }) {
   };
 }
 
-function buildDesignArtifact({ requirements, now }) {
-  return {
-    analysis: {
-      summary: "Design is constrained by contracts and gateability.",
-      principles: [
-        {
-          principle: "Minimize context noise",
-          implication: "Phase-local manifests",
-        },
-      ],
-    },
-    constraints_classification: [
-      {
-        constraint: "Contracts must remain valid",
-        trace_id: "constraint-contracts",
-        covers_requirement_ids: [requirements[0]],
-        original_type: "hard",
-        validated_type: "hard",
-        evaluation: "Required for deterministic gates",
-        flagged: false,
-      },
-    ],
-    approach: {
-      description: "Generate artifacts per phase and enforce gates.",
-      rationale: "Keeps runner deterministic.",
-      components: [
-        {
-          name: "runner",
-          responsibility: "Phase transitions",
-          interfaces: ["CLI"],
-        },
-      ],
-    },
-    research: [
-      {
-        source: "repo-docs",
-        url: "https://example.com/research",
-        finding: "Phase scoping is beneficial.",
-        verified_at: now,
-      },
-    ],
-    codebase_alignment: [
-      {
-        pattern: "scripts/pipeline/*",
-        file_paths: ["scripts/pipeline/runner.mjs"],
-        alignment_status: "new",
-        notes: "runtime orchestration",
-      },
-    ],
-    iteration_history: [
-      {
-        iteration: 1,
-        changes: "Initial design",
-        rationale: "Enable runtime gates",
-      },
-    ],
-  };
-}
-
 function buildAdversarialReviewArtifact({ requirements }) {
   const reviewers = [
     {
@@ -347,55 +256,7 @@ function buildPlanArtifact({ requirements, stageProfile }) {
       {
         group_id: "group-1",
         builder_tier: "fast",
-        tasks: [
-          {
-            id: "task-1",
-            trace_id: "task-trace-1",
-            description: "Implement orchestrated runner flow",
-            execution_session: {
-              session_id: "build-task-1",
-              session_kind: "build-task",
-              fresh_context: true,
-              inherits_history: false,
-              max_attempts: 2,
-              retry_behavior: "restart-fresh-session",
-            },
-            context_manifest: buildTaskContextManifest("scripts/pipeline/runner.mjs"),
-            covers_requirement_ids: requirementCoverage,
-            covers_constraint_ids: ["constraint-contracts"],
-            file_paths: ["scripts/pipeline/runner.mjs"],
-            code_patterns: [
-              {
-                file: "scripts/pipeline/runner.mjs",
-                pattern: "run-stage",
-                description: "runtime stage execution",
-              },
-            ],
-            test_cases: [
-              {
-                name: "runner-stage-smoke",
-                trace_id: "test-trace-1",
-                execution_session: {
-                  session_id: "quality-case-runner-stage-smoke",
-                  session_kind: "quality-case",
-                  fresh_context: true,
-                  inherits_history: false,
-                  max_attempts: 2,
-                  retry_behavior: "restart-fresh-session",
-                },
-                context_manifest: buildTaskContextManifest(
-                  "scripts/pipeline/tests/runner-stage.test.mjs",
-                ),
-                covers_requirement_ids: testCoverage,
-                setup: "Initialize pipeline",
-                assertion: "Run stage completes",
-                expected: "gate passes",
-              },
-            ],
-            acceptance_criteria: ["trace events emitted", "gate output persisted"],
-            dependencies: [],
-          },
-        ],
+        tasks: [buildPlanTask(requirementCoverage, testCoverage)],
       },
     ],
     file_ownership: {
@@ -408,6 +269,56 @@ function buildPlanArtifact({ requirements, stageProfile }) {
         working_directory: ".",
       },
     ],
+  };
+}
+
+function buildPlanTask(requirementCoverage, testCoverage) {
+  return {
+    id: "task-1",
+    trace_id: "task-trace-1",
+    description: "Implement orchestrated runner flow",
+    execution_session: {
+      session_id: "build-task-1",
+      session_kind: "build-task",
+      fresh_context: true,
+      inherits_history: false,
+      max_attempts: 2,
+      retry_behavior: "restart-fresh-session",
+    },
+    context_manifest: buildTaskContextManifest("scripts/pipeline/runner.mjs"),
+    covers_requirement_ids: requirementCoverage,
+    covers_constraint_ids: ["constraint-contracts"],
+    file_paths: ["scripts/pipeline/runner.mjs"],
+    code_patterns: [
+      {
+        file: "scripts/pipeline/runner.mjs",
+        pattern: "run-stage",
+        description: "runtime stage execution",
+      },
+    ],
+    test_cases: [buildPlanTestCase(testCoverage)],
+    acceptance_criteria: ["trace events emitted", "gate output persisted"],
+    dependencies: [],
+  };
+}
+
+function buildPlanTestCase(testCoverage) {
+  return {
+    name: "runner-stage-smoke",
+    trace_id: "test-trace-1",
+    execution_session: {
+      session_id: "quality-case-runner-stage-smoke",
+      session_kind: "quality-case",
+      fresh_context: true,
+      inherits_history: false,
+      max_attempts: 2,
+      retry_behavior: "restart-fresh-session",
+    },
+    context_manifest: buildTaskContextManifest("scripts/pipeline/tests/runner-stage.test.mjs"),
+    covers_requirement_ids: testCoverage,
+    setup: "Initialize pipeline",
+    assertion: "Run stage completes",
+    expected: "gate passes",
   };
 }
 
@@ -424,43 +335,51 @@ function buildPmatchArtifact({ requirements, runId, configId, stageProfile }) {
       type: "implementation",
       ref: "scripts/pipeline/runner.mjs",
     },
-    claims: [
-      {
-        id: "drift-1",
-        trace_id: "drift-trace-1",
-        claim: "Runner must emit phase gate events",
-        claim_type: "invariant",
-        covers_requirement_ids: requirements,
-        verification_status: status,
-        evidence: status === "verified" ? "events observed" : "simulated benchmark signal",
-        extractor: mode === "dual-extractor" ? "dual-adjudicator:a+b" : "rule-based-drift-detector",
-        drift_score:
-          status === "verified" ? 0 : status === "partial" ? 0.5 : status === "violated" ? 1 : 0.75,
-        confidence: 0.8,
-      },
-    ],
-    findings:
-      status === "verified"
-        ? []
-        : [
-            {
-              description: `Drift status is ${status} for runner gate emission`,
-              claim_type: "invariant",
-              severity: status === "violated" ? "high" : "medium",
-              claim_ids: ["drift-1"],
-              mitigation: "Reconcile implementation with plan coverage",
-            },
-          ],
-    adjudication: {
-      mode,
-      extractors:
-        mode === "dual-extractor" ? ["extractor-a", "extractor-b"] : ["rule-based-drift-detector"],
-      conflicts_resolved: mode === "dual-extractor" ? 1 : 0,
-      resolution_policy:
-        mode === "dual-extractor"
-          ? "adjudicated dual extractor conflict policy"
-          : "keyword overlap deterministic thresholds",
-    },
+    claims: [buildPmatchClaim(requirements, status, mode)],
+    findings: buildPmatchFindings(status),
+    adjudication: buildPmatchAdjudication(mode),
+  };
+}
+
+function buildPmatchClaim(requirements, status, mode) {
+  return {
+    id: "drift-1",
+    trace_id: "drift-trace-1",
+    claim: "Runner must emit phase gate events",
+    claim_type: "invariant",
+    covers_requirement_ids: requirements,
+    verification_status: status,
+    evidence: status === "verified" ? "events observed" : "simulated benchmark signal",
+    extractor: mode === "dual-extractor" ? "dual-adjudicator:a+b" : "rule-based-drift-detector",
+    drift_score:
+      status === "verified" ? 0 : status === "partial" ? 0.5 : status === "violated" ? 1 : 0.75,
+    confidence: 0.8,
+  };
+}
+
+function buildPmatchFindings(status) {
+  return status === "verified"
+    ? []
+    : [
+        {
+          description: `Drift status is ${status} for runner gate emission`,
+          claim_type: "invariant",
+          severity: status === "violated" ? "high" : "medium",
+          claim_ids: ["drift-1"],
+          mitigation: "Reconcile implementation with plan coverage",
+        },
+      ];
+}
+
+function buildPmatchAdjudication(mode) {
+  const dual = mode === "dual-extractor";
+  return {
+    mode,
+    extractors: dual ? ["extractor-a", "extractor-b"] : ["rule-based-drift-detector"],
+    conflicts_resolved: dual ? 1 : 0,
+    resolution_policy: dual
+      ? "adjudicated dual extractor conflict policy"
+      : "keyword overlap deterministic thresholds",
   };
 }
 

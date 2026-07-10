@@ -8,12 +8,18 @@ import type {
   ExtractorClaimSet,
 } from "../types.js";
 import { tokenSimilarity } from "./dedup.js";
-
-interface Section {
-  heading: string;
-  body: string;
-  synthetic?: boolean;
-}
+import {
+  buildFindingsFromClaims,
+  claimMatchScore,
+  classifyClaimType,
+  extractAssertions,
+  findingSeverity,
+  normalize,
+  parseSections,
+  toDriftScore,
+  toVerificationStatus,
+} from "./drift-sections.js";
+import { extractNormalizedHeadings } from "./drift-headings.js";
 
 export interface DriftDetectionResult {
   claims: DriftClaim[];
@@ -27,164 +33,6 @@ interface CorrelationPair {
 }
 
 const TAXONOMY: DriftClaimType[] = ["interface", "invariant", "security", "performance", "docs"];
-
-/**
- * Splits a document into sections by markdown-style headings.
- * Lines starting with # are section boundaries.
- */
-function parseSections(text: string): Section[] {
-  const lines = text.split("\n");
-  const sections: Section[] = [];
-  let current: Section | null = null;
-  const preambleLines: string[] = [];
-
-  for (const line of lines) {
-    const headingMatch = line.match(/^#{1,6}\s+(.+)/);
-    if (headingMatch) {
-      const heading = headingMatch[1];
-      if (!heading) continue;
-      if (current) sections.push(current);
-      current = { heading: heading.trim(), body: "" };
-    } else if (current) {
-      current.body += `${line}\n`;
-    } else {
-      preambleLines.push(line);
-    }
-  }
-  if (current) sections.push(current);
-
-  const preamble = preambleLines.join("\n").trim();
-  if (preamble.length > 0) {
-    sections.unshift({
-      heading: sections.length > 0 ? "Preamble" : "Document",
-      body: preamble,
-      synthetic: true,
-    });
-  }
-
-  return sections;
-}
-
-function extractNormalizedHeadings(text: string): Set<string> {
-  const headings = new Set<string>();
-  for (const line of text.split("\n")) {
-    const headingMatch = line.match(/^#{1,6}\s+(.+)/);
-    if (!headingMatch) continue;
-    const heading = headingMatch[1];
-    if (!heading) continue;
-    headings.add(normalize(heading.trim()));
-  }
-  return headings;
-}
-
-/**
- * Extracts key assertions from a section body.
- * Looks for: bullet points, bold text, constraint keywords.
- */
-function extractAssertions(body: string): string[] {
-  const assertions: string[] = [];
-  const lines = body.split("\n");
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-
-    const isBullet = /^[-*•]\s+/.test(trimmed);
-    const isNumbered = /^\d+[.)]\s+/.test(trimmed);
-    const hasKeyword =
-      /\b(must|shall|should|requires?|constraint|ensures?|guarantees?|limit)\b/i.test(trimmed);
-
-    if (isBullet || isNumbered || hasKeyword) {
-      assertions.push(trimmed.replace(/^[-*•\d.)]+\s*/, "").trim());
-    }
-  }
-
-  return assertions.filter((a) => a.length > 5);
-}
-
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function classifyClaimType(claim: string): DriftClaimType {
-  const text = normalize(claim);
-  if (
-    /\b(auth|jwt|csrf|xss|secret|encryption|token|permission|rbac|owasp|vulnerability|security)\b/.test(
-      text,
-    )
-  ) {
-    return "security";
-  }
-  if (
-    /\b(latency|throughput|cache|performance|memory|cpu|scale|rate limit|qps|timeout)\b/.test(text)
-  ) {
-    return "performance";
-  }
-  if (/\b(readme|docs|documentation|changelog|guide|example)\b/.test(text)) {
-    return "docs";
-  }
-  if (/\b(api|endpoint|route|schema|contract|interface|payload|request|response)\b/.test(text)) {
-    return "interface";
-  }
-  return "invariant";
-}
-
-function toDriftScore(status: DriftVerificationStatus): number {
-  if (status === "verified") return 0;
-  if (status === "partial") return 0.5;
-  if (status === "violated") return 1;
-  return 0.75;
-}
-
-/**
- * Calculates significant keyword overlap score between claim and target.
- */
-function claimMatchScore(claim: string, targetText: string): number {
-  const claimWords = normalize(claim)
-    .split(" ")
-    .filter((w) => w.length > 2);
-  if (claimWords.length === 0) return -1;
-
-  const targetNorm = normalize(targetText);
-  let hits = 0;
-  for (const w of claimWords) {
-    if (targetNorm.includes(w)) hits++;
-  }
-  return hits / claimWords.length;
-}
-
-function toVerificationStatus(score: number): DriftVerificationStatus {
-  if (score < 0) return "unverifiable";
-  if (score >= 0.6) return "verified";
-  if (score >= 0.35) return "partial";
-  return "violated";
-}
-
-function findingSeverity(status: DriftVerificationStatus): DriftFinding["severity"] {
-  if (status === "violated") return "high";
-  if (status === "partial" || status === "unverifiable") return "medium";
-  return "low";
-}
-
-function buildFindingsFromClaims(claims: DriftClaim[]): DriftFinding[] {
-  const findings: DriftFinding[] = [];
-  for (const claim of claims) {
-    if (claim.verification_status === "verified") continue;
-    findings.push({
-      description: `Claim is ${claim.verification_status}: "${claim.claim}"`,
-      claim_type: claim.claim_type,
-      severity: findingSeverity(claim.verification_status),
-      claim_ids: [claim.id],
-      mitigation:
-        "Verify this requirement is addressed in the target artifact and update implementation or plan accordingly.",
-    });
-  }
-  return findings;
-}
 
 function correlateClaims(
   first: ExtractorClaimSet,
@@ -219,7 +67,7 @@ function correlateClaims(
   return { pairs, unmatchedSecond };
 }
 
-function mergeConfidence(first?: number, second?: number): number | undefined {
+const mergeConfidence = (first?: number, second?: number): number | undefined => {
   const hasFirst = typeof first === "number";
   const hasSecond = typeof second === "number";
   if (hasFirst && hasSecond) {
@@ -228,34 +76,21 @@ function mergeConfidence(first?: number, second?: number): number | undefined {
   if (hasFirst) return first;
   if (hasSecond) return second;
   return undefined;
-}
+};
 
 function adjudicatePair(
   firstStatus: DriftVerificationStatus,
   secondStatus?: DriftVerificationStatus,
 ): { status: DriftVerificationStatus; conflict: boolean } {
-  if (!secondStatus) {
-    return { status: "unverifiable", conflict: false };
-  }
-
-  const hasVerified = firstStatus === "verified" || secondStatus === "verified";
-  const hasViolated = firstStatus === "violated" || secondStatus === "violated";
-  if (hasVerified && hasViolated) {
-    return { status: "partial", conflict: true };
-  }
-  if (firstStatus === "verified" && secondStatus === "verified") {
-    return { status: "verified", conflict: false };
-  }
-  if (hasViolated && !hasVerified) {
-    return { status: "violated", conflict: false };
-  }
-  if (hasVerified) {
-    return { status: "partial", conflict: false };
-  }
-  if (firstStatus === "partial" || secondStatus === "partial") {
-    return { status: "partial", conflict: false };
-  }
-  return { status: "unverifiable", conflict: false };
+  if (!secondStatus) return { status: "unverifiable", conflict: false };
+  const pair = new Set([firstStatus, secondStatus]);
+  if (pair.has("verified") && pair.has("violated")) return { status: "partial", conflict: true };
+  if (pair.size === 1 && pair.has("verified")) return { status: "verified", conflict: false };
+  if (pair.has("violated")) return { status: "violated", conflict: false };
+  return {
+    status: pair.has("verified") || pair.has("partial") ? "partial" : "unverifiable",
+    conflict: false,
+  };
 }
 
 export function detectDrift(sourceText: string, targetText: string): DriftDetectionResult {
@@ -265,69 +100,8 @@ export function detectDrift(sourceText: string, targetText: string): DriftDetect
   const findings: DriftFinding[] = [];
   let claimIdx = 0;
 
-  for (const section of sourceSections) {
-    const assertions = extractAssertions(section.body);
-
-    if (assertions.length === 0) {
-      if (section.synthetic) {
-        continue;
-      }
-      const sectionPresent = targetHeadings.has(normalize(section.heading));
-      const id = `drift-${++claimIdx}`;
-      const claimText = `Section "${section.heading}" should be present`;
-      const verificationStatus: DriftVerificationStatus = sectionPresent ? "verified" : "violated";
-      claims.push({
-        id,
-        claim: claimText,
-        claim_type: classifyClaimType(claimText),
-        verification_status: verificationStatus,
-        evidence: sectionPresent
-          ? `Found section heading "${section.heading}" in target document`
-          : `Source has heading "${section.heading}" but target does not`,
-        extractor: "rule-based-drift-detector",
-        drift_score: toDriftScore(verificationStatus),
-      });
-      if (!sectionPresent) {
-        findings.push({
-          description: `Section "${section.heading}" from source is missing in target`,
-          severity: "medium",
-          claim_ids: [id],
-          mitigation: `Add or address the "${section.heading}" section in the target document`,
-        });
-      }
-      continue;
-    }
-
-    for (const assertion of assertions) {
-      const id = `drift-${++claimIdx}`;
-      const score = claimMatchScore(assertion, targetText);
-      const verificationStatus = toVerificationStatus(score);
-
-      claims.push({
-        id,
-        claim: assertion,
-        claim_type: classifyClaimType(assertion),
-        verification_status: verificationStatus,
-        evidence:
-          verificationStatus === "verified"
-            ? `Strong keyword overlap (${Math.round(score * 100)}%) in target`
-            : `Claim from source section "${section.heading}" not fully reflected in target (overlap: ${score < 0 ? "n/a" : `${Math.round(score * 100)}%`})`,
-        extractor: "rule-based-drift-detector",
-        drift_score: toDriftScore(verificationStatus),
-      });
-
-      if (verificationStatus !== "verified") {
-        findings.push({
-          description: `Assertion from "${section.heading}" is ${verificationStatus}: "${assertion}"`,
-          claim_type: classifyClaimType(assertion),
-          severity: findingSeverity(verificationStatus),
-          claim_ids: [id],
-          mitigation:
-            "Verify this requirement is addressed in the target artifact and update implementation or plan accordingly.",
-        });
-      }
-    }
-  }
+  for (const section of sourceSections)
+    claimIdx = appendSectionDrift(section, targetText, targetHeadings, claims, findings, claimIdx);
 
   return {
     claims,
@@ -339,6 +113,89 @@ export function detectDrift(sourceText: string, targetText: string): DriftDetect
       resolution_policy: "Keyword-overlap heuristic with deterministic status mapping thresholds.",
     },
   };
+}
+
+function appendSectionDrift(
+  section: { heading: string; body: string; synthetic?: boolean },
+  targetText: string,
+  headings: Set<string>,
+  claims: DriftClaim[],
+  findings: DriftFinding[],
+  index: number,
+): number {
+  const assertions = extractAssertions(section.body);
+  if (!assertions.length) return appendSectionPresence(section, headings, claims, findings, index);
+  for (const assertion of assertions)
+    index = appendAssertion(section.heading, assertion, targetText, claims, findings, index);
+  return index;
+}
+
+function appendSectionPresence(
+  section: { heading: string; synthetic?: boolean },
+  headings: Set<string>,
+  claims: DriftClaim[],
+  findings: DriftFinding[],
+  index: number,
+): number {
+  if (section.synthetic) return index;
+  const present = headings.has(normalize(section.heading));
+  const id = `drift-${index + 1}`;
+  const status: DriftVerificationStatus = present ? "verified" : "violated";
+  const claim = `Section "${section.heading}" should be present`;
+  claims.push({
+    id,
+    claim,
+    claim_type: classifyClaimType(claim),
+    verification_status: status,
+    evidence: present
+      ? `Found section heading "${section.heading}" in target document`
+      : `Source has heading "${section.heading}" but target does not`,
+    extractor: "rule-based-drift-detector",
+    drift_score: toDriftScore(status),
+  });
+  if (!present)
+    findings.push({
+      description: `Section "${section.heading}" from source is missing in target`,
+      severity: "medium",
+      claim_ids: [id],
+      mitigation: `Add or address the "${section.heading}" section in the target document`,
+    });
+  return index + 1;
+}
+
+function appendAssertion(
+  heading: string,
+  assertion: string,
+  target: string,
+  claims: DriftClaim[],
+  findings: DriftFinding[],
+  index: number,
+): number {
+  const id = `drift-${index + 1}`;
+  const score = claimMatchScore(assertion, target);
+  const status = toVerificationStatus(score);
+  claims.push({
+    id,
+    claim: assertion,
+    claim_type: classifyClaimType(assertion),
+    verification_status: status,
+    evidence:
+      status === "verified"
+        ? `Strong keyword overlap (${Math.round(score * 100)}%) in target`
+        : `Claim from source section "${heading}" not fully reflected in target (overlap: ${score < 0 ? "n/a" : `${Math.round(score * 100)}%`})`,
+    extractor: "rule-based-drift-detector",
+    drift_score: toDriftScore(status),
+  });
+  if (status !== "verified")
+    findings.push({
+      description: `Assertion from "${heading}" is ${status}: "${assertion}"`,
+      claim_type: classifyClaimType(assertion),
+      severity: findingSeverity(status),
+      claim_ids: [id],
+      mitigation:
+        "Verify this requirement is addressed in the target artifact and update implementation or plan accordingly.",
+    });
+  return index + 1;
 }
 
 export function detectDriftFromExtractorClaims(
@@ -356,32 +213,15 @@ export function detectDriftFromExtractorClaims(
   let claimIdx = 0;
 
   for (const pair of pairs) {
-    const adjudicated = adjudicatePair(
-      pair.first.verification_status,
-      pair.second?.verification_status,
+    const result = appendAdjudicatedClaim(
+      claims,
+      pair,
+      first.extractor,
+      second.extractor,
+      claimIdx,
     );
-    if (adjudicated.conflict) {
-      conflictsResolved++;
-    }
-
-    const claimText = pair.second
-      ? pair.first.claim.length >= pair.second.claim.length
-        ? pair.first.claim
-        : pair.second.claim
-      : pair.first.claim;
-    const confidence = mergeConfidence(pair.first.confidence, pair.second?.confidence);
-    claims.push({
-      id: `drift-${++claimIdx}`,
-      claim: claimText,
-      claim_type: pair.first.claim_type ?? pair.second?.claim_type ?? classifyClaimType(claimText),
-      verification_status: adjudicated.status,
-      evidence: pair.second
-        ? `${first.extractor}: ${pair.first.verification_status} (${pair.first.evidence}) | ${second.extractor}: ${pair.second.verification_status} (${pair.second.evidence})`
-        : `${first.extractor}: ${pair.first.verification_status} (${pair.first.evidence}); no corresponding claim from ${second.extractor}`,
-      extractor: `dual-adjudicator:${first.extractor}+${second.extractor}`,
-      drift_score: toDriftScore(adjudicated.status),
-      confidence,
-    });
+    claimIdx = result.claimIdx;
+    conflictsResolved += result.conflict;
   }
 
   for (const claim of unmatchedSecond) {
@@ -408,6 +248,36 @@ export function detectDriftFromExtractorClaims(
         "both verified => verified; any violated without verified => violated; verified+violated => partial; missing counterpart => unverifiable",
     },
   };
+}
+
+function appendAdjudicatedClaim(
+  claims: DriftClaim[],
+  pair: CorrelationPair,
+  firstExtractor: string,
+  secondExtractor: string,
+  claimIdx: number,
+): { claimIdx: number; conflict: number } {
+  const adjudicated = adjudicatePair(
+    pair.first.verification_status,
+    pair.second?.verification_status,
+  );
+  const claimText =
+    pair.second && pair.second.claim.length > pair.first.claim.length
+      ? pair.second.claim
+      : pair.first.claim;
+  claims.push({
+    id: `drift-${claimIdx + 1}`,
+    claim: claimText,
+    claim_type: pair.first.claim_type ?? pair.second?.claim_type ?? classifyClaimType(claimText),
+    verification_status: adjudicated.status,
+    evidence: pair.second
+      ? `${firstExtractor}: ${pair.first.verification_status} (${pair.first.evidence}) | ${secondExtractor}: ${pair.second.verification_status} (${pair.second.evidence})`
+      : `${firstExtractor}: ${pair.first.verification_status} (${pair.first.evidence}); no corresponding claim from ${secondExtractor}`,
+    extractor: `dual-adjudicator:${firstExtractor}+${secondExtractor}`,
+    drift_score: toDriftScore(adjudicated.status),
+    confidence: mergeConfidence(pair.first.confidence, pair.second?.confidence),
+  });
+  return { claimIdx: claimIdx + 1, conflict: Number(adjudicated.conflict) };
 }
 
 export interface DriftQualityClassMetrics {

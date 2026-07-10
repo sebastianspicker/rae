@@ -47,9 +47,7 @@ def resolve_repo_child_path(path_str: Any, base: pathlib.Path, label: str) -> pa
     return resolved
 
 
-def validate_benchmark_inputs(
-    benchmark: dict[str, Any], task_bundle: dict[str, Any]
-) -> None:
+def validate_benchmark_inputs(benchmark: dict[str, Any], task_bundle: dict[str, Any]) -> None:
     try:
         validate_artifact_id(benchmark.get("benchmark_id", ""), "benchmark_id")
     except ValueError as exc:
@@ -78,9 +76,7 @@ def aggregate_results(task_results: list[dict[str, Any]]) -> dict[str, float]:
     passes = sum(1 for result in task_results if result["judge"]["verdict"] == "pass")
     route_ok = sum(1 for result in task_results if result["judge"]["route_ok"])
     artifacts_ok = sum(1 for result in task_results if result["judge"]["artifacts_ok"])
-    checkpoints_required = sum(
-        1 for result in task_results if result["checkpoint_paths"]
-    )
+    checkpoints_required = sum(1 for result in task_results if result["checkpoint_paths"])
     checkpoints_ok = sum(
         1
         for result in task_results
@@ -135,9 +131,7 @@ def write_regression_report(
         "baseline_metrics": baseline_metrics,
         "issues": regressions,
     }
-    output_path = (
-        output_dir / f"regression-{benchmark['benchmark_id']}-{split}-{run_id}.json"
-    )
+    output_path = output_dir / f"regression-{benchmark['benchmark_id']}-{split}-{run_id}.json"
     dump_json(output_path, report)
     return output_path
 
@@ -184,71 +178,73 @@ def write_result_ledger(
         )
 
 
-def main() -> int:
+def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run a benchmark split through the umbrella harness."
     )
     parser.add_argument("--benchmark-card", required=True)
-    parser.add_argument(
-        "--split", required=True, choices=["dev", "held-out", "stress", "ablation"]
-    )
+    parser.add_argument("--split", required=True, choices=["dev", "held-out", "stress", "ablation"])
     parser.add_argument("--output-dir", required=True)
     parser.add_argument(
-        "--checkpoint-mode",
-        choices=["auto-approve", "require-approval"],
-        default="auto-approve",
+        "--checkpoint-mode", choices=["auto-approve", "require-approval"], default="auto-approve"
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def load_benchmark_tasks(
+    args: argparse.Namespace,
+) -> tuple[pathlib.Path, dict[str, Any], list[dict[str, Any]]]:
     benchmark_card_path = pathlib.Path(args.benchmark_card).resolve()
     benchmark = load_json(benchmark_card_path)
     tasks_path = resolve_repo_child_path(
-        benchmark.get("task_specs_path"),
-        ROOT / "evals/datasets",
-        "task_specs_path",
+        benchmark.get("task_specs_path"), ROOT / "evals/datasets", "task_specs_path"
     )
     task_bundle = load_json(tasks_path)
     validate_benchmark_inputs(benchmark, task_bundle)
     tasks = [task for task in task_bundle["tasks"] if task["split"] == args.split]
     if not tasks:
         raise SystemExit(f"no tasks found for split {args.split}")
+    return benchmark_card_path, benchmark, tasks
 
-    output_dir = pathlib.Path(args.output_dir).resolve(strict=False)
+
+def prepare_output_dir(output_dir_arg: str) -> pathlib.Path:
+    output_dir = pathlib.Path(output_dir_arg).resolve(strict=False)
     if not is_within_directory(output_dir, RESULTS_ROOT):
         raise SystemExit("output-dir must point under evals/results")
     output_dir.mkdir(parents=True, exist_ok=True)
-    run_id = new_run_id(f"{benchmark['benchmark_id']}-{args.split}")
-    task_results = [
-        execute_task(task, output_dir, run_id, args.checkpoint_mode, benchmark)
-        for task in tasks
-    ]
-    aggregate_metrics = aggregate_results(task_results)
+    return output_dir
 
+
+def write_result_report(
+    benchmark: dict[str, Any],
+    split: str,
+    run_id: str,
+    output_dir: pathlib.Path,
+    task_results: list[dict[str, Any]],
+    aggregate_metrics: dict[str, float],
+) -> pathlib.Path:
     result = {
         "run_id": run_id,
         "benchmark_id": benchmark["benchmark_id"],
         "benchmark_version": benchmark["version"],
-        "split": args.split,
+        "split": split,
         "executed_at": iso_timestamp(),
         "task_count": len(task_results),
-        "pass_count": sum(
-            1 for result in task_results if result["judge"]["verdict"] == "pass"
-        ),
-        "fail_count": sum(
-            1 for result in task_results if result["judge"]["verdict"] == "fail"
-        ),
+        "pass_count": sum(1 for item in task_results if item["judge"]["verdict"] == "pass"),
+        "fail_count": sum(1 for item in task_results if item["judge"]["verdict"] == "fail"),
         "aggregate_metrics": aggregate_metrics,
         "task_results": task_results,
     }
-    result_path = (
-        output_dir / f"result-{benchmark['benchmark_id']}-{args.split}-{run_id}.json"
-    )
+    result_path = output_dir / f"result-{benchmark['benchmark_id']}-{split}-{run_id}.json"
     dump_json(result_path, result)
+    return result_path
 
-    calibration_path = (
-        output_dir / f"judge-calibration-{benchmark['benchmark_id']}-{run_id}.json"
-    )
-    calibration_result = run_command(
+
+def run_calibration(
+    benchmark: dict[str, Any], output_dir: pathlib.Path, run_id: str
+) -> tuple[pathlib.Path, dict[str, Any]]:
+    calibration_path = output_dir / f"judge-calibration-{benchmark['benchmark_id']}-{run_id}.json"
+    result = run_command(
         [
             "python3",
             str(ROOT / "evals/scripts/judge_calibration.py"),
@@ -258,50 +254,46 @@ def main() -> int:
             str(calibration_path),
         ]
     )
-    if calibration_result["returncode"] != 0 or not calibration_path.exists():
-        message = (
-            calibration_result["stderr"].strip() or calibration_result["stdout"].strip()
-        )
-        if not message:
-            message = "judge calibration failed"
-        print(message, file=sys.stderr)
-        return calibration_result["returncode"] or 1
+    return calibration_path, result
 
-    regression_path = write_regression_report(
-        benchmark, args.split, aggregate_metrics, output_dir, run_id
-    )
-    ledger_path = output_dir / "result-ledger.jsonl"
-    write_result_ledger(
-        benchmark,
-        run_id,
-        args.split,
-        task_results,
-        aggregate_metrics,
-        result_path,
-        ledger_path,
-    )
 
-    run_card = {
+def report_calibration_failure(result: dict[str, Any]) -> int:
+    message = result["stderr"].strip() or result["stdout"].strip() or "judge calibration failed"
+    print(message, file=sys.stderr)
+    return result["returncode"] or 1
+
+
+def build_run_card(
+    benchmark: dict[str, Any],
+    split: str,
+    run_id: str,
+    task_results: list[dict[str, Any]],
+    result_path: pathlib.Path,
+    ledger_path: pathlib.Path,
+    regression_path: pathlib.Path,
+    calibration_path: pathlib.Path,
+) -> dict[str, Any]:
+    return {
         "run_id": run_id,
         "evidence_type": "benchmark-run",
         "benchmark_id": benchmark["benchmark_id"],
         "benchmark_version": benchmark["version"],
         "date": today_iso(),
-        "split": args.split,
+        "split": split,
         "system": default_system_metadata("umbrella-benchmark-runner"),
         "judge_version": benchmark["judge_version"],
         "command": "python3 evals/scripts/run_benchmark.py",
         "result_path": repo_relpath(result_path),
-        "status": "pass" if result["fail_count"] == 0 else "fail",
+        "status": "pass"
+        if all(item["judge"]["verdict"] != "fail" for item in task_results)
+        else "fail",
         "task_spec_path": benchmark["task_specs_path"],
         "routed_runtime": "mixed",
         "router": {
             "version": ROUTER_VERSION,
             "decision_mode": "per-task",
         },
-        "trace_paths": sorted(
-            {path for result in task_results for path in result["trace_paths"]}
-        ),
+        "trace_paths": sorted({path for result in task_results for path in result["trace_paths"]}),
         "artifact_paths": sorted(
             {path for result in task_results for path in result["artifact_paths"]}
         ),
@@ -315,21 +307,37 @@ def main() -> int:
         "judge_calibration_report_path": repo_relpath(calibration_path),
         "cost_usd": 0.0,
         "latency_seconds": round(
-            sum(
-                result["command_result"]["duration_seconds"] for result in task_results
-            ),
+            sum(result["command_result"]["duration_seconds"] for result in task_results),
             4,
         ),
-        "notes": f"Executed {len(task_results)} task(s) for split {args.split}.",
+        "notes": f"Executed {len(task_results)} task(s) for split {split}.",
     }
-    run_card_path = (
-        output_dir / f"run-card-{benchmark['benchmark_id']}-{args.split}-{run_id}.json"
-    )
-    dump_json(run_card_path, run_card)
 
+
+def write_run_card(
+    benchmark: dict[str, Any],
+    split: str,
+    run_id: str,
+    output_dir: pathlib.Path,
+    run_card: dict[str, Any],
+) -> pathlib.Path:
+    run_card_path = output_dir / f"run-card-{benchmark['benchmark_id']}-{split}-{run_id}.json"
+    dump_json(run_card_path, run_card)
+    return run_card_path
+
+
+def run_release_gate(
+    benchmark_card_path: pathlib.Path,
+    benchmark: dict[str, Any],
+    split: str,
+    run_id: str,
+    output_dir: pathlib.Path,
+    run_card_path: pathlib.Path,
+    regression_path: pathlib.Path,
+    ledger_path: pathlib.Path,
+) -> tuple[pathlib.Path, dict[str, Any]]:
     release_gate_path = (
-        output_dir
-        / f"release-gate-{benchmark['benchmark_id']}-{args.split}-{run_id}.json"
+        output_dir / f"release-gate-{benchmark['benchmark_id']}-{split}-{run_id}.json"
     )
     gate_result = run_command(
         [
@@ -347,17 +355,73 @@ def main() -> int:
             str(release_gate_path),
         ]
     )
+    return release_gate_path, gate_result
+
+
+def release_gate_failure_message(
+    gate_result: dict[str, Any], release_gate_path: pathlib.Path
+) -> str:
+    message = gate_result["stderr"].strip()
+    if not message and release_gate_path.exists():
+        gate_report = load_optional_json_artifact(repo_relpath(release_gate_path)) or {}
+        issues = gate_report.get("issues")
+        if isinstance(issues, list) and issues:
+            message = "\n".join(str(issue) for issue in issues)
+    return message or gate_result["stdout"] or "release gate failed"
+
+
+def main() -> int:
+    args = parse_arguments()
+    benchmark_card_path, benchmark, tasks = load_benchmark_tasks(args)
+    output_dir = prepare_output_dir(args.output_dir)
+    run_id = new_run_id(f"{benchmark['benchmark_id']}-{args.split}")
+    task_results = [
+        execute_task(task, output_dir, run_id, args.checkpoint_mode, benchmark) for task in tasks
+    ]
+    aggregate_metrics = aggregate_results(task_results)
+    result_path = write_result_report(
+        benchmark, args.split, run_id, output_dir, task_results, aggregate_metrics
+    )
+    calibration_path, calibration_result = run_calibration(benchmark, output_dir, run_id)
+    if calibration_result["returncode"] != 0 or not calibration_path.exists():
+        return report_calibration_failure(calibration_result)
+
+    regression_path = write_regression_report(
+        benchmark, args.split, aggregate_metrics, output_dir, run_id
+    )
+    ledger_path = output_dir / "result-ledger.jsonl"
+    write_result_ledger(
+        benchmark,
+        run_id,
+        args.split,
+        task_results,
+        aggregate_metrics,
+        result_path,
+        ledger_path,
+    )
+    run_card = build_run_card(
+        benchmark,
+        args.split,
+        run_id,
+        task_results,
+        result_path,
+        ledger_path,
+        regression_path,
+        calibration_path,
+    )
+    run_card_path = write_run_card(benchmark, args.split, run_id, output_dir, run_card)
+    release_gate_path, gate_result = run_release_gate(
+        benchmark_card_path,
+        benchmark,
+        args.split,
+        run_id,
+        output_dir,
+        run_card_path,
+        regression_path,
+        ledger_path,
+    )
     if gate_result["returncode"] != 0:
-        message = gate_result["stderr"].strip()
-        if not message and release_gate_path.exists():
-            gate_report = (
-                load_optional_json_artifact(repo_relpath(release_gate_path)) or {}
-            )
-            if isinstance(gate_report.get("issues"), list) and gate_report["issues"]:
-                message = "\n".join(str(issue) for issue in gate_report["issues"])
-        if not message:
-            message = gate_result["stdout"] or "release gate failed"
-        print(message, file=sys.stderr)
+        print(release_gate_failure_message(gate_result, release_gate_path), file=sys.stderr)
         return gate_result["returncode"]
 
     print(repo_relpath(run_card_path))

@@ -70,15 +70,15 @@ describe("DEFAULT_SCHEMA_BY_PHASE", () => {
   });
 });
 
-describe("buildArtifactForPhase", () => {
-  const baseConfig = {
-    runId: "test-run",
-    configId: "phased_default",
-    task: { id: "t1", must_requirement_ids: ["REQ-001"] },
-    stageProfile: {},
-    budget: null,
-  };
+const baseConfig = {
+  runId: "test-run",
+  configId: "phased_default",
+  task: { id: "t1", must_requirement_ids: ["REQ-001"] },
+  stageProfile: {},
+  budget: null,
+};
 
+describe("buildArtifactForPhase delivery phases", () => {
   it("builds arm artifact with requirements", () => {
     const result = buildArtifactForPhase({ ...baseConfig, phase: "arm" });
     expect(result.requirements).toHaveLength(1);
@@ -120,7 +120,9 @@ describe("buildArtifactForPhase", () => {
     expect(result.summary).toBeDefined();
     expect(result.outputs.length).toBeGreaterThan(0);
   });
+});
 
+describe("buildArtifactForPhase quality phases", () => {
   it("builds quality-static artifact", () => {
     const result = buildArtifactForPhase({
       ...baseConfig,

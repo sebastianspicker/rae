@@ -155,7 +155,8 @@ describe("getWorkspaceFromState", () => {
             primary_repo_root: "/tmp/repo",
             branch: "pipeline/run-1",
             worktree_path: "/tmp/repo/.worktrees/run-1",
-            cleanup_command: "bash scripts/pipeline-init.sh --cleanup-worktree /tmp/repo/.worktrees/run-1",
+            cleanup_command:
+              "bash scripts/pipeline-init.sh --cleanup-worktree /tmp/repo/.worktrees/run-1",
           },
         },
         "/tmp/repo/.worktrees/run-1",

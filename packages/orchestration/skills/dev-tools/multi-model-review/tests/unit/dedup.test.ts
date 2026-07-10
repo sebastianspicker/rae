@@ -28,89 +28,87 @@ describe("tokenSimilarity", () => {
   });
 });
 
-describe("deduplicateFindings", () => {
-  it("merges identical findings from different models", () => {
-    const findings: TaggedFinding[] = [
-      makeFinding({
-        id: "a-1",
-        description: "Missing error handling in the authentication module",
-        _source: "kimi",
-      }),
-      makeFinding({
-        id: "b-1",
-        description: "Missing error handling in the authentication module",
-        _source: "glm",
-      }),
-    ];
+it("merges identical findings from different models", () => {
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "a-1",
+      description: "Missing error handling in the authentication module",
+      _source: "kimi",
+    }),
+    makeFinding({
+      id: "b-1",
+      description: "Missing error handling in the authentication module",
+      _source: "glm",
+    }),
+  ];
 
-    const result = deduplicateFindings(findings);
-    expect(result).toHaveLength(1);
-    expect(result[0]?.source_models).toContain("kimi");
-    expect(result[0]?.source_models).toContain("glm");
-  });
+  const result = deduplicateFindings(findings);
+  expect(result).toHaveLength(1);
+  expect(result[0]?.source_models).toContain("kimi");
+  expect(result[0]?.source_models).toContain("glm");
+});
 
-  it("keeps distinct findings separate", () => {
-    const findings: TaggedFinding[] = [
-      makeFinding({
-        id: "a-1",
-        description: "SQL injection vulnerability in user input",
-        _source: "kimi",
-      }),
-      makeFinding({
-        id: "b-1",
-        description: "Performance bottleneck in database query optimization",
-        _source: "glm",
-      }),
-    ];
+it("keeps distinct findings separate", () => {
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "a-1",
+      description: "SQL injection vulnerability in user input",
+      _source: "kimi",
+    }),
+    makeFinding({
+      id: "b-1",
+      description: "Performance bottleneck in database query optimization",
+      _source: "glm",
+    }),
+  ];
 
-    const result = deduplicateFindings(findings);
-    expect(result).toHaveLength(2);
-    expect(result[0]?.source_models).toHaveLength(1);
-    expect(result[1]?.source_models).toHaveLength(1);
-  });
+  const result = deduplicateFindings(findings);
+  expect(result).toHaveLength(2);
+  expect(result[0]?.source_models).toHaveLength(1);
+  expect(result[1]?.source_models).toHaveLength(1);
+});
 
-  it("promotes severity when merging findings", () => {
-    const findings: TaggedFinding[] = [
-      makeFinding({
-        id: "a-1",
-        description: "Missing input validation on the user API endpoint",
-        severity: "low",
-        _source: "kimi",
-      }),
-      makeFinding({
-        id: "b-1",
-        description: "Missing input validation on the user API endpoint",
-        severity: "high",
-        _source: "glm",
-      }),
-    ];
+it("promotes severity when merging findings", () => {
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "a-1",
+      description: "Missing input validation on the user API endpoint",
+      severity: "low",
+      _source: "kimi",
+    }),
+    makeFinding({
+      id: "b-1",
+      description: "Missing input validation on the user API endpoint",
+      severity: "high",
+      _source: "glm",
+    }),
+  ];
 
-    const result = deduplicateFindings(findings);
-    expect(result).toHaveLength(1);
-    expect(result[0]?.severity).toBe("high");
-  });
+  const result = deduplicateFindings(findings);
+  expect(result).toHaveLength(1);
+  expect(result[0]?.severity).toBe("high");
+});
 
-  it("groups only within the same category", () => {
-    const findings: TaggedFinding[] = [
-      makeFinding({
-        id: "a-1",
-        category: "security",
-        description: "Missing rate limiting on the API",
-        _source: "kimi",
-      }),
-      makeFinding({
-        id: "b-1",
-        category: "performance",
-        description: "Missing rate limiting on the API",
-        _source: "glm",
-      }),
-    ];
+it("groups only within the same category", () => {
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "a-1",
+      category: "security",
+      description: "Missing rate limiting on the API",
+      _source: "kimi",
+    }),
+    makeFinding({
+      id: "b-1",
+      category: "performance",
+      description: "Missing rate limiting on the API",
+      _source: "glm",
+    }),
+  ];
 
-    const result = deduplicateFindings(findings);
-    expect(result).toHaveLength(2);
-  });
+  const result = deduplicateFindings(findings);
+  expect(result).toHaveLength(2);
+});
 
-  it("returns empty array for empty input", () => {
-    expect(deduplicateFindings([])).toEqual([]);
-  });
+it("returns empty array for empty input", () => {
+  expect(deduplicateFindings([])).toEqual([]);
 });

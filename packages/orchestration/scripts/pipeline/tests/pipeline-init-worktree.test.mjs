@@ -52,7 +52,7 @@ afterEach(() => {
   }
 });
 
-describe("pipeline-init worktree mode", () => {
+describe("pipeline-init worktree lifecycle", () => {
   it("creates an isolated worktree with workspace metadata and cleans it up idempotently", () => {
     const repoRoot = makeGitRepo();
     const canonicalRepoRoot = realpathSync(repoRoot);
@@ -101,7 +101,9 @@ describe("pipeline-init worktree mode", () => {
     expect(branchList.status).toBe(0);
     expect(branchList.stdout.trim()).toBe("");
   });
+});
 
+describe("pipeline-init worktree isolation", () => {
   it("creates two isolated runs without branch or workspace ambiguity", () => {
     const repoRoot = makeGitRepo();
 
@@ -162,7 +164,9 @@ describe("pipeline-init worktree mode", () => {
       run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
     ).toBe(0);
   });
+});
 
+describe("pipeline-init worktree command routing", () => {
   it("resumes run commands against the isolated worktree from the primary repo", () => {
     const init = run("bash", [PIPELINE_INIT, REPO_ROOT, "--use-worktree"], REPO_ROOT);
     expect(init.status).toBe(0);

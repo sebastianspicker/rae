@@ -24,8 +24,9 @@ Cloud reanalysis.
   package-local through each package's `tsc -p tsconfig.json` command.
 - OpenGrep, ShellCheck, Hadolint, Checkov, Trivy, markdownlint, Jackson, and
   Lizard provide language, supply-chain, IaC, container, document, JSON, and
-  complexity coverage. Lizard warnings use CCN 12, NLOC 80, and 8 parameters;
-  critical thresholds are 20, 150, and 12.
+  complexity coverage. The full-repository local policy uses Lizard warnings at
+  CCN 12, NLOC 80, and 8 parameters; critical thresholds are 20, 150, and 12.
+  Changed code must also satisfy stricter organization standards reported by Cloud.
 
 The local Codacy configuration does not enable ESLint 9, PyLint, Prospector,
 PMD 7, Spectral, or Agentlinter. It preserves the existing narrowly scoped

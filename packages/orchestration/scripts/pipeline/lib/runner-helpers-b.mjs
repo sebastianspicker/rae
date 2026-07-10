@@ -223,56 +223,43 @@ export function evaluateAuxiliaryGates({
   return { gateStatuses, extraGates };
 }
 
-export function emitPrimaryGate({
-  runId,
-  phase,
-  artifact,
-  artifactRef,
-  schemaRef,
-  configId,
-  cognitiveTier,
-  activityProfile,
-  desiredStatus,
-  gateStatuses,
-  root,
-}) {
+export function emitPrimaryGate(context) {
+  const { artifact, schemaRef, phase } = context;
   if (artifact && schemaRef && QUALITY_GATE_PHASES.has(phase)) {
-    const gate = runQualityGate(stageGateInput({ phase, artifact, artifactRef, schemaRef }));
-    const stageStatus = worstStatus(gate.status, desiredStatus, ...gateStatuses);
-
-    return emitGate({
-      runId,
-      phase,
-      gateId: `${phase}-gate`,
-      status: stageStatus,
-      artifactRef: artifactRef || gate.artifact_ref,
-      criteria: gate.criteria,
-      blockingFailures: stageStatus === "fail" ? gate.blocking_failures : [],
-      schemaValidation: gate.schema_validation,
-      metadata: {
-        gate_type: "phase",
-        schema_ref: schemaRef,
-        config_id: configId,
-        cognitive_tier: cognitiveTier,
-        activity_id: activityProfile?.activity_id ?? null,
-        runtime_name: activityProfile?.runtime_name ?? null,
-        runtime_version: activityProfile?.runtime_version ?? null,
-        model_hint: activityProfile?.model_hint ?? null,
-      },
-      gateFileOverride: gateFileNameForPhase(phase),
-      root,
-    });
+    return emitValidatedGate(context);
   }
+  return emitStatusGate(context);
+}
 
-  const stageStatus = worstStatus(desiredStatus, ...gateStatuses);
+function emitValidatedGate(context) {
+  const gate = runQualityGate(stageGateInput(context));
+  const status = worstStatus(gate.status, context.desiredStatus, ...context.gateStatuses);
   return emitGate({
+    ...baseGate(context, status),
+    artifactRef: context.artifactRef || gate.artifact_ref,
+    criteria: gate.criteria,
+    blockingFailures: status === "fail" ? gate.blocking_failures : [],
+    schemaValidation: gate.schema_validation,
+  });
+}
+
+function emitStatusGate(context) {
+  const status = worstStatus(context.desiredStatus, ...context.gateStatuses);
+  return emitGate({
+    ...baseGate(context, status),
+    artifactRef: context.artifactRef || "n/a",
+    criteria: [],
+    blockingFailures: status === "fail" ? ["phase-status"] : [],
+  });
+}
+
+function baseGate(context, status) {
+  const { runId, phase, schemaRef, configId, cognitiveTier, activityProfile, root } = context;
+  return {
     runId,
     phase,
     gateId: `${phase}-gate`,
-    status: stageStatus,
-    artifactRef: artifactRef || "n/a",
-    criteria: [],
-    blockingFailures: stageStatus === "fail" ? ["phase-status"] : [],
+    status,
     metadata: {
       gate_type: "phase",
       schema_ref: schemaRef,
@@ -285,7 +272,7 @@ export function emitPrimaryGate({
     },
     gateFileOverride: gateFileNameForPhase(phase),
     root,
-  });
+  };
 }
 
 export function recordPhaseCompletion({ runId, phase, state, primaryGate, root }) {

@@ -25,10 +25,13 @@ evidence; do not loosen the pin.
 The policy uses Ruff, Bandit, Biome, Checkov, OpenGrep (whose CLI identifier is
 `Semgrep`), ShellCheck, Lizard, Hadolint, Trivy, markdownlint, and Jackson.
 Ruff and Biome use the repository-local configuration files. Generated CLI
-state, reports, and tuning summaries stay untracked under `.codacy/`. The
-script always inspects adapters first, requires Ruff 0.15.20, Bandit 1.9.4,
-Checkov 3.3.7, and Biome 2.5.2, then runs with `--fail-if-missing`. It writes
-raw JSON only to `.codacy/tmp/` and strips every `lineContent` field before
-writing `.codacy/reports/codacy-local-sanitized.json`. Any unavailable,
-failed, partial, version-mismatched, or finding-producing analysis exits
-nonzero.
+state, reports, and tuning summaries stay untracked under `.codacy/`. Because
+Analysis CLI 0.11.0 bundles older Ruff, Bandit, Checkov, and Biome adapters,
+the gate runs the policy-pinned native versions directly and records their
+versions plus successful completion in
+`.codacy/reports/codacy-local-native-tool-versions.json`. The remaining tools
+run through a generated, temporary Codacy configuration with
+`--fail-if-missing` and exact adapter-version checks. Raw JSON stays under
+`.codacy/tmp/`; the committed sanitizer strips source content before writing
+`.codacy/reports/codacy-local-sanitized.json`. Any unavailable, failed,
+partial, version-mismatched, or finding-producing analysis exits nonzero.

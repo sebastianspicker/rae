@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { createAjvInstance, resolveWithinWorkspace } from "@coding-agents-space/shared";
+import type { AjvValidateFunction } from "@coding-agents-space/shared";
 import type { Input, TraceEvent, TraceResult, TraceSummary } from "../types.js";
 
 interface TraceOptions {
@@ -164,45 +165,12 @@ export async function collectTrace(
   opts: TraceOptions = {},
 ): Promise<TraceResult> {
   const workspaceRoot = opts.workspaceRoot ?? "/workspace";
-  const schemaRef = input.schema_ref ?? "contracts/artifacts/execution-trace.schema.json";
-  const schemaPath = resolveWithinWorkspace(workspaceRoot, schemaRef, "Path", {
-    rootLabel: "workspace root",
-  });
-  const schema = JSON.parse(readFileSync(schemaPath, "utf8")) as Record<string, unknown>;
-
-  let events: TraceEvent[];
-  if (input.trace_path) {
-    const tracePath = resolveWithinWorkspace(workspaceRoot, input.trace_path, "Path", {
-      rootLabel: "workspace root",
-    });
-    logs.push(`Loaded trace events from ${tracePath}`);
-    events = readJsonlEvents(tracePath);
-  } else {
-    events = input.events ?? [];
-    logs.push(`Loaded inline trace events: ${events.length}`);
-  }
-
+  const schema = loadTraceSchema(workspaceRoot, input.schema_ref);
+  const events = loadTraceEvents(input, workspaceRoot, logs);
   const ajv = await createAjvInstance();
   const validate = ajv.compile(schema);
-
   const issues: string[] = [];
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    const valid = validate(event);
-    if (!valid) {
-      const message = (validate.errors ?? [])
-        .map(
-          (error: { instancePath?: string; message?: string }) =>
-            `${error.instancePath || "/"} ${error.message ?? "invalid"}`,
-        )
-        .join("; ");
-      issues.push(`event[${i}] schema violation: ${message}`);
-    }
-    if (event.run_id !== input.run_id) {
-      issues.push(`event[${i}] run_id mismatch: expected ${input.run_id}, got ${event.run_id}`);
-    }
-  }
-
+  validateTraceEvents(events, input.run_id, validate, issues);
   const summary = buildSummary(events, issues);
   return {
     run_id: input.run_id,
@@ -210,4 +178,39 @@ export async function collectTrace(
     issues,
     summary,
   };
+}
+
+function loadTraceSchema(workspaceRoot: string, schemaRef?: string): Record<string, unknown> {
+  const ref = schemaRef ?? "contracts/artifacts/execution-trace.schema.json";
+  const path = resolveWithinWorkspace(workspaceRoot, ref, "Path", { rootLabel: "workspace root" });
+  return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+}
+
+function loadTraceEvents(input: Input, workspaceRoot: string, logs: string[]): TraceEvent[] {
+  if (!input.trace_path) {
+    const events = input.events ?? [];
+    logs.push(`Loaded inline trace events: ${events.length}`);
+    return events;
+  }
+  const path = resolveWithinWorkspace(workspaceRoot, input.trace_path, "Path", {
+    rootLabel: "workspace root",
+  });
+  logs.push(`Loaded trace events from ${path}`);
+  return readJsonlEvents(path);
+}
+
+function validateTraceEvents(
+  events: TraceEvent[],
+  runId: string,
+  validate: AjvValidateFunction,
+  issues: string[],
+): void {
+  for (const [index, event] of events.entries()) {
+    if (!validate(event))
+      issues.push(
+        `event[${index}] schema violation: ${(validate.errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? "invalid"}`).join("; ")}`,
+      );
+    if (event.run_id !== runId)
+      issues.push(`event[${index}] run_id mismatch: expected ${runId}, got ${event.run_id}`);
+  }
 }

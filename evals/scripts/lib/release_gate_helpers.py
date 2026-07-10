@@ -68,28 +68,41 @@ def validate_checkpoint_statuses(
 
     run_id = run_card.get("run_id")
     for index, path_str in enumerate(checkpoint_paths):
-        if not isinstance(path_str, str) or not path_str:
-            issues.append(f"checkpoint_paths[{index}] must be a non-empty string")
-            continue
-        checkpoint_path = resolve_repo_path(path_str)
-        if not path_under_results(checkpoint_path):
-            issues.append(f"checkpoint path outside evals/results: {path_str}")
-            continue
-        if not path_within_run_scope(checkpoint_path, run_card_path):
-            issues.append(f"checkpoint path outside current run scope: {path_str}")
-            continue
-        if not checkpoint_path.exists():
-            issues.append(f"checkpoint missing: {path_str}")
-            continue
-        checkpoint = load_json(checkpoint_path)
-        if not isinstance(checkpoint, dict):
-            issues.append(f"checkpoint must be a JSON object: {path_str}")
-            continue
-        if checkpoint.get("run_id") != run_id:
-            issues.append(f"checkpoint run_id mismatch: {path_str}")
-            continue
-        statuses.append(str(checkpoint.get("status", "unknown")))
+        status, issue = _checkpoint_status(path_str, index, run_id, run_card_path)
+        if issue:
+            issues.append(issue)
+        elif status:
+            statuses.append(status)
     return statuses, issues
+
+
+def _checkpoint_status(
+    path_ref: object, index: int, run_id: object, run_card_path: pathlib.Path
+) -> tuple[str | None, str | None]:
+    if not isinstance(path_ref, str) or not path_ref:
+        return None, f"checkpoint_paths[{index}] must be a non-empty string"
+    path = resolve_repo_path(path_ref)
+    issue = _validate_checkpoint_path(path, path_ref, run_card_path)
+    if issue:
+        return None, issue
+    checkpoint = load_json(path)
+    if not isinstance(checkpoint, dict):
+        return None, f"checkpoint must be a JSON object: {path_ref}"
+    if checkpoint.get("run_id") != run_id:
+        return None, f"checkpoint run_id mismatch: {path_ref}"
+    return str(checkpoint.get("status", "unknown")), None
+
+
+def _validate_checkpoint_path(
+    path: pathlib.Path, path_ref: str, run_card_path: pathlib.Path
+) -> str | None:
+    if not path_under_results(path):
+        return f"checkpoint path outside evals/results: {path_ref}"
+    if not path_within_run_scope(path, run_card_path):
+        return f"checkpoint path outside current run scope: {path_ref}"
+    if not path.exists():
+        return f"checkpoint missing: {path_ref}"
+    return None
 
 
 def _validate_command_log(path: pathlib.Path, label: str) -> list[str]:
@@ -115,20 +128,34 @@ def _validate_json_evidence(
     payload = load_json(path)
     if not isinstance(payload, dict):
         return [f"{label} must point to a JSON object"]
-    issues: list[str] = []
-    if payload.get("run_id") is not None and payload.get("run_id") != run_id:
-        issues.append(f"{label} run_id mismatch: {evidence_path_ref}")
+    issues = _run_id_issues(payload, run_id, label, evidence_path_ref)
     if evidence_type == "checkpoint":
-        if payload.get("run_id") != run_id:
-            issues.append(f"{label} checkpoint run_id mismatch: {evidence_path_ref}")
-        if "status" not in payload:
-            issues.append(f"{label} checkpoint missing status: {evidence_path_ref}")
+        issues.extend(_checkpoint_evidence_issues(payload, run_id, label, evidence_path_ref))
         return issues
     required_keys = EVIDENCE_TYPE_JSON_KEYS.get(evidence_type)
     if required_keys and not any(key in payload for key in required_keys):
         issues.append(
             f"{label} does not match claimed type {evidence_type}: {evidence_path_ref}"
         )
+    return issues
+
+
+def _run_id_issues(
+    payload: dict[str, Any], run_id: object, label: str, path_ref: str
+) -> list[str]:
+    if payload.get("run_id") is not None and payload.get("run_id") != run_id:
+        return [f"{label} run_id mismatch: {path_ref}"]
+    return []
+
+
+def _checkpoint_evidence_issues(
+    payload: dict[str, Any], run_id: object, label: str, path_ref: str
+) -> list[str]:
+    issues: list[str] = []
+    if payload.get("run_id") != run_id:
+        issues.append(f"{label} checkpoint run_id mismatch: {path_ref}")
+    if "status" not in payload:
+        issues.append(f"{label} checkpoint missing status: {path_ref}")
     return issues
 
 
@@ -142,18 +169,10 @@ def validate_verification_evidence_entry(
     evidence_type = entry.get("type")
     evidence_path_ref = entry.get("path")
     entry_label = f"verification_evidence.provided[{index}]"
-    if not isinstance(evidence_type, str) or not evidence_type:
-        return [f"{entry_label}.type must be a non-empty string"]
-    if not isinstance(evidence_path_ref, str) or not evidence_path_ref:
-        return [f"{entry_label}.path must be a non-empty string"]
-
-    evidence_path = resolve_repo_path(evidence_path_ref)
-    if not path_under_results(evidence_path):
-        return [f"{entry_label} path outside evals/results: {evidence_path_ref}"]
-    if not path_within_run_scope(evidence_path, run_card_path):
-        return [f"{entry_label} path outside current run scope: {evidence_path_ref}"]
-    if not evidence_path.exists():
-        return [f"{entry_label} missing path: {evidence_path_ref}"]
+    validated = _resolve_evidence_path(evidence_type, evidence_path_ref, entry_label, run_card_path)
+    if isinstance(validated, list):
+        return validated
+    evidence_type, evidence_path_ref, evidence_path = validated
 
     if evidence_type == "artifact":
         return []
@@ -175,3 +194,26 @@ def validate_verification_evidence_entry(
         run_card.get("run_id"),
     )
 
+
+def _resolve_evidence_path(
+    evidence_type: object, path_ref: object, label: str, run_card_path: pathlib.Path
+) -> tuple[str, str, pathlib.Path] | list[str]:
+    if not isinstance(evidence_type, str) or not evidence_type:
+        return [f"{label}.type must be a non-empty string"]
+    if not isinstance(path_ref, str) or not path_ref:
+        return [f"{label}.path must be a non-empty string"]
+    path = resolve_repo_path(path_ref)
+    issue = _evidence_path_issue(path, path_ref, label, run_card_path)
+    return [issue] if issue else (evidence_type, path_ref, path)
+
+
+def _evidence_path_issue(
+    path: pathlib.Path, path_ref: str, label: str, run_card_path: pathlib.Path
+) -> str | None:
+    if not path_under_results(path):
+        return f"{label} path outside evals/results: {path_ref}"
+    if not path_within_run_scope(path, run_card_path):
+        return f"{label} path outside current run scope: {path_ref}"
+    if not path.exists():
+        return f"{label} missing path: {path_ref}"
+    return None

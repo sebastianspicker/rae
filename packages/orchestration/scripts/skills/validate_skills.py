@@ -25,46 +25,58 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="replace")
 
 
-def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[SkillError]]:
+def _read_frontmatter(skill_md: Path) -> tuple[str | None, list[SkillError]]:
     text = _read_text(skill_md)
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        return None, None, [SkillError(skill_md, "Missing YAML frontmatter (must start with ---).")]
+        return None, [SkillError(skill_md, "Missing YAML frontmatter (must start with ---).")]
+    try:
+        end_idx = next(i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---")
+    except StopIteration:
+        return None, [SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")]
+    return "\n".join(lines[1:end_idx]), []
 
-    end_idx = None
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            end_idx = i
-            break
-    if end_idx is None:
-        return None, None, [
-            SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")
-        ]
 
-    front = "\n".join(lines[1:end_idx])
+def _frontmatter_value(line: str, field: str) -> str | None:
+    match = re.match(rf"^{field}:\s*(.+?)\s*$", line)
+    if match:
+        return match.group(1).strip().strip('"').strip("'")
+    return None
+
+
+def _parse_frontmatter_fields(front: str) -> tuple[str | None, str | None]:
     name = None
     description = None
-
     for raw in front.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
         if name is None:
-            m = re.match(r"^name:\s*(.+?)\s*$", line)
-            if m:
-                name = m.group(1).strip().strip('"').strip("'")
+            name = _frontmatter_value(line, "name")
+            if name is not None:
                 continue
         if description is None:
-            m = re.match(r"^description:\s*(.+?)\s*$", line)
-            if m:
-                description = m.group(1).strip().strip('"').strip("'")
-                continue
+            description = _frontmatter_value(line, "description")
+    return name, description
 
+
+def _required_field_errors(
+    skill_md: Path, name: str | None, description: str | None
+) -> list[SkillError]:
     errors: list[SkillError] = []
     if name is None:
         errors.append(SkillError(skill_md, "Frontmatter missing required field: name"))
     if description is None:
         errors.append(SkillError(skill_md, "Frontmatter missing required field: description"))
+    return errors
+
+
+def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[SkillError]]:
+    front, read_errors = _read_frontmatter(skill_md)
+    if front is None:
+        return None, None, read_errors
+    name, description = _parse_frontmatter_fields(front)
+    errors = _required_field_errors(skill_md, name, description)
     return name, description, errors
 
 

@@ -10,7 +10,13 @@ import {
   runSummarizeProgress,
   printUsage,
 } from "../lib/commands.mjs";
-import { getRunDir, ensureRunDirs, loadPipelineState, readJsonStrict, savePipelineState } from "../lib/state.mjs";
+import {
+  getRunDir,
+  ensureRunDirs,
+  loadPipelineState,
+  readJsonStrict,
+  savePipelineState,
+} from "../lib/state.mjs";
 import { ensureTraceFile, readTraceEvents } from "../lib/trace.mjs";
 import { badInput } from "../lib/errors.mjs";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
@@ -289,10 +295,7 @@ describe("runRecordReviewState", () => {
 
   it("rejects ship approval before explain is completed", () => {
     expect(() =>
-      runRecordReviewState(
-        { "run-id": TEST_RUN_ID, state: "ship", status: "approved" },
-        makeCtx(),
-      ),
+      runRecordReviewState({ "run-id": TEST_RUN_ID, state: "ship", status: "approved" }, makeCtx()),
     ).toThrow(/explain to be completed/);
   });
 });

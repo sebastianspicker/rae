@@ -152,18 +152,32 @@ def _resolve_trusted_executable(
     if trusted is None:
         raise ValueError(f"unsupported executable: {requested}")
     if pathlib.Path(requested).is_absolute():
-        if pathlib.Path(requested).resolve() != trusted:
-            raise ValueError(f"untrusted executable path: {requested}")
-        return alias, trusted
+        return alias, _validate_trusted_absolute_path(requested, trusted)
+    _validate_executable_alias(requested, alias)
+    _validate_visible_executable(alias, trusted, env)
+    return alias, trusted
+
+
+def _validate_trusted_absolute_path(requested: str, trusted: pathlib.Path) -> pathlib.Path:
+    if pathlib.Path(requested).resolve() != trusted:
+        raise ValueError(f"untrusted executable path: {requested}")
+    return trusted
+
+
+def _validate_executable_alias(requested: str, alias: str) -> None:
     if requested != alias:
         raise ValueError(
             f"executable must be an allowlisted name or trusted absolute path: {requested}"
         )
+
+
+def _validate_visible_executable(
+    alias: str, trusted: pathlib.Path, env: dict[str, str] | None
+) -> None:
     effective_path = (env or os.environ).get("PATH")
     visible = shutil.which(alias, path=effective_path) if effective_path else None
     if visible is None or pathlib.Path(visible).resolve() != trusted:
         raise ValueError(f"PATH-shadowed or unavailable executable: {alias}")
-    return alias, trusted
 
 
 def _resolve_node_entrypoint(prepared: list[str], cwd: pathlib.Path) -> None:
@@ -209,7 +223,8 @@ def run_command(
     prepared_argv = _prepare_command(argv, command_cwd, env)
     started = time.monotonic()
     try:
-        # B603 rationale: executable and entrypoint were resolved against the trusted allowlist.
+        # The executable and Node entrypoint are resolved through the trusted allowlist above.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             prepared_argv,
             cwd=command_cwd,
@@ -220,37 +235,36 @@ def run_command(
             timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:
-        duration = round(time.monotonic() - started, 4)
-        stdout = _coerce_subprocess_output(exc.stdout)
-        stderr = _coerce_subprocess_output(exc.stderr)
-        timeout_label = (
-            f"{timeout_seconds:g}"
-            if isinstance(timeout_seconds, (int, float))
-            else "unknown"
-        )
-        message = f"command timed out after {timeout_label}s"
-        return {
-            "argv": requested_argv,
-            "cwd": relative_to_root(command_cwd),
-            "returncode": 124,
-            "stdout": stdout,
-            "stderr": f"{stderr.rstrip()}\n{message}".strip(),
-            "duration_seconds": duration,
-            "timed_out": True,
-            "timeout_seconds": timeout_seconds,
-        }
+        return _timeout_transcript(exc, requested_argv, command_cwd, timeout_seconds, started)
+    return _completed_transcript(completed, requested_argv, command_cwd, timeout_seconds, started)
 
+
+def _timeout_transcript(
+    exc: subprocess.TimeoutExpired, argv: list[str], cwd: pathlib.Path,
+    timeout_seconds: float | None, started: float,
+) -> dict[str, Any]:
+    label = f"{timeout_seconds:g}" if isinstance(timeout_seconds, (int, float)) else "unknown"
+    message = f"command timed out after {label}s"
+    return {
+        "argv": argv, "cwd": relative_to_root(cwd), "returncode": 124,
+        "stdout": _coerce_subprocess_output(exc.stdout),
+        "stderr": f"{_coerce_subprocess_output(exc.stderr).rstrip()}\n{message}".strip(),
+        "duration_seconds": round(time.monotonic() - started, 4), "timed_out": True,
+        "timeout_seconds": timeout_seconds,
+    }
+
+
+def _completed_transcript(
+    completed: subprocess.CompletedProcess[str], argv: list[str], cwd: pathlib.Path,
+    timeout_seconds: float | None, started: float,
+) -> dict[str, Any]:
     if isinstance(completed.returncode, bool) or not isinstance(completed.returncode, int):
         raise RuntimeError("subprocess returned malformed exit status")
-    duration = round(time.monotonic() - started, 4)
     return {
-        "argv": requested_argv,
-        "cwd": relative_to_root(command_cwd),
-        "returncode": completed.returncode,
+        "argv": argv, "cwd": relative_to_root(cwd), "returncode": completed.returncode,
         "stdout": _coerce_subprocess_output(completed.stdout),
         "stderr": _coerce_subprocess_output(completed.stderr),
-        "duration_seconds": duration,
-        "timed_out": False,
+        "duration_seconds": round(time.monotonic() - started, 4), "timed_out": False,
         "timeout_seconds": timeout_seconds,
     }
 

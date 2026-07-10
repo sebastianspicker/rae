@@ -40,31 +40,32 @@ const validateExtractorClaim = (claim: unknown): void => {
 };
 
 const validateExtractorClaimMetadata = (claim: Record<string, unknown>): void => {
-  if (
-    typeof claim.verification_status !== "string" ||
-    !DRIFT_VERIFICATION_STATUSES.has(claim.verification_status)
-  ) {
-    throw badInput(
-      "Each extractor claim verification_status must be one of: verified, violated, partial, unverifiable",
-    );
-  }
-  if (
-    claim.claim_type !== undefined &&
-    (typeof claim.claim_type !== "string" || !DRIFT_CLAIM_TYPES.has(claim.claim_type))
-  ) {
-    throw badInput(
-      "Each extractor claim claim_type must be one of: interface, invariant, security, performance, docs",
-    );
-  }
-  if (typeof claim.evidence !== "string" || claim.evidence.length === 0) {
-    throw badInput("Each extractor claim must include non-empty evidence");
-  }
-  if (
-    claim.confidence !== undefined &&
-    (typeof claim.confidence !== "number" || claim.confidence < 0 || claim.confidence > 1)
-  ) {
+  validateSetValue(
+    claim.verification_status,
+    DRIFT_VERIFICATION_STATUSES,
+    "Each extractor claim verification_status must be one of: verified, violated, partial, unverifiable",
+  );
+  validateOptionalSetValue(
+    claim.claim_type,
+    DRIFT_CLAIM_TYPES,
+    "Each extractor claim claim_type must be one of: interface, invariant, security, performance, docs",
+  );
+  validateRequiredString(claim.evidence, "Each extractor claim must include non-empty evidence");
+  validateConfidence(claim.confidence);
+};
+
+const validateSetValue = (value: unknown, values: Set<string>, message: string): void => {
+  if (typeof value !== "string" || !values.has(value)) throw badInput(message);
+};
+const validateOptionalSetValue = (value: unknown, values: Set<string>, message: string): void => {
+  if (value !== undefined) validateSetValue(value, values, message);
+};
+const validateRequiredString = (value: unknown, message: string): void => {
+  if (typeof value !== "string" || value.length === 0) throw badInput(message);
+};
+const validateConfidence = (value: unknown): void => {
+  if (value !== undefined && (typeof value !== "number" || value < 0 || value > 1))
     throw badInput("extractor claim confidence must be a number between 0 and 1");
-  }
 };
 
 const validateExtractorClaimSets = (claimSets: unknown): void => {
@@ -74,20 +75,23 @@ const validateExtractorClaimSets = (claimSets: unknown): void => {
     );
   }
   for (const claimSet of claimSets) {
-    if (!isObjectRecord(claimSet)) {
-      throw badInput("Each extractor_claim_set must be an object");
-    }
-    assertNoUnexpectedProperties(claimSet, ["extractor", "claims"], "extractor_claim_set");
-    if (typeof claimSet.extractor !== "string" || claimSet.extractor.length === 0) {
-      throw badInput("Each extractor_claim_set requires a non-empty extractor string");
-    }
-    if (!Array.isArray(claimSet.claims) || claimSet.claims.length === 0) {
-      throw badInput("Each extractor_claim_set requires a non-empty claims array");
-    }
-    for (const claim of claimSet.claims) {
-      validateExtractorClaim(claim);
-    }
+    validateExtractorClaimSet(claimSet);
   }
+};
+
+const validateExtractorClaimSet = (claimSet: unknown): void => {
+  if (!isObjectRecord(claimSet)) throw badInput("Each extractor_claim_set must be an object");
+  assertNoUnexpectedProperties(claimSet, ["extractor", "claims"], "extractor_claim_set");
+  validateRequiredString(
+    claimSet.extractor,
+    "Each extractor_claim_set requires a non-empty extractor string",
+  );
+  validateClaims(claimSet.claims, "Each extractor_claim_set requires a non-empty claims array");
+};
+
+const validateClaims = (claims: unknown, message: string): void => {
+  if (!Array.isArray(claims) || claims.length === 0) throw badInput(message);
+  for (const claim of claims) validateExtractorClaim(claim);
 };
 
 const validateReviewerFinding = (finding: unknown): void => {
@@ -132,30 +136,28 @@ const validateReviewerFindings = (reviewerFindings: unknown): void => {
   }
 
   for (const reviewer of reviewerFindings) {
-    if (!isObjectRecord(reviewer)) {
-      throw badInput("Each reviewer_findings entry must be an object");
-    }
-    assertNoUnexpectedProperties(
-      reviewer,
-      ["reviewer_id", "role", "findings"],
-      "reviewer_findings entry",
-    );
-    if (typeof reviewer.reviewer_id !== "string" || reviewer.reviewer_id.length === 0) {
-      throw badInput("Each reviewer_findings entry requires reviewer_id");
-    }
-    if (typeof reviewer.role !== "string" || reviewer.role.length === 0) {
-      throw badInput("Each reviewer_findings entry requires role");
-    }
-    if (!Array.isArray(reviewer.findings)) {
-      throw badInput("Each reviewer_findings entry requires a findings array");
-    }
-    if (reviewer.findings.length === 0) {
-      throw badInput("Each reviewer_findings entry requires a non-empty findings array");
-    }
-    for (const finding of reviewer.findings) {
-      validateReviewerFinding(finding);
-    }
+    validateReviewer(reviewer);
   }
+};
+
+const validateReviewer = (reviewer: unknown): void => {
+  if (!isObjectRecord(reviewer)) throw badInput("Each reviewer_findings entry must be an object");
+  assertNoUnexpectedProperties(
+    reviewer,
+    ["reviewer_id", "role", "findings"],
+    "reviewer_findings entry",
+  );
+  validateRequiredString(reviewer.reviewer_id, "Each reviewer_findings entry requires reviewer_id");
+  validateRequiredString(reviewer.role, "Each reviewer_findings entry requires role");
+  validateFindings(reviewer.findings);
+};
+
+const validateFindings = (findings: unknown): void => {
+  if (!Array.isArray(findings))
+    throw badInput("Each reviewer_findings entry requires a findings array");
+  if (findings.length === 0)
+    throw badInput("Each reviewer_findings entry requires a non-empty findings array");
+  for (const finding of findings) validateReviewerFinding(finding);
 };
 
 const validateDriftConfig = (
@@ -174,27 +176,27 @@ const validateDriftConfig = (
   );
 
   const targetRef = validateTargetRef(driftConfig);
-  if (driftConfig.source_ref !== undefined && typeof driftConfig.source_ref !== "string") {
-    throw badInput("drift_config.source_ref must be a string when provided");
-  }
-
-  const driftModeRaw = (driftConfig as Record<string, unknown>).mode;
-  if (
-    driftModeRaw !== undefined &&
-    driftModeRaw !== "heuristic" &&
-    driftModeRaw !== "dual-extractor"
-  ) {
-    throw badInput("drift_config.mode must be 'heuristic' or 'dual-extractor'");
-  }
-  const driftMode: DriftMode = (driftModeRaw as DriftMode) ?? "heuristic";
-
-  const hasExtractorClaimSets =
-    (driftConfig as Record<string, unknown>).extractor_claim_sets !== undefined;
+  validateOptionalString(
+    driftConfig.source_ref,
+    "drift_config.source_ref must be a string when provided",
+  );
+  const driftMode = validateDriftMode(driftConfig.mode);
+  const hasExtractorClaimSets = driftConfig.extractor_claim_sets !== undefined;
   if (hasExtractorClaimSets) {
-    validateExtractorClaimSets((driftConfig as Record<string, unknown>).extractor_claim_sets);
+    validateExtractorClaimSets(driftConfig.extractor_claim_sets);
   }
 
   return { targetRef, driftMode, hasExtractorClaimSets };
+};
+
+const validateOptionalString = (value: unknown, message: string): void => {
+  if (value !== undefined && typeof value !== "string") throw badInput(message);
+};
+
+const validateDriftMode = (value: unknown): DriftMode => {
+  if (value === undefined) return "heuristic";
+  if (value === "heuristic" || value === "dual-extractor") return value;
+  throw badInput("drift_config.mode must be 'heuristic' or 'dual-extractor'");
 };
 
 const validateTargetRef = (driftConfig: Record<string, unknown>): string | undefined => {
@@ -209,23 +211,23 @@ const validateTargetRef = (driftConfig: Record<string, unknown>): string | undef
 };
 
 const validateActionAndDocument = (input: Input): void => {
-  if (!isObjectRecord(input.action)) throw badInput("action must be an object");
-  assertNoUnexpectedProperties(input.action as Record<string, unknown>, ["type"], "action");
-  if (!input.action.type || !["review", "drift-detect"].includes(input.action.type)) {
+  validateAction(input.action);
+  validateDocument(input.document);
+};
+
+const validateAction = (action: unknown): void => {
+  if (!isObjectRecord(action)) throw badInput("action must be an object");
+  assertNoUnexpectedProperties(action, ["type"], "action");
+  if (action.type !== "review" && action.type !== "drift-detect")
     throw badInput("action.type must be 'review' or 'drift-detect'");
-  }
-  if (!isObjectRecord(input.document)) throw badInput("document must be an object");
-  assertNoUnexpectedProperties(
-    input.document as Record<string, unknown>,
-    ["content", "type"],
-    "document",
-  );
-  if (!input.document.content || typeof input.document.content !== "string") {
-    throw badInput("document.content is required");
-  }
-  if (!input.document.type || !["design", "plan", "implementation"].includes(input.document.type)) {
+};
+
+const validateDocument = (document: unknown): void => {
+  if (!isObjectRecord(document)) throw badInput("document must be an object");
+  assertNoUnexpectedProperties(document, ["content", "type"], "document");
+  validateRequiredString(document.content, "document.content is required");
+  if (document.type !== "design" && document.type !== "plan" && document.type !== "implementation")
     throw badInput("document.type must be design, plan, or implementation");
-  }
 };
 
 const validateDriftAction = (

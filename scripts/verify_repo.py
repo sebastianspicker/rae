@@ -129,6 +129,7 @@ def validate_required_files() -> None:
 
 def validate_eval_metadata() -> None:
     # B603 rationale: fixed current interpreter and repository validation module.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
         cwd=ROOT,
@@ -140,6 +141,7 @@ def run_mkdocs_strict() -> None:
     mkdocs_env = os.environ.copy()
     mkdocs_env["NO_MKDOCS_2_WARNING"] = "true"
     # B603 rationale: fixed current interpreter and pinned MkDocs module.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     subprocess.run(  # nosec B603
         [sys.executable, "-m", "mkdocs", "build", "--strict"],
         cwd=ROOT,

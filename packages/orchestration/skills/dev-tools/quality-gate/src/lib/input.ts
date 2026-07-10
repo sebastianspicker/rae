@@ -63,35 +63,50 @@ const validateCriterionValue = (c: Input["criteria"][number]): void => {
 };
 
 const validateSpecialCriterionValue = (c: Input["criteria"][number]): void => {
-  if (
-    c.type === "number-max" &&
-    (typeof c.value !== "number" || !Number.isFinite(c.value) || c.value < 0)
-  ) {
-    throw badInput("number-max criterion requires a non-negative number value");
-  }
+  if (c.type === "number-max") validateNonNegativeNumber(c.value);
   if (c.type === "coverage-min") validateCoverageCriterion(c);
-  if (c.type === "regex-match" && (typeof c.value !== "string" || c.value.length === 0)) {
+  if (c.type === "regex-match") validateNonEmptyRegex(c.value);
+};
+
+const validateNonNegativeNumber = (value: unknown): void => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
+    throw badInput("number-max criterion requires a non-negative number value");
+};
+
+const validateNonEmptyRegex = (value: unknown): void => {
+  if (typeof value !== "string" || value.length === 0)
     throw badInput("regex-match criterion requires non-empty string value");
-  }
 };
 
 export function validateInput(input: Input): void {
-  if (!input?.artifact || typeof input.artifact !== "object" || Array.isArray(input.artifact)) {
-    throw badInput("artifact must be a JSON object");
-  }
-  if (!input.schema_ref || typeof input.schema_ref !== "string") {
-    throw badInput("schema_ref is required");
-  }
-  if (input.artifact_ref !== undefined && typeof input.artifact_ref !== "string") {
-    throw badInput("artifact_ref must be a string when provided");
-  }
-  if (!isGatePhase(input.phase)) {
-    throw badInput("phase must be a valid pipeline phase");
-  }
-  if (!Array.isArray(input.criteria)) {
-    throw badInput("criteria must be an array");
-  }
+  validateInputFields(input);
   for (const c of input.criteria) {
     validateCriterion(c);
   }
 }
+
+const validateInputFields = (input: Input): void => {
+  validateArtifact(input.artifact);
+  validateSchemaRef(input.schema_ref);
+  validateArtifactRef(input.artifact_ref);
+  validatePhase(input.phase);
+  validateCriteria(input.criteria);
+};
+
+const validateArtifact = (artifact: unknown): void => {
+  if (!artifact || typeof artifact !== "object" || Array.isArray(artifact))
+    throw badInput("artifact must be a JSON object");
+};
+const validateSchemaRef = (schemaRef: unknown): void => {
+  if (!schemaRef || typeof schemaRef !== "string") throw badInput("schema_ref is required");
+};
+const validateArtifactRef = (artifactRef: unknown): void => {
+  if (artifactRef !== undefined && typeof artifactRef !== "string")
+    throw badInput("artifact_ref must be a string when provided");
+};
+const validatePhase = (phase: unknown): void => {
+  if (!isGatePhase(phase)) throw badInput("phase must be a valid pipeline phase");
+};
+const validateCriteria = (criteria: unknown): void => {
+  if (!Array.isArray(criteria)) throw badInput("criteria must be an array");
+};

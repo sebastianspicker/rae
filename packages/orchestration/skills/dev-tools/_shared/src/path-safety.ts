@@ -1,6 +1,11 @@
-import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { badInput } from "./errors.js";
+import {
+  assertSafeRelative,
+  resolveExistingAncestor,
+  resolveRoot,
+  validateNonEmpty,
+} from "./path-safety-helpers.js";
 
 export function assertRepoRelativePath(ref: string, label: string): void {
   if (typeof ref !== "string") {
@@ -33,36 +38,12 @@ export function resolveWithinWorkspace(
 ): string {
   const rootLabel = opts.rootLabel ?? "workspaceRoot";
   const outOfRootMessage = `${label} must resolve within ${rootLabel}`;
-  if (typeof workspaceRoot !== "string" || workspaceRoot.trim().length === 0) {
-    throw badInput(`${rootLabel} must be a non-empty string`);
-  }
-  if (typeof relativeRef !== "string" || relativeRef.trim().length === 0) {
-    throw badInput(`${label} must be a non-empty string`);
-  }
+  validateNonEmpty(workspaceRoot, rootLabel);
+  validateNonEmpty(relativeRef, label);
   const normalizedRef = relativeRef.trim();
   const normalized = path.normalize(normalizedRef);
-
-  if (
-    path.isAbsolute(normalizedRef) ||
-    normalized === "." ||
-    normalized === ".." ||
-    normalized.startsWith(`..${path.sep}`) ||
-    normalized.includes(`${path.sep}..${path.sep}`) ||
-    normalized.endsWith(`${path.sep}..`)
-  ) {
-    throw badInput(outOfRootMessage);
-  }
-
-  let root: string;
-  try {
-    root = realpathSync(path.resolve(workspaceRoot));
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code === "ENOENT") {
-      throw badInput(`${rootLabel} does not exist`);
-    }
-    throw err;
-  }
+  assertSafeRelative(normalizedRef, normalized, outOfRootMessage);
+  const root = resolveRoot(workspaceRoot, rootLabel);
   const resolved = path.resolve(root, normalized);
   const relative = path.relative(root, resolved);
 
@@ -70,11 +51,7 @@ export function resolveWithinWorkspace(
     throw badInput(outOfRootMessage);
   }
 
-  let existingAncestor = resolved;
-  while (!existsSync(existingAncestor) && existingAncestor !== path.dirname(existingAncestor)) {
-    existingAncestor = path.dirname(existingAncestor);
-  }
-  const ancestorReal = realpathSync(existingAncestor);
+  const ancestorReal = resolveExistingAncestor(resolved);
   const ancestorRelative = path.relative(root, ancestorReal);
   if (ancestorRelative.startsWith("..") || path.isAbsolute(ancestorRelative)) {
     throw badInput(outOfRootMessage);

@@ -99,28 +99,13 @@
           "patternId": "Bandit_B113"
         },
         {
-          "patternId": "Bandit_B311"
-        },
-        {
-          "patternId": "Bandit_B301"
-        },
-        {
           "patternId": "Bandit_B609"
         },
         {
           "patternId": "Bandit_B506"
         },
         {
-          "patternId": "Bandit_B407"
-        },
-        {
-          "patternId": "Bandit_B317"
-        },
-        {
           "patternId": "Bandit_B102"
-        },
-        {
-          "patternId": "Bandit_B111"
         },
         {
           "patternId": "Bandit_B505"
@@ -135,15 +120,6 @@
           "patternId": "Bandit_B702"
         },
         {
-          "patternId": "Bandit_B401"
-        },
-        {
-          "patternId": "Bandit_B406"
-        },
-        {
-          "patternId": "Bandit_B315"
-        },
-        {
           "patternId": "Bandit_B501"
         },
         {
@@ -156,118 +132,43 @@
           "patternId": "Bandit_B603"
         },
         {
-          "patternId": "Bandit_B109"
-        },
-        {
           "patternId": "Bandit_B201"
         },
         {
           "patternId": "Bandit_B104"
         },
         {
-          "patternId": "Bandit_B304"
-        },
-        {
           "patternId": "Bandit_B601"
-        },
-        {
-          "patternId": "Bandit_B321"
-        },
-        {
-          "patternId": "Bandit_B309"
         },
         {
           "patternId": "Bandit_B606"
         },
         {
-          "patternId": "Bandit_B310"
-        },
-        {
-          "patternId": "Bandit_B316"
-        },
-        {
           "patternId": "Bandit_B105"
-        },
-        {
-          "patternId": "Bandit_B318"
         },
         {
           "patternId": "Bandit_B112"
         },
         {
-          "patternId": "Bandit_B405"
-        },
-        {
-          "patternId": "Bandit_B402"
-        },
-        {
-          "patternId": "Bandit_B313"
-        },
-        {
-          "patternId": "Bandit_B320"
-        },
-        {
-          "patternId": "Bandit_B409"
-        },
-        {
           "patternId": "Bandit_B602"
-        },
-        {
-          "patternId": "Bandit_B307"
-        },
-        {
-          "patternId": "Bandit_B303"
         },
         {
           "patternId": "Bandit_B701"
         },
         {
-          "patternId": "Bandit_B403"
-        },
-        {
           "patternId": "Bandit_B604"
-        },
-        {
-          "patternId": "Bandit_B312"
         },
         {
           "patternId": "Bandit_B502"
         },
         {
-          "patternId": "Bandit_B411"
-        },
-        {
-          "patternId": "Bandit_B408"
-        },
-        {
-          "patternId": "Bandit_B308"
-        },
-        {
-          "patternId": "Bandit_B306"
-        },
-        {
-          "patternId": "Bandit_B410"
-        },
-        {
-          "patternId": "Bandit_B314"
-        },
-        {
-          "patternId": "Bandit_B302"
-        },
-        {
           "patternId": "Bandit_B103"
-        },
-        {
-          "patternId": "Bandit_B319"
         },
         {
           "patternId": "Bandit_B503"
         },
         {
           "patternId": "Bandit_B504"
-        },
-        {
-          "patternId": "Bandit_B305"
         }
       ]
     },

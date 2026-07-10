@@ -11,6 +11,7 @@ from benchmark_contracts_helpers import (
     RESULTS_ROOT,
     ROOT,
     install_path_mirror,
+    run_release_gate,
     write_json,
     write_release_gate_fixture,
 )
@@ -20,6 +21,7 @@ def test_run_benchmark_rejects_output_dir_outside_results_root() -> None:
     with tempfile.TemporaryDirectory(prefix="rae-benchmark-outside-") as tmp:
         output_dir = pathlib.Path(tmp)
         # B603 rationale: fixed interpreter and repository test entrypoint.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
@@ -38,9 +40,7 @@ def test_run_benchmark_rejects_output_dir_outside_results_root() -> None:
         )
 
     assert completed.returncode != 0
-    assert "output-dir must point under evals/results" in (
-        completed.stderr or completed.stdout
-    )
+    assert "output-dir must point under evals/results" in (completed.stderr or completed.stdout)
 
 
 def test_run_benchmark_rejects_unsafe_benchmark_id_before_writing() -> None:
@@ -55,6 +55,7 @@ def test_run_benchmark_rejects_unsafe_benchmark_id_before_writing() -> None:
     ) as tmp:
         output_dir = pathlib.Path(tmp)
         # B603 rationale: fixed interpreter and repository test entrypoint.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
@@ -106,6 +107,7 @@ def test_run_benchmark_rejects_unsafe_task_id_before_writing() -> None:
     ) as tmp:
         output_dir = pathlib.Path(tmp)
         # B603 rationale: fixed interpreter and repository test entrypoint.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
@@ -131,11 +133,10 @@ def test_run_benchmark_rejects_unsafe_task_id_before_writing() -> None:
 
 def test_run_benchmark_accepts_output_dir_under_results_root() -> None:
     results_root = pathlib.Path(os.path.realpath(RESULTS_ROOT))
-    with tempfile.TemporaryDirectory(
-        dir=results_root, prefix="rae-benchmark-inside-"
-    ) as tmp:
+    with tempfile.TemporaryDirectory(dir=results_root, prefix="rae-benchmark-inside-") as tmp:
         output_dir = pathlib.Path(tmp) / "dev"
         # B603 rationale: fixed interpreter and repository test entrypoint.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
@@ -165,6 +166,7 @@ def test_run_benchmark_returns_non_zero_when_release_gate_fails() -> None:
     ) as tmp:
         output_dir = pathlib.Path(tmp) / "dev"
         # B603 rationale: fixed interpreter and repository test entrypoint.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [
                 sys.executable,
@@ -278,33 +280,15 @@ def test_release_gate_fails_when_required_split_evidence_is_missing() -> None:
         )
 
         # B603 rationale: fixed interpreter and repository test entrypoint.
-        completed = subprocess.run(  # nosec B603
-            [
-                sys.executable,
-                str(ROOT / "evals/scripts/release_gate.py"),
-                "--benchmark-card",
-                str(temp_benchmark_path),
-                "--run-card",
-                str(run_card_path),
-                "--regression-report",
-                str(regression_path),
-                "--ledger",
-                str(ledger_path),
-                "--output",
-                str(gate_output_path),
-            ],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+        completed = run_release_gate(
+            temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
         )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
         assert gate_report["status"] == "fail"
-        assert any(
-            "required split: dev" in issue for issue in gate_report["issues"]
-        )
+        assert any("required split: dev" in issue for issue in gate_report["issues"])
     temp_benchmark_path.unlink(missing_ok=True)
 
 
@@ -341,30 +325,12 @@ def test_release_gate_fails_when_calibration_agreement_is_below_threshold() -> N
             },
             release_gate_status="pass",
         )
-        gate_output_path = (
-            output_dir / "release-gate-tool-selection-core-dev-low-calibration.json"
-        )
+        gate_output_path = output_dir / "release-gate-tool-selection-core-dev-low-calibration.json"
 
         # B603 rationale: fixed interpreter and repository test entrypoint.
-        completed = subprocess.run(  # nosec B603
-            [
-                sys.executable,
-                str(ROOT / "evals/scripts/release_gate.py"),
-                "--benchmark-card",
-                str(benchmark_path),
-                "--run-card",
-                str(run_card_path),
-                "--regression-report",
-                str(regression_path),
-                "--ledger",
-                str(ledger_path),
-                "--output",
-                str(gate_output_path),
-            ],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
         )
 
         assert completed.returncode != 0

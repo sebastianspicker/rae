@@ -31,9 +31,7 @@ from lib.run_benchmark_evidence import (
 )
 
 
-def execute_orchestration(
-    task: dict[str, Any], output_dir: pathlib.Path
-) -> dict[str, Any]:
+def execute_orchestration(task: dict[str, Any], output_dir: pathlib.Path) -> dict[str, Any]:
     """Exercise the long-horizon initialization path and capture its artifacts."""
     workspace = create_task_workspace(output_dir, task["task_id"])
     init_result = run_command(
@@ -118,9 +116,7 @@ def execute_orchestration_review_loop(
 
     trace_path = orchestration_root / ".pipeline" / "runs" / run_id / "trace.jsonl"
     state_path = orchestration_root / ".pipeline" / "pipeline-state.json"
-    review_loop_path = (
-        orchestration_root / ".pipeline" / "runs" / run_id / "review-loop.json"
-    )
+    review_loop_path = orchestration_root / ".pipeline" / "runs" / run_id / "review-loop.json"
 
     return {
         "command_result": merge_command_results(
@@ -128,9 +124,7 @@ def execute_orchestration_review_loop(
         ),
         "trace_paths": [repo_relpath(path) for path in (trace_path,) if path.exists()],
         "artifact_paths": [
-            repo_relpath(path)
-            for path in (state_path, review_loop_path)
-            if path.exists()
+            repo_relpath(path) for path in (state_path, review_loop_path) if path.exists()
         ],
         "workspace": repo_relpath(orchestration_root),
     }
@@ -181,12 +175,8 @@ def execute_orchestration_observability(
 
     trace_path = orchestration_root / ".pipeline" / "runs" / run_id / "trace.jsonl"
     state_path = orchestration_root / ".pipeline" / "pipeline-state.json"
-    progress_path = (
-        orchestration_root / ".pipeline" / "runs" / run_id / "progress.summary.json"
-    )
-    trace_summary_path = (
-        orchestration_root / ".pipeline" / "runs" / run_id / "trace.summary.json"
-    )
+    progress_path = orchestration_root / ".pipeline" / "runs" / run_id / "progress.summary.json"
+    trace_summary_path = orchestration_root / ".pipeline" / "runs" / run_id / "trace.summary.json"
 
     return {
         "command_result": merge_command_results(
@@ -263,9 +253,7 @@ def execute_tool(task: dict[str, Any], output_dir: pathlib.Path) -> dict[str, An
     repo_path = workspace / "hygiene-demo"
     repo_path.mkdir(parents=True, exist_ok=True)
     run_command(["git", "init", "-q", str(repo_path)], cwd=ROOT)
-    run_command(
-        ["git", "-C", str(repo_path), "config", "user.name", "RAE Bench"], cwd=ROOT
-    )
+    run_command(["git", "-C", str(repo_path), "config", "user.name", "RAE Bench"], cwd=ROOT)
     run_command(
         ["git", "-C", str(repo_path), "config", "user.email", "rae-bench@example.com"],
         cwd=ROOT,
@@ -359,36 +347,15 @@ def execute_task(
         output_dir, run_id, task, checkpoint_mode
     )
 
-    if routed["execution_profile"] == "orchestration-init":
-        execution = execute_orchestration(task, output_dir)
-    elif routed["execution_profile"] == "orchestration-review-loop":
-        execution = execute_orchestration_review_loop(task, output_dir)
-    elif routed["execution_profile"] == "orchestration-observability":
-        execution = execute_orchestration_observability(task, output_dir)
-    elif routed["execution_profile"] == "ralph-bootstrap-check":
-        execution = execute_ralph(task, output_dir)
-    elif routed["execution_profile"] == "coauthor-validate":
-        execution = execute_tool(task, output_dir)
-    else:
-        raise ValueError(f"unknown execution_profile: {routed['execution_profile']}")
+    execution = execute_routed_task(task, output_dir, routed["execution_profile"])
 
     if checkpoint_results:
         execution["command_result"] = merge_command_results(
             *checkpoint_results, execution["command_result"]
         )
 
-    expected_artifacts = execution["artifact_paths"]
-    command_result_path = write_command_result(
-        output_dir, task["task_id"], execution["command_result"]
-    )
-    command_result_rel = repo_relpath(command_result_path)
-    expected_artifacts = sorted(set([*expected_artifacts, command_result_rel]))
-    verification_evidence = build_task_verification_evidence(
-        task,
-        command_result_path=command_result_rel,
-        trace_paths=execution["trace_paths"],
-        artifact_paths=expected_artifacts,
-        checkpoint_paths=checkpoint_paths,
+    expected_artifacts, verification_evidence = collect_execution_evidence(
+        task, output_dir, execution, checkpoint_paths
     )
     judgment = judge_task(
         task,
@@ -398,9 +365,85 @@ def execute_task(
         expected_artifacts,
         checkpoint_ok,
     )
-    planned_result_path = (
-        output_dir / "planned-run-cards" / f"{task['task_id']}.run-card.json"
+    planned_result_path = output_dir / "planned-run-cards" / f"{task['task_id']}.run-card.json"
+    route_run_card = build_route_run_card(
+        {
+            "task": task,
+            "benchmark": benchmark,
+            "run_id": run_id,
+            "routed": routed,
+            "execution": execution,
+            "judgment": judgment,
+            "task_spec_path": task_spec_path,
+            "planned_result_path": planned_result_path,
+            "checkpoint_paths": checkpoint_paths,
+            "artifact_paths": expected_artifacts,
+            "verification_evidence": verification_evidence,
+        }
     )
+    dump_json(planned_result_path, route_run_card)
+
+    return task_execution_result(
+        task,
+        routed,
+        execution,
+        expected_artifacts,
+        checkpoint_paths,
+        verification_evidence,
+        judgment,
+        planned_result_path,
+    )
+
+
+def execute_routed_task(
+    task: dict[str, Any], output_dir: pathlib.Path, profile: str
+) -> dict[str, Any]:
+    executors = {
+        "orchestration-init": execute_orchestration,
+        "orchestration-review-loop": execute_orchestration_review_loop,
+        "orchestration-observability": execute_orchestration_observability,
+        "ralph-bootstrap-check": execute_ralph,
+        "coauthor-validate": execute_tool,
+    }
+    try:
+        return executors[profile](task, output_dir)
+    except KeyError as exc:
+        raise ValueError(f"unknown execution_profile: {profile}") from exc
+
+
+def collect_execution_evidence(
+    task: dict[str, Any],
+    output_dir: pathlib.Path,
+    execution: dict[str, Any],
+    checkpoint_paths: list[str],
+) -> tuple[list[str], dict[str, Any]]:
+    command_result_path = write_command_result(
+        output_dir, task["task_id"], execution["command_result"]
+    )
+    command_result_rel = repo_relpath(command_result_path)
+    artifact_paths = sorted({*execution["artifact_paths"], command_result_rel})
+    evidence = build_task_verification_evidence(
+        task,
+        command_result_path=command_result_rel,
+        trace_paths=execution["trace_paths"],
+        artifact_paths=artifact_paths,
+        checkpoint_paths=checkpoint_paths,
+    )
+    return artifact_paths, evidence
+
+
+def build_route_run_card(context: dict[str, Any]) -> dict[str, Any]:
+    task = context["task"]
+    benchmark = context["benchmark"]
+    run_id = context["run_id"]
+    routed = context["routed"]
+    execution = context["execution"]
+    judgment = context["judgment"]
+    task_spec_path = context["task_spec_path"]
+    planned_result_path = context["planned_result_path"]
+    checkpoint_paths = context["checkpoint_paths"]
+    expected_artifacts = context["artifact_paths"]
+    verification_evidence = context["verification_evidence"]
     route_run_card = {
         "run_id": run_id,
         "evidence_type": "benchmark-run",
@@ -433,8 +476,19 @@ def execute_task(
         route_run_card["workflow_verb"] = task["workflow_verb"]
     if task.get("delegation_contract"):
         route_run_card["delegation_contract"] = task["delegation_contract"]
-    dump_json(planned_result_path, route_run_card)
+    return route_run_card
 
+
+def task_execution_result(
+    task: dict[str, Any],
+    routed: dict[str, Any],
+    execution: dict[str, Any],
+    expected_artifacts: list[str],
+    checkpoint_paths: list[str],
+    verification_evidence: dict[str, Any],
+    judgment: dict[str, Any],
+    planned_result_path: pathlib.Path,
+) -> dict[str, Any]:
     return {
         "task_id": task["task_id"],
         "title": task["title"],

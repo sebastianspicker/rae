@@ -46,12 +46,15 @@ step_fail() { echo -e "${RED}FAIL${NC}: $1"; }
 step_info() { echo -e "${BOLD}==> $1${NC}"; }
 
 run_core_checks() {
-  python3 "$root_dir/scripts/skills/validate_skills.py" --manifest "$root_dir/adapters/spec/adapter-manifest.json"
-  "$root_dir/scripts/check-no-stale-refs.sh"
-  "$root_dir/scripts/check-repo-hygiene.sh"
-  python3 "$root_dir/scripts/check-markdown-links.py" --root "$root_dir"
-  "$root_dir/scripts/check-adapter-sync.sh"
-  "$root_dir/scripts/check-orchestration-integrity.sh"
+  (
+    cd "$root_dir"
+    python3 scripts/skills/validate_skills.py --manifest adapters/spec/adapter-manifest.json
+    scripts/check-no-stale-refs.sh
+    scripts/check-repo-hygiene.sh
+    python3 scripts/check-markdown-links.py --root "$root_dir"
+    scripts/check-adapter-sync.sh
+    scripts/check-orchestration-integrity.sh
+  )
 }
 
 collect_changed_paths() {

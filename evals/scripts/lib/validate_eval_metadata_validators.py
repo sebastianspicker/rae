@@ -78,31 +78,28 @@ def validate_benchmark_card(path: pathlib.Path) -> tuple[str, str]:
 
 
 def _validate_benchmark_enums(data: dict[str, object], path: pathlib.Path) -> None:
-    if data["status"] not in BENCHMARK_STATUSES:
-        raise ValueError(f"{path.relative_to(ROOT)} has invalid status")
-    if data["judge_type"] not in JUDGE_TYPES:
-        raise ValueError(f"{path.relative_to(ROOT)} has invalid judge_type")
-    if data["contamination_risk"] not in CONTAMINATION_RISKS:
-        raise ValueError(f"{path.relative_to(ROOT)} has invalid contamination_risk")
-    if data["publication_status"] not in PUBLICATION_STATUSES:
-        raise ValueError(f"{path.relative_to(ROOT)} has invalid publication_status")
-
-    split_policy = data["split_policy"]
-    if not isinstance(split_policy, list) or not split_policy:
-        raise ValueError(
-            f"{path.relative_to(ROOT)} split_policy must be a non-empty array"
-        )
+    _validate_enum_values(data, path)
+    split_policy = _nonempty_list(data["split_policy"], path, "split_policy")
     if not set(split_policy).issubset(BENCHMARK_SPLITS):
-        raise ValueError(
-            f"{path.relative_to(ROOT)} split_policy contains invalid values"
-        )
+        raise ValueError(f"{path.relative_to(ROOT)} split_policy contains invalid values")
+    _nonempty_list(data["failure_classes"], path, "failure_classes")
 
-    failure_classes = data["failure_classes"]
-    if not isinstance(failure_classes, list) or not failure_classes:
-        raise ValueError(
-            f"{path.relative_to(ROOT)} failure_classes must be a non-empty array"
-        )
 
+def _validate_enum_values(data: dict[str, object], path: pathlib.Path) -> None:
+    for key, choices in (
+        ("status", BENCHMARK_STATUSES),
+        ("judge_type", JUDGE_TYPES),
+        ("contamination_risk", CONTAMINATION_RISKS),
+        ("publication_status", PUBLICATION_STATUSES),
+    ):
+        if data[key] not in choices:
+            raise ValueError(f"{path.relative_to(ROOT)} has invalid {key}")
+
+
+def _nonempty_list(value: object, path: pathlib.Path, field: str) -> list[object]:
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{path.relative_to(ROOT)} {field} must be a non-empty array")
+    return value
 
 
 def _validate_benchmark_files(data: dict[str, object], path: pathlib.Path) -> None:
@@ -111,9 +108,7 @@ def _validate_benchmark_files(data: dict[str, object], path: pathlib.Path) -> No
         raise ValueError(f"{path.relative_to(ROOT)} points to a missing scenario_path")
     task_specs_path = ROOT / str(data["task_specs_path"])
     if not task_specs_path.exists():
-        raise ValueError(
-            f"{path.relative_to(ROOT)} points to a missing task_specs_path"
-        )
+        raise ValueError(f"{path.relative_to(ROOT)} points to a missing task_specs_path")
     judge_path = ROOT / str(data["judge_path"])
     if not judge_path.exists():
         raise ValueError(f"{path.relative_to(ROOT)} points to a missing judge_path")
@@ -123,22 +118,16 @@ def _validate_benchmark_files(data: dict[str, object], path: pathlib.Path) -> No
 def _validate_benchmark_claims(data: dict[str, object], path: pathlib.Path) -> None:
     claim_links = data["claim_links"]
     if not isinstance(claim_links, list) or not claim_links:
-        raise ValueError(
-            f"{path.relative_to(ROOT)} claim_links must be a non-empty array"
-        )
+        raise ValueError(f"{path.relative_to(ROOT)} claim_links must be a non-empty array")
     for claim_link in claim_links:
         if not isinstance(claim_link, str) or not path_exists(claim_link):
-            raise ValueError(
-                f"{path.relative_to(ROOT)} has unresolved claim_link: {claim_link}"
-            )
+            raise ValueError(f"{path.relative_to(ROOT)} has unresolved claim_link: {claim_link}")
 
 
 def _validate_benchmark_regression(data: dict[str, object], path: pathlib.Path) -> None:
     regression_policy = data["regression_policy"]
     if not isinstance(regression_policy, dict):
-        raise ValueError(
-            f"{path.relative_to(ROOT)} regression_policy must be an object"
-        )
+        raise ValueError(f"{path.relative_to(ROOT)} regression_policy must be an object")
     baselines = regression_policy.get("baseline_results")
     if not isinstance(baselines, dict) or not baselines:
         raise ValueError(
@@ -151,25 +140,17 @@ def _validate_benchmark_regression(data: dict[str, object], path: pathlib.Path) 
                 f"{path.relative_to(ROOT)} baseline_results has invalid split key: {split_name}"
             )
         if not isinstance(baseline_path, str) or not path_exists(baseline_path):
-            raise ValueError(
-                f"{path.relative_to(ROOT)} baseline result missing: {baseline_path}"
-            )
+            raise ValueError(f"{path.relative_to(ROOT)} baseline result missing: {baseline_path}")
         validate_baseline_result(ROOT / baseline_path)
 
 
-def _validate_benchmark_release_gate(
-    data: dict[str, object], path: pathlib.Path
-) -> None:
+def _validate_benchmark_release_gate(data: dict[str, object], path: pathlib.Path) -> None:
     split_policy = data["split_policy"]
     claim_links = data["claim_links"]
     release_gate = data["release_gate"]
     if not isinstance(release_gate, dict):
         raise ValueError(f"{path.relative_to(ROOT)} release_gate must be an object")
-    required_splits = release_gate.get("required_splits")
-    if not isinstance(required_splits, list) or not required_splits:
-        raise ValueError(
-            f"{path.relative_to(ROOT)} release_gate.required_splits must be non-empty"
-        )
+    required_splits = _release_gate_list(release_gate, path, "required_splits")
     if not set(required_splits).issubset(BENCHMARK_SPLITS):
         raise ValueError(
             f"{path.relative_to(ROOT)} release_gate.required_splits contains invalid values"
@@ -179,17 +160,22 @@ def _validate_benchmark_release_gate(
             f"{path.relative_to(ROOT)} release_gate.required_splits "
             "must be a subset of split_policy"
         )
-    required_claim_links = release_gate.get("required_claim_links")
-    if not isinstance(required_claim_links, list) or not required_claim_links:
-        raise ValueError(
-            f"{path.relative_to(ROOT)} release_gate.required_claim_links must be non-empty"
-        )
+    required_claim_links = _release_gate_list(release_gate, path, "required_claim_links")
     for claim_link in required_claim_links:
         if claim_link not in claim_links:
             raise ValueError(
                 f"{path.relative_to(ROOT)} release_gate.required_claim_links "
                 "must be included in claim_links"
             )
+
+
+def _release_gate_list(
+    release_gate: dict[str, object], path: pathlib.Path, field: str
+) -> list[object]:
+    value = release_gate.get(field)
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"{path.relative_to(ROOT)} release_gate.{field} must be non-empty")
+    return value
 
 
 def validate_run_card(path: pathlib.Path, benchmarks: set[tuple[str, str]]) -> None:
@@ -228,18 +214,14 @@ def _validate_run_system(data: dict[str, object], path: pathlib.Path) -> None:
         raise ValueError(f"{path.relative_to(ROOT)} system must be an object")
     for key in ("model", "runtime"):
         if not isinstance(system.get(key), str) or not system[key]:
-            raise ValueError(
-                f"{path.relative_to(ROOT)} system.{key} must be a non-empty string"
-            )
+            raise ValueError(f"{path.relative_to(ROOT)} system.{key} must be a non-empty string")
 
 
 def _validate_run_metadata(data: dict[str, object], path: pathlib.Path) -> None:
-    routed_runtime = data.get("routed_runtime")
-    if routed_runtime is not None and routed_runtime not in RUNTIME_CHOICES | {"mixed"}:
-        raise ValueError(f"{path.relative_to(ROOT)} has invalid routed_runtime")
-    workflow_verb = data.get("workflow_verb")
-    if workflow_verb is not None and workflow_verb not in WORKFLOW_VERBS:
-        raise ValueError(f"{path.relative_to(ROOT)} has invalid workflow_verb")
+    _validate_optional_choice(
+        data.get("routed_runtime"), RUNTIME_CHOICES | {"mixed"}, path, "routed_runtime"
+    )
+    _validate_optional_choice(data.get("workflow_verb"), WORKFLOW_VERBS, path, "workflow_verb")
     if data.get("delegation_contract") is not None:
         validate_delegation_contract(
             data.get("delegation_contract"),
@@ -250,6 +232,17 @@ def _validate_run_metadata(data: dict[str, object], path: pathlib.Path) -> None:
             data.get("verification_evidence"),
             f"{path.relative_to(ROOT)} verification_evidence",
         )
+    _validate_optional_list_fields(data, path)
+
+
+def _validate_optional_choice(
+    value: object, choices: set[str], path: pathlib.Path, field: str
+) -> None:
+    if value is not None and value not in choices:
+        raise ValueError(f"{path.relative_to(ROOT)} has invalid {field}")
+
+
+def _validate_optional_list_fields(data: dict[str, object], path: pathlib.Path) -> None:
     for key in (
         "trace_paths",
         "artifact_paths",
@@ -261,9 +254,7 @@ def _validate_run_metadata(data: dict[str, object], path: pathlib.Path) -> None:
     ):
         value = data.get(key)
         if value is not None and not isinstance(value, list):
-            raise ValueError(
-                f"{path.relative_to(ROOT)} {key} must be an array when present"
-            )
+            raise ValueError(f"{path.relative_to(ROOT)} {key} must be an array when present")
 
 
 def _validate_benchmark_run(
@@ -272,7 +263,12 @@ def _validate_benchmark_run(
     benchmarks: set[tuple[str, str]],
 ) -> None:
     required = {
-        "benchmark_id", "benchmark_version", "split", "judge_version", "command", "result_path"
+        "benchmark_id",
+        "benchmark_version",
+        "split",
+        "judge_version",
+        "command",
+        "result_path",
     }
     missing = required - set(data)
     if missing:
@@ -292,11 +288,12 @@ def _validate_benchmark_run(
         raise ValueError(f"{path.relative_to(ROOT)} result_path must point under evals/results")
 
 
-def _validate_observation(
-    data: dict[str, object], path: pathlib.Path, evidence_type: str
-) -> None:
+def _validate_observation(data: dict[str, object], path: pathlib.Path, evidence_type: str) -> None:
     required = {
-        "observation_id", "observation_date", "capabilities_observed", "interpretation_limits"
+        "observation_id",
+        "observation_date",
+        "capabilities_observed",
+        "interpretation_limits",
     }
     missing = required - set(data)
     if missing:
@@ -341,11 +338,20 @@ def _validate_task(
         raise ValueError(f"{path.relative_to(ROOT)} task missing task_id")
     if task_id in seen:
         raise ValueError(f"{path.relative_to(ROOT)} duplicate task_id: {task_id}")
+    _validate_task_choices(task, path, task_id)
+    _validate_task_metadata(task, path, task_id, execution_profiles)
+    _validate_task_claim_links(task, path, task_id)
+    return task_id
+
+
+def _validate_task_choices(task: dict[str, object], path: pathlib.Path, task_id: str) -> None:
     if task.get("split") not in BENCHMARK_SPLITS:
         raise ValueError(f"{path.relative_to(ROOT)} task {task_id} has invalid split")
     if task.get("expected_runtime") not in RUNTIME_CHOICES:
         raise ValueError(f"{path.relative_to(ROOT)} task {task_id} has invalid expected_runtime")
-    _validate_task_metadata(task, path, task_id, execution_profiles)
+
+
+def _validate_task_claim_links(task: dict[str, object], path: pathlib.Path, task_id: str) -> None:
     claim_links = task.get("claim_links", [])
     if not isinstance(claim_links, list):
         raise ValueError(f"{path.relative_to(ROOT)} task {task_id} claim_links must be an array")
@@ -354,25 +360,13 @@ def _validate_task(
             raise ValueError(
                 f"{path.relative_to(ROOT)} task {task_id} has unresolved claim_link: {claim_link}"
             )
-    return task_id
 
 
 def _validate_task_metadata(
     task: dict[str, object], path: pathlib.Path, task_id: str, execution_profiles: set[str]
 ) -> None:
-    execution_profile = task.get("execution_profile")
-    if execution_profile is not None and (
-        not isinstance(execution_profile, str) or execution_profile not in execution_profiles
-    ):
-        raise ValueError(f"{path.relative_to(ROOT)} task {task_id} has invalid execution_profile")
-    if (
-        execution_profile is not None
-        and EXECUTION_PROFILE_RUNTIMES[execution_profile] != task["expected_runtime"]
-    ):
-        raise ValueError(
-            f"{path.relative_to(ROOT)} task {task_id} execution_profile "
-            "does not match expected_runtime"
-        )
+    execution_profile = _validate_execution_profile(task, path, task_id, execution_profiles)
+    _validate_profile_runtime(task, path, task_id, execution_profile)
     workflow_verb = task.get("workflow_verb")
     if workflow_verb is not None and workflow_verb not in WORKFLOW_VERBS:
         raise ValueError(f"{path.relative_to(ROOT)} task {task_id} has invalid workflow_verb")
@@ -383,20 +377,39 @@ def _validate_task_metadata(
         )
 
 
+def _validate_execution_profile(
+    task: dict[str, object], path: pathlib.Path, task_id: str, choices: set[str]
+) -> str | None:
+    profile = task.get("execution_profile")
+    if profile is not None and (not isinstance(profile, str) or profile not in choices):
+        raise ValueError(f"{path.relative_to(ROOT)} task {task_id} has invalid execution_profile")
+    return profile
+
+
+def _validate_profile_runtime(
+    task: dict[str, object], path: pathlib.Path, task_id: str, profile: str | None
+) -> None:
+    if profile is not None and EXECUTION_PROFILE_RUNTIMES[profile] != task["expected_runtime"]:
+        raise ValueError(
+            f"{path.relative_to(ROOT)} task {task_id} execution_profile "
+            "does not match expected_runtime"
+        )
+
+
 def validate_benchmark_schema_patterns() -> None:
     schema_path = EVALS / "schemas/benchmark-card.schema.json"
     schema = load_json(schema_path)
-    if not isinstance(schema, dict):
-        raise ValueError(
-            "evals/schemas/benchmark-card.schema.json must be a JSON object"
-        )
+    task_specs_pattern = _task_specs_pattern(schema)
+    for benchmark_path in iter_benchmark_paths():
+        _validate_task_specs_pattern(benchmark_path, task_specs_pattern)
 
+
+def _task_specs_pattern(schema: object) -> re.Pattern[str]:
+    if not isinstance(schema, dict):
+        raise ValueError("evals/schemas/benchmark-card.schema.json must be a JSON object")
     properties = schema.get("properties")
     if not isinstance(properties, dict):
-        raise ValueError(
-            "evals/schemas/benchmark-card.schema.json is missing properties"
-        )
-
+        raise ValueError("evals/schemas/benchmark-card.schema.json is missing properties")
     task_specs_schema = properties.get("task_specs_path")
     if not isinstance(task_specs_schema, dict) or not isinstance(
         task_specs_schema.get("pattern"), str
@@ -404,22 +417,18 @@ def validate_benchmark_schema_patterns() -> None:
         raise ValueError(
             "evals/schemas/benchmark-card.schema.json is missing task_specs_path.pattern"
         )
+    return re.compile(task_specs_schema["pattern"])
 
-    task_specs_pattern = re.compile(task_specs_schema["pattern"])
-    for benchmark_path in iter_benchmark_paths():
-        data = load_json(benchmark_path)
-        if not isinstance(data, dict):
-            raise ValueError(
-                f"{benchmark_path.relative_to(ROOT)} must be a JSON object"
-            )
-        task_specs_path = data.get("task_specs_path")
-        if not isinstance(task_specs_path, str) or not task_specs_pattern.match(
-            task_specs_path
-        ):
-            raise ValueError(
-                f"{benchmark_path.relative_to(ROOT)} task_specs_path does not match "
-                "benchmark-card schema pattern"
-            )
+
+def _validate_task_specs_pattern(path: pathlib.Path, pattern: re.Pattern[str]) -> None:
+    data = load_json(path)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path.relative_to(ROOT)} must be a JSON object")
+    task_specs_path = data.get("task_specs_path")
+    if not isinstance(task_specs_path, str) or not pattern.match(task_specs_path):
+        raise ValueError(
+            f"{path.relative_to(ROOT)} task_specs_path does not match benchmark-card schema pattern"
+        )
 
 
 def main() -> int:
