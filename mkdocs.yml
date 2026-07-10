@@ -113,6 +113,7 @@ nav:
       - Run Cards: research/run-cards/README.md
   - Governance:
       - Documentation Policy: governance/documentation-policy.md
+      - Quality Policy: governance/quality-policy.md
       - Citation Policy: governance/citation-policy.md
       - Source Quality Policy: governance/source-quality-policy.md
       - Release Criteria: governance/release-criteria.md
