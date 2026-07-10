@@ -46,10 +46,13 @@ jobs:
 
       - name: Sanitize CodeQL result locations
         if: ${{ always() }}
+        env:
+          CODEQL_LANGUAGE: ${{ matrix.language }}
         run: |
+          output_path="codeql-${CODEQL_LANGUAGE}-sanitized.json"
           jq -s -f scripts/sanitize-codeql-report.jq \
-            ../results/*.sarif > codeql-${{ matrix.language }}-sanitized.json
-          cat codeql-${{ matrix.language }}-sanitized.json
+            ../results/*.sarif > "$output_path"
+          cat "$output_path"
 
       - name: Upload sanitized CodeQL result locations
         if: ${{ always() }}
