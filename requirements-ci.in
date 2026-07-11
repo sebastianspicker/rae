@@ -1,7 +1,7 @@
 --only-binary :all:
 
 -r requirements-docs.txt
-pytest==9.0.3
+pytest==9.1.1
 ruff==0.15.20
 bandit==1.9.4
 checkov==3.3.7
