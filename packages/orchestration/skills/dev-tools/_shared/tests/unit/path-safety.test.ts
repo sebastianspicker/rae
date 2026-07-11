@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { mkdtempSync, mkdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { describe, expect, it } from "vitest";
 import { assertRepoRelativePath, resolveWithinWorkspace } from "../../src/path-safety.js";
 
 describe("assertRepoRelativePath", () => {
@@ -86,7 +86,9 @@ describe("resolveWithinWorkspace", () => {
 
   it("uses custom rootLabel in error messages", () => {
     expect(() =>
-      resolveWithinWorkspace("", "foo.txt", "ref", { rootLabel: "projectRoot" }),
+      resolveWithinWorkspace("", "foo.txt", "ref", {
+        rootLabel: "projectRoot",
+      }),
     ).toThrow("projectRoot must be a non-empty string");
   });
 
@@ -107,5 +109,17 @@ describe("resolveWithinWorkspace", () => {
     expect(() => resolveWithinWorkspace(workspace, "sneaky-link/secret.txt", "ref")).toThrow(
       "must resolve within",
     );
+  });
+
+  it("catches a nonexistent descendant beneath an escaping symlink", () => {
+    const workspace = path.join(tmp, "workspace-nonexistent-descendant");
+    const outside = path.join(tmp, "outside-nonexistent-descendant");
+    mkdirSync(workspace, { recursive: true });
+    mkdirSync(outside, { recursive: true });
+    symlinkSync(outside, path.join(workspace, "sneaky-link"));
+
+    expect(() =>
+      resolveWithinWorkspace(workspace, "sneaky-link/not-created/yet.json", "ref"),
+    ).toThrow("must resolve within");
   });
 });

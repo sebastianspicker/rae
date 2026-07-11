@@ -18,16 +18,25 @@ from common import (
     today_iso,
 )
 
-
 ROUTER_VERSION = "router-rule-v1"
 # Execution profiles are intentionally closed. A task may request a profile,
 # but the profile must still match the runtime selected by the router.
 EXECUTION_COMMANDS = {
     "orchestration-init": "./scripts/rae.sh workflow long-horizon init <workspace>",
-    "orchestration-review-loop": "./scripts/rae.sh orchestrate record-review-state --run-id <run_id> --state explain|fix|ship --status <status>",
-    "orchestration-observability": "./scripts/rae.sh orchestrate summarize-progress --run-id <run_id>",
-    "ralph-bootstrap-check": "./scripts/rae.sh workflow repo-audit bootstrap <repo> && MODE=audit ./.claude/ralph-audit/ralph.sh --check",
-    "coauthor-validate": "./scripts/rae.sh hygiene coauthor-cleaner --validate-only --no-push <url> <path>",
+    "orchestration-review-loop": (
+        "./scripts/rae.sh orchestrate record-review-state --run-id <run_id> "
+        "--state explain|fix|ship --status <status>"
+    ),
+    "orchestration-observability": (
+        "./scripts/rae.sh orchestrate summarize-progress --run-id <run_id>"
+    ),
+    "ralph-bootstrap-check": (
+        "./scripts/rae.sh workflow repo-audit bootstrap <repo> && MODE=audit "
+        "./.claude/ralph-audit/ralph.sh --check"
+    ),
+    "coauthor-validate": (
+        "./scripts/rae.sh hygiene coauthor-cleaner --validate-only --no-push <url> <path>"
+    ),
 }
 EXECUTION_PROFILE_RUNTIMES = {
     "orchestration-init": "orchestration",
@@ -40,13 +49,29 @@ EXECUTION_PROFILE_RUNTIMES = {
 
 def route_task(task: dict[str, Any]) -> dict[str, Any]:
     """Choose the smallest runtime that satisfies the task's explicit signals."""
+    runtime, reasons = select_runtime(task)
+    execution_profile = select_execution_profile(task, runtime)
+    profile_runtime = EXECUTION_PROFILE_RUNTIMES[execution_profile]
+    if profile_runtime != runtime:
+        raise ValueError(
+            f"execution_profile {execution_profile} is for runtime {profile_runtime}, "
+            f"not routed runtime {runtime}"
+        )
+    return {
+        "runtime": runtime,
+        "execution_profile": execution_profile,
+        "profile_runtime": profile_runtime,
+        "reasons": reasons,
+        "command_preview": EXECUTION_COMMANDS[execution_profile],
+    }
+
+
+def select_runtime(task: dict[str, Any]) -> tuple[str, list[str]]:
     reasons: list[str] = []
 
     if task.get("repo_hygiene_operation") or task.get("destructive_operation"):
         runtime = "tool"
-        reasons.append(
-            "narrow repo hygiene or destructive maintenance should stay explicit"
-        )
+        reasons.append("narrow repo hygiene or destructive maintenance should stay explicit")
     elif task.get("requires_explicit_gates") or task.get("horizon") == "multi-phase":
         runtime = "orchestration"
         reasons.append("multi-phase work with explicit gates belongs in orchestration")
@@ -61,35 +86,23 @@ def route_task(task: dict[str, Any]) -> dict[str, Any]:
         runtime = "ralph"
         reasons.append("defaulting to the smaller deterministic loop")
 
+    return runtime, reasons
+
+
+def select_execution_profile(task: dict[str, Any], runtime: str) -> str:
     if "execution_profile" not in task or task["execution_profile"] is None:
-        execution_profile = {
+        return {
             "orchestration": "orchestration-init",
             "ralph": "ralph-bootstrap-check",
             "tool": "coauthor-validate",
         }[runtime]
-    else:
-        execution_profile = task["execution_profile"]
-        if not isinstance(execution_profile, str) or not execution_profile:
-            raise ValueError("execution_profile must be a non-empty string")
-        if execution_profile not in EXECUTION_COMMANDS:
-            valid = ", ".join(sorted(EXECUTION_COMMANDS))
-            raise ValueError(
-                f"unknown execution_profile: {execution_profile}. Valid profiles: {valid}"
-            )
-    profile_runtime = EXECUTION_PROFILE_RUNTIMES[execution_profile]
-    if profile_runtime != runtime:
-        raise ValueError(
-            f"execution_profile {execution_profile} is for runtime {profile_runtime}, "
-            f"not routed runtime {runtime}"
-        )
-
-    return {
-        "runtime": runtime,
-        "execution_profile": execution_profile,
-        "profile_runtime": profile_runtime,
-        "reasons": reasons,
-        "command_preview": EXECUTION_COMMANDS[execution_profile],
-    }
+    execution_profile = task["execution_profile"]
+    if not isinstance(execution_profile, str) or not execution_profile:
+        raise ValueError("execution_profile must be a non-empty string")
+    if execution_profile not in EXECUTION_COMMANDS:
+        valid = ", ".join(sorted(EXECUTION_COMMANDS))
+        raise ValueError(f"unknown execution_profile: {execution_profile}. Valid profiles: {valid}")
+    return execution_profile
 
 
 def build_run_card(
@@ -139,9 +152,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Route a task spec to the umbrella runtime and emit a run card."
     )
-    parser.add_argument(
-        "--task-spec", required=True, help="Path to a task spec JSON file."
-    )
+    parser.add_argument("--task-spec", required=True, help="Path to a task spec JSON file.")
     parser.add_argument(
         "--output", required=True, help="Output path for the planned run card JSON."
     )
@@ -151,38 +162,14 @@ def main() -> int:
     parser.add_argument("--run-id", help="Optional explicit run id.")
     args = parser.parse_args()
 
-    task_spec_path = (
-        (ROOT / args.task_spec).resolve()
-        if not pathlib.Path(args.task_spec).is_absolute()
-        else pathlib.Path(args.task_spec).resolve()
-    )
+    task_spec_path = resolve_path(args.task_spec)
     task_data = load_json(task_spec_path)
-    if not isinstance(task_data, dict):
-        raise SystemExit("task spec must be a JSON object")
-    if "tasks" in task_data:
-        if not args.task_id:
-            raise SystemExit("task bundle requires --task-id")
-        tasks = task_data.get("tasks", [])
-        task = next(
-            (item for item in tasks if item.get("task_id") == args.task_id), None
-        )
-        if task is None:
-            raise SystemExit(f"task_id not found in bundle: {args.task_id}")
-        if "benchmark_id" in task_data:
-            task.setdefault("benchmark_id", task_data["benchmark_id"])
-        if "version" in task_data:
-            task.setdefault("benchmark_version", task_data["version"])
-    else:
-        task = task_data
+    task = select_task(task_data, args.task_id)
     if "task_id" not in task:
         raise SystemExit("task spec must contain task_id")
 
     routed = route_task(task)
-    output_path = (
-        (ROOT / args.output).resolve()
-        if not pathlib.Path(args.output).is_absolute()
-        else pathlib.Path(args.output).resolve()
-    )
+    output_path = resolve_path(args.output)
     run_id = args.run_id or new_run_id(task["task_id"])
     run_card = build_run_card(
         task=task,
@@ -194,6 +181,37 @@ def main() -> int:
     dump_json(output_path, run_card)
     print(repo_relpath(output_path))
     return 0
+
+
+def resolve_path(value: str) -> pathlib.Path:
+    path = pathlib.Path(value)
+    return (ROOT / path).resolve() if not path.is_absolute() else path.resolve()
+
+
+def select_task(task_data: Any, task_id: str | None) -> dict[str, Any]:
+    if not isinstance(task_data, dict):
+        raise SystemExit("task spec must be a JSON object")
+    if "tasks" not in task_data:
+        return task_data
+    if not task_id:
+        raise SystemExit("task bundle requires --task-id")
+    task = next(
+        (item for item in task_data.get("tasks", []) if item.get("task_id") == task_id),
+        None,
+    )
+    if task is None:
+        raise SystemExit(f"task_id not found in bundle: {task_id}")
+    copy_bundle_metadata(task, task_data)
+    return task
+
+
+def copy_bundle_metadata(task: dict[str, Any], task_data: dict[str, Any]) -> None:
+    for source_key, target_key in (
+        ("benchmark_id", "benchmark_id"),
+        ("version", "benchmark_version"),
+    ):
+        if source_key in task_data:
+            task.setdefault(target_key, task_data[source_key])
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ import re
 import subprocess
 import sys
 
-
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 REQUIRED_FRONTMATTER = {"status", "owner", "last_reviewed", "source_of_truth"}
@@ -129,7 +128,9 @@ def validate_required_files() -> None:
 
 
 def validate_eval_metadata() -> None:
-    subprocess.run(
+    # B603 rationale: fixed current interpreter and repository validation module.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
         cwd=ROOT,
         check=True,
@@ -139,8 +140,13 @@ def validate_eval_metadata() -> None:
 def run_mkdocs_strict() -> None:
     mkdocs_env = os.environ.copy()
     mkdocs_env["NO_MKDOCS_2_WARNING"] = "true"
-    subprocess.run(
-        ["mkdocs", "build", "--strict"], cwd=ROOT, check=True, env=mkdocs_env
+    # B603 rationale: fixed current interpreter and pinned MkDocs module.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    subprocess.run(  # nosec B603
+        [sys.executable, "-m", "mkdocs", "build", "--strict"],
+        cwd=ROOT,
+        check=True,
+        env=mkdocs_env,
     )
 
 
@@ -159,4 +165,4 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except Exception as exc:  # pragma: no cover - simple CLI path
         print(f"VERDICT: FAIL\n{exc}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from exc

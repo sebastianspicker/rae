@@ -9,6 +9,7 @@ source "$TESTS_DIR/helpers.sh"
 
 FILTER=""
 VERBOSE=false
+export VERBOSE
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,6 +58,7 @@ for test_file in "$TESTS_DIR"/test-*.sh; do
     PASS_COUNT=0
     FAIL_COUNT=0
     SKIP_COUNT=0
+    export PASS_COUNT FAIL_COUNT SKIP_COUNT
 
     # Run test in subshell to isolate failures
     set +e

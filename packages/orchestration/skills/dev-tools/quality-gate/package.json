@@ -6,8 +6,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "lint": "biome lint --config-path ../../../biome.json src",
-    "format:check": "biome check --formatter-enabled=true --linter-enabled=false --config-path ../../../biome.json src",
+    "lint": "biome lint --config-path ../../../biome.json --vcs-enabled=false src",
+    "format:check": "biome check --formatter-enabled=true --linter-enabled=false --config-path ../../../biome.json --vcs-enabled=false src",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -17,7 +17,7 @@
   },
   "devDependencies": {
     "@types/node": "25.5.0",
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "2.5.2",
     "typescript": "5.9.3",
     "vitest": "4.1.0"
   }

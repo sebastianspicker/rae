@@ -1,14 +1,24 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
+import { CONFIG_IDS } from "../lib/constants.mjs";
 import {
   getRunDir,
   readJson,
   resolveWithinRepo,
   toWorkspaceRelative,
 } from "../pipeline/lib/state.mjs";
-import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
-import { CONFIG_IDS } from "../lib/constants.mjs";
+
+const UNSAFE_AGGREGATION_KEYS = new Set(["__proto__", "prototype", "constructor", "toString"]);
+
+function assertSafeAggregationKey(key, label) {
+  if (typeof key !== "string" || UNSAFE_AGGREGATION_KEYS.has(key)) {
+    throw new Error(`${label} contains an unsafe key`);
+  }
+  return key;
+}
 
 function parseArgs(argv) {
   const args = parseCliArgs(
@@ -44,28 +54,28 @@ function p95(values) {
 
 function driftScoreFromClaims(claims) {
   if (!Array.isArray(claims) || claims.length === 0) return 0;
-  const scoreByStatus = {
-    verified: 0,
-    partial: 0.5,
-    violated: 1,
-    unverifiable: 0.75,
-  };
-  const values = claims.map((c) => scoreByStatus[c.verification_status] ?? 0.75);
+  const scoreByStatus = new Map([
+    ["verified", 0],
+    ["partial", 0.5],
+    ["violated", 1],
+    ["unverifiable", 0.75],
+  ]);
+  const values = claims.map((c) => scoreByStatus.get(c.verification_status) ?? 0.75);
   return mean(values);
 }
 
-function gatePassRate(gates) {
-  const byPhase = {};
+export function gatePassRate(gates) {
+  const byPhase = new Map();
   for (const gate of gates) {
-    if (!byPhase[gate.phase]) byPhase[gate.phase] = { pass: 0, total: 0 };
-    byPhase[gate.phase].total += 1;
-    if (gate.status === "pass") byPhase[gate.phase].pass += 1;
+    const phase = assertSafeAggregationKey(gate.phase, "gate phase");
+    const stats = byPhase.get(phase) ?? { pass: 0, total: 0 };
+    stats.total += 1;
+    if (gate.status === "pass") stats.pass += 1;
+    byPhase.set(phase, stats);
   }
-  const result = {};
-  for (const [phase, stats] of Object.entries(byPhase)) {
-    result[phase] = stats.total === 0 ? 0 : stats.pass / stats.total;
-  }
-  return result;
+  return Object.fromEntries(
+    [...byPhase].map(([phase, stats]) => [phase, stats.total === 0 ? 0 : stats.pass / stats.total]),
+  );
 }
 
 function loadRunMetrics(root, runId) {
@@ -122,18 +132,18 @@ function loadRunMetrics(root, runId) {
   };
 }
 
-function aggregateMetrics(configs) {
-  const pipelineSuccess = {};
-  const gatePassRates = {};
-  const meanDrift = {};
-  const driftP95 = {};
-  const meanCost = {};
-  const meanLatency = {};
-  const dedupRatio = {};
-  const securityTtc = {};
+export function aggregateMetrics(configs) {
+  const pipelineSuccess = new Map();
+  const gatePassRates = new Map();
+  const meanDrift = new Map();
+  const driftP95 = new Map();
+  const meanCost = new Map();
+  const meanLatency = new Map();
+  const dedupRatio = new Map();
+  const securityTtc = new Map();
 
   for (const config of configs) {
-    const id = config.id;
+    const id = assertSafeAggregationKey(config.id, "configuration id");
     const runs = config.runs;
     const successValues = runs.map((r) => (r.success ? 1 : 0));
     const driftValues = runs.map((r) => Number(r.drift_score ?? 0));
@@ -143,28 +153,28 @@ function aggregateMetrics(configs) {
     const ttcValues = runs.map((r) => Number(r.security_time_to_closure_s ?? 0));
     const gates = runs.flatMap((r) => r.gate_results ?? []);
 
-    pipelineSuccess[id] = mean(successValues);
-    gatePassRates[id] = gatePassRate(gates);
-    meanDrift[id] = mean(driftValues);
-    driftP95[id] = p95(driftValues);
-    meanCost[id] = mean(costValues);
-    meanLatency[id] = mean(latencyValues);
-    dedupRatio[id] = mean(dedupValues);
-    securityTtc[id] = {
+    pipelineSuccess.set(id, mean(successValues));
+    gatePassRates.set(id, gatePassRate(gates));
+    meanDrift.set(id, mean(driftValues));
+    driftP95.set(id, p95(driftValues));
+    meanCost.set(id, mean(costValues));
+    meanLatency.set(id, mean(latencyValues));
+    dedupRatio.set(id, mean(dedupValues));
+    securityTtc.set(id, {
       mean: mean(ttcValues),
       p95: p95(ttcValues),
-    };
+    });
   }
 
   return {
-    pipeline_success_rate: pipelineSuccess,
-    gate_pass_rate_by_phase: gatePassRates,
-    mean_drift_score: meanDrift,
-    drift_p95: driftP95,
-    mean_cost_usd_per_run: meanCost,
-    mean_latency_s_per_run: meanLatency,
-    dedup_ratio: dedupRatio,
-    security_time_to_closure: securityTtc,
+    pipeline_success_rate: Object.fromEntries(pipelineSuccess),
+    gate_pass_rate_by_phase: Object.fromEntries(gatePassRates),
+    mean_drift_score: Object.fromEntries(meanDrift),
+    drift_p95: Object.fromEntries(driftP95),
+    mean_cost_usd_per_run: Object.fromEntries(meanCost),
+    mean_latency_s_per_run: Object.fromEntries(meanLatency),
+    dedup_ratio: Object.fromEntries(dedupRatio),
+    security_time_to_closure: Object.fromEntries(securityTtc),
   };
 }
 
@@ -212,11 +222,13 @@ function main() {
   process.stdout.write(`${outPath}\n`);
 }
 
-try {
-  main();
-} catch (error) {
-  const code = error?.code || "E_EVAL_AGGREGATE";
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`${code}: ${message}\n`);
-  process.exit(1);
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    main();
+  } catch (error) {
+    const code = error?.code || "E_EVAL_AGGREGATE";
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${code}: ${message}\n`);
+    process.exit(1);
+  }
 }

@@ -9,7 +9,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -26,44 +25,58 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="replace")
 
 
-def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[SkillError]]:
+def _read_frontmatter(skill_md: Path) -> tuple[str | None, list[SkillError]]:
     text = _read_text(skill_md)
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        return None, None, [SkillError(skill_md, "Missing YAML frontmatter (must start with ---).")]
+        return None, [SkillError(skill_md, "Missing YAML frontmatter (must start with ---).")]
+    try:
+        end_idx = next(i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---")
+    except StopIteration:
+        return None, [SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")]
+    return "\n".join(lines[1:end_idx]), []
 
-    end_idx = None
-    for i in range(1, len(lines)):
-        if lines[i].strip() == "---":
-            end_idx = i
-            break
-    if end_idx is None:
-        return None, None, [SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")]
 
-    front = "\n".join(lines[1:end_idx])
+def _frontmatter_value(line: str, field: str) -> str | None:
+    match = re.match(rf"^{field}:\s*(.+?)\s*$", line)
+    if match:
+        return match.group(1).strip().strip('"').strip("'")
+    return None
+
+
+def _parse_frontmatter_fields(front: str) -> tuple[str | None, str | None]:
     name = None
     description = None
-
     for raw in front.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
         if name is None:
-            m = re.match(r"^name:\s*(.+?)\s*$", line)
-            if m:
-                name = m.group(1).strip().strip('"').strip("'")
+            name = _frontmatter_value(line, "name")
+            if name is not None:
                 continue
         if description is None:
-            m = re.match(r"^description:\s*(.+?)\s*$", line)
-            if m:
-                description = m.group(1).strip().strip('"').strip("'")
-                continue
+            description = _frontmatter_value(line, "description")
+    return name, description
 
+
+def _required_field_errors(
+    skill_md: Path, name: str | None, description: str | None
+) -> list[SkillError]:
     errors: list[SkillError] = []
     if name is None:
         errors.append(SkillError(skill_md, "Frontmatter missing required field: name"))
     if description is None:
         errors.append(SkillError(skill_md, "Frontmatter missing required field: description"))
+    return errors
+
+
+def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[SkillError]]:
+    front, read_errors = _read_frontmatter(skill_md)
+    if front is None:
+        return None, None, read_errors
+    name, description = _parse_frontmatter_fields(front)
+    errors = _required_field_errors(skill_md, name, description)
     return name, description, errors
 
 
@@ -83,10 +96,16 @@ def _validate_skill_dir(skill_dir: Path) -> list[SkillError]:
         if not NAME_RE.match(name):
             errors.append(SkillError(skill_md, f"Invalid name: {name!r}"))
         if name != skill_dir.name:
-            errors.append(SkillError(skill_md, f"name {name!r} does not match directory {skill_dir.name!r}"))
+            errors.append(
+                SkillError(skill_md, f"name {name!r} does not match directory {skill_dir.name!r}")
+            )
 
     if description is not None and not (1 <= len(description) <= 1024):
-        errors.append(SkillError(skill_md, f"description length out of range ({len(description)}; must be 1..1024)"))
+        errors.append(
+            SkillError(
+                skill_md, f"description length out of range ({len(description)}; must be 1..1024)"
+            )
+        )
 
     body = _read_text(skill_md)
     line_count = body.count("\n") + 1
@@ -142,7 +161,9 @@ def _parse_roots(args: argparse.Namespace) -> list[Path]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate skill roots against AgentSkills constraints.")
+    parser = argparse.ArgumentParser(
+        description="Validate skill roots against AgentSkills constraints."
+    )
     parser.add_argument(
         "--roots",
         default="",

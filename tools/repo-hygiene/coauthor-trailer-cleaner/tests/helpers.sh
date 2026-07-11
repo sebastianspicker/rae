@@ -5,6 +5,7 @@ set -euo pipefail
 
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/coauthor-trailer-cleaner.sh"
 LIB1_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/coauthor-trailer-cleaner.part1.sh"
+export SCRIPT_PATH LIB1_PATH
 TEST_TEMP_DIRS=()
 DEFAULT_TARGET_NAME="Cursor"
 DEFAULT_TARGET_EMAIL="cursoragent@cursor.com"
@@ -98,10 +99,13 @@ setup_clean_test_repo() {
 
 assert_equals() {
   local expected="$1" actual="$2" msg="${3:-}"
+  local default_msg
   if [[ "$expected" == "$actual" ]]; then
     return 0
   fi
-  echo "    ${RED}ASSERTION FAILED${RESET}: ${msg:-expected '$expected', got '$actual'}"
+  printf -v default_msg "expected '%s', got '%s'" "$expected" "$actual"
+  msg="${msg:-$default_msg}"
+  echo "    ${RED}ASSERTION FAILED${RESET}: ${msg}"
   echo "      expected: '$expected'"
   echo "      actual:   '$actual'"
   return 1
@@ -109,19 +113,25 @@ assert_equals() {
 
 assert_contains() {
   local haystack="$1" needle="$2" msg="${3:-}"
+  local default_msg
   if [[ "$haystack" == *"$needle"* ]]; then
     return 0
   fi
-  echo "    ${RED}ASSERTION FAILED${RESET}: ${msg:-expected to contain '$needle'}"
+  printf -v default_msg "expected to contain '%s'" "$needle"
+  msg="${msg:-$default_msg}"
+  echo "    ${RED}ASSERTION FAILED${RESET}: ${msg}"
   return 1
 }
 
 assert_not_contains() {
   local haystack="$1" needle="$2" msg="${3:-}"
+  local default_msg
   if [[ "$haystack" != *"$needle"* ]]; then
     return 0
   fi
-  echo "    ${RED}ASSERTION FAILED${RESET}: ${msg:-expected NOT to contain '$needle'}"
+  printf -v default_msg "expected NOT to contain '%s'" "$needle"
+  msg="${msg:-$default_msg}"
+  echo "    ${RED}ASSERTION FAILED${RESET}: ${msg}"
   return 1
 }
 

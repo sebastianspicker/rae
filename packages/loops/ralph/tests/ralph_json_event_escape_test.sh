@@ -23,6 +23,7 @@ run_json_event_escape_case() {
 
     RALPH_OUTPUT_FORMAT="json"
     EVENT_LOG=""
+    export RALPH_OUTPUT_FORMAT EVENT_LOG
 
     log_event $'WARN line1\nline2\ttab'
   ) 2> "$stderr_file"

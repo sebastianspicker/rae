@@ -1,24 +1,17 @@
 import { existsSync } from "node:fs";
-import { PHASE_ORDER } from "../../lib/constants.mjs";
 import { badInput } from "./errors.mjs";
 import {
   getRepoRoot,
   getRunDir,
-  loadPipelineState,
   readJsonStrict,
   resolveWithinDirectory,
   resolveWithinRepo,
-  resolveWorkspaceRootForRun,
   toWorkspaceRelative,
-  writeJson,
 } from "./state.mjs";
 import { appendTraceEvent } from "./trace.mjs";
-import { phaseArtifactDefaults } from "./artifacts.mjs";
 import { buildRequirementCoverageLedger } from "./traceability.mjs";
-import { stageGateInput } from "./gates.mjs";
 import { coalesce, mergeStageProfile, toNumber } from "./utils.mjs";
 
-const PHASES = PHASE_ORDER;
 export function loadTasksetTask(tasksetRef, taskId) {
   if (!tasksetRef) return null;
   const root = getRepoRoot();
@@ -40,7 +33,9 @@ export function resolveTaskCase(taskContext, testCaseId) {
   const testCases = Array.isArray(taskContext?.task?.test_cases) ? taskContext.task.test_cases : [];
   if (testCases.length === 0) return null;
   if (!testCaseId) return testCases[0];
-  const testCase = testCases.find((entry) => entry.name === testCaseId || entry.trace_id === testCaseId);
+  const testCase = testCases.find(
+    (entry) => entry.name === testCaseId || entry.trace_id === testCaseId,
+  );
   if (!testCase) {
     throw badInput(`test case not found in taskset task: ${testCaseId}`);
   }
@@ -99,7 +94,14 @@ export function resolveTaskSession(phase, taskContext, options) {
   return null;
 }
 
-export function appendTaskSessionEvent(runId, phase, event, status, taskSession, root = getRepoRoot()) {
+export function appendTaskSessionEvent(
+  runId,
+  phase,
+  event,
+  status,
+  taskSession,
+  root = getRepoRoot(),
+) {
   if (!taskSession?.session) return;
   appendTraceEvent(
     runId,
@@ -152,7 +154,8 @@ function resolveActivityId(phase, taskSession) {
   if (phase === "adversarial-review") return "adversarial_review_lead";
   if (phase === "plan") return "plan_synthesis";
   if (phase === "pmatch") return "pmatch_adjudicator";
-  if (phase === "build") return taskSession?.session?.session_kind === "build-task" ? "build_worker" : "build_lead";
+  if (phase === "build")
+    return taskSession?.session?.session_kind === "build-task" ? "build_worker" : "build_lead";
   if (phase === "quality-static") return "quality_static";
   if (phase === "quality-tests") return "quality_tests_case";
   if (phase === "post-build") return "post_build";

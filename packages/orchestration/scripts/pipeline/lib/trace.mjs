@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ensureRunDirs, getRepoRoot, getRunDir, toWorkspaceRelative, writeJson } from "./state.mjs";
 import { badInput, badTrace } from "./errors.mjs";
@@ -27,9 +27,7 @@ export function getTracePath(runId, root = getRepoRoot()) {
 export function ensureTraceFile(runId, root = getRepoRoot()) {
   ensureRunDirs(runId, root);
   const tracePath = getTracePath(runId, root);
-  if (!existsSync(tracePath)) {
-    writeFileSync(tracePath, "", "utf8");
-  }
+  writeFileSync(tracePath, "", { encoding: "utf8", flag: "a" });
   return tracePath;
 }
 

@@ -101,6 +101,41 @@ def _iter_markdown_files(root: Path, excludes: list[str]) -> list[Path]:
     return out
 
 
+def _validate_anchor(path: Path, anchor: str, root: Path) -> str | None:
+    anchors = _anchors_for_file(path)
+    if anchor not in anchors:
+        return f"missing anchor '#{anchor}' in {path.relative_to(root)}"
+    return None
+
+
+def _validate_local_anchor(source_file: Path, target: str, root: Path, strict: bool) -> str | None:
+    if not strict:
+        return None
+    anchor = target[1:]
+    if anchor:
+        return _validate_anchor(source_file, anchor, root)
+    return None
+
+
+def _validate_relative_target(
+    source_file: Path, target: str, root: Path, strict: bool
+) -> str | None:
+    path_part, _, anchor = target.partition("#")
+    dest = (source_file.parent / path_part).resolve(strict=False)
+    root_real = root.resolve(strict=False)
+    try:
+        dest.relative_to(root_real)
+    except ValueError:
+        return f"target escapes repository root: {target}"
+    if not dest.exists():
+        return f"missing target: {target}"
+    if strict and anchor:
+        if not dest.is_file():
+            return f"anchor '#{anchor}' points to non-file target: {target}"
+        return _validate_anchor(dest, anchor, root)
+    return None
+
+
 def _validate_target(
     source_file: Path,
     target: str,
@@ -110,34 +145,10 @@ def _validate_target(
     if not target:
         return "empty link target"
     if target.startswith("#"):
-        if not strict:
-            return None
-        anchor = target[1:]
-        anchors = _anchors_for_file(source_file)
-        if anchor and anchor not in anchors:
-            return f"missing anchor '#{anchor}' in {source_file.relative_to(root)}"
-        return None
+        return _validate_local_anchor(source_file, target, root, strict)
     if _is_external(target):
         return None
-
-    path_part, _, anchor = target.partition("#")
-    dest = (source_file.parent / path_part).resolve(strict=False)
-    root_real = root.resolve(strict=False)
-    try:
-        dest.relative_to(root_real)
-    except ValueError:
-        return f"target escapes repository root: {target}"
-
-    if not dest.exists():
-        return f"missing target: {target}"
-
-    if strict and anchor:
-        if not dest.is_file():
-            return f"anchor '#{anchor}' points to non-file target: {target}"
-        anchors = _anchors_for_file(dest)
-        if anchor not in anchors:
-            return f"missing anchor '#{anchor}' in {dest.relative_to(root)}"
-    return None
+    return _validate_relative_target(source_file, target, root, strict)
 
 
 def _check_file(path: Path, root: Path, strict: bool) -> list[str]:

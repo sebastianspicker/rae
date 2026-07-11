@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 import pathlib
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "scripts" / "verify_repo.py"
 
@@ -22,12 +21,13 @@ def test_parse_frontmatter_accepts_crlf(tmp_path: pathlib.Path) -> None:
     docs_dir.mkdir()
     sample = docs_dir / "sample.md"
     sample.write_text(
-        "---\r\nstatus: draft\r\nowner: core\r\nlast_reviewed: 2026-04-17\r\nsource_of_truth: ../../README.md\r\n---\r\n\r\n# Sample\r\n",
+        "---\r\nstatus: draft\r\nowner: core\r\nlast_reviewed: 2026-04-17\r\n"
+        "source_of_truth: ../../README.md\r\n---\r\n\r\n# Sample\r\n",
         encoding="utf-8",
     )
 
-    setattr(module, "ROOT", tmp_path)
-    setattr(module, "DOCS", docs_dir)
+    module.ROOT = tmp_path
+    module.DOCS = docs_dir
 
     keys = module.parse_frontmatter(sample)
     assert {"status", "owner", "last_reviewed", "source_of_truth"}.issubset(keys)
@@ -44,12 +44,13 @@ def test_validate_links_rejects_repo_escape(tmp_path: pathlib.Path) -> None:
     outside.write_text("# outside\n", encoding="utf-8")
     doc = docs_dir / "escape.md"
     doc.write_text(
-        "---\nstatus: draft\nowner: core\nlast_reviewed: 2026-04-17\nsource_of_truth: ../../README.md\n---\n\n[escape](../../outside-note.md)\n",
+        "---\nstatus: draft\nowner: core\nlast_reviewed: 2026-04-17\n"
+        "source_of_truth: ../../README.md\n---\n\n[escape](../../outside-note.md)\n",
         encoding="utf-8",
     )
 
-    setattr(module, "ROOT", tmp_path)
-    setattr(module, "DOCS", docs_dir)
+    module.ROOT = tmp_path
+    module.DOCS = docs_dir
 
     try:
         module.validate_links()
@@ -70,12 +71,13 @@ def test_validate_links_skips_optional_missing_root_docs(
     (tmp_path / "README.md").write_text("# Root\n", encoding="utf-8")
     doc = docs_dir / "ok.md"
     doc.write_text(
-        "---\nstatus: draft\nowner: core\nlast_reviewed: 2026-04-17\nsource_of_truth: ../../README.md\n---\n\n[readme](../README.md)\n",
+        "---\nstatus: draft\nowner: core\nlast_reviewed: 2026-04-17\n"
+        "source_of_truth: ../../README.md\n---\n\n[readme](../README.md)\n",
         encoding="utf-8",
     )
 
-    setattr(module, "ROOT", tmp_path)
-    setattr(module, "DOCS", docs_dir)
+    module.ROOT = tmp_path
+    module.DOCS = docs_dir
 
     module.validate_links()
 
@@ -91,13 +93,14 @@ def test_validate_doc_source_density_counts_unique_sources(
         ["- [One](bibliography.md#src-one)"] * module.MIN_EXTERNAL_SOURCES
     )
     doc.write_text(
-        "---\nstatus: draft\nowner: core\nlast_reviewed: 2026-04-17\nsource_of_truth: editorial\n---\n\n"
+        "---\nstatus: draft\nowner: core\nlast_reviewed: 2026-04-17\n"
+        "source_of_truth: editorial\n---\n\n"
         f"{repeated}\n",
         encoding="utf-8",
     )
 
-    setattr(module, "ROOT", tmp_path)
-    setattr(module, "DOCS", docs_dir)
+    module.ROOT = tmp_path
+    module.DOCS = docs_dir
 
     try:
         module.validate_doc_source_density()

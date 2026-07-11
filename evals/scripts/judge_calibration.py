@@ -19,7 +19,9 @@ def judge_case(case: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Calibrate the programmatic judge against gold cases.")
+    parser = argparse.ArgumentParser(
+        description="Calibrate the programmatic judge against gold cases."
+    )
     parser.add_argument("--judge-config", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
