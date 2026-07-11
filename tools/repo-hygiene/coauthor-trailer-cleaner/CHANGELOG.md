@@ -5,7 +5,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [2.0.0] - 2026-04-12
 
-### Changed
+### Changed (2.0.0)
 - Generalized the tool from a Cursor-only history rewrite into a configurable
   co-author trailer cleaner
 - Renamed the public command surface to `coauthor-trailer-cleaner.sh`
@@ -15,7 +15,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.3.2] - 2026-03-22
 
-### Fixed
+### Fixed (1.3.2)
 - Fixed `grep -P` portability issue in test suite — replaced with Python-based
   check for macOS compatibility (ISSUE-016)
 - Fixed unquoted `$TARGET_REMOTE` in for-each-ref glob pattern (ISSUE-018)
@@ -23,28 +23,28 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Removed redundant newline sanitization in `_json_extract` Python code,
   now handled by upstream `validate_config_json` (ISSUE-020)
 
-### Improved
+### Improved (1.3.2)
 - CI test job now depends on lint job (`needs: lint`) — tests only run after
   linting passes (ISSUE-017)
 - Documented `--option=value` syntax limitation in usage text (ISSUE-021)
 
 ## [1.3.1] - 2026-03-22
 
-### Fixed
+### Fixed (1.3.1)
 - Fixed backup branch name collisions when same repo processed twice in batch
   by adding a counter to the branch name (ISSUE-013)
 - Added `backupRemote` pattern validation to `validate_config_json`, consistent
   with schema and CLI validation (ISSUE-014)
 - Updated prompt line numbers to match post-Round 1 codebase (ISSUE-015)
 
-### Added
+### Added (1.3.1)
 - 9 new tests: detached HEAD, relative path, --repos-file (plaintext + JSON),
   --backup-remote validation, config path validation, URL trailing slash
 - Test suite now has 37 tests (up from 28)
 
 ## [1.3.0] - 2026-03-22
 
-### Fixed
+### Fixed (1.3.0)
 - Fixed exit code capture bug in `check_cursor_trailers()` where `$?` in the else
   branch did not reflect the pipeline's actual exit code (ISSUE-001)
 - Fixed dead code and fragile error handling in `do_push_phase()` where `|| true`
@@ -52,7 +52,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed `run_cmd` silently swallowing stderr in quiet mode (ISSUE-005)
 - Fixed `|| true` in verbose branch listing masking unrelated errors (ISSUE-009)
 
-### Added
+### Added (1.3.0)
 - Runtime config validation via `validate_config_json()` using pure Python stdlib
 - Test suite: 17 unit tests, 11 integration tests (28 total)
 - CI job for integration tests with git-filter-repo
@@ -60,7 +60,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - `CHANGELOG.md`
 - Warning when remote backup file is empty before filter-repo
 
-### Improved
+### Improved (1.3.0)
 - JSON schema: `additionalProperties: false`, URL pattern validation, path pattern,
   `minLength` constraints, property descriptions
 - Error handling: replaced fragile `|| true` patterns with explicit exit code capture
@@ -71,10 +71,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.2.1] - 2026-03-13
 
-### Fixed
+### Fixed (1.2.1)
 - Hardened rewrite flow and improved safety checks
 
-### Added
+### Added (1.2.1)
 - CI workflow with ShellCheck, syntax checks, JSON validation
 - Dependabot for GitHub Actions updates
 - CODEOWNERS and security policy
@@ -82,7 +82,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.0.0] - 2026-03-13
 
-### Added
+### Added (1.0.0)
 - Initial release: remove Cursor co-author trailers from git history
 - Single-repo and batch processing support
 - JSON config with defaults and repos array

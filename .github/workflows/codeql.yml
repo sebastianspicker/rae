@@ -9,6 +9,8 @@ on:
     branches:
       - main
       - dev
+  schedule:
+    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions: {}
@@ -28,12 +30,34 @@ jobs:
           - python
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@b0c4fd77f6c559021d78430ec4d0d169ae74a4eb
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@b0c4fd77f6c559021d78430ec4d0d169ae74a4eb
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+        with:
+          output: ../results
+
+      - name: Sanitize CodeQL result locations
+        if: ${{ always() }}
+        env:
+          CODEQL_LANGUAGE: ${{ matrix.language }}
+        run: |
+          output_path="codeql-${CODEQL_LANGUAGE}-sanitized.json"
+          jq -s -f scripts/sanitize-codeql-report.jq \
+            ../results/*.sarif > "$output_path"
+          cat "$output_path"
+
+      - name: Upload sanitized CodeQL result locations
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: codeql-${{ matrix.language }}-sanitized
+          path: codeql-${{ matrix.language }}-sanitized.json
+          if-no-files-found: error

@@ -38,79 +38,85 @@ export interface TaggedFinding extends Finding {
 }
 
 export function deduplicateFindings(taggedFindings: TaggedFinding[]): DedupFinding[] {
-  const groups: Map<string, TaggedFinding[]> = new Map();
-  for (const f of taggedFindings) {
-    const cat = f.category.toLowerCase().trim();
-    const existing = groups.get(cat) ?? [];
-    existing.push(f);
-    groups.set(cat, existing);
-  }
-
-  // Pre-tokenize all finding descriptions to avoid redundant tokenization in O(n^2) comparisons
-  const tokenCache = new Map<string, Set<string>>();
-  function cachedTokenize(text: string): Set<string> {
-    let tokens = tokenCache.get(text);
-    if (!tokens) {
-      tokens = tokenize(text);
-      tokenCache.set(text, tokens);
-    }
-    return tokens;
-  }
-
+  const groups = groupByCategory(taggedFindings);
+  const cachedTokenize = tokenCache();
   const results: DedupFinding[] = [];
-
-  for (const [, categoryFindings] of groups) {
-    const merged: DedupFinding[] = [];
-
-    for (const f of categoryFindings) {
-      const fTokens = cachedTokenize(f.description);
-      let wasMerged = false;
-      for (const m of merged) {
-        const mTokens = cachedTokenize(m.description);
-        if (tokenSimilarity(fTokens, mTokens) >= SIMILARITY_THRESHOLD) {
-          if (!m.source_models.includes(f._source)) {
-            m.source_models.push(f._source);
-          }
-          if (severityRank(f.severity) > severityRank(m.severity)) {
-            m.severity = f.severity;
-          }
-          if (f.evidence && !m.evidence) m.evidence = f.evidence;
-          if (f.suggestion && !m.suggestion) m.suggestion = f.suggestion;
-          if (f.trace_id && !m.trace_id) {
-            m.trace_id = f.trace_id;
-          }
-          const incomingReqIds = f.covers_requirement_ids;
-          if (incomingReqIds?.length) {
-            const existing = m.covers_requirement_ids ?? [];
-            const merged = new Set([...existing, ...incomingReqIds]);
-            m.covers_requirement_ids = [...merged];
-          }
-          wasMerged = true;
-          break;
-        }
-      }
-
-      if (!wasMerged) {
-        merged.push({
-          id: f.id,
-          category: f.category,
-          description: f.description,
-          severity: f.severity,
-          evidence: f.evidence,
-          suggestion: f.suggestion,
-          source_models: [f._source],
-          ...(f.trace_id ? { trace_id: f.trace_id } : {}),
-          ...(f.covers_requirement_ids?.length
-            ? { covers_requirement_ids: [...f.covers_requirement_ids] }
-            : {}),
-        });
-      }
-    }
-
-    results.push(...merged);
-  }
-
+  for (const findings of groups.values()) results.push(...mergeCategory(findings, cachedTokenize));
   return results;
+}
+
+function groupByCategory(findings: TaggedFinding[]): Map<string, TaggedFinding[]> {
+  const groups = new Map<string, TaggedFinding[]>();
+  for (const finding of findings) {
+    const key = finding.category.toLowerCase().trim();
+    const group = groups.get(key) ?? [];
+    group.push(finding);
+    groups.set(key, group);
+  }
+  return groups;
+}
+function tokenCache(): (text: string) => Set<string> {
+  const cache = new Map<string, Set<string>>();
+  return (text) => {
+    const tokens = cache.get(text) ?? tokenize(text);
+    cache.set(text, tokens);
+    return tokens;
+  };
+}
+function mergeCategory(
+  findings: TaggedFinding[],
+  tokens: (text: string) => Set<string>,
+): DedupFinding[] {
+  const merged: DedupFinding[] = [];
+  for (const finding of findings) {
+    const target = merged.find(
+      (entry) =>
+        tokenSimilarity(tokens(finding.description), tokens(entry.description)) >=
+        SIMILARITY_THRESHOLD,
+    );
+    if (target) mergeFinding(target, finding);
+    else merged.push(toDedupFinding(finding));
+  }
+  return merged;
+}
+const mergeFinding = (target: DedupFinding, finding: TaggedFinding): void => {
+  mergeSourceAndSeverity(target, finding);
+  mergeOptionalDetails(target, finding);
+  mergeRequirementIds(target, finding);
+};
+
+const mergeSourceAndSeverity = (target: DedupFinding, finding: TaggedFinding): void => {
+  if (!target.source_models.includes(finding._source)) target.source_models.push(finding._source);
+  if (severityRank(finding.severity) > severityRank(target.severity))
+    target.severity = finding.severity;
+};
+
+const mergeOptionalDetails = (target: DedupFinding, finding: TaggedFinding): void => {
+  if (finding.evidence && !target.evidence) target.evidence = finding.evidence;
+  if (finding.suggestion && !target.suggestion) target.suggestion = finding.suggestion;
+  if (finding.trace_id && !target.trace_id) target.trace_id = finding.trace_id;
+};
+
+const mergeRequirementIds = (target: DedupFinding, finding: TaggedFinding): void => {
+  if (!finding.covers_requirement_ids?.length) return;
+  target.covers_requirement_ids = [
+    ...new Set([...(target.covers_requirement_ids ?? []), ...finding.covers_requirement_ids]),
+  ];
+};
+function toDedupFinding(finding: TaggedFinding): DedupFinding {
+  return {
+    id: finding.id,
+    category: finding.category,
+    description: finding.description,
+    severity: finding.severity,
+    evidence: finding.evidence,
+    suggestion: finding.suggestion,
+    source_models: [finding._source],
+    ...(finding.trace_id ? { trace_id: finding.trace_id } : {}),
+    ...(finding.covers_requirement_ids?.length
+      ? { covers_requirement_ids: [...finding.covers_requirement_ids] }
+      : {}),
+  };
 }
 
 function severityRank(s: Finding["severity"]): number {

@@ -45,6 +45,7 @@ AUDIT*.md
 REMEDIATION_PLAN.md
 docs/research/deep-audit-*.md
 docs/research/scientific-proofread-notes.md
+docs/agent/
 *.pem
 *.key
 *.p12

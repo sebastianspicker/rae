@@ -2,40 +2,45 @@ import type { Criterion, CriterionResult } from "../types.js";
 
 const MAX_REGEX_PATTERN_LENGTH = 256;
 const MAX_REGEX_TARGET_LENGTH = 4096;
+const BACKSLASH = String.fromCharCode(92);
 
-function hasUnescapedChar(pattern: string, target: string): boolean {
+const hasUnescapedChar = (pattern: string, target: string): boolean => {
   let escaped = false;
   for (const ch of pattern) {
     if (escaped) {
       escaped = false;
       continue;
     }
-    if (ch === "\\") {
+    if (ch === BACKSLASH) {
       escaped = true;
       continue;
     }
     if (ch === target) return true;
   }
   return false;
-}
+};
 
-function isPotentiallyUnsafeRegex(pattern: string): boolean {
+const isPotentiallyUnsafeRegex = (pattern: string): boolean => {
   if (pattern.length > MAX_REGEX_PATTERN_LENGTH) return true;
+  return hasUnsafeRegexPrimitive(pattern) || hasRepeatedQuantifiedAtom(pattern);
+};
 
-  // Backreferences, groups/lookarounds and alternation are common ReDoS primitives.
-  if (/\\[1-9]/.test(pattern)) return true;
-  if (hasUnescapedChar(pattern, "(") || hasUnescapedChar(pattern, ")")) return true;
-  if (hasUnescapedChar(pattern, "|")) return true;
-  if (/\(\?/.test(pattern)) return true;
-  if (/(\.\*|\.\+)/.test(pattern)) return true;
-  if (/[+*?]{2,}/.test(pattern)) return true;
-  if (/\{\d+,\}/.test(pattern) || /\{,\d+\}/.test(pattern)) return true;
+const hasUnsafeRegexPrimitive = (pattern: string): boolean =>
+  /\\[1-9]/.test(pattern) ||
+  hasUnescapedChar(pattern, "(") ||
+  hasUnescapedChar(pattern, ")") ||
+  hasUnescapedChar(pattern, "|") ||
+  /\(\?/.test(pattern) ||
+  /(\.\*|\.\+)/.test(pattern) ||
+  /[+*?]{2,}/.test(pattern) ||
+  /\{\d+,\}/.test(pattern) ||
+  /\{,\d+\}/.test(pattern);
 
-  return false;
-}
+const hasRepeatedQuantifiedAtom = (pattern: string): boolean =>
+  /((?:\\.|\[[^\]]*\]|[^\\]))[+*](?:\1[+*])+/u.test(pattern);
 
-function resolvePath(obj: Record<string, unknown>, path: string): unknown {
-  const DISALLOWED_SEGMENTS = new Set(["__proto__", "prototype", "constructor"]);
+const resolvePath = (obj: Record<string, unknown>, path: string): unknown => {
+  const DISALLOWED_SEGMENTS = new Set(["__proto__", "prototype", "constructor", "toString"]);
   const segments = path.split(".");
   let current: unknown = obj;
   for (const seg of segments) {
@@ -48,12 +53,12 @@ function resolvePath(obj: Record<string, unknown>, path: string): unknown {
     if (!Object.hasOwn(current, seg)) {
       return undefined;
     }
-    current = (current as Record<string, unknown>)[seg];
+    current = Reflect.get(current, seg);
   }
   return current;
-}
+};
 
-function collectStringValues(value: unknown): string[] {
+const collectStringValues = (value: unknown): string[] => {
   if (typeof value === "string") {
     return [value];
   }
@@ -66,9 +71,9 @@ function collectStringValues(value: unknown): string[] {
     );
   }
   return [];
-}
+};
 
-function extractTraceId(value: unknown): string | undefined {
+const extractTraceId = (value: unknown): string | undefined => {
   if (typeof value === "string" && value.length > 0) {
     return value;
   }
@@ -76,16 +81,13 @@ function extractTraceId(value: unknown): string | undefined {
     return undefined;
   }
   const record = value as Record<string, unknown>;
-  if (typeof record.trace_id === "string" && record.trace_id.length > 0) {
-    return record.trace_id;
-  }
-  if (typeof record.id === "string" && record.id.length > 0) {
-    return record.id;
-  }
-  return undefined;
-}
+  return nonEmptyString(record.trace_id) ?? nonEmptyString(record.id);
+};
 
-function checkFieldExists(artifact: Record<string, unknown>, path: string): CriterionResult {
+const nonEmptyString = (value: unknown): string | undefined =>
+  typeof value === "string" && value.length > 0 ? value : undefined;
+
+const checkFieldExists = (artifact: Record<string, unknown>, path: string): CriterionResult => {
   const val = resolvePath(artifact, path);
   const exists = val !== undefined && val !== null;
   return {
@@ -95,9 +97,9 @@ function checkFieldExists(artifact: Record<string, unknown>, path: string): Crit
       ? `Field "${path}" exists with type ${typeof val}`
       : `Field "${path}" is missing or null`,
   };
-}
+};
 
-function checkFieldEmpty(artifact: Record<string, unknown>, path: string): CriterionResult {
+const checkFieldEmpty = (artifact: Record<string, unknown>, path: string): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -114,13 +116,13 @@ function checkFieldEmpty(artifact: Record<string, unknown>, path: string): Crite
       ? `Field "${path}" is an empty array`
       : `Field "${path}" has ${val.length} item(s), expected 0`,
   };
-}
+};
 
-function checkCountMin(
+const checkCountMin = (
   artifact: Record<string, unknown>,
   path: string,
   minValue: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -148,13 +150,13 @@ function checkCountMin(
     passed,
     evidence: `Field "${path}" has ${val.length} item(s), minimum required: ${min}`,
   };
-}
+};
 
-function checkCountMax(
+const checkCountMax = (
   artifact: Record<string, unknown>,
   path: string,
   maxValue: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -182,13 +184,13 @@ function checkCountMax(
     passed,
     evidence: `Field "${path}" has ${val.length} item(s), maximum allowed: ${max}`,
   };
-}
+};
 
-function checkNumberMax(
+const checkNumberMax = (
   artifact: Record<string, unknown>,
   path: string,
   maxValue: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
   if (typeof val !== "number" || !Number.isFinite(val)) {
     return {
@@ -210,59 +212,26 @@ function checkNumberMax(
     passed,
     evidence: `Field "${path}" value is ${val}, maximum allowed: ${maxValue}`,
   };
-}
+};
 
-function checkCoverageMin(
+const checkCoverageMin = (
   artifact: Record<string, unknown>,
   criterion: Criterion,
-): CriterionResult {
-  const threshold = criterion.value;
-  if (
-    typeof threshold !== "number" ||
-    !Number.isFinite(threshold) ||
-    threshold < 0 ||
-    threshold > 1
-  ) {
-    return {
-      name: "",
-      passed: false,
-      evidence: "coverage-min value must be a number between 0 and 1",
-    };
-  }
-  if (!criterion.source_path) {
-    return {
-      name: "",
-      passed: false,
-      evidence: "coverage-min requires source_path",
-    };
-  }
-  if (!Array.isArray(criterion.target_paths) || criterion.target_paths.length === 0) {
-    return {
-      name: "",
-      passed: false,
-      evidence: "coverage-min requires non-empty target_paths",
-    };
-  }
+): CriterionResult => {
+  const validation = validateCoverageCriterion(criterion);
+  if ("passed" in validation) return validation;
+  const { sourcePath, targetPaths, threshold } = validation;
 
-  const source = resolvePath(artifact, criterion.source_path);
+  const source = resolvePath(artifact, sourcePath);
   if (!Array.isArray(source)) {
     return {
       name: "",
       passed: false,
-      evidence: `Field "${criterion.source_path}" is not an array`,
+      evidence: `Field "${sourcePath}" is not an array`,
     };
   }
 
-  const filtered = source.filter((entry) => {
-    if (!criterion.source_filter_path) {
-      return true;
-    }
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
-      return false;
-    }
-    const filterValue = resolvePath(entry as Record<string, unknown>, criterion.source_filter_path);
-    return filterValue === criterion.source_filter_value;
-  });
+  const filtered = source.filter((entry) => hasCoverageSourceValue(entry, criterion));
 
   const sourceIds = filtered
     .map((entry) => extractTraceId(entry))
@@ -276,14 +245,9 @@ function checkCoverageMin(
     };
   }
 
-  const covered = new Set<string>();
-  for (const targetPath of criterion.target_paths) {
-    const targetVal = resolvePath(artifact, targetPath);
-    const strings = collectStringValues(targetVal);
-    for (const value of strings) {
-      covered.add(value);
-    }
-  }
+  const covered = new Set(
+    targetPaths.flatMap((targetPath) => collectStringValues(resolvePath(artifact, targetPath))),
+  );
 
   const matched = sourceIds.filter((id) => covered.has(id));
   const ratio = matched.length / sourceIds.length;
@@ -295,87 +259,127 @@ function checkCoverageMin(
     passed,
     evidence: `coverage=${ratio.toFixed(4)} threshold=${threshold.toFixed(4)} matched=${matched.length}/${sourceIds.length} missing=${missing.join(", ") || "none"}`,
   };
-}
+};
 
-function checkRegexMatch(
+const coverageFailure = (evidence: string): CriterionResult => ({
+  name: "",
+  passed: false,
+  evidence,
+});
+
+type CoverageCriterionValidation =
+  | CriterionResult
+  | {
+      sourcePath: string;
+      targetPaths: string[];
+      threshold: number;
+    };
+
+const validateCoverageCriterion = (criterion: Criterion): CoverageCriterionValidation => {
+  if (
+    typeof criterion.value !== "number" ||
+    !Number.isFinite(criterion.value) ||
+    criterion.value < 0 ||
+    criterion.value > 1
+  )
+    return coverageFailure("coverage-min value must be a number between 0 and 1");
+  if (!criterion.source_path) return coverageFailure("coverage-min requires source_path");
+  if (!Array.isArray(criterion.target_paths) || criterion.target_paths.length === 0)
+    return coverageFailure("coverage-min requires non-empty target_paths");
+  return {
+    sourcePath: criterion.source_path,
+    targetPaths: criterion.target_paths,
+    threshold: criterion.value,
+  };
+};
+
+const hasCoverageSourceValue = (entry: unknown, criterion: Criterion): boolean => {
+  if (!criterion.source_filter_path) return true;
+  if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return false;
+  return (
+    resolvePath(entry as Record<string, unknown>, criterion.source_filter_path) ===
+    criterion.source_filter_value
+  );
+};
+
+const checkRegexMatch = (
   artifact: Record<string, unknown>,
   path: string,
   pattern: unknown,
-): CriterionResult {
+): CriterionResult => {
   const val = resolvePath(artifact, path);
-  if (typeof val !== "string") {
-    return {
-      name: "",
-      passed: false,
-      evidence: `Field "${path}" is not a string`,
-    };
-  }
-  if (typeof pattern !== "string") {
-    return {
-      name: "",
-      passed: false,
-      evidence: `Regex pattern must be a string, got ${typeof pattern}`,
-    };
-  }
-  if (val.length > MAX_REGEX_TARGET_LENGTH) {
-    return {
-      name: "",
-      passed: false,
-      evidence: `Field "${path}" is too large for regex evaluation (${val.length} > ${MAX_REGEX_TARGET_LENGTH})`,
-    };
-  }
-  if (isPotentiallyUnsafeRegex(pattern)) {
-    return {
-      name: "",
-      passed: false,
-      evidence: `Regex pattern /${pattern}/ rejected as potentially unsafe`,
-    };
-  }
+  const validation = validateRegexInput(val, path, pattern);
+  if ("passed" in validation) return validation;
+  const { pattern: validatedPattern, value } = validation;
   let re: RegExp;
   try {
-    re = new RegExp(pattern);
+    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp,javascript_dos_rule-non-literal-regexp -- pattern and target lengths are bounded and unsafe constructs are rejected above
+    re = new RegExp(validatedPattern);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return {
       name: "",
       passed: false,
-      evidence: `Invalid regex pattern /${pattern}/: ${msg}`,
+      evidence: `Invalid regex pattern /${validatedPattern}/: ${msg}`,
     };
   }
-  const matched = re.test(val);
+  const matched = re.test(value);
   return {
     name: "",
     passed: matched,
     evidence: matched
-      ? `Field "${path}" matches pattern /${pattern}/`
-      : `Field "${path}" value "${val}" does not match /${pattern}/`,
+      ? `Field "${path}" matches pattern /${validatedPattern}/`
+      : `Field "${path}" value "${value}" does not match /${validatedPattern}/`,
   };
-}
+};
+
+type RegexInputValidation = CriterionResult | { pattern: string; value: string };
+
+const validateRegexInput = (
+  value: unknown,
+  path: string,
+  pattern: unknown,
+): RegexInputValidation => {
+  if (typeof value !== "string") return coverageFailure(`Field "${path}" is not a string`);
+  if (typeof pattern !== "string")
+    return coverageFailure(`Regex pattern must be a string, got ${typeof pattern}`);
+  if (value.length > MAX_REGEX_TARGET_LENGTH)
+    return coverageFailure(
+      `Field "${path}" is too large for regex evaluation (${value.length} > ${MAX_REGEX_TARGET_LENGTH})`,
+    );
+  if (isPotentiallyUnsafeRegex(pattern))
+    return coverageFailure(`Regex pattern /${pattern}/ rejected as potentially unsafe`);
+  return { pattern, value };
+};
 
 type CriterionEvaluator = (
   artifact: Record<string, unknown>,
   criterion: Criterion,
 ) => CriterionResult;
 
-const EVALUATORS: Record<string, CriterionEvaluator> = {
-  "field-exists": (a, c) => checkFieldExists(a, c.path),
-  "field-empty": (a, c) => checkFieldEmpty(a, c.path),
-  "count-min": (a, c) => checkCountMin(a, c.path, c.value),
-  "count-max": (a, c) => checkCountMax(a, c.path, c.value),
-  "number-max": (a, c) => checkNumberMax(a, c.path, c.value),
-  "coverage-min": (a, c) => checkCoverageMin(a, c),
-  "regex-match": (a, c) => checkRegexMatch(a, c.path, c.value),
-};
+const EVALUATORS = new Map<string, CriterionEvaluator>([
+  ["field-exists", (a, c) => checkFieldExists(a, c.path)],
+  ["field-empty", (a, c) => checkFieldEmpty(a, c.path)],
+  ["count-min", (a, c) => checkCountMin(a, c.path, c.value)],
+  ["count-max", (a, c) => checkCountMax(a, c.path, c.value)],
+  ["number-max", (a, c) => checkNumberMax(a, c.path, c.value)],
+  ["coverage-min", (a, c) => checkCoverageMin(a, c)],
+  ["regex-match", (a, c) => checkRegexMatch(a, c.path, c.value)],
+]);
 
 export function evaluateCriteria(
   artifact: Record<string, unknown>,
   criteria: Criterion[],
 ): CriterionResult[] {
   return criteria.map((c) => {
-    const evaluator = EVALUATORS[c.type];
+    const evaluator = EVALUATORS.get(c.type);
     const result = evaluator
       ? evaluator(artifact, c)
-      : { name: "", passed: false, evidence: `Unknown criterion type: ${c.type}` };
+      : {
+          name: "",
+          passed: false,
+          evidence: `Unknown criterion type: ${c.type}`,
+        };
     result.name = c.name;
     return result;
   });

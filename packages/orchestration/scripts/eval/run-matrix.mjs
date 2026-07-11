@@ -108,37 +108,38 @@ function validateTaskset(taskset) {
     throw new Error("tasks must be a non-empty array");
   }
 
-  for (const task of taskset.tasks) {
-    if (!task || typeof task !== "object") {
-      throw new Error("each task must be an object");
-    }
-    if (typeof task.id !== "string" || task.id.length === 0) {
-      throw new Error("task.id is required");
-    }
-    if (typeof task.title !== "string" || task.title.length === 0) {
-      throw new Error(`task.title is required for ${task.id}`);
-    }
-    if (!Array.isArray(task.must_requirement_ids) || task.must_requirement_ids.length === 0) {
-      throw new Error(`task.must_requirement_ids must be non-empty for ${task.id}`);
-    }
+  for (const task of taskset.tasks) validateTask(task);
+}
 
-    validateStageOverrideMap(task.stage_overrides, `task(${task.id}).stage_overrides`);
+function validateTask(task) {
+  if (!task || typeof task !== "object") throw new Error("each task must be an object");
+  validateTaskField(task.id, "task.id is required");
+  validateTaskField(task.title, `task.title is required for ${task.id}`);
+  if (!Array.isArray(task.must_requirement_ids) || !task.must_requirement_ids.length) {
+    throw new Error(`task.must_requirement_ids must be non-empty for ${task.id}`);
+  }
+  validateStageOverrideMap(task.stage_overrides, `task(${task.id}).stage_overrides`);
+  validateConfigOverrides(task.config_overrides, task.id);
+}
 
-    if (task.config_overrides !== undefined) {
-      if (
-        typeof task.config_overrides !== "object" ||
-        task.config_overrides === null ||
-        Array.isArray(task.config_overrides)
-      ) {
-        throw new Error(`task(${task.id}).config_overrides must be an object`);
-      }
-      for (const [configId, stageMap] of Object.entries(task.config_overrides)) {
-        if (!CONFIG_IDS.includes(configId)) {
-          throw new Error(`task(${task.id}).config_overrides has unsupported config ${configId}`);
-        }
-        validateStageOverrideMap(stageMap, `task(${task.id}).config_overrides.${configId}`);
-      }
+function validateTaskField(value, message) {
+  if (typeof value !== "string" || !value.length) throw new Error(message);
+}
+
+function validateConfigOverrides(configOverrides, taskId) {
+  if (configOverrides === undefined) return;
+  if (
+    typeof configOverrides !== "object" ||
+    configOverrides === null ||
+    Array.isArray(configOverrides)
+  ) {
+    throw new Error(`task(${taskId}).config_overrides must be an object`);
+  }
+  for (const [configId, stageMap] of Object.entries(configOverrides)) {
+    if (!CONFIG_IDS.includes(configId)) {
+      throw new Error(`task(${taskId}).config_overrides has unsupported config ${configId}`);
     }
+    validateStageOverrideMap(stageMap, `task(${taskId}).config_overrides.${configId}`);
   }
 }
 

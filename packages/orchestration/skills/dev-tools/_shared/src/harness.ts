@@ -1,5 +1,5 @@
-import { performance } from "node:perf_hooks";
 import { readFileSync } from "node:fs";
+import { performance } from "node:perf_hooks";
 import type { RunResult } from "./types.js";
 
 export function readStdin(): string {
@@ -26,8 +26,26 @@ export async function runTool<TInput, TData>(
   let logs: string[] = [];
 
   try {
+    const args = process.argv.slice(2);
+    if (args.length > 0) {
+      if (args.length === 1 && args[0] === "--healthcheck") {
+        process.stdout.write(
+          JSON.stringify({
+            success: true,
+            data: { status: "ok" },
+            metadata: { tool_version: toolVersion },
+            logs: [],
+          }),
+        );
+        return;
+      }
+      throw Object.assign(new Error(`Unsupported arguments: ${args.join(" ")}`), {
+        code: "E_BAD_INPUT",
+      });
+    }
+
     const raw = readStdin();
-    if (!raw || !raw.trim()) {
+    if (!raw.trim()) {
       throw Object.assign(new Error("Empty input: expected JSON on stdin"), {
         code: "E_BAD_INPUT",
       });

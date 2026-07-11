@@ -47,9 +47,7 @@ def merge_command_results(*results: dict[str, Any]) -> dict[str, Any]:
         "returncode": 0 if all(result["returncode"] == 0 for result in results) else 1,
         "stdout": "\n".join(result["stdout"] for result in results if result["stdout"]),
         "stderr": "\n".join(result["stderr"] for result in results if result["stderr"]),
-        "duration_seconds": round(
-            sum(float(result["duration_seconds"]) for result in results), 4
-        ),
+        "duration_seconds": round(sum(float(result["duration_seconds"]) for result in results), 4),
     }
 
 
@@ -80,6 +78,75 @@ def load_optional_json_artifact(path_str: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def required_evidence_types(task: dict[str, Any]) -> list[str]:
+    required_evidence = task.get("delegation_contract", {}).get("required_evidence", [])
+    return sorted(
+        {
+            entry["type"]
+            for entry in required_evidence
+            if isinstance(entry, dict) and isinstance(entry.get("type"), str)
+        }
+    )
+
+
+def evidence_entry(task_id: str, evidence_type: str, path: str, description: str) -> dict[str, str]:
+    return {"task_id": task_id, "type": evidence_type, "path": path, "description": description}
+
+
+def add_evidence_entry(
+    task_id: str,
+    path: str,
+    evidence_type: str,
+    description: str,
+    provided: list[dict[str, Any]],
+    provided_types: set[str],
+) -> None:
+    provided.append(evidence_entry(task_id, evidence_type, path, description))
+    provided_types.add(evidence_type)
+
+
+def add_json_artifact_evidence(
+    task_id: str, path: str, provided: list[dict[str, Any]], provided_types: set[str]
+) -> None:
+    artifact = load_optional_json_artifact(path)
+    if not artifact:
+        return
+    for key, evidence_type, description in (
+        ("coverage_ledger", "coverage-ledger", "requirement coverage ledger"),
+        ("qc_summary", "qc-summary", "quality coverage summary"),
+    ):
+        if key in artifact:
+            add_evidence_entry(task_id, path, evidence_type, description, provided, provided_types)
+    if "open_risks" in artifact or "review_state" in artifact:
+        add_evidence_entry(
+            task_id,
+            path,
+            "risk-summary",
+            "residual risk or review summary",
+            provided,
+            provided_types,
+        )
+
+
+def add_artifact_evidence(
+    task_id: str, path: str, provided: list[dict[str, Any]], provided_types: set[str]
+) -> None:
+    if path != next(entry["path"] for entry in provided if entry["type"] == "command-log"):
+        add_evidence_entry(
+            task_id, path, "artifact", "execution artifact", provided, provided_types
+        )
+    add_json_artifact_evidence(task_id, path, provided, provided_types)
+
+
+def evidence_status(required_types: list[str], provided_types: set[str]) -> tuple[str, list[str]]:
+    missing_types = sorted(set(required_types) - provided_types)
+    if not required_types or not missing_types:
+        return "complete", missing_types
+    if len(missing_types) == len(required_types):
+        return "missing", missing_types
+    return "partial", missing_types
+
+
 def build_task_verification_evidence(
     task: dict[str, Any],
     *,
@@ -89,14 +156,7 @@ def build_task_verification_evidence(
     checkpoint_paths: list[str],
 ) -> dict[str, Any]:
     """Map produced artifacts to the evidence types required by a task."""
-    required_evidence = task.get("delegation_contract", {}).get("required_evidence", [])
-    required_types = sorted(
-        {
-            entry["type"]
-            for entry in required_evidence
-            if isinstance(entry, dict) and isinstance(entry.get("type"), str)
-        }
-    )
+    required_types = required_evidence_types(task)
 
     provided: list[dict[str, Any]] = [
         {
@@ -109,79 +169,19 @@ def build_task_verification_evidence(
     provided_types = {"command-log"}
 
     for path in sorted(set(trace_paths)):
-        provided.append(
-            {
-                "task_id": task["task_id"],
-                "type": "trace",
-                "path": path,
-                "description": "execution trace",
-            }
-        )
+        provided.append(evidence_entry(task["task_id"], "trace", path, "execution trace"))
         provided_types.add("trace")
 
     for path in sorted(set(artifact_paths)):
-        if path != command_result_path:
-            provided.append(
-                {
-                    "task_id": task["task_id"],
-                    "type": "artifact",
-                    "path": path,
-                    "description": "execution artifact",
-                }
-            )
-            provided_types.add("artifact")
-        artifact = load_optional_json_artifact(path)
-        if not artifact:
-            continue
-        if "coverage_ledger" in artifact:
-            provided.append(
-                {
-                    "task_id": task["task_id"],
-                    "type": "coverage-ledger",
-                    "path": path,
-                    "description": "requirement coverage ledger",
-                }
-            )
-            provided_types.add("coverage-ledger")
-        if "qc_summary" in artifact:
-            provided.append(
-                {
-                    "task_id": task["task_id"],
-                    "type": "qc-summary",
-                    "path": path,
-                    "description": "quality coverage summary",
-                }
-            )
-            provided_types.add("qc-summary")
-        if "open_risks" in artifact or "review_state" in artifact:
-            provided.append(
-                {
-                    "task_id": task["task_id"],
-                    "type": "risk-summary",
-                    "path": path,
-                    "description": "residual risk or review summary",
-                }
-            )
-            provided_types.add("risk-summary")
+        add_artifact_evidence(task["task_id"], path, provided, provided_types)
 
     for path in sorted(set(checkpoint_paths)):
         provided.append(
-            {
-                "task_id": task["task_id"],
-                "type": "checkpoint",
-                "path": path,
-                "description": "human checkpoint artifact",
-            }
+            evidence_entry(task["task_id"], "checkpoint", path, "human checkpoint artifact")
         )
         provided_types.add("checkpoint")
 
-    missing_types = sorted(set(required_types) - provided_types)
-    if not required_types or not missing_types:
-        status = "complete"
-    elif len(missing_types) == len(required_types):
-        status = "missing"
-    else:
-        status = "partial"
+    status, missing_types = evidence_status(required_types, provided_types)
 
     return {
         "required_types": required_types,
@@ -191,8 +191,7 @@ def build_task_verification_evidence(
             "provided_types": sorted(provided_types),
             "missing_types": missing_types,
             "residual_gaps": [
-                f"missing evidence type: {evidence_type}"
-                for evidence_type in missing_types
+                f"missing evidence type: {evidence_type}" for evidence_type in missing_types
             ],
         },
     }
@@ -277,9 +276,7 @@ def init_isolated_orchestration_workspace(
             os.symlink(src_node_modules, dst_node_modules, target_is_directory=True)
             dirnames.remove("node_modules")
 
-    init_result = run_command(
-        ["bash", "./scripts/pipeline-init.sh", "."], cwd=package_root
-    )
+    init_result = run_command(["bash", "./scripts/pipeline-init.sh", "."], cwd=package_root)
     if init_result["returncode"] != 0:
         raise RuntimeError(
             f"failed to initialize isolated orchestration pipeline: {init_result['stderr']}"

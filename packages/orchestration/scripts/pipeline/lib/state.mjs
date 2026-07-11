@@ -304,7 +304,10 @@ export function resolveWorkspaceRootForRun(runId, root = getRepoRoot()) {
       continue;
     }
     const candidateRoot = resolve(worktreesDir, entry.name);
-    const candidateState = readJson(resolve(candidateRoot, ".pipeline", "pipeline-state.json"), null);
+    const candidateState = readJson(
+      resolve(candidateRoot, ".pipeline", "pipeline-state.json"),
+      null,
+    );
     if (candidateState?.run_id === runId) {
       return getWorkspaceFromState(candidateState, candidateRoot).root;
     }
