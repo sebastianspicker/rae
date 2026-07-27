@@ -1,0 +1,244 @@
+/*
+ * Ledger: vertical docket of phases (not a horizontal stepper).
+ * Supports ol.phase-spine (current JS) and table.docket (case-file shape).
+ */
+
+.phase-region,
+.ledger {
+  min-width: 0;
+  margin-top: 0;
+  padding: 1.5rem var(--pad) 0.5rem;
+  overflow: visible;
+  border-bottom: 0;
+  background: var(--sheet);
+}
+
+.ledger__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.ledger__head h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.ledger__head p {
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+/* Vertical bound ledger — list form (legacy ol#phase-list) */
+
+ol.phase-spine {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  display: block;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  border-top: 1px solid var(--ink);
+  font-size: 0.82rem;
+}
+
+table.phase-spine,
+table.docket {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+tbody.phase-spine {
+  display: table-row-group;
+}
+
+ol.phase-spine::before,
+ol.phase-spine::after {
+  display: none;
+  content: none;
+}
+
+.phase {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  column-gap: 0.65rem;
+  align-items: baseline;
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+  cursor: default;
+  transition: background 100ms ease;
+}
+
+.phase:hover {
+  background: color-mix(in srgb, var(--ink) 2.5%, transparent);
+}
+
+.phase[data-state="current"] {
+  background: color-mix(in srgb, var(--trace) 7%, transparent);
+  box-shadow: inset 3px 0 0 var(--trace);
+}
+
+.phase[data-state="queued"] {
+  color: var(--faint);
+}
+
+.phase__node {
+  display: none;
+}
+
+.phase__number {
+  grid-column: 1;
+  padding: 0;
+  color: var(--faint);
+  font: 500 0.72rem/1.35 var(--mono);
+}
+
+.phase__label {
+  grid-column: 2;
+  margin: 0;
+  padding: 0;
+  color: var(--ink-soft);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.phase[data-state="current"] .phase__label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.phase[data-state="queued"] .phase__label {
+  color: var(--faint);
+}
+
+.phase__state {
+  grid-column: 4;
+  margin: 0;
+  padding: 0;
+  justify-self: end;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+
+.phase[data-state="passed"] .phase__state {
+  color: var(--proof);
+}
+
+.phase[data-state="current"] .phase__state {
+  color: var(--hold);
+  font-weight: 600;
+}
+
+.phase[data-state="current"] .phase__number {
+  color: var(--trace);
+}
+
+/* Table docket form (future tbody#phase-list tr rows / case-file) */
+
+.docket {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.docket th {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--ink);
+  color: var(--faint);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-align: left;
+  letter-spacing: 0.02em;
+}
+
+.docket th:first-child,
+.docket td:first-child {
+  width: 2rem;
+  padding-left: 0;
+  color: var(--faint);
+}
+
+.docket td {
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: baseline;
+  color: var(--ink-soft);
+}
+
+.docket tbody tr {
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.docket tbody tr:hover {
+  background: color-mix(in srgb, var(--ink) 2.5%, transparent);
+}
+
+.docket tbody tr.is-selected,
+.docket tbody tr[aria-selected="true"] {
+  background: color-mix(in srgb, var(--trace) 7%, transparent);
+  box-shadow: inset 3px 0 0 var(--trace);
+}
+
+.docket tbody tr.is-wait {
+  color: var(--faint);
+}
+
+.docket tbody tr.is-wait td {
+  color: var(--faint);
+}
+
+.docket tbody tr.is-live td:nth-child(2) {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.claim {
+  color: var(--mute);
+  font-family: var(--mono);
+  font-size: 0.78em;
+}
+
+.claim.is-open {
+  color: var(--hold);
+  font-weight: 500;
+}
+
+/* Gate marks: mono words, not pills */
+
+.g {
+  font-family: var(--mono);
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.g-pass {
+  color: var(--proof);
+}
+
+.g-hold {
+  color: var(--hold);
+  font-weight: 600;
+}
+
+.g-wait {
+  color: var(--faint);
+}

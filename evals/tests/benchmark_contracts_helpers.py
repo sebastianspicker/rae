@@ -1,12 +1,11 @@
-from __future__ import annotations
+"""Reusable filesystem and subprocess fixtures for benchmark contract tests."""
 
-import json
 import importlib.util
+import json
 import os
 import pathlib
-import shutil
 import sys
-
+import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RESULTS_ROOT = ROOT / "evals" / "results"
@@ -33,35 +32,28 @@ def repo_rel(path: pathlib.Path) -> str:
     return path.resolve().relative_to(ROOT.resolve()).as_posix()
 
 
-def require_command_path(name: str) -> str:
-    path = shutil.which(name)
-    assert path, f"required command missing for test: {name}"
-    return path
+def calibration_payload(*, agreement_rate: float = 1.0, status: str = "pass") -> dict:
+    return {"judge_id": "router", "agreement_rate": agreement_rate, "calibration_case_count": 4, "status": status}
 
 
-def install_command_shims(
-    bin_dir: pathlib.Path, *, exclude: set[str] | None = None
-) -> None:
-    exclude = exclude or set()
-    for name in (
-        "bash",
-        "python3",
-        "git",
-        "rg",
-        "node",
-        "npm",
-        "jq",
-        "mkdocs",
-        "shellcheck",
-    ):
-        if name in exclude:
-            continue
-        os.symlink(require_command_path(name), bin_dir / name)
+def write_passing_held_out_fixture(output_dir: pathlib.Path, benchmark: dict) -> None:
+    write_release_gate_fixture(
+        output_dir / "held-out-pass", split="held-out", run_id="tool-selection-core-held-out-pass",
+        benchmark=benchmark, calibration_payload=calibration_payload(), release_gate_status="pass",
+    )
 
 
-def install_path_mirror(
-    bin_dir: pathlib.Path, *, exclude: set[str] | None = None
-) -> None:
+def run_release_gate(
+    benchmark_path: pathlib.Path, run_card_path: pathlib.Path, regression_path: pathlib.Path,
+    ledger_path: pathlib.Path, output_path: pathlib.Path,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(ROOT / "evals/scripts/release_gate.py"), "--benchmark-card", str(benchmark_path), "--run-card", str(run_card_path), "--regression-report", str(regression_path), "--ledger", str(ledger_path), "--output", str(output_path)],
+        cwd=ROOT, text=True, capture_output=True, check=False,
+    )
+
+
+def install_path_mirror(bin_dir: pathlib.Path, *, exclude: set[str] | None = None) -> None:
     exclude = exclude or set()
     seen: set[str] = set()
     for dir_path in os.environ.get("PATH", "").split(os.pathsep):
@@ -71,18 +63,20 @@ def install_path_mirror(
         if not path_dir.is_dir():
             continue
         for candidate in path_dir.iterdir():
-            try:
-                is_file = candidate.is_file()
-                executable = os.access(candidate, os.X_OK)
-            except PermissionError:
-                continue
-            if not is_file or not executable:
-                continue
-            name = candidate.name
-            if name in exclude or name in seen:
-                continue
-            seen.add(name)
-            os.symlink(candidate, bin_dir / name)
+            _mirror_candidate(candidate, bin_dir, exclude, seen)
+
+
+def _mirror_candidate(
+    candidate: pathlib.Path, bin_dir: pathlib.Path, exclude: set[str], seen: set[str]
+) -> None:
+    try:
+        usable = candidate.is_file() and os.access(candidate, os.X_OK)
+    except PermissionError:
+        return
+    if not usable or candidate.name in exclude or candidate.name in seen:
+        return
+    seen.add(candidate.name)
+    os.symlink(candidate, bin_dir / candidate.name)
 
 
 def write_release_gate_fixture(
@@ -103,78 +97,50 @@ def write_release_gate_fixture(
     calibration_path = output_dir / f"judge-calibration-{benchmark_id}-{run_id}.json"
     run_card_path = output_dir / f"run-card-{benchmark_id}-{split}-{run_id}.json"
 
-    write_json(
-        result_path,
-        {
-            "run_id": run_id,
-            "benchmark_id": benchmark_id,
-            "benchmark_version": benchmark_version,
-            "split": split,
-            "task_count": 1,
-            "pass_count": 1,
-            "fail_count": 0,
-            "aggregate_metrics": {
-                "success_rate": 1.0,
-                "route_accuracy": 1.0,
-                "artifact_completeness": 1.0,
-                "checkpoint_compliance": 1.0,
-            },
-            "task_results": [],
-        },
-    )
-    write_json(
-        regression_path,
-        {
-            "report_id": f"regression-{benchmark_id}-{split}-{run_id}",
-            "benchmark_id": benchmark_id,
-            "split": split,
-            "generated_at": "2026-04-15T00:00:00Z",
-            "status": "pass",
-            "baseline_result_path": f"evals/results/baselines/{benchmark_id}-{split}.json",
-            "aggregate_metrics": {
-                "success_rate": 1.0,
-                "route_accuracy": 1.0,
-                "artifact_completeness": 1.0,
-                "checkpoint_compliance": 1.0,
-            },
-            "baseline_metrics": {
-                "success_rate": 1.0,
-                "route_accuracy": 1.0,
-                "artifact_completeness": 1.0,
-                "checkpoint_compliance": 1.0,
-            },
-            "issues": [],
-        },
-    )
+    _write_result_fixture(result_path, run_id, benchmark_id, benchmark_version, split)
+    _write_regression_fixture(regression_path, run_id, benchmark_id, split)
     if calibration_payload is not None:
         write_json(calibration_path, calibration_payload)
-    ledger_path.write_text(
-        json.dumps(
-            {
-                "entry_id": f"{run_id}-aggregate",
-                "kind": "benchmark-run",
-                "timestamp": "2026-04-15T00:00:00Z",
-                "benchmark_id": benchmark_id,
-                "run_id": run_id,
-                "split": split,
-                "result_path": repo_rel(result_path),
-                "claim_links": benchmark["claim_links"],
-                "aggregate_metrics": {
-                    "success_rate": 1.0,
-                    "route_accuracy": 1.0,
-                    "artifact_completeness": 1.0,
-                    "checkpoint_compliance": 1.0,
-                },
-            }
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-    run_card = {
+    _write_ledger_fixture(ledger_path, run_id, benchmark_id, split, result_path, benchmark)
+    paths = {
+        "result": result_path,
+        "regression": regression_path,
+        "ledger": ledger_path,
+        "calibration": calibration_path,
+    }
+    run_card = _run_card_fixture(run_id, benchmark_id, benchmark_version, split, paths, benchmark)
+    _add_release_gate_fixture(run_card, output_dir, benchmark_id, split, run_id, release_gate_status)
+    if verification_evidence is not None:
+        run_card["verification_evidence"] = verification_evidence
+    write_json(run_card_path, run_card)
+    return result_path, regression_path, ledger_path, calibration_path, run_card_path
+
+
+def _metrics() -> dict[str, float]:
+    return {"success_rate": 1.0, "route_accuracy": 1.0, "artifact_completeness": 1.0, "checkpoint_compliance": 1.0}
+
+
+def _write_result_fixture(path: pathlib.Path, run_id: str, benchmark_id: str, version: str, split: str) -> None:
+    write_json(path, {"run_id": run_id, "benchmark_id": benchmark_id, "benchmark_version": version, "split": split, "task_count": 1, "pass_count": 1, "fail_count": 0, "aggregate_metrics": _metrics(), "task_results": []})
+
+
+def _write_regression_fixture(path: pathlib.Path, run_id: str, benchmark_id: str, split: str) -> None:
+    write_json(path, {"report_id": f"regression-{benchmark_id}-{split}-{run_id}", "benchmark_id": benchmark_id, "split": split, "generated_at": "2026-04-15T00:00:00Z", "status": "pass", "baseline_result_path": f"evals/results/baselines/{benchmark_id}-{split}.json", "aggregate_metrics": _metrics(), "baseline_metrics": _metrics(), "issues": []})
+
+
+def _write_ledger_fixture(path: pathlib.Path, run_id: str, benchmark_id: str, split: str, result_path: pathlib.Path, benchmark: dict) -> None:
+    entry = {"entry_id": f"{run_id}-aggregate", "kind": "benchmark-run", "timestamp": "2026-04-15T00:00:00Z", "benchmark_id": benchmark_id, "run_id": run_id, "split": split, "result_path": repo_rel(result_path), "claim_links": benchmark["claim_links"], "aggregate_metrics": _metrics()}
+    path.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+
+
+def _run_card_fixture(
+    run_id: str, benchmark_id: str, version: str, split: str, paths: dict[str, pathlib.Path], benchmark: dict
+) -> dict:
+    return {
         "run_id": run_id,
         "evidence_type": "benchmark-run",
         "benchmark_id": benchmark_id,
-        "benchmark_version": benchmark_version,
+        "benchmark_version": version,
         "date": "2026-04-15",
         "split": split,
         "system": {
@@ -183,7 +149,7 @@ def write_release_gate_fixture(
         },
         "judge_version": "programmatic-router-judge-v1",
         "command": "python3 evals/scripts/run_benchmark.py",
-        "result_path": repo_rel(result_path),
+        "result_path": repo_rel(paths["result"]),
         "status": "pass",
         "task_spec_path": benchmark["task_specs_path"],
         "routed_runtime": "mixed",
@@ -191,32 +157,28 @@ def write_release_gate_fixture(
         "artifact_paths": [],
         "checkpoint_paths": [],
         "claim_links": benchmark["claim_links"],
-        "ledger_path": repo_rel(ledger_path),
-        "regression_report_path": repo_rel(regression_path),
-        "judge_calibration_report_path": repo_rel(calibration_path),
+        "ledger_path": repo_rel(paths["ledger"]),
+        "regression_report_path": repo_rel(paths["regression"]),
+        "judge_calibration_report_path": repo_rel(paths["calibration"]),
         "cost_usd": 0.0,
         "latency_seconds": 0.1,
         "notes": "test fixture",
     }
-    if release_gate_status is not None:
-        run_card["release_gate_status"] = release_gate_status
-        gate_report_path = (
-            output_dir / f"release-gate-{benchmark_id}-{split}-{run_id}.json"
-        )
+
+
+def _add_release_gate_fixture(run_card: dict, output_dir: pathlib.Path, benchmark_id: str, split: str, run_id: str, status: str | None) -> None:
+    if status is not None:
+        run_card["release_gate_status"] = status
+        gate_report_path = output_dir / f"release-gate-{benchmark_id}-{split}-{run_id}.json"
         write_json(
             gate_report_path,
             {
                 "gate_id": f"release-gate-{run_id}",
                 "evaluated_at": "2026-04-15T00:00:00Z",
-                "benchmark_id": benchmark["benchmark_id"],
+                "benchmark_id": benchmark_id,
                 "run_id": run_id,
-                "status": release_gate_status,
+                "status": status,
                 "issues": [],
             },
         )
         run_card["release_gate_report_path"] = repo_rel(gate_report_path)
-    if verification_evidence is not None:
-        run_card["verification_evidence"] = verification_evidence
-    write_json(run_card_path, run_card)
-    return result_path, regression_path, ledger_path, calibration_path, run_card_path
-

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's append progress entry contract.
 
 set -euo pipefail
 

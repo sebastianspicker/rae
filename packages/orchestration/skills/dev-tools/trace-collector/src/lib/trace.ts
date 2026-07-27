@@ -1,12 +1,16 @@
+/**
+ * Loads, schema-validates, and summarizes pipeline traces within workspace boundaries.
+ */
 import { readFileSync } from "node:fs";
 import { createAjvInstance, resolveWithinWorkspace } from "@coding-agents-space/shared";
 import type { Input, TraceEvent, TraceResult, TraceSummary } from "../types.js";
 
 interface TraceOptions {
   workspaceRoot?: string;
+  schemaRoot?: string;
 }
 
-function readJsonlEvents(tracePath: string): TraceEvent[] {
+export function readJsonlEvents(tracePath: string): TraceEvent[] {
   const raw = readFileSync(tracePath, "utf8");
   const lines = raw
     .split("\n")
@@ -23,7 +27,7 @@ function readJsonlEvents(tracePath: string): TraceEvent[] {
   });
 }
 
-function buildSummary(events: TraceEvent[], issues: string[]): TraceSummary {
+export function buildSummary(events: TraceEvent[], issues: string[]): TraceSummary {
   const eventsByType: Record<string, number> = {};
   const gateResults = { pass: 0, fail: 0, warn: 0 };
   const phaseStarts = new Map<string, number>();
@@ -158,50 +162,22 @@ function buildSummary(events: TraceEvent[], issues: string[]): TraceSummary {
   };
 }
 
+/**
+ * Collects trace events from workspace-contained files and returns schema-backed summary metrics.
+ */
 export async function collectTrace(
   input: Input,
   logs: string[],
   opts: TraceOptions = {},
 ): Promise<TraceResult> {
   const workspaceRoot = opts.workspaceRoot ?? "/workspace";
+  const schemaRoot = opts.schemaRoot ?? workspaceRoot;
   const schemaRef = input.schema_ref ?? "contracts/artifacts/execution-trace.schema.json";
-  const schemaPath = resolveWithinWorkspace(workspaceRoot, schemaRef, "Path", {
-    rootLabel: "workspace root",
-  });
-  const schema = JSON.parse(readFileSync(schemaPath, "utf8")) as Record<string, unknown>;
-
-  let events: TraceEvent[];
-  if (input.trace_path) {
-    const tracePath = resolveWithinWorkspace(workspaceRoot, input.trace_path, "Path", {
-      rootLabel: "workspace root",
-    });
-    logs.push(`Loaded trace events from ${tracePath}`);
-    events = readJsonlEvents(tracePath);
-  } else {
-    events = input.events ?? [];
-    logs.push(`Loaded inline trace events: ${events.length}`);
-  }
-
-  const ajv = await createAjvInstance();
-  const validate = ajv.compile(schema);
-
+  const schema = loadTraceSchema(schemaRoot, schemaRef);
+  const events = loadTraceEvents(input, workspaceRoot, logs);
+  const validate = (await createAjvInstance()).compile(schema);
   const issues: string[] = [];
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    const valid = validate(event);
-    if (!valid) {
-      const message = (validate.errors ?? [])
-        .map(
-          (error: { instancePath?: string; message?: string }) =>
-            `${error.instancePath || "/"} ${error.message ?? "invalid"}`,
-        )
-        .join("; ");
-      issues.push(`event[${i}] schema violation: ${message}`);
-    }
-    if (event.run_id !== input.run_id) {
-      issues.push(`event[${i}] run_id mismatch: expected ${input.run_id}, got ${event.run_id}`);
-    }
-  }
+  events.forEach((event, index) => validateTraceEvent(event, index, input.run_id, validate, issues));
 
   const summary = buildSummary(events, issues);
   return {
@@ -210,4 +186,35 @@ export async function collectTrace(
     issues,
     summary,
   };
+}
+
+export function loadTraceSchema(schemaRoot: string, schemaRef: string): Record<string, unknown> {
+  const schemaPath = resolveWithinWorkspace(schemaRoot, schemaRef, "Path", { rootLabel: "schema root" });
+  return JSON.parse(readFileSync(schemaPath, "utf8")) as Record<string, unknown>;
+}
+
+export function loadTraceEvents(input: Input, workspaceRoot: string, logs: string[]): TraceEvent[] {
+  if (!input.trace_path) {
+    const events = input.events ?? [];
+    logs.push(`Loaded inline trace events: ${events.length}`);
+    return events;
+  }
+  const tracePath = resolveWithinWorkspace(workspaceRoot, input.trace_path, "Path", { rootLabel: "workspace root" });
+  logs.push(`Loaded trace events from ${tracePath}`);
+  return readJsonlEvents(tracePath);
+}
+
+export function validateTraceEvent(
+  event: TraceEvent,
+  index: number,
+  runId: string,
+  validate: { (value: unknown): boolean; errors?: Array<{ instancePath?: string; message?: string }> | null },
+  issues: string[],
+): void {
+  if (!validate(event)) issues.push(`event[${index}] schema violation: ${formatSchemaErrors(validate.errors)}`);
+  if (event.run_id !== runId) issues.push(`event[${index}] run_id mismatch: expected ${runId}, got ${event.run_id}`);
+}
+
+export function formatSchemaErrors(errors: Array<{ instancePath?: string; message?: string }> | null | undefined): string {
+  return (errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? "invalid"}`).join("; ");
 }

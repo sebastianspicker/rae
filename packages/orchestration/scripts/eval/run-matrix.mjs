@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+/**
+ * Executes evaluation task/configuration matrices through the pipeline while preserving run isolation.
+ */
+import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { validateTasksetSchema } from "./lib/taskset-validate.mjs";
@@ -8,10 +11,15 @@ import {
   readJsonStrict,
   resolveWithinRepo,
   toWorkspaceRelative,
+  withLockedState,
   writeJson,
 } from "../pipeline/lib/state.mjs";
 import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
 import { CONFIG_IDS, PHASE_ORDER } from "../lib/constants.mjs";
+import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
+import { appendRunEndIfMissing } from "../pipeline/lib/runner-helpers-b.mjs";
+
+assertSupportedNodeRuntime();
 
 const EVAL_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
@@ -20,7 +28,7 @@ function parseArgs(argv) {
     {
       defaults: {
         root: process.cwd(),
-        evalId: `eval-${new Date().toISOString().replace(/[-:.]/g, "").replace("Z", "Z")}`,
+        evalId: `eval-${new Date().toISOString().replace(/[-:.]/g, "")}`,
         taskset: "docs/eval/tasksets/default.json",
         repeats: 1,
         mode: "shadow",
@@ -78,68 +86,67 @@ function parseRunId(initOutput, root) {
   return runId;
 }
 
-function validateStageOverrideMap(stageMap, contextLabel) {
-  if (!stageMap) return;
-  if (typeof stageMap !== "object" || Array.isArray(stageMap)) {
-    throw new Error(`${contextLabel} must be an object`);
-  }
-
-  for (const [phase, override] of Object.entries(stageMap)) {
-    if (!PHASE_ORDER.includes(phase)) {
-      throw new Error(`${contextLabel} contains unsupported phase: ${phase}`);
-    }
-    if (typeof override !== "object" || override === null || Array.isArray(override)) {
-      throw new Error(`${contextLabel}.${phase} must be an object`);
-    }
-    if (override.gate_status && !["pass", "warn", "fail"].includes(override.gate_status)) {
-      throw new Error(`${contextLabel}.${phase}.gate_status must be pass|warn|fail`);
-    }
+function requireObject(value, label) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
   }
 }
 
+function requireNonEmptyString(value, message) {
+  if (typeof value !== "string" || value.length === 0) throw new Error(message);
+}
+
+function requireNonEmptyArray(value, message) {
+  if (!Array.isArray(value) || value.length === 0) throw new Error(message);
+}
+
+function validateStageOverride(phase, override, contextLabel) {
+  if (!PHASE_ORDER.includes(phase)) {
+    throw new Error(`${contextLabel} contains unsupported phase: ${phase}`);
+  }
+  requireObject(override, `${contextLabel}.${phase}`);
+  if (override.gate_status && !["pass", "warn", "fail"].includes(override.gate_status)) {
+    throw new Error(`${contextLabel}.${phase}.gate_status must be pass|warn|fail`);
+  }
+}
+
+function validateStageOverrideMap(stageMap, contextLabel) {
+  if (!stageMap) return;
+  requireObject(stageMap, contextLabel);
+  for (const [phase, override] of Object.entries(stageMap)) {
+    validateStageOverride(phase, override, contextLabel);
+  }
+}
+
+function validateConfigOverrides(task) {
+  if (task.config_overrides === undefined) return;
+  const label = `task(${task.id}).config_overrides`;
+  requireObject(task.config_overrides, label);
+  for (const [configId, stageMap] of Object.entries(task.config_overrides)) {
+    if (!CONFIG_IDS.includes(configId)) {
+      throw new Error(`${label} has unsupported config ${configId}`);
+    }
+    validateStageOverrideMap(stageMap, `${label}.${configId}`);
+  }
+}
+
+function validateTask(task) {
+  requireObject(task, "each task");
+  requireNonEmptyString(task.id, "task.id is required");
+  requireNonEmptyString(task.title, `task.title is required for ${task.id}`);
+  requireNonEmptyArray(
+    task.must_requirement_ids,
+    `task.must_requirement_ids must be non-empty for ${task.id}`,
+  );
+  validateStageOverrideMap(task.stage_overrides, `task(${task.id}).stage_overrides`);
+  validateConfigOverrides(task);
+}
+
 function validateTaskset(taskset) {
-  if (!taskset || typeof taskset !== "object") {
-    throw new Error("Taskset must be an object");
-  }
-  if (typeof taskset.taskset_id !== "string" || taskset.taskset_id.length === 0) {
-    throw new Error("taskset_id is required");
-  }
-  if (!Array.isArray(taskset.tasks) || taskset.tasks.length === 0) {
-    throw new Error("tasks must be a non-empty array");
-  }
-
-  for (const task of taskset.tasks) {
-    if (!task || typeof task !== "object") {
-      throw new Error("each task must be an object");
-    }
-    if (typeof task.id !== "string" || task.id.length === 0) {
-      throw new Error("task.id is required");
-    }
-    if (typeof task.title !== "string" || task.title.length === 0) {
-      throw new Error(`task.title is required for ${task.id}`);
-    }
-    if (!Array.isArray(task.must_requirement_ids) || task.must_requirement_ids.length === 0) {
-      throw new Error(`task.must_requirement_ids must be non-empty for ${task.id}`);
-    }
-
-    validateStageOverrideMap(task.stage_overrides, `task(${task.id}).stage_overrides`);
-
-    if (task.config_overrides !== undefined) {
-      if (
-        typeof task.config_overrides !== "object" ||
-        task.config_overrides === null ||
-        Array.isArray(task.config_overrides)
-      ) {
-        throw new Error(`task(${task.id}).config_overrides must be an object`);
-      }
-      for (const [configId, stageMap] of Object.entries(task.config_overrides)) {
-        if (!CONFIG_IDS.includes(configId)) {
-          throw new Error(`task(${task.id}).config_overrides has unsupported config ${configId}`);
-        }
-        validateStageOverrideMap(stageMap, `task(${task.id}).config_overrides.${configId}`);
-      }
-    }
-  }
+  requireObject(taskset, "Taskset");
+  requireNonEmptyString(taskset.taskset_id, "taskset_id is required");
+  requireNonEmptyArray(taskset.tasks, "tasks must be a non-empty array");
+  taskset.tasks.forEach(validateTask);
 }
 
 function loadTaskset(root, tasksetRef) {
@@ -158,27 +165,24 @@ function loadTaskset(root, tasksetRef) {
 }
 
 function applyConfigToPipelineState(root, configId, mode) {
-  const statePath = resolveWithinRepo(".pipeline/pipeline-state.json", root);
-  const state = readJsonStrict(statePath);
+  withLockedState(root, (state) => {
+    const featureFlags = { ...(state?.config?.feature_flags ?? {}) };
+    featureFlags.trace_v1 = true;
+    featureFlags.evaluation_v1 = true;
 
-  const featureFlags = state?.config?.feature_flags ?? {};
-  featureFlags.trace_v1 = true;
-  featureFlags.evaluation_v1 = true;
+    if (mode === "shadow") {
+      featureFlags.context_budget_v1 = false;
+      featureFlags.traceability_v1 = false;
+      featureFlags.drift_benchmark_v1 = false;
+    } else {
+      featureFlags.context_budget_v1 = configId === "phased_with_context_budgets";
+      featureFlags.traceability_v1 = configId !== "baseline_single_agent";
+      featureFlags.drift_benchmark_v1 = configId === "phased_dual_extractor_drift";
+    }
 
-  if (mode === "shadow") {
-    featureFlags.context_budget_v1 = false;
-    featureFlags.traceability_v1 = false;
-    featureFlags.drift_benchmark_v1 = false;
-  } else {
-    featureFlags.context_budget_v1 = configId === "phased_with_context_budgets";
-    featureFlags.traceability_v1 = configId !== "baseline_single_agent";
-    featureFlags.drift_benchmark_v1 = configId === "phased_dual_extractor_drift";
-  }
-
-  state.config = state.config ?? {};
-  state.config.feature_flags = featureFlags;
-
-  writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+    state.config = state.config ?? {};
+    state.config.feature_flags = featureFlags;
+  });
 }
 
 function executeRun({ root, runId, configId, tasksetRel, taskId }) {
@@ -208,6 +212,19 @@ function executeRun({ root, runId, configId, tasksetRel, taskId }) {
       failed = true;
       break;
     }
+  }
+
+  if (failed) {
+    // A stage failure remains retryable for interactive callers. The matrix
+    // runner deliberately abandons that run, so it must close the trace before
+    // summarization without marking the failed gate complete.
+    withLockedState(root, (state) => {
+      appendRunEndIfMissing(runId, state, root, {
+        status: "error",
+        source: "eval-run-matrix",
+        reason: "stage-failure",
+      });
+    });
   }
 
   runCommand("node", ["scripts/pipeline/runner.mjs", "summarize-run", "--run-id", runId], {

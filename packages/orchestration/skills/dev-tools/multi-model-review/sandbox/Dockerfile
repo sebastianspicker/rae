@@ -1,11 +1,12 @@
-FROM node:20-bookworm-slim AS build
+# Build a hermetic review-skill image so validation does not depend on host tooling.
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS build
 WORKDIR /skill
 COPY package.json package-lock.json tsconfig.json ./
 RUN npm ci --ignore-scripts
 COPY src/ src/
-RUN npx tsc
+RUN ./node_modules/.bin/tsc
 
-FROM node:20-bookworm-slim
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 RUN groupadd -r skill && useradd -r -g skill skill
 WORKDIR /skill
 COPY --from=build /skill/dist/ dist/

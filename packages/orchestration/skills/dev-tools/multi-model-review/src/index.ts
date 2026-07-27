@@ -1,3 +1,6 @@
+/**
+ * Exposes the multi-model review tool through the common JSON-lines harness.
+ */
 import type { DriftData, Input, ReviewData } from "./types.js";
 import { runDriftDetect, runReview } from "./lib/engine.js";
 import { validateInput } from "./lib/input.js";

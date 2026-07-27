@@ -1,3 +1,6 @@
+/**
+ * Verifies phase artifact defaults and generated evidence remain schema-shaped across pipeline configurations.
+ */
 import { describe, it, expect } from "vitest";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 import {
@@ -33,10 +36,10 @@ describe("phaseArtifactDefaults", () => {
     expect(schemaRef).toBe("contracts/artifacts/build-report.schema.json");
   });
 
-  it("returns null artifactRef for post-build phase", () => {
+  it("returns the security report defaults for post-build phase", () => {
     const { artifactRef, schemaRef } = phaseArtifactDefaults("post-build");
-    expect(artifactRef).toBeNull();
-    expect(schemaRef).toBeNull();
+    expect(artifactRef).toBe("quality-reports/post-build.json");
+    expect(schemaRef).toBe("contracts/artifacts/quality-report.schema.json");
   });
 
   it("handles all phases in PHASE_ORDER without throwing", () => {
@@ -107,6 +110,11 @@ describe("buildArtifactForPhase", () => {
     expect(result.task_groups[0].tasks[0].covers_requirement_ids).toContain("REQ-001");
     expect(result.task_groups[0].tasks[0].context_manifest).toBeDefined();
     expect(result.task_groups[0].tasks[0].test_cases[0].context_manifest).toBeDefined();
+    expect(result.documentation).toEqual({
+      required: false,
+      paths: [],
+      rationale: "The deterministic fixture exercises the runner without changing public behavior.",
+    });
   });
 
   it("builds pmatch artifact with claims", () => {
@@ -140,9 +148,11 @@ describe("buildArtifactForPhase", () => {
     expect(result.approvals).toHaveLength(1);
   });
 
-  it("returns null for post-build phase", () => {
+  it("builds a complete security fixture for post-build phase", () => {
     const result = buildArtifactForPhase({ ...baseConfig, phase: "post-build" });
-    expect(result).toBeNull();
+    expect(result.audit_type).toBe("security");
+    expect(result.security_audit.categories_covered).toHaveLength(14);
+    expect(result.security_audit.fix_loop.rescan_completed).toBe(true);
   });
 
   it("returns null for unknown phase", () => {

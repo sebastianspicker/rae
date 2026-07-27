@@ -3,19 +3,19 @@ status: historical
 owner: orchestration
 last_reviewed: 2026-04-12
 source_of_truth: editorial
-evidence_links: ../archive/migration/source-repo-map.md
+evidence_links: ../reference/repo-map.md
 ---
 
 # Case Study: Phased Orchestration
 
-The orchestration import supplies the umbrella’s explicit staged workflow model.
+The orchestration package supplies the umbrella's staged workflow model.
 
 ## What it contributes
 
 - typed artifacts
 - phase-local gates
 - explicit run state and summaries
-- agent adapter generation
+- runner adapter synchronization
 - deterministic runtime validation packages
 
 ## Why it matters to the umbrella
@@ -34,7 +34,7 @@ umbrella's long-horizon control surface.
 
 ## Interpretation limits
 
-- this page is interpretive history, not frozen benchmark evidence
+- this page describes component responsibilities, not benchmark evidence
 
 ## Source note
 

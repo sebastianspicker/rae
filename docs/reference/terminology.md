@@ -27,7 +27,7 @@ evidence_links: claims/claims-ledger.md
 - `judge`
   The scoring mechanism, human or model-assisted, used to evaluate outputs.
 - `contamination`
-  Leakage from benchmark tasks or solutions into model training or prompting
+  Leakage from benchmark tasks or solutions into model training or evaluation input
   conditions that inflates scores.
 - `deterministic loop`
   A runner whose state transitions and story selection rules are explicit and

@@ -1,0 +1,9 @@
+# Route public alpha changes to the current maintainer until ownership expands.
+* @sebastianspicker
+
+# Make security, automation, runtime, evaluation, and public-doc changes visible.
+/.github/ @sebastianspicker
+/scripts/ @sebastianspicker
+/packages/ @sebastianspicker
+/evals/ @sebastianspicker
+/docs/ @sebastianspicker

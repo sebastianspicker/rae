@@ -1,7 +1,10 @@
+/**
+ * Deduplicates reviewer findings while retaining source attribution and strongest evidence.
+ */
 import type { Finding } from "./models/types.js";
 import type { DedupFinding } from "../types.js";
 
-function tokenize(text: string): Set<string> {
+export function tokenize(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
@@ -18,15 +21,24 @@ function tokenize(text: string): Set<string> {
 export function tokenSimilarity(a: string | Set<string>, b: string | Set<string>): number {
   const tokA = typeof a === "string" ? tokenize(a) : a;
   const tokB = typeof b === "string" ? tokenize(b) : b;
-  if (tokA.size === 0 && tokB.size === 0) return 1;
-  if (tokA.size === 0 || tokB.size === 0) return 0;
-
-  let intersection = 0;
-  for (const t of tokA) {
-    if (tokB.has(t)) intersection++;
-  }
+  const emptySimilarity = similarityForEmptySets(tokA, tokB);
+  if (emptySimilarity !== undefined) return emptySimilarity;
+  const intersection = countIntersection(tokA, tokB);
   const union = tokA.size + tokB.size - intersection;
   return union === 0 ? 0 : intersection / union;
+}
+
+export function similarityForEmptySets(a: Set<string>, b: Set<string>): number | undefined {
+  if (a.size === 0 && b.size === 0) return 1;
+  return a.size === 0 || b.size === 0 ? 0 : undefined;
+}
+
+export function countIntersection(a: Set<string>, b: Set<string>): number {
+  let intersection = 0;
+  a.forEach((token) => {
+    if (b.has(token)) intersection++;
+  });
+  return intersection;
 }
 
 const SIMILARITY_THRESHOLD = 0.7;
@@ -38,82 +50,99 @@ export interface TaggedFinding extends Finding {
 }
 
 export function deduplicateFindings(taggedFindings: TaggedFinding[]): DedupFinding[] {
-  const groups: Map<string, TaggedFinding[]> = new Map();
-  for (const f of taggedFindings) {
-    const cat = f.category.toLowerCase().trim();
-    const existing = groups.get(cat) ?? [];
-    existing.push(f);
-    groups.set(cat, existing);
-  }
-
-  // Pre-tokenize all finding descriptions to avoid redundant tokenization in O(n^2) comparisons
+  const groups = groupFindingsByCategory(taggedFindings);
   const tokenCache = new Map<string, Set<string>>();
-  function cachedTokenize(text: string): Set<string> {
-    let tokens = tokenCache.get(text);
-    if (!tokens) {
-      tokens = tokenize(text);
-      tokenCache.set(text, tokens);
-    }
-    return tokens;
-  }
-
-  const results: DedupFinding[] = [];
-
-  for (const [, categoryFindings] of groups) {
-    const merged: DedupFinding[] = [];
-
-    for (const f of categoryFindings) {
-      const fTokens = cachedTokenize(f.description);
-      let wasMerged = false;
-      for (const m of merged) {
-        const mTokens = cachedTokenize(m.description);
-        if (tokenSimilarity(fTokens, mTokens) >= SIMILARITY_THRESHOLD) {
-          if (!m.source_models.includes(f._source)) {
-            m.source_models.push(f._source);
-          }
-          if (severityRank(f.severity) > severityRank(m.severity)) {
-            m.severity = f.severity;
-          }
-          if (f.evidence && !m.evidence) m.evidence = f.evidence;
-          if (f.suggestion && !m.suggestion) m.suggestion = f.suggestion;
-          if (f.trace_id && !m.trace_id) {
-            m.trace_id = f.trace_id;
-          }
-          const incomingReqIds = f.covers_requirement_ids;
-          if (incomingReqIds?.length) {
-            const existing = m.covers_requirement_ids ?? [];
-            const merged = new Set([...existing, ...incomingReqIds]);
-            m.covers_requirement_ids = [...merged];
-          }
-          wasMerged = true;
-          break;
-        }
-      }
-
-      if (!wasMerged) {
-        merged.push({
-          id: f.id,
-          category: f.category,
-          description: f.description,
-          severity: f.severity,
-          evidence: f.evidence,
-          suggestion: f.suggestion,
-          source_models: [f._source],
-          ...(f.trace_id ? { trace_id: f.trace_id } : {}),
-          ...(f.covers_requirement_ids?.length
-            ? { covers_requirement_ids: [...f.covers_requirement_ids] }
-            : {}),
-        });
-      }
-    }
-
-    results.push(...merged);
-  }
-
-  return results;
+  return [...groups.values()].flatMap((findings) => deduplicateCategory(findings, tokenCache));
 }
 
-function severityRank(s: Finding["severity"]): number {
+export function groupFindingsByCategory(findings: TaggedFinding[]): Map<string, TaggedFinding[]> {
+  const groups = new Map<string, TaggedFinding[]>();
+  findings.forEach((finding) => {
+    const category = finding.category.toLowerCase().trim();
+    groups.set(category, [...(groups.get(category) ?? []), finding]);
+  });
+  return groups;
+}
+
+export function deduplicateCategory(
+  findings: TaggedFinding[],
+  tokenCache: Map<string, Set<string>>,
+): DedupFinding[] {
+  const merged: DedupFinding[] = [];
+  findings.forEach((finding) => mergeOrAppend(merged, finding, tokenCache));
+  return merged;
+}
+
+export function mergeOrAppend(
+  merged: DedupFinding[],
+  finding: TaggedFinding,
+  tokenCache: Map<string, Set<string>>,
+): void {
+  const existing = merged.find((candidate) => isSimilar(candidate, finding, tokenCache));
+  if (existing) mergeFinding(existing, finding);
+  else merged.push(toDedupFinding(finding));
+}
+
+export function isSimilar(
+  candidate: DedupFinding,
+  finding: TaggedFinding,
+  tokenCache: Map<string, Set<string>>,
+): boolean {
+  return tokenSimilarity(cachedTokenize(candidate.description, tokenCache), cachedTokenize(finding.description, tokenCache)) >= SIMILARITY_THRESHOLD;
+}
+
+export function cachedTokenize(text: string, cache: Map<string, Set<string>>): Set<string> {
+  const existing = cache.get(text);
+  if (existing) return existing;
+  const tokens = tokenize(text);
+  cache.set(text, tokens);
+  return tokens;
+}
+
+export function mergeFinding(existing: DedupFinding, incoming: TaggedFinding): void {
+  addSourceModel(existing, incoming._source);
+  promoteSeverity(existing, incoming);
+  copyMissingEvidence(existing, incoming);
+  copyMissingSuggestion(existing, incoming);
+  copyMissingTraceId(existing, incoming);
+  mergeRequirementIds(existing, incoming.covers_requirement_ids);
+}
+
+export function addSourceModel(existing: DedupFinding, source: string): void {
+  if (!existing.source_models.includes(source)) existing.source_models.push(source);
+}
+
+export function promoteSeverity(existing: DedupFinding, incoming: TaggedFinding): void {
+  if (severityRank(incoming.severity) > severityRank(existing.severity)) existing.severity = incoming.severity;
+}
+
+export function copyMissingEvidence(existing: DedupFinding, incoming: TaggedFinding): void {
+  if (incoming.evidence && !existing.evidence) existing.evidence = incoming.evidence;
+}
+
+export function copyMissingSuggestion(existing: DedupFinding, incoming: TaggedFinding): void {
+  if (incoming.suggestion && !existing.suggestion) existing.suggestion = incoming.suggestion;
+}
+
+export function copyMissingTraceId(existing: DedupFinding, incoming: TaggedFinding): void {
+  if (incoming.trace_id && !existing.trace_id) existing.trace_id = incoming.trace_id;
+}
+
+export function mergeRequirementIds(existing: DedupFinding, incoming?: string[]): void {
+  if (!incoming?.length) return;
+  existing.covers_requirement_ids = [...new Set([...(existing.covers_requirement_ids ?? []), ...incoming])];
+}
+
+export function toDedupFinding(finding: TaggedFinding): DedupFinding {
+  return {
+    id: finding.id, category: finding.category, description: finding.description, severity: finding.severity,
+    evidence: finding.evidence, suggestion: finding.suggestion, source_models: [finding._source],
+    ...(finding.trace_id ? { trace_id: finding.trace_id } : {}),
+    ...(finding.covers_requirement_ids?.length ? { covers_requirement_ids: [...finding.covers_requirement_ids] } : {}),
+  };
+}
+
+export function severityRank(s: Finding["severity"]): number {
   const ranks: Record<Finding["severity"], number> = {
     info: 0,
     low: 1,

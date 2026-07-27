@@ -15,7 +15,8 @@ This repository is a reusable template. Changes should improve one or more of th
 
 Required tools:
 
-- `bash`
+- Bash 5.3 or newer
+- Python 3.14.6 or newer
 - `jq`
 - `mktemp`
 - `shellcheck`
@@ -23,11 +24,11 @@ Required tools:
 Optional but useful:
 
 - `git`
-- `claude` (needed only for execution flows, not for most tests)
+- `codex` (needed only for execution flows, not for most tests)
 
 ## Development Rules
 
-- Keep shell scripts POSIX-aware where practical, but this project targets `bash`.
+- Use Bash 5.3 features where they make safety boundaries explicit.
 - Prefer explicit failure handling over silent fallback.
 - Avoid broad refactors mixed with behavior changes.
 - Preserve deterministic behavior of the story loop.
@@ -44,7 +45,7 @@ Before opening a PR:
 1. Run shell linting:
 
 ```bash
-shellcheck ralph.sh scripts/*.sh lib/ralph/*.sh tests/*.sh
+shellcheck -x ralph.sh scripts/*.sh lib/ralph/*.sh tests/*.sh tests/lib/*.sh
 ```
 
 2. Run full regression suite:
@@ -85,9 +86,10 @@ In PR description include:
 
 ## Function Naming Conventions
 
-- **Public functions**: no prefix (`log`, `fail`, `mark_story_passed`)
-- **Internal/shared helpers**: underscore prefix (`_update_story_in_prd`, `_capture_worktree_from_entries`)
-- **Compat/init functions**: `ralph_` prefix (`ralph_mktemp_init`, `ralph_iso_utc`)
+- Public functions: no prefix (`log`, `fail`, `mark_story_passed`)
+- Internal or shared helpers: underscore prefix (`_update_story_in_prd`)
+- Compatibility and initialization functions: `ralph_` prefix
+  (`ralph_mktemp_init`, `ralph_iso_utc`)
 
 ## Backward Compatibility
 

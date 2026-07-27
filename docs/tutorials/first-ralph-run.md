@@ -1,19 +1,21 @@
 ---
 status: stable
 owner: loops
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-16
 source_of_truth: packages/loops/ralph
 evidence_links: ../reference/claims/evidence-index.md
 ---
 
 # First Ralph Run
 
-This tutorial walks through the minimum local Ralph path.
+This tutorial walks through the minimum local Ralph `0.3.0` path. Ralph is
+Codex-only: its `audit` and `linting` modes are read-only, while `fixing` uses a
+story-scoped filesystem transaction with recovery.
 
 ## Assumptions
 
 - you are at the repository root
-- `bash`, `jq`, and one supported tool adapter are available
+- GNU Bash 5.3+, Python 3.14.6+, `jq`, and the Codex CLI are available
 - you only want to validate the loop surface first
 
 ## 1. Validate the PRD
@@ -34,6 +36,10 @@ This tutorial walks through the minimum local Ralph path.
 ```bash
 MODE=audit ./scripts/rae.sh ralph 1
 ```
+
+Codex execution uses a positive deadline, a 15-second graceful shutdown, and
+bounded output (16 MiB raw output and 2 MiB final report). Try `MODE=fixing`
+only after reviewing the selected story and transaction boundary.
 
 ## 4. Run package verification
 

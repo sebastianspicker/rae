@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's sync agents from learnings contract.
 
 set -euo pipefail
 

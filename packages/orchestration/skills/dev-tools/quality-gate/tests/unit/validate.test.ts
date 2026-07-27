@@ -1,3 +1,6 @@
+/**
+ * Verifies artifact schema validation stays contained to trusted workspace paths.
+ */
 import { describe, it, expect } from "vitest";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";

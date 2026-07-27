@@ -1,30 +1,18 @@
+/**
+ * Verifies trace aggregation and metrics remain accurate for schema-valid event histories.
+ */
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createAjvInstance } from "@coding-agents-space/shared";
 import { collectTrace } from "../../src/lib/trace.js";
+import { writeTraceSchema } from "./trace-test-helpers.js";
 
 describe("collectTrace (metrics + schema)", () => {
   it("computes total_wall_clock_s from run_start and run_end events", async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), "trace-collector-wallclock-"));
-    const schemaDir = join(workspaceRoot, "contracts", "artifacts");
-    mkdirSync(schemaDir, { recursive: true });
-    writeFileSync(
-      join(schemaDir, "execution-trace.schema.json"),
-      JSON.stringify({
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        required: ["ts", "run_id", "event", "phase"],
-        properties: {
-          ts: { type: "string" },
-          run_id: { type: "string" },
-          event: { type: "string" },
-          phase: { type: "string" },
-        },
-      }),
-      "utf8",
-    );
+    writeTraceSchema(workspaceRoot);
 
     const result = await collectTrace(
       {
@@ -70,23 +58,7 @@ describe("collectTrace (metrics + schema)", () => {
 
   it("returns undefined for total_wall_clock_s when run_start/run_end are absent", async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), "trace-collector-nowc-"));
-    const schemaDir = join(workspaceRoot, "contracts", "artifacts");
-    mkdirSync(schemaDir, { recursive: true });
-    writeFileSync(
-      join(schemaDir, "execution-trace.schema.json"),
-      JSON.stringify({
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        required: ["ts", "run_id", "event", "phase"],
-        properties: {
-          ts: { type: "string" },
-          run_id: { type: "string" },
-          event: { type: "string" },
-          phase: { type: "string" },
-        },
-      }),
-      "utf8",
-    );
+    writeTraceSchema(workspaceRoot);
 
     const result = await collectTrace(
       {
@@ -118,23 +90,7 @@ describe("collectTrace (metrics + schema)", () => {
 
   it("returns undefined for security_time_to_closure_s when no security-review phase exists", async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), "trace-collector-nosec-"));
-    const schemaDir = join(workspaceRoot, "contracts", "artifacts");
-    mkdirSync(schemaDir, { recursive: true });
-    writeFileSync(
-      join(schemaDir, "execution-trace.schema.json"),
-      JSON.stringify({
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        required: ["ts", "run_id", "event", "phase"],
-        properties: {
-          ts: { type: "string" },
-          run_id: { type: "string" },
-          event: { type: "string" },
-          phase: { type: "string" },
-        },
-      }),
-      "utf8",
-    );
+    writeTraceSchema(workspaceRoot);
 
     const result = await collectTrace(
       {
@@ -166,23 +122,7 @@ describe("collectTrace (metrics + schema)", () => {
 
   it("produces output that conforms to the shipped output schema", async () => {
     const workspaceRoot = mkdtempSync(join(tmpdir(), "trace-collector-contract-"));
-    const schemaDir = join(workspaceRoot, "contracts", "artifacts");
-    mkdirSync(schemaDir, { recursive: true });
-    writeFileSync(
-      join(schemaDir, "execution-trace.schema.json"),
-      JSON.stringify({
-        $schema: "https://json-schema.org/draft/2020-12/schema",
-        type: "object",
-        required: ["ts", "run_id", "event", "phase"],
-        properties: {
-          ts: { type: "string" },
-          run_id: { type: "string" },
-          event: { type: "string" },
-          phase: { type: "string" },
-        },
-      }),
-      "utf8",
-    );
+    writeTraceSchema(workspaceRoot);
 
     const result = await collectTrace(
       {
@@ -227,5 +167,4 @@ describe("collectTrace (metrics + schema)", () => {
 
     rmSync(workspaceRoot, { recursive: true, force: true });
   });
-
 });

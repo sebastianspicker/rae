@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Verifies that schema-declared runtime properties stay aligned with Ralph behavior.
 
 set -euo pipefail
 

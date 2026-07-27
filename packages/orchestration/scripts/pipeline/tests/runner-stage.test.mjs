@@ -1,10 +1,12 @@
 /**
- * Integration tests for the runner.mjs CLI — specifically the run-stage command.
+ * Integration tests for the runner.mjs CLI: specifically the run-stage command.
  * These tests spawn runner.mjs as a subprocess to exercise the real entrypoint.
  */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { PHASE_ORDER } from "../../lib/constants.mjs";
+import { buildArtifactForPhase } from "../lib/artifacts.mjs";
 import {
   TEST_RUN_ID,
   initState,
@@ -19,6 +21,76 @@ import {
 } from "./runner-stage.test-helpers.mjs";
 
 registerStateLifecycle();
+
+function runArm(inputArtifact) {
+  const args = [
+    "run-stage",
+    "--run-id",
+    TEST_RUN_ID,
+    "--phase",
+    "arm",
+    "--config-id",
+    "phased_default",
+  ];
+  if (inputArtifact) args.push("--input-artifact", inputArtifact);
+  return runRunner(args);
+}
+
+function prepareTerminalReleaseState() {
+  const statePath = join(pipelineDirForTest(), "pipeline-state.json");
+  const state = JSON.parse(readFileSync(statePath, "utf8"));
+  state.current_phase = "post-build";
+  state.completed_gates = PHASE_ORDER.slice(0, -1).map((phase) => `${phase}-gate`);
+  writeFileSync(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  writeReviewLoopFixture();
+}
+
+function runReleaseReadiness() {
+  return runRunner([
+    "run-stage",
+    "--run-id",
+    TEST_RUN_ID,
+    "--phase",
+    "release-readiness",
+    "--config-id",
+    "phased_default",
+  ]);
+}
+
+function persistedTraceEvents() {
+  return readFileSync(join(runDirForTest(), "trace.jsonl"), "utf8")
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+}
+
+function writeCallerQualityArtifact() {
+  const artifact = buildArtifactForPhase({
+    phase: "quality-tests",
+    runId: TEST_RUN_ID,
+    configId: "phased_default",
+    task: { id: "task-1", must_requirement_ids: ["REQ-001"] },
+    stageProfile: {},
+    budget: null,
+  });
+  artifact.coverage_ledger.requirements[0].status = "missing";
+  artifact.coverage_ledger.summary = {
+    total_requirements: 1,
+    covered_requirements: 0,
+    partial_requirements: 0,
+    missing_requirements: 1,
+  };
+  artifact.qc_summary = {
+    headline: "Caller-supplied coverage remains authoritative.",
+    coverage_status: "missing",
+    covered_requirements: [],
+    missing_requirement_ids: ["REQ-001"],
+  };
+  const inputPath = join(pipelineDirForTest(), "caller-quality.json");
+  writeFileSync(inputPath, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+  return { artifact, inputPath };
+}
+
 describe("runner.mjs CLI", () => {
   describe("--help", () => {
     it("exits 0 and prints usage", () => {
@@ -72,6 +144,23 @@ describe("run-stage", () => {
       const result = runRunner(["run-stage", "--phase", "arm", "--config-id", "phased_default"]);
       expect(result.status).not.toBe(0);
       expect(result.stderr).toContain("run-id");
+    });
+
+    it("rejects a phase when its predecessors have not completed", () => {
+      initState();
+      const result = runRunner([
+        "run-stage",
+        "--run-id",
+        TEST_RUN_ID,
+        "--phase",
+        "build",
+        "--config-id",
+        "phased_default",
+      ]);
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("phase out of order: expected arm, received build");
+      expect(existsSync(join(runDirForTest(), "build-report.json"))).toBe(false);
     });
   });
 
@@ -158,6 +247,34 @@ describe("run-stage", () => {
       expect(
         output.gate.criteria.some((criterion) => criterion.name === "requirements-present"),
       ).toBe(true);
+      const state = JSON.parse(
+        readFileSync(join(pipelineDirForTest(), "pipeline-state.json"), "utf8"),
+      );
+      expect(state.completed_gates).not.toContain("arm-gate");
+    });
+
+    it("emits one final run_end after a failed phase is retried", () => {
+      initState();
+      const emptyBriefPath = writeEmptyBriefFixture();
+      const failed = runArm(emptyBriefPath);
+      expect(failed.status).not.toBe(0);
+
+      const retry = runArm();
+      expect(retry.status).toBe(0);
+
+      prepareTerminalReleaseState();
+      const terminal = runReleaseReadiness();
+      expect(terminal.status).toBe(0);
+
+      const events = persistedTraceEvents();
+      const runEndIndexes = events.flatMap((event, index) =>
+        event.event === "run_end" ? [index] : [],
+      );
+      const terminalPhaseEndIndex = events.findLastIndex(
+        (event) => event.event === "phase_end" && event.phase === "release-readiness",
+      );
+      expect(runEndIndexes).toHaveLength(1);
+      expect(runEndIndexes[0]).toBeGreaterThan(terminalPhaseEndIndex);
     });
   });
 
@@ -236,7 +353,7 @@ describe("run-stage", () => {
 
   describe("task-fresh execution boundaries", () => {
     it("emits distinct build task-session trace events", () => {
-      initState();
+      initState("build");
       writeTasksetFixture();
       writeTraceabilityFixtures();
 
@@ -282,7 +399,7 @@ describe("run-stage", () => {
     });
 
     it("emits distinct quality-case session trace events", () => {
-      initState();
+      initState("quality-tests");
       writeTasksetFixture();
       writeTraceabilityFixtures();
 
@@ -333,11 +450,37 @@ describe("run-stage", () => {
       expect(qualityReport.coverage_ledger.summary.covered_requirements).toBe(1);
       expect(qualityReport.qc_summary.coverage_status).toBe("complete");
     });
+
+    it("preserves caller-supplied quality evidence instead of enriching it", () => {
+      initState("quality-tests");
+      writeTasksetFixture();
+      writeTraceabilityFixtures();
+      const caller = writeCallerQualityArtifact();
+
+      const result = runRunner([
+        "run-stage",
+        "--run-id",
+        TEST_RUN_ID,
+        "--phase",
+        "quality-tests",
+        "--config-id",
+        "phased_default",
+        "--input-artifact",
+        caller.inputPath,
+      ]);
+
+      expect(result.status).not.toBe(0);
+      const persisted = JSON.parse(
+        readFileSync(join(runDirForTest(), "quality-reports", "tests.json"), "utf8"),
+      );
+      expect(persisted.coverage_ledger).toEqual(caller.artifact.coverage_ledger);
+      expect(persisted.qc_summary).toEqual(caller.artifact.qc_summary);
+    });
   });
 
   describe("release-readiness review-loop integration", () => {
     it("loads review-loop state into the release-readiness artifact", () => {
-      initState();
+      initState("release-readiness");
       writeReviewLoopFixture();
 
       const result = runRunner([
@@ -362,7 +505,7 @@ describe("run-stage", () => {
     });
 
     it("emits run_end on terminal completion and reports wall-clock time", () => {
-      initState();
+      initState("release-readiness");
       writeReviewLoopFixture();
 
       const result = runRunner([

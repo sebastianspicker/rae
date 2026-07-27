@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
+# Fails on tracked editor residue so repository artifacts remain portable and reviewable.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$root_dir/scripts/lib/runtime.sh"
+orchestration_require_runtime
 
 if ! command -v git >/dev/null 2>&1; then
   echo "ERROR: git is required for hygiene checks." >&2
@@ -25,4 +29,3 @@ if [[ -n "$tracked_matches" ]]; then
 fi
 
 echo "OK: repository hygiene checks passed"
-

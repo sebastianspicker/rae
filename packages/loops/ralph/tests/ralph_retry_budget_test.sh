@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's retry budget contract.
 
 set -euo pipefail
 
@@ -13,7 +14,22 @@ make_flaky_tool() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-count_file="${RALPH_TEST_COUNT_FILE:?missing RALPH_TEST_COUNT_FILE}"
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
+
+count_file="${XDG_STATE_HOME:?missing XDG_STATE_HOME}"
 count=0
 if [[ -f "$count_file" ]]; then
   count="$(cat "$count_file" 2>/dev/null || echo 0)"
@@ -80,14 +96,14 @@ run_success_with_retry_case() {
   mkdir -p "$bindir" "$tmpdir/repo"
   count_file="$tmpdir/count.txt"
 
-  make_flaky_tool "$bindir/claude"
+  make_flaky_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_COUNT_FILE="$count_file" \
+    XDG_STATE_HOME="$count_file" \
     RALPH_MAX_ATTEMPTS_PER_STORY=2 \
     ./ralph.sh 1
   ) > "$tmpdir/out.log" 2>&1
@@ -113,14 +129,14 @@ run_failure_without_retry_case() {
   mkdir -p "$bindir" "$tmpdir/repo"
   count_file="$tmpdir/count.txt"
 
-  make_flaky_tool "$bindir/claude"
+  make_flaky_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_COUNT_FILE="$count_file" \
+    XDG_STATE_HOME="$count_file" \
     RALPH_MAX_ATTEMPTS_PER_STORY=1 \
     ./ralph.sh 1
   ) > "$tmpdir/out.log" 2>&1

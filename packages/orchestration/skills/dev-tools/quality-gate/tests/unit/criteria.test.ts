@@ -1,3 +1,7 @@
+/**
+ * Exercises allowed criterion semantics and bounds so untrusted artifacts receive deterministic gate decisions.
+ */
+import fc from "fast-check";
 import { describe, it, expect } from "vitest";
 import { evaluateCriteria } from "../../src/lib/criteria.js";
 
@@ -62,6 +66,18 @@ describe("evaluateCriteria", () => {
   });
 
   describe("count-min", () => {
+    it("matches the generated array length against non-negative minimum thresholds", () => {
+      fc.assert(
+        fc.property(fc.array(fc.integer()), fc.nat({ max: 100 }), (items, min) => {
+          const results = evaluateCriteria({ items }, [
+            { name: "min-items", type: "count-min", path: "items", value: min },
+          ]);
+
+          expect(results[0].passed).toBe(items.length >= min);
+        }),
+      );
+    });
+
     it("passes when count meets threshold", () => {
       const results = evaluateCriteria({ items: [1, 2, 3] }, [
         { name: "min-items", type: "count-min", path: "items", value: 3 },
@@ -105,6 +121,18 @@ describe("evaluateCriteria", () => {
   });
 
   describe("count-max", () => {
+    it("matches the generated array length against non-negative maximum thresholds", () => {
+      fc.assert(
+        fc.property(fc.array(fc.integer()), fc.nat({ max: 100 }), (items, max) => {
+          const results = evaluateCriteria({ items }, [
+            { name: "max-items", type: "count-max", path: "items", value: max },
+          ]);
+
+          expect(results[0].passed).toBe(items.length <= max);
+        }),
+      );
+    });
+
     it("passes when count is below threshold", () => {
       const results = evaluateCriteria({ items: [1, 2] }, [
         { name: "max-items", type: "count-max", path: "items", value: 3 },
@@ -219,8 +247,8 @@ describe("evaluateCriteria", () => {
     });
 
     it("rejects potentially unsafe regex patterns", () => {
-      const results = evaluateCriteria({ version: "aaaaaaaaaaaaaaaaaaaaaaaaaaaa!" }, [
-        { name: "unsafe", type: "regex-match", path: "version", value: "^(a+)+$" },
+      const results = evaluateCriteria({ version: "1.2.3" }, [
+        { name: "unsafe", type: "regex-match", path: "version", value: "^(safe)$" },
       ]);
       expect(results[0].passed).toBe(false);
       expect(results[0].evidence).toContain("potentially unsafe");

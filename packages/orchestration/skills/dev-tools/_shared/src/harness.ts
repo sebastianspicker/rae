@@ -1,3 +1,6 @@
+/**
+ * Hosts the JSON-lines tool harness that normalizes timing, errors, and machine-readable output.
+ */
 import { performance } from "node:perf_hooks";
 import { readFileSync } from "node:fs";
 import type { RunResult } from "./types.js";
@@ -15,6 +18,9 @@ export interface ToolHandlerResult<TData> {
   logs: string[];
 }
 
+/**
+ * Runs a JSON-lines tool handler and normalizes timing, diagnostics, and error output for callers.
+ */
 export async function runTool<TInput, TData>(
   toolVersion: string,
   handler: (

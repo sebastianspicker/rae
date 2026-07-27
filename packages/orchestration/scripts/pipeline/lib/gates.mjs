@@ -29,6 +29,7 @@ export const QUALITY_GATE_PHASES = new Set([
   "build",
   "quality-static",
   "quality-tests",
+  "post-build",
   "release-readiness",
 ]);
 
@@ -208,6 +209,9 @@ export function gateStatusFromPhaseAndProfile(_phase, stageProfile) {
   return typeof stageProfile.gate_status === "string" ? stageProfile.gate_status : "pass";
 }
 
+/**
+ * Evaluates context budgets deterministically so stage profiles cannot silently exceed their token policy.
+ */
 export function evaluateContextBudgetGate({
   runId,
   phase,
@@ -294,6 +298,9 @@ export function evaluateContextBudgetGate({
   });
 }
 
+/**
+ * Builds a must-traceability result only from persisted artifacts and the configured quality-gate contract.
+ */
 export function evaluateTraceabilityGate({
   runId,
   phase,

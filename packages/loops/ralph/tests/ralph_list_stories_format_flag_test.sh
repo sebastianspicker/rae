@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's list stories format flag contract.
 
 set -euo pipefail
 

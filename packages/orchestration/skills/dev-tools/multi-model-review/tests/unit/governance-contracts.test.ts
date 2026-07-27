@@ -1,3 +1,6 @@
+/**
+ * Checks governance schemas and fixtures keep multi-model review evidence aligned with repository policy.
+ */
 import { describe, expect, it } from "vitest";
 import Ajv from "ajv";
 import { readFileSync } from "node:fs";
@@ -24,6 +27,19 @@ function validateAgainst(schemaPath: string, data: unknown): { valid: boolean; e
   const valid = validate(data);
   return { valid, errors: validate.errors ?? [] };
 }
+
+const completeSecurityReport = {
+  audit_type: "security",
+  violations: [],
+  summary: { pass: 0, warn: 0, fail: 0, open: 0, fixed: 0, accepted_risk: 0 },
+  security_audit: {
+    categories_covered: ["access-control", "xss", "csrf", "secrets", "security-headers", "cookies-session", "production-exposure", "dependencies", "ssrf", "file-upload", "injection", "path-traversal", "open-redirect", "jwt-auth"],
+    checks: { access_control: true, xss: true, csrf: true, secrets: true, security_headers: true, cookies_session: true, production_exposure: true, dependencies: true, ssrf: true, file_upload: true, injection: true, path_traversal: true, open_redirect: true, jwt_auth: true },
+    fix_loop: { rounds: 1, critical_high_before: 2, critical_high_after: 0, rescan_completed: true },
+    tools: ["manual"],
+    risk_signoff_required: false,
+  },
+};
 
 describe("governance contract hardening", () => {
   it("rejects security quality reports with incomplete mandatory coverage", () => {
@@ -76,55 +92,7 @@ describe("governance contract hardening", () => {
   });
 
   it("accepts security quality reports only when mandatory checklist and fix-loop are closed", () => {
-    const report = {
-      audit_type: "security",
-      violations: [],
-      summary: { pass: 0, warn: 0, fail: 0, open: 0, fixed: 0, accepted_risk: 0 },
-      security_audit: {
-        categories_covered: [
-          "access-control",
-          "xss",
-          "csrf",
-          "secrets",
-          "security-headers",
-          "cookies-session",
-          "production-exposure",
-          "dependencies",
-          "ssrf",
-          "file-upload",
-          "injection",
-          "path-traversal",
-          "open-redirect",
-          "jwt-auth",
-        ],
-        checks: {
-          access_control: true,
-          xss: true,
-          csrf: true,
-          secrets: true,
-          security_headers: true,
-          cookies_session: true,
-          production_exposure: true,
-          dependencies: true,
-          ssrf: true,
-          file_upload: true,
-          injection: true,
-          path_traversal: true,
-          open_redirect: true,
-          jwt_auth: true,
-        },
-        fix_loop: {
-          rounds: 1,
-          critical_high_before: 2,
-          critical_high_after: 0,
-          rescan_completed: true,
-        },
-        tools: ["manual"],
-        risk_signoff_required: false,
-      },
-    };
-
-    const result = validateAgainst("contracts/artifacts/quality-report.schema.json", report);
+    const result = validateAgainst("contracts/artifacts/quality-report.schema.json", completeSecurityReport);
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });

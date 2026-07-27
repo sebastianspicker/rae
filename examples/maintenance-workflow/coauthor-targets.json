@@ -1,17 +1,16 @@
 {
   "defaults": {
     "dryRun": true,
-    "noPush": true,
-    "forcePush": false
+    "noPush": true
   },
   "targets": [
     {
-      "name": "Cursor",
-      "email": "cursoragent@cursor.com"
+      "name": "Example Pairing Bot",
+      "email": "pairing-bot@example.com"
     },
     {
-      "name": "Pair Bot",
-      "email": "pairbot@example.com"
+      "name": "Example Review Bot",
+      "email": "review-bot@example.com"
     }
   ]
 }

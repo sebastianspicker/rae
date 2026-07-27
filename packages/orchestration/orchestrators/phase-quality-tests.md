@@ -38,7 +38,7 @@ Run each test suite and record results:
 ### Task 3: Assess test quality
 - [ ] For each pipeline lib module (scripts/pipeline/lib/*.mjs), check if there is a corresponding test file in scripts/pipeline/tests/
 - [ ] For each skill package test directory, check for meaningful assertions (not just "it exists" tests)
-- [ ] Identify untested exported functions — grep for exports in source, check if tests call them
+- [ ] Identify untested exported functions: grep for exports in source, check if tests call them
 - [ ] Identify untested error/edge case paths (catch blocks, empty array handling, boundary values)
 - [ ] Document assessment under "## Test Quality Assessment"
 

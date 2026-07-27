@@ -5,8 +5,10 @@
 maybe_require_learning_entry_update() {
   local story_id="$1"
   local baseline_signature="$2"
-  local learnings_file="$SCRIPT_DIR/learnings.md"
+  local learnings_file
   local current_signature
+
+  learnings_file="$(transaction_tool_script_dir)/learnings.md"
 
   if [[ "$MODE" != "fixing" ]] || ! is_true "$REQUIRE_LEARNING_ENTRY_FOR_FIXING"; then
     return
@@ -25,18 +27,20 @@ maybe_require_learning_entry_update() {
 write_report_atomically() {
   local last_message_file="$1"
   local report_rel="$2"
-  local report_abs="$REPO_ROOT/$report_rel"
+  local report_abs="$TOOL_REPO_ROOT/$report_rel"
   local report_dir
   local tmp_report
 
   report_dir="$(dirname "$report_abs")"
+  enforce_report_target_confinement "$report_abs" "$report_rel" "$TOOL_REPO_ROOT"
   mkdir -p "$report_dir"
-  enforce_report_target_confinement "$report_abs" "$report_rel"
+  enforce_report_target_confinement "$report_abs" "$report_rel" "$TOOL_REPO_ROOT"
 
   tmp_report="$(mktemp "$report_dir/.ralph-report.XXXXXX.tmp")"
   register_tmp "$tmp_report"
 
   cp "$last_message_file" "$tmp_report"
+  enforce_report_target_confinement "$report_abs" "$report_rel" "$TOOL_REPO_ROOT"
   mv "$tmp_report" "$report_abs"
 }
 
@@ -45,12 +49,13 @@ write_report_atomically() {
 # The filter receives $id and $now automatically; pass additional --arg pairs as needed.
 _update_story_in_prd() {
   local jq_filter="$1"; shift
-  local now_iso tmp_prd
+  local now_iso tmp_prd transaction_prd
   now_iso="$(ralph_iso_utc)"
-  tmp_prd="$(mktemp "$SCRIPT_DIR/.prd.XXXXXX.tmp")"
+  transaction_prd="$(transaction_tool_script_dir)/prd.json"
+  tmp_prd="$(mktemp "$(transaction_tool_script_dir)/.prd.XXXXXX.tmp")"
   register_tmp "$tmp_prd"
-  jq --arg now "$now_iso" "$@" "$jq_filter" "$PRD_FILE" > "$tmp_prd"
-  mv "$tmp_prd" "$PRD_FILE"
+  jq --arg now "$now_iso" "$@" "$jq_filter" "$transaction_prd" > "$tmp_prd"
+  mv "$tmp_prd" "$transaction_prd"
 }
 
 mark_story_passed() {
@@ -200,7 +205,7 @@ handle_story_failure() {
   log_event "STORY_FAIL id=$story_id mode=$MODE rc=$rc"
 
   if [[ "$SKIP_AFTER_FAILURES" -le 0 ]]; then
-    fail "${RALPH_EXIT_TOOL:-4}" "$TOOL exec failed for story $story_id (rc=$rc, see $RUN_LOG for redacted details)"
+    fail "${RALPH_EXIT_TOOL:-4}" "Codex exec failed for story $story_id (rc=$rc, see $RUN_LOG for redacted details)"
   fi
 
   failures="$(increment_story_failure_count "$story_id")"
@@ -209,15 +214,12 @@ handle_story_failure() {
     mark_story_skipped "$story_id" "$reason"
     clear_story_failure_count "$story_id"
     refresh_progress_snapshot_best_effort
-    if [[ "$MODE" == "fixing" && -n "${FIXING_BASE_STATE_FILE:-}" ]]; then
-      capture_worktree_state "$FIXING_BASE_STATE_FILE"
-    fi
     log_event "STORY_SKIPPED id=$story_id reason=$reason"
     log "story=$story_id skipped after repeated failures (count=$failures rc=$rc)"
     return 0
   fi
 
-  fail "${RALPH_EXIT_TOOL:-4}" "$TOOL exec failed for story $story_id (rc=$rc, failure_count=$failures skip_after=$SKIP_AFTER_FAILURES)"
+  fail "${RALPH_EXIT_TOOL:-4}" "Codex exec failed for story $story_id (rc=$rc, failure_count=$failures skip_after=$SKIP_AFTER_FAILURES)"
 }
 
 refresh_progress_snapshot_best_effort() {
@@ -289,12 +291,12 @@ persist_story_result() {
   maybe_require_learning_entry_update "$story_id" "$learnings_baseline_signature"
   write_report_atomically "$last_message_file" "$report_rel"
   mark_story_passed "$story_id" "$report_rel"
+  prepare_story_transaction "$story_id"
+  verify_story_transaction "$story_id"
+  promote_story_transaction "$story_id"
   clear_story_failure_count "$story_id"
   refresh_progress_snapshot_best_effort
   append_progress_log_best_effort "$story_id" "$report_rel"
   sync_agents_from_learnings_best_effort "$story_id"
-  if [[ "$MODE" == "fixing" && -n "${FIXING_BASE_STATE_FILE:-}" ]]; then
-    capture_worktree_state "$FIXING_BASE_STATE_FILE"
-  fi
   log_event "STORY_COMPLETE id=$story_id report=$report_rel"
 }

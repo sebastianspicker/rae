@@ -72,6 +72,20 @@ test_single_repo_dry_run() {
   assert_equals "$before" "$after" "dry-run should not modify the repo"
 }
 
+test_push_dry_run_does_not_require_a_live_rewritten_oid() {
+  skip_if_no_filter_repo || return 2
+  local repo repo_name before rc
+  repo=$(setup_test_repo)
+  repo_name=$(basename "$repo")
+  setup_push_ready_repo "$repo" "$repo_name"
+  before=$(git -C "$repo" rev-parse HEAD)
+
+  rc=0
+  bash "$SCRIPT_PATH" --dry-run --push "https://github.com/test/$repo_name" "$repo" >/dev/null 2>&1 || rc=$?
+  assert_equals "0" "$rc" "push dry-run must not read an unavailable rewritten OID"
+  assert_equals "$before" "$(git -C "$repo" rev-parse HEAD)" "push dry-run must preserve HEAD"
+}
+
 test_validate_only() {
   local repo
   repo=$(setup_test_repo)
@@ -375,4 +389,240 @@ test_push_phase_failure_restores_local_branch() {
 
   after_head=$(git -C "$repo" rev-parse HEAD)
   assert_equals "$before_head" "$after_head" "push-phase failure should restore the original local branch state"
+}
+
+setup_push_ready_repo() {
+  local repo="$1"
+  local repo_name="$2"
+  local remote_dir
+  remote_dir="$(create_test_dir)/remote.git"
+  git init -q --bare "$remote_dir"
+  git -C "$repo" remote add origin "$remote_dir"
+  git -C "$repo" push -q -u origin "$(git -C "$repo" symbolic-ref --quiet --short HEAD)"
+  git -C "$repo" remote set-url origin "https://github.com/test/$repo_name"
+}
+
+write_git_race_wrapper() {
+  local directory="$1"
+  cat >"$directory/git" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "$COAUTHOR_RACE_MODE" == "filter-commit" && " $* " == *" filter-repo "* ]]; then
+  transaction_ref="$("$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" for-each-ref \
+    --format='%(refname)' 'refs/coauthor-trailer-cleaner/transactions/*' | head -n 1)"
+  [[ -n "$transaction_ref" ]] || exit 91
+  [[ "$("$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" rev-parse "$transaction_ref")" == "$COAUTHOR_ORIGINAL_OID" ]] || exit 92
+  printf 'race\n' >"$COAUTHOR_RACE_REPO/race.txt"
+  "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" add race.txt
+  "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" commit -qm 'concurrent commit'
+  "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" rev-parse HEAD >"$COAUTHOR_RACE_MARKER"
+  exec "$COAUTHOR_REAL_GIT" "$@"
+fi
+
+if [[ "$COAUTHOR_RACE_MODE" == update-ref-* && " $* " == *" update-ref refs/heads/"* &&
+  "${@: -3:1}" == "$("$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" symbolic-ref HEAD)" &&
+  "${@: -2:1}" == "$COAUTHOR_ORIGINAL_OID" && ! -e "$COAUTHOR_RACE_MARKER" ]]; then
+  : >"$COAUTHOR_RACE_MARKER"
+  case "$COAUTHOR_RACE_MODE" in
+    update-ref-dirty) printf 'dirty-at-cas\n' >>"$COAUTHOR_RACE_REPO/file1.txt" ;;
+    update-ref-staged)
+      printf 'staged-at-cas\n' >"$COAUTHOR_RACE_REPO/staged-at-cas.txt"
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" add staged-at-cas.txt
+      ;;
+    update-ref-commit)
+      printf 'commit-at-cas\n' >"$COAUTHOR_RACE_REPO/commit-at-cas.txt"
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" add commit-at-cas.txt
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" commit -qm 'concurrent commit at CAS'
+      ;;
+    update-ref-moved-recovery-ref)
+      recovery_ref="$("$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*' | head -n 1)"
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" branch -f "$recovery_ref" HEAD
+      ;;
+  esac
+  exec "$COAUTHOR_REAL_GIT" "$@"
+fi
+
+if [[ "$COAUTHOR_RACE_MODE" == "cleanup-moved-recovery" &&
+  " $* " == *" update-ref --stdin --no-deref"* ]]; then
+  recovery_ref="$("$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" for-each-ref \
+    --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*' | head -n 1)"
+  "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" branch -f "$recovery_ref" HEAD
+  exec "$COAUTHOR_REAL_GIT" "$@"
+fi
+
+if [[ "$COAUTHOR_RACE_MODE" != "filter-commit" && " $* " == *" push "* ]]; then
+  case "$COAUTHOR_RACE_MODE" in
+    push-success-dirty)
+      printf 'changed-after-push\n' >>"$COAUTHOR_RACE_REPO/file1.txt"
+      exit 0
+      ;;
+    dirty) printf 'dirty\n' >>"$COAUTHOR_RACE_REPO/file1.txt" ;;
+    staged) printf 'staged\n' >"$COAUTHOR_RACE_REPO/staged.txt"; "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" add staged.txt ;;
+    commit)
+      printf 'commit\n' >"$COAUTHOR_RACE_REPO/concurrent.txt"
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" add concurrent.txt
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" commit -qm 'concurrent push failure'
+      ;;
+    moved-recovery-ref)
+      recovery_ref="$("$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*' | head -n 1)"
+      "$COAUTHOR_REAL_GIT" -C "$COAUTHOR_RACE_REPO" branch -f "$recovery_ref" HEAD
+      ;;
+  esac
+  exit 1
+fi
+
+exec "$COAUTHOR_REAL_GIT" "$@"
+EOF
+  chmod +x "$directory/git"
+}
+
+test_commit_inside_filter_preserves_concurrent_branch_and_transaction_refs() {
+  skip_if_no_filter_repo || return 2
+  local repo repo_name before_head dir marker rc recovery_ref transaction_ref concurrent_oid mapped_oid
+  repo=$(setup_test_repo)
+  repo_name=$(basename "$repo")
+  before_head=$(git -C "$repo" rev-parse HEAD)
+  setup_push_ready_repo "$repo" "$repo_name"
+  dir=$(create_test_dir)
+  marker="$dir/concurrent-oid"
+  write_git_race_wrapper "$dir"
+
+  rc=0
+  PATH="$dir:$PATH" COAUTHOR_REAL_GIT="$REAL_GIT_BIN" COAUTHOR_RACE_MODE=filter-commit \
+    COAUTHOR_RACE_REPO="$repo" COAUTHOR_RACE_MARKER="$marker" COAUTHOR_ORIGINAL_OID="$before_head" \
+    bash "$SCRIPT_PATH" --push "https://github.com/test/$repo_name" "$repo" >/dev/null 2>&1 || rc=$?
+  assert_equals "1" "$rc" "a commit created inside filter invocation must fail closed"
+  recovery_ref=$(git -C "$repo" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*')
+  transaction_ref=$(git -C "$repo" for-each-ref --format='%(refname)' 'refs/coauthor-trailer-cleaner/transactions/*')
+  [[ -n "$recovery_ref" ]] || { echo "    Expected retained recovery ref"; return 1; }
+  [[ -n "$transaction_ref" ]] || { echo "    Expected retained rewritten transaction ref"; return 1; }
+  assert_equals "$before_head" "$(git -C "$repo" rev-parse "$recovery_ref")" "recovery ref must preserve the exact preflight commit"
+  concurrent_oid=$(cat "$marker")
+  assert_equals "$concurrent_oid" "$(git -C "$repo" rev-parse HEAD)" "exact concurrent branch OID must be preserved"
+  mapped_oid=$(awk -v original="$before_head" '$1 == original {print $2}' \
+    "$(git -C "$repo" rev-parse --path-format=absolute --git-path filter-repo/commit-map)")
+  assert_equals "$mapped_oid" "$(git -C "$repo" rev-parse "$transaction_ref")" \
+    "private transaction ref must retain the exact mapped rewritten OID"
+}
+
+test_push_failure_rollback_refuses_changed_transaction_state() {
+  skip_if_no_filter_repo || return 2
+  local mode repo repo_name before_head rewritten_head dir rc recovery_ref
+  for mode in dirty staged commit moved-recovery-ref; do
+    repo=$(setup_test_repo)
+    repo_name=$(basename "$repo")
+    before_head=$(git -C "$repo" rev-parse HEAD)
+    setup_push_ready_repo "$repo" "$repo_name"
+    dir=$(create_test_dir)
+    write_git_race_wrapper "$dir"
+
+    rc=0
+    PATH="$dir:$PATH" COAUTHOR_REAL_GIT="$REAL_GIT_BIN" COAUTHOR_RACE_MODE="$mode" \
+      COAUTHOR_RACE_REPO="$repo" \
+      bash "$SCRIPT_PATH" --push "https://github.com/test/$repo_name" "$repo" >/dev/null 2>&1 || rc=$?
+    assert_equals "1" "$rc" "$mode mutation before simulated push failure must fail"
+    recovery_ref=$(git -C "$repo" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*')
+    [[ -n "$recovery_ref" ]] || { echo "    Expected retained recovery ref for $mode"; return 1; }
+    rewritten_head=$(git -C "$repo" rev-parse HEAD)
+    assert_not_contains "$rewritten_head" "$before_head" "$mode mutation must prevent automatic reset to original HEAD"
+    if [[ "$mode" == "moved-recovery-ref" ]]; then
+      assert_not_contains "$(git -C "$repo" rev-parse "$recovery_ref")" "$before_head" "moved recovery ref must be retained for manual inspection"
+    else
+      assert_equals "$before_head" "$(git -C "$repo" rev-parse "$recovery_ref")" "$mode must retain the original recovery ref"
+    fi
+    cleanup_test_dirs
+  done
+}
+
+test_update_ref_boundary_preserves_concurrent_state() {
+  skip_if_no_filter_repo || return 2
+  local mode repo repo_name before_head dir marker rc recovery_ref status head_after
+  for mode in update-ref-dirty update-ref-staged update-ref-commit update-ref-moved-recovery-ref; do
+    repo=$(setup_test_repo)
+    repo_name=$(basename "$repo")
+    before_head=$(git -C "$repo" rev-parse HEAD)
+    setup_push_ready_repo "$repo" "$repo_name"
+    dir=$(create_test_dir)
+    marker="$dir/injected"
+    write_git_race_wrapper "$dir"
+
+    rc=0
+    PATH="$dir:$PATH" COAUTHOR_REAL_GIT="$REAL_GIT_BIN" COAUTHOR_RACE_MODE="$mode" \
+      COAUTHOR_RACE_REPO="$repo" COAUTHOR_RACE_MARKER="$marker" COAUTHOR_ORIGINAL_OID="$before_head" \
+      bash "$SCRIPT_PATH" --push "https://github.com/test/$repo_name" "$repo" >/dev/null 2>&1 || rc=$?
+    assert_equals "1" "$rc" "$mode must fail closed at the rollback CAS boundary"
+    recovery_ref=$(git -C "$repo" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*')
+    [[ -n "$recovery_ref" ]] || { echo "    Expected retained recovery ref for $mode"; return 1; }
+    head_after=$(git -C "$repo" rev-parse HEAD)
+    status=$(git -C "$repo" status --porcelain)
+
+    case "$mode" in
+      update-ref-dirty)
+        assert_contains "$(cat "$repo/file1.txt")" "dirty-at-cas" "dirty bytes must survive rollback refusal"
+        assert_contains "$status" "file1.txt" "dirty worktree state must survive"
+        assert_not_contains "$head_after" "$before_head" "$mode branch ref must return to rewritten OID"
+        ;;
+      update-ref-staged)
+        assert_contains "$status" "A  staged-at-cas.txt" "staged index state must survive"
+        assert_not_contains "$head_after" "$before_head" "$mode branch ref must return to rewritten OID"
+        ;;
+      update-ref-commit)
+        assert_equals "concurrent commit at CAS" "$(git -C "$repo" log -1 --format=%s)" "concurrent commit must survive failed CAS"
+        ;;
+      update-ref-moved-recovery-ref)
+        assert_not_contains "$(git -C "$repo" rev-parse "$recovery_ref")" "$before_head" "moved recovery ref must be preserved"
+        assert_not_contains "$head_after" "$before_head" "$mode branch ref must return to rewritten OID"
+        ;;
+    esac
+    cleanup_test_dirs
+  done
+}
+
+test_moved_recovery_ref_survives_atomic_cleanup_boundary() {
+  skip_if_no_filter_repo || return 2
+  local repo repo_name before_head dir marker rc recovery_ref transaction_ref rewritten_oid
+  repo=$(setup_test_repo)
+  repo_name=$(basename "$repo")
+  before_head=$(git -C "$repo" rev-parse HEAD)
+  dir=$(create_test_dir)
+  marker="$dir/injected"
+  write_git_race_wrapper "$dir"
+
+  rc=0
+  PATH="$dir:$PATH" COAUTHOR_REAL_GIT="$REAL_GIT_BIN" COAUTHOR_RACE_MODE=cleanup-moved-recovery \
+    COAUTHOR_RACE_REPO="$repo" COAUTHOR_RACE_MARKER="$marker" COAUTHOR_ORIGINAL_OID="$before_head" \
+    bash "$SCRIPT_PATH" --no-push "https://github.com/test/$repo_name" "$repo" >/dev/null 2>&1 || rc=$?
+  assert_equals "1" "$rc" "moved recovery ref must make atomic cleanup fail"
+  recovery_ref=$(git -C "$repo" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*')
+  transaction_ref=$(git -C "$repo" for-each-ref --format='%(refname)' 'refs/coauthor-trailer-cleaner/transactions/*')
+  [[ -n "$recovery_ref" && -n "$transaction_ref" ]] || {
+    echo "    Expected both recovery and transaction refs to remain"
+    return 1
+  }
+  rewritten_oid=$(git -C "$repo" rev-parse HEAD)
+  assert_equals "$rewritten_oid" "$(git -C "$repo" rev-parse "$recovery_ref")" \
+    "moved recovery ref must retain its exact concurrent OID"
+  assert_equals "$rewritten_oid" "$(git -C "$repo" rev-parse "$transaction_ref")" \
+    "atomic cleanup failure must retain the exact rewritten transaction ref"
+}
+
+test_successful_push_retains_recovery_when_local_state_changes() {
+  skip_if_no_filter_repo || return 2
+  local repo repo_name dir marker rc recovery_ref
+  repo=$(setup_test_repo)
+  repo_name=$(basename "$repo")
+  setup_push_ready_repo "$repo" "$repo_name"
+  dir=$(create_test_dir)
+  marker="$dir/injected"
+  write_git_race_wrapper "$dir"
+
+  rc=0
+  PATH="$dir:$PATH" COAUTHOR_REAL_GIT="$REAL_GIT_BIN" COAUTHOR_RACE_MODE=push-success-dirty \
+    COAUTHOR_RACE_REPO="$repo" COAUTHOR_RACE_MARKER="$marker" \
+    bash "$SCRIPT_PATH" --push "https://github.com/test/$repo_name" "$repo" >/dev/null 2>&1 || rc=$?
+  assert_equals "1" "$rc" "post-push local mutation must prevent recovery cleanup"
+  recovery_ref=$(git -C "$repo" for-each-ref --format='%(refname:short)' 'refs/heads/backup/coauthor-trailer-cleaner-*')
+  [[ -n "$recovery_ref" ]] || { echo "    Expected retained recovery ref after successful push"; return 1; }
+  assert_contains "$(cat "$repo/file1.txt")" "changed-after-push" "post-push dirty bytes must be preserved"
 }

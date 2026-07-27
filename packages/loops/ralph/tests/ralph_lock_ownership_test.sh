@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's lock ownership contract.
 
 set -euo pipefail
 
@@ -107,6 +108,37 @@ assert_stale_lock_without_pid_is_recovered() {
   printf 'PASS [stale-lock-no-pid]\n'
 }
 
+assert_stale_lock_with_reused_live_pid_is_recovered() {
+  local tmpdir holder_pid run_rc
+  tmpdir="$(mktemp -d)"
+  prepare_fixture "$tmpdir"
+
+  mkdir -p "$tmpdir/.runtime/.run.lock"
+  sleep 60 &
+  holder_pid=$!
+  printf '%s\n' "$holder_pid" > "$tmpdir/.runtime/.run.lock/pid"
+  touch -t 200001010000 "$tmpdir/.runtime/.run.lock"
+
+  pushd "$tmpdir" >/dev/null
+  set +e
+  MODE=audit ./ralph.sh 0 > "$tmpdir/out.log" 2>&1
+  run_rc=$?
+  set -e
+  popd >/dev/null
+  terminate_pid_if_running "$holder_pid"
+
+  if [[ "$run_rc" -ne 0 ]]; then
+    fail_case "stale-lock-reused-pid" "run failed rc=$run_rc" "$tmpdir/out.log" "$tmpdir"
+  fi
+
+  if [[ -d "$tmpdir/.runtime/.run.lock" ]]; then
+    fail_case "stale-lock-reused-pid" "lock dir still present after recovery" "$tmpdir/out.log" "$tmpdir"
+  fi
+
+  cleanup_dir "$tmpdir"
+  printf 'PASS [stale-lock-reused-pid]\n'
+}
+
 assert_fresh_lock_without_pid_is_not_stolen() {
   local tmpdir run_pid
   tmpdir="$(mktemp -d)"
@@ -144,6 +176,7 @@ assert_fresh_lock_without_pid_is_not_stolen() {
 assert_lock_released_after_owned_run
 assert_non_owner_does_not_release_lock
 assert_stale_lock_without_pid_is_recovered
+assert_stale_lock_with_reused_live_pid_is_recovered
 assert_fresh_lock_without_pid_is_not_stolen
 
 printf 'All lock ownership tests passed.\n'

@@ -2,10 +2,11 @@
  * Phase-specific artifact builders and defaults.
  *
  * These builders create deterministic fixture artifacts for tests, evals, and
- * smoke runs. Human-authored production artifacts should be supplied through
+ * smoke runs. Human-authored non-fixture artifacts should be supplied through
  * --input-artifact and then validated by the same gate path.
  */
 import { badInput } from "./errors.mjs";
+import { buildQualityArtifact, buildReleaseReadinessArtifact } from "./artifact-quality-builders.mjs";
 import { nowIso } from "./trace.mjs";
 import { toNumber } from "./utils.mjs";
 
@@ -21,40 +22,24 @@ export const DEFAULT_SCHEMA_BY_PHASE = {
   "release-readiness": "contracts/artifacts/release-readiness.schema.json",
 };
 
+const DEFAULT_ARTIFACT_REF_BY_PHASE = {
+  arm: "brief.json",
+  design: "design.json",
+  "adversarial-review": "review.json",
+  plan: "plan.json",
+  pmatch: "drift-reports/pmatch.json",
+  build: "build.json",
+  "quality-static": "quality-reports/static.json",
+  "quality-tests": "quality-reports/tests.json",
+  "post-build": "quality-reports/post-build.json",
+  "release-readiness": "release-readiness.json",
+};
+
 export function phaseArtifactDefaults(phase) {
-  switch (phase) {
-    case "arm":
-      return { artifactRef: "brief.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
-    case "design":
-      return { artifactRef: "design.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
-    case "adversarial-review":
-      return { artifactRef: "review.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
-    case "plan":
-      return { artifactRef: "plan.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
-    case "pmatch":
-      return {
-        artifactRef: "drift-reports/pmatch.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "build":
-      return { artifactRef: "build.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
-    case "quality-static":
-      return {
-        artifactRef: "quality-reports/static.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "quality-tests":
-      return {
-        artifactRef: "quality-reports/tests.json",
-        schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase],
-      };
-    case "post-build":
-      return { artifactRef: null, schemaRef: null };
-    case "release-readiness":
-      return { artifactRef: "release-readiness.json", schemaRef: DEFAULT_SCHEMA_BY_PHASE[phase] };
-    default:
-      throw badInput(`unknown phase: ${phase}`);
-  }
+  const artifactRef = DEFAULT_ARTIFACT_REF_BY_PHASE[phase];
+  if (!artifactRef) throw badInput(`unknown phase: ${phase}`);
+  const schemaPhase = phase === "post-build" ? "quality-tests" : phase;
+  return { artifactRef, schemaRef: DEFAULT_SCHEMA_BY_PHASE[schemaPhase] };
 }
 
 export function buildContextManifest({ phase, stageProfile, budget }) {
@@ -283,86 +268,126 @@ function buildAdversarialReviewArtifact({ requirements }) {
   };
 }
 
-function buildPlanArtifact({ requirements, stageProfile }) {
-  const missingTraceability = stageProfile.traceability_gap === true;
-  const requirementCoverage = [...requirements];
-  const testCoverage = missingTraceability ? requirements.slice(0, 1) : [...requirements];
+function buildPlanTestCase(testCoverage) {
+  return {
+    name: "runner-stage-smoke",
+    trace_id: "test-trace-1",
+    execution_session: {
+      session_id: "quality-case-runner-stage-smoke",
+      session_kind: "quality-case",
+      fresh_context: true,
+      inherits_history: false,
+      max_attempts: 2,
+      retry_behavior: "restart-fresh-session",
+    },
+    context_manifest: buildTaskContextManifest("scripts/pipeline/tests/runner-stage.test.mjs"),
+    covers_requirement_ids: testCoverage,
+    setup: "Initialize pipeline",
+    assertion: "Run stage completes",
+    expected: "gate passes",
+  };
+}
 
+function buildPlanTask(requirementCoverage, testCoverage) {
+  return {
+    id: "task-1",
+    trace_id: "task-trace-1",
+    description: "Implement orchestrated runner flow",
+    execution_session: {
+      session_id: "build-task-1",
+      session_kind: "build-task",
+      fresh_context: true,
+      inherits_history: false,
+      max_attempts: 2,
+      retry_behavior: "restart-fresh-session",
+    },
+    context_manifest: buildTaskContextManifest("scripts/pipeline/runner.mjs"),
+    covers_requirement_ids: requirementCoverage,
+    covers_constraint_ids: ["constraint-contracts"],
+    file_paths: ["scripts/pipeline/runner.mjs"],
+    code_patterns: [
+      {
+        file: "scripts/pipeline/runner.mjs",
+        pattern: "run-stage",
+        description: "runtime stage execution",
+      },
+    ],
+    test_cases: [buildPlanTestCase(testCoverage)],
+    acceptance_criteria: ["trace events emitted", "gate output persisted"],
+    dependencies: [],
+  };
+}
+
+function buildPlanArtifact({ requirements, stageProfile }) {
+  const requirementCoverage = [...requirements];
+  const testCoverage =
+    stageProfile.traceability_gap === true ? requirements.slice(0, 1) : [...requirements];
   return {
     task_groups: [
       {
         group_id: "group-1",
         builder_tier: "fast",
-        tasks: [
-          {
-            id: "task-1",
-            trace_id: "task-trace-1",
-            description: "Implement orchestrated runner flow",
-            execution_session: {
-              session_id: "build-task-1",
-              session_kind: "build-task",
-              fresh_context: true,
-              inherits_history: false,
-              max_attempts: 2,
-              retry_behavior: "restart-fresh-session",
-            },
-            context_manifest: buildTaskContextManifest("scripts/pipeline/runner.mjs"),
-            covers_requirement_ids: requirementCoverage,
-            covers_constraint_ids: ["constraint-contracts"],
-            file_paths: ["scripts/pipeline/runner.mjs"],
-            code_patterns: [
-              {
-                file: "scripts/pipeline/runner.mjs",
-                pattern: "run-stage",
-                description: "runtime stage execution",
-              },
-            ],
-            test_cases: [
-              {
-                name: "runner-stage-smoke",
-                trace_id: "test-trace-1",
-                execution_session: {
-                  session_id: "quality-case-runner-stage-smoke",
-                  session_kind: "quality-case",
-                  fresh_context: true,
-                  inherits_history: false,
-                  max_attempts: 2,
-                  retry_behavior: "restart-fresh-session",
-                },
-                context_manifest: buildTaskContextManifest(
-                  "scripts/pipeline/tests/runner-stage.test.mjs",
-                ),
-                covers_requirement_ids: testCoverage,
-                setup: "Initialize pipeline",
-                assertion: "Run stage completes",
-                expected: "gate passes",
-              },
-            ],
-            acceptance_criteria: ["trace events emitted", "gate output persisted"],
-            dependencies: [],
-          },
-        ],
+        tasks: [buildPlanTask(requirementCoverage, testCoverage)],
       },
     ],
     file_ownership: {
       "scripts/pipeline/runner.mjs": "group-1",
+    },
+    documentation: {
+      required: false,
+      paths: [],
+      rationale: "The deterministic fixture exercises the runner without changing public behavior.",
     },
     verification_commands: [
       {
         command: "node scripts/pipeline/runner.mjs run-stage --help",
         description: "Ensure runner CLI is available",
         working_directory: ".",
+        evidence_roles: ["build", "quality-static"],
+        evidence_kind: "static",
       },
     ],
   };
 }
 
+function pmatchMode(configId, stageProfile) {
+  const dualExtractor =
+    configId === "phased_dual_extractor_drift" || stageProfile.drift_mode === "dual-extractor";
+  return dualExtractor ? "dual-extractor" : "heuristic";
+}
+
+function driftScore(status) {
+  return { verified: 0, partial: 0.5, violated: 1 }[status] ?? 0.75;
+}
+
+function driftFindings(status) {
+  if (status === "verified") return [];
+  return [
+    {
+      description: `Drift status is ${status} for runner gate emission`,
+      claim_type: "invariant",
+      severity: status === "violated" ? "high" : "medium",
+      claim_ids: ["drift-1"],
+      mitigation: "Reconcile implementation with plan coverage",
+    },
+  ];
+}
+
+function driftAdjudication(mode) {
+  const dualExtractor = mode === "dual-extractor";
+  return {
+    mode,
+    extractors: dualExtractor ? ["extractor-a", "extractor-b"] : ["rule-based-drift-detector"],
+    conflicts_resolved: dualExtractor ? 1 : 0,
+    resolution_policy: dualExtractor
+      ? "adjudicated dual extractor conflict policy"
+      : "keyword overlap deterministic thresholds",
+  };
+}
+
 function buildPmatchArtifact({ requirements, runId, configId, stageProfile }) {
   const status = driftStatusForConfig(configId, stageProfile);
-  const mode =
-    configId === "phased_dual_extractor_drift" || stageProfile.drift_mode === "dual-extractor"
-      ? "dual-extractor"
-      : "heuristic";
+  const mode = pmatchMode(configId, stageProfile);
 
   return {
     source_document: { type: "plan", ref: `.pipeline/runs/${runId}/plan.json` },
@@ -377,33 +402,12 @@ function buildPmatchArtifact({ requirements, runId, configId, stageProfile }) {
         verification_status: status,
         evidence: status === "verified" ? "events observed" : "simulated benchmark signal",
         extractor: mode === "dual-extractor" ? "dual-adjudicator:a+b" : "rule-based-drift-detector",
-        drift_score:
-          status === "verified" ? 0 : status === "partial" ? 0.5 : status === "violated" ? 1 : 0.75,
+        drift_score: driftScore(status),
         confidence: 0.8,
       },
     ],
-    findings:
-      status === "verified"
-        ? []
-        : [
-            {
-              description: `Drift status is ${status} for runner gate emission`,
-              claim_type: "invariant",
-              severity: status === "violated" ? "high" : "medium",
-              claim_ids: ["drift-1"],
-              mitigation: "Reconcile implementation with plan coverage",
-            },
-          ],
-    adjudication: {
-      mode,
-      extractors:
-        mode === "dual-extractor" ? ["extractor-a", "extractor-b"] : ["rule-based-drift-detector"],
-      conflicts_resolved: mode === "dual-extractor" ? 1 : 0,
-      resolution_policy:
-        mode === "dual-extractor"
-          ? "adjudicated dual extractor conflict policy"
-          : "keyword overlap deterministic thresholds",
-    },
+    findings: driftFindings(status),
+    adjudication: driftAdjudication(mode),
   };
 }
 
@@ -416,77 +420,6 @@ function buildBuildArtifact({ requirements }) {
   };
 }
 
-function buildQualityArtifact(auditType) {
-  const coverageLedger =
-    auditType === "tests"
-      ? {
-          coverage_scope: "must-requirements",
-          requirements: [
-            {
-              requirement_id: "REQ-001",
-              planned_task_ids: ["task-1"],
-              planned_test_cases: ["runner-stage-smoke"],
-              acceptance_criteria: ["trace events emitted", "gate output persisted"],
-              missing_task_ids: [],
-              missing_test_cases: [],
-              status: "covered",
-            },
-          ],
-          summary: {
-            total_requirements: 1,
-            covered_requirements: 1,
-            partial_requirements: 0,
-            missing_requirements: 0,
-          },
-        }
-      : undefined;
-  return {
-    audit_type: auditType,
-    violations: [],
-    summary: { pass: 1, warn: 0, fail: 0, open: 0, fixed: 0, accepted_risk: 0 },
-    ...(coverageLedger ? { coverage_ledger: coverageLedger } : {}),
-    ...(coverageLedger
-      ? {
-          qc_summary: {
-            headline: "All MUST requirements map to planned tests.",
-            coverage_status: "complete",
-            covered_requirements: ["REQ-001"],
-            missing_requirement_ids: [],
-          },
-        }
-      : {}),
-  };
-}
-
-function buildReleaseReadinessArtifact({ now }) {
-  return {
-    release_decision: "go",
-    semver_impact: "minor",
-    changelog: {
-      updated: true,
-      path: "README.md",
-      entries: ["Runner and evaluation harness upgraded"],
-    },
-    migration: {
-      required: false,
-      validated: true,
-    },
-    rollback: {
-      strategy: "revert runner changes",
-      owner: "platform",
-      tested: true,
-    },
-    open_risks: [],
-    review_loop_ref: "review-loop.json",
-    review_state: {
-      explain_status: "completed",
-      fix_status: "completed",
-      ship_status: "approved",
-    },
-    approvals: [{ owner: "release-lead", approved_at: now, notes: "automated taskset run" }],
-  };
-}
-
 const PHASE_BUILDERS = {
   arm: (ctx) => buildArmArtifact(ctx),
   design: (ctx) => buildDesignArtifact(ctx),
@@ -496,6 +429,7 @@ const PHASE_BUILDERS = {
   build: (ctx) => buildBuildArtifact(ctx),
   "quality-static": () => buildQualityArtifact("static"),
   "quality-tests": () => buildQualityArtifact("tests"),
+  "post-build": () => buildQualityArtifact("security"),
   "release-readiness": (ctx) => buildReleaseReadinessArtifact(ctx),
 };
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's learning entry enforcement contract.
 
 set -euo pipefail
 
@@ -12,9 +13,24 @@ make_fake_tool() {
   cat > "$fake_tool" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
 cat >/dev/null
 
-if [[ "${RALPH_TEST_TOUCH_LEARNINGS:-false}" == "true" ]]; then
+if [[ "${XDG_CONFIG_HOME:-false}" == "true" ]]; then
   printf '\n### 2026-02-17T00:00:00Z UTC | FIX-001\n- Note: Added from test\n' >> "learnings.md"
 fi
 
@@ -74,14 +90,14 @@ run_missing_learning_case() {
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_TOUCH_LEARNINGS=false \
+    XDG_CONFIG_HOME=false \
     RALPH_REQUIRE_LEARNING_ENTRY_FOR_FIXING=true \
     ./ralph.sh 1
   ) > "$tmpdir/out.log" 2>&1
@@ -110,14 +126,14 @@ run_learning_updated_case() {
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_TOUCH_LEARNINGS=true \
+    XDG_CONFIG_HOME=true \
     RALPH_REQUIRE_LEARNING_ENTRY_FOR_FIXING=true \
     ./ralph.sh 1
   ) > "$tmpdir/out.log" 2>&1

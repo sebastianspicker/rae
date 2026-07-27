@@ -13,7 +13,7 @@ not automatically mean larger useful information.
 
 ## Claim
 
-This page supports the repo's heuristic claim that longer prompts or larger
+This page supports the repo's heuristic claim that longer task input or larger
 shared context windows can degrade engineering performance when they increase
 noise faster than task-relevant signal.
 

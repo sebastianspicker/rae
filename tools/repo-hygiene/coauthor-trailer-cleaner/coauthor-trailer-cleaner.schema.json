@@ -17,12 +17,8 @@
           "description": "Rewrite history locally without pushing to remote",
           "type": "boolean"
         },
-        "forcePush": {
-          "description": "Use --force when pushing rewritten history",
-          "type": "boolean"
-        },
         "backupRemote": {
-          "description": "Name of a remote to push backup branches to before rewriting",
+          "description": "Name of a remote on which to retain the exact current-run recovery branch",
           "type": "string",
           "minLength": 1,
           "pattern": "^[a-zA-Z0-9_.-]+$"

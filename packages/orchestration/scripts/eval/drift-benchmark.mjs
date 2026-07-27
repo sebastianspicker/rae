@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/**
+ * Runs the deterministic drift-detection benchmark and enforces its fixture-defined quality thresholds.
+ */
 import {
   existsSync,
   mkdirSync,
@@ -12,6 +15,9 @@ import { dirname, join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { resolveWithinRepo } from "../pipeline/lib/state.mjs";
 import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
+import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
+
+assertSupportedNodeRuntime();
 
 const TAXONOMY = ["interface", "invariant", "security", "performance", "docs"];
 const MODES = ["heuristic", "dual-extractor"];
@@ -172,21 +178,27 @@ function thresholdFailed(metric, thresholds) {
   );
 }
 
-function validateFixtureShape(fixture, fileName) {
+function requireFixtureObject(fixture, fileName) {
   if (!fixture || typeof fixture !== "object" || Array.isArray(fixture)) {
     throw new Error(`fixture ${fileName} must be an object`);
   }
+}
+
+function requireFixtureText(fixture, field) {
+  if (typeof fixture[field] !== "string" || fixture[field].length === 0) {
+    throw new Error(`fixture ${fixture.id} is missing non-empty ${field}`);
+  }
+}
+
+function validateFixtureShape(fixture, fileName) {
+  requireFixtureObject(fixture, fileName);
   if (typeof fixture.id !== "string" || !FIXTURE_ID_PATTERN.test(fixture.id)) {
     throw new Error(
       `fixture ${fileName} has invalid id: must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`,
     );
   }
-  if (typeof fixture.source !== "string" || fixture.source.length === 0) {
-    throw new Error(`fixture ${fixture.id} is missing non-empty source`);
-  }
-  if (typeof fixture.target !== "string" || fixture.target.length === 0) {
-    throw new Error(`fixture ${fixture.id} is missing non-empty target`);
-  }
+  requireFixtureText(fixture, "source");
+  requireFixtureText(fixture, "target");
 }
 
 function main() {

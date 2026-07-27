@@ -1,22 +1,23 @@
 ---
 status: experimental
 owner: tools
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-16
 source_of_truth: ../../../tools/repo-hygiene/coauthor-trailer-cleaner/README.md
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Repo Hygiene CLI
 
-## Imported surface
+## Included surface
 
 - `tools/repo-hygiene/coauthor-trailer-cleaner/coauthor-trailer-cleaner.sh`
 - umbrella wrapper: `./scripts/rae.sh hygiene coauthor-cleaner ...`
 
 ## Purpose
 
-Focused history-rewrite utility for removing configured `Co-authored-by` trailer
-identities from one or more GitHub repositories.
+Coauthor trailer cleaner `3.0.0` is a focused history-rewrite utility for
+removing configured `Co-authored-by` trailer identities from one or more Git
+repositories.
 
 ## Current command contract
 
@@ -24,7 +25,11 @@ identities from one or more GitHub repositories.
 - generic override: repeat `--target "Name <email>"`
 - config-based override: top-level `targets` array in JSON config
 - repo inputs: positional URL/path pairs, `--repos-file`, or `--config`
-- safety modes: `--dry-run`, `--validate-only`, `--no-push`
+- safety modes: `--dry-run`, `--validate-only`, `--no-push` (the default)
+
+The cleaner rewrites only a private ref pinned to the captured OID, keeps
+recovery data when concurrent state changes, and compare-and-swap verifies the
+final atomic cleanup. Push is opt-in; default operation is local-only.
 
 ## Verification entrypoint
 

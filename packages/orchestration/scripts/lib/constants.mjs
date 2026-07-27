@@ -1,5 +1,5 @@
 /**
- * Pipeline execution order — the 10 sequenced delivery phases.
+ * Pipeline execution order: the 10 sequenced delivery phases.
  * This is NOT all valid gate phases. Sub-phases (denoise, quality-frontend,
  * quality-backend, quality-docs, security-review) are valid gate phases
  * but not pipeline execution phases. See quality-gate VALID_GATE_PHASES

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
+"""Generate checked-in orchestration adapters from the runner manifest."""
 
 import argparse
 import difflib
 import json
 import re
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
-
 
 TOKEN_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
@@ -18,6 +18,7 @@ def read_text(path: Path) -> str:
 
 
 def resolve_repo_path(root: Path, raw: str, label: str) -> Path:
+    """Resolve a manifest path only when it remains contained by the repository root."""
     candidate = Path(raw)
     if candidate.is_absolute():
         raise ValueError(f"{label} must be a repository-relative path, got absolute path: {raw}")
@@ -45,25 +46,42 @@ def render_template(path: Path, values: dict[str, str]) -> str:
     return text
 
 
+def content_diff(path: Path, current: str | None, content: str) -> str:
+    old = current.splitlines() if current is not None else []
+    new = content.splitlines()
+    return "\n".join(
+        difflib.unified_diff(
+            old,
+            new,
+            fromfile=f"{path} (current)",
+            tofile=f"{path} (expected)",
+            n=2,
+        )
+    )
+
+
+def check_content(
+    path: Path,
+    current: str | None,
+    content: str,
+    diffs: list[str],
+    optional: bool,
+) -> None:
+    if optional and current is None:
+        return
+    if current != content:
+        diffs.append(content_diff(path, current, content))
+
+
 def compare_or_write(
     path: Path, content: str, check_only: bool, diffs: list[str], *, optional: bool = False
 ) -> bool:
     current = read_text(path) if path.exists() else None
     if check_only:
-        if optional and current is None:
-            return False
-        if current != content:
-            old = current.splitlines() if current is not None else []
-            new = content.splitlines()
-            diff = "\n".join(
-                difflib.unified_diff(old, new, fromfile=f"{path} (current)", tofile=f"{path} (expected)", n=2)
-            )
-            diffs.append(diff)
+        check_content(path, current, content, diffs, optional)
         return False
-
     if optional and current is None:
         return False
-
     if current == content:
         return False
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -83,75 +101,70 @@ def resolve_runner_titles(manifest: dict) -> dict[str, str]:
     return titles
 
 
-def main() -> int:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate adapter files from templates and validate sync with committed outputs."
     )
-    parser.add_argument("--check", action="store_true", help="Check mode: do not write files, fail on drift.")
-    parser.add_argument("--runner", action="append", help="Limit generation/check to one or more runner IDs.")
+    parser.add_argument(
+        "--check", action="store_true", help="Check mode: do not write files, fail on drift."
+    )
+    parser.add_argument(
+        "--runner", action="append", help="Limit generation/check to one or more runner IDs."
+    )
     parser.add_argument(
         "--manifest",
         default="adapters/spec/adapter-manifest.json",
         help="Adapter manifest path (default: adapters/spec/adapter-manifest.json).",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    root = Path(__file__).resolve().parents[2]
-    manifest_path = root / args.manifest
+
+def load_manifest(root: Path, raw_path: str) -> dict:
+    manifest_path = resolve_repo_path(root, raw_path, "manifest")
     manifest = json.loads(read_text(manifest_path))
+    if not isinstance(manifest, dict):
+        raise ValueError("adapter manifest must be a JSON object")
+    return manifest
 
-    generation = manifest.get("generation", {})
-    template_root_rel = generation.get("template_root", "adapters/templates")
-    template_root = resolve_repo_path(root, template_root_rel, "generation.template_root")
-    if not template_root.exists():
-        print(f"Template root not found: {template_root}", file=sys.stderr)
-        return 2
 
-    runners = manifest.get("runners", [])
-    if not runners:
-        print("Manifest has no runners.", file=sys.stderr)
-        return 2
+def require_mapping(value: object, label: str) -> dict:
+    if not isinstance(value, dict):
+        raise ValueError(f"{label} must be an object")
+    return value
 
-    available = {item.get("name") for item in runners if item.get("name")}
-    requested = set(args.runner or available)
+
+def resolve_requested_runners(runners: list[dict], requested_names: list[str] | None) -> set[str]:
+    available = {name for item in runners if (name := item.get("name"))}
+    requested = set(requested_names or available)
     unknown = sorted(requested - available)
     if unknown:
-        print(f"Unknown runner(s): {', '.join(unknown)}", file=sys.stderr)
-        return 2
+        raise ValueError(f"Unknown runner(s): {', '.join(unknown)}")
+    return requested
 
-    stage_order = manifest.get("stage_order", [])
-    if not stage_order:
-        print("Manifest missing stage_order.", file=sys.stderr)
-        return 2
 
-    runner_titles = resolve_runner_titles(manifest)
-    legacy = generation.get("legacy_mirrors", {})
-    cursor_mirror_root = legacy.get("cursor_skills_root")
-    codex_playbook_target = legacy.get("codex_playbook")
-    root_entries = legacy.get("root_entries", {})
-    if not isinstance(root_entries, dict):
-        raise ValueError("generation.legacy_mirrors.root_entries must be an object")
+@dataclass
+class AdapterGenerator:
+    root: Path
+    template_root: Path
+    check_only: bool
+    cursor_mirror_root: object
+    codex_playbook_target: object
+    root_entries: dict
+    runner_titles: dict[str, str]
+    diffs: list[str] = field(default_factory=list)
+    writes: int = 0
 
-    diffs: list[str] = []
-    writes = 0
+    def write(self, path: Path, content: str, *, optional: bool = False) -> None:
+        if compare_or_write(path, content, self.check_only, self.diffs, optional=optional):
+            self.writes += 1
 
-    for runner in runners:
-        runner_id = runner.get("name")
-        if runner_id not in requested:
-            continue
-
-        stage_map = runner.get("stage_adapters", {})
-        if not isinstance(stage_map, dict):
-            raise ValueError(f"runner '{runner_id}' stage_adapters must be an object")
-        runner_title = runner_titles.get(runner_id, runner_id.capitalize())
-        adapter_root = runner.get("skills_root") or f"adapters/{runner_id}/skills"
-        resolve_repo_path(root, adapter_root, f"runner '{runner_id}' skills_root")
-
-        values = {
-            "RUNNER_TITLE": runner_title,
-            "ADAPTER_ROOT": adapter_root,
-        }
-
+    def generate_stages(
+        self,
+        runner_id: str,
+        stage_map: dict,
+        stage_order: list[str],
+        values: dict[str, str],
+    ) -> None:
         for stage in stage_order:
             target_rel = stage_map.get(stage)
             if not target_rel:
@@ -159,65 +172,161 @@ def main() -> int:
             if not isinstance(target_rel, str):
                 raise ValueError(f"Runner '{runner_id}' stage '{stage}' path must be a string.")
             stage_dir = Path(target_rel).parent.name
-            tmpl = template_root / "skills" / stage_dir / "SKILL.md.tmpl"
-            if not tmpl.exists():
-                raise FileNotFoundError(f"Missing template for stage '{stage}': {tmpl}")
+            template = self.template_root / "skills" / stage_dir / "SKILL.md.tmpl"
+            if not template.exists():
+                raise FileNotFoundError(f"Missing template for stage '{stage}': {template}")
+            rendered = render_template(template, values)
+            target = resolve_repo_path(
+                self.root, target_rel, f"runner '{runner_id}' stage '{stage}'"
+            )
+            self.write(target, rendered)
+            self.generate_cursor_mirror(runner_id, stage_dir, rendered)
 
-            rendered = render_template(tmpl, values)
-            target_path = resolve_repo_path(root, target_rel, f"runner '{runner_id}' stage '{stage}'")
-            if compare_or_write(target_path, rendered, args.check, diffs):
-                writes += 1
+    def generate_cursor_mirror(self, runner_id: str, stage_dir: str, rendered: str) -> None:
+        if runner_id != "cursor" or not self.cursor_mirror_root:
+            return
+        if not isinstance(self.cursor_mirror_root, str):
+            raise ValueError("legacy_mirrors.cursor_skills_root must be a string")
+        mirror_root = resolve_repo_path(
+            self.root,
+            self.cursor_mirror_root,
+            "legacy_mirrors.cursor_skills_root",
+        )
+        self.write(mirror_root / stage_dir / "SKILL.md", rendered, optional=True)
 
-            if runner_id == "cursor" and cursor_mirror_root:
-                mirror_root = resolve_repo_path(root, cursor_mirror_root, "legacy_mirrors.cursor_skills_root")
-                mirror = mirror_root / stage_dir / "SKILL.md"
-                if compare_or_write(mirror, rendered, args.check, diffs, optional=True):
-                    writes += 1
+    def generate_pipeline_skill(self, runner_id: str, runner: dict, values: dict[str, str]) -> None:
+        target_rel = runner.get("pipeline_skill")
+        if not target_rel:
+            return
+        if not isinstance(target_rel, str):
+            raise ValueError(f"Runner '{runner_id}' pipeline_skill must be a string.")
+        template = self.template_root / "skills" / "orchestration-pipeline" / "SKILL.md.tmpl"
+        if not template.exists():
+            raise FileNotFoundError(f"Missing pipeline skill template: {template}")
+        target = resolve_repo_path(self.root, target_rel, f"runner '{runner_id}' pipeline_skill")
+        self.write(target, render_template(template, values))
 
-        pipeline_skill_rel = runner.get("pipeline_skill")
-        if pipeline_skill_rel:
-            if not isinstance(pipeline_skill_rel, str):
-                raise ValueError(f"Runner '{runner_id}' pipeline_skill must be a string.")
-            pipeline_tmpl = template_root / "skills" / "orchestration-pipeline" / "SKILL.md.tmpl"
-            if not pipeline_tmpl.exists():
-                raise FileNotFoundError(f"Missing pipeline skill template: {pipeline_tmpl}")
-            rendered_pipeline = render_template(pipeline_tmpl, values)
-            pipeline_path = resolve_repo_path(root, pipeline_skill_rel, f"runner '{runner_id}' pipeline_skill")
-            if compare_or_write(pipeline_path, rendered_pipeline, args.check, diffs):
-                writes += 1
+    def generate_codex_playbook(self, runner_id: str, values: dict[str, str]) -> None:
+        if runner_id != "codex" or not self.codex_playbook_target:
+            return
+        if not isinstance(self.codex_playbook_target, str):
+            raise ValueError("legacy_mirrors.codex_playbook must be a string")
+        template = self.template_root / "skills" / "orchestration" / "SKILL.md.tmpl"
+        target = resolve_repo_path(
+            self.root,
+            self.codex_playbook_target,
+            "legacy_mirrors.codex_playbook",
+        )
+        self.write(target, render_template(template, values), optional=True)
 
-        if runner_id == "codex" and codex_playbook_target:
-            legacy_tmpl = template_root / "skills" / "orchestration" / "SKILL.md.tmpl"
-            rendered_legacy = render_template(legacy_tmpl, values)
-            legacy_path = resolve_repo_path(root, codex_playbook_target, "legacy_mirrors.codex_playbook")
-            if compare_or_write(legacy_path, rendered_legacy, args.check, diffs, optional=True):
-                writes += 1
+    def generate_root_entry(self, runner_id: str, values: dict[str, str]) -> None:
+        target_rel = self.root_entries.get(runner_id)
+        if not target_rel:
+            return
+        if not isinstance(target_rel, str):
+            raise ValueError(f"legacy root entry for '{runner_id}' must be a string path")
+        template = self.template_root / "root" / f"{runner_id.upper()}.md.tmpl"
+        if not template.exists():
+            raise FileNotFoundError(f"Missing root entry template: {template}")
+        target = resolve_repo_path(self.root, target_rel, f"legacy root entry for '{runner_id}'")
+        self.write(target, render_template(template, values), optional=True)
 
-        root_entry_path = root_entries.get(runner_id)
-        if root_entry_path:
-            if not isinstance(root_entry_path, str):
-                raise ValueError(f"legacy root entry for '{runner_id}' must be a string path")
-            root_tmpl = template_root / "root" / f"{runner_id.upper()}.md.tmpl"
-            if not root_tmpl.exists():
-                raise FileNotFoundError(f"Missing root entry template: {root_tmpl}")
-            rendered_root = render_template(root_tmpl, values)
-            target = resolve_repo_path(root, root_entry_path, f"legacy root entry for '{runner_id}'")
-            if compare_or_write(target, rendered_root, args.check, diffs, optional=True):
-                writes += 1
+    def generate_runner(self, runner: dict, stage_order: list[str]) -> None:
+        runner_id = runner.get("name")
+        if not isinstance(runner_id, str) or not runner_id:
+            raise ValueError("runner name must be a non-empty string")
+        stage_map = require_mapping(
+            runner.get("stage_adapters", {}),
+            f"runner '{runner_id}' stage_adapters",
+        )
+        adapter_root = runner.get("skills_root") or f"adapters/{runner_id}/skills"
+        if not isinstance(adapter_root, str):
+            raise ValueError(f"runner '{runner_id}' skills_root must be a string")
+        resolve_repo_path(self.root, adapter_root, f"runner '{runner_id}' skills_root")
+        values = {
+            "RUNNER_TITLE": self.runner_titles.get(runner_id, runner_id.capitalize()),
+            "ADAPTER_ROOT": adapter_root,
+        }
+        self.generate_stages(runner_id, stage_map, stage_order, values)
+        self.generate_pipeline_skill(runner_id, runner, values)
+        self.generate_codex_playbook(runner_id, values)
+        self.generate_root_entry(runner_id, values)
 
-    if args.check:
-        if diffs:
-            print("FAIL: adapter sync check failed. Regenerate with:", file=sys.stderr)
-            print("  python3 scripts/adapters/generate_adapters.py", file=sys.stderr)
-            for idx, diff in enumerate(diffs, start=1):
-                print(f"\n--- mismatch {idx} ---", file=sys.stderr)
-                print(diff, file=sys.stderr)
-            return 1
-        print("OK: adapter templates and generated files are in sync")
-        return 0
+    def report(self) -> int:
+        if not self.check_only:
+            print(f"OK: generated adapter files ({self.writes} file(s) updated)")
+            return 0
+        if not self.diffs:
+            print("OK: adapter templates and generated files are in sync")
+            return 0
+        print("FAIL: adapter sync check failed. Regenerate with:", file=sys.stderr)
+        print("  python3 scripts/adapters/generate_adapters.py", file=sys.stderr)
+        for index, diff in enumerate(self.diffs, start=1):
+            print(f"\n--- mismatch {index} ---", file=sys.stderr)
+            print(diff, file=sys.stderr)
+        return 1
 
-    print(f"OK: generated adapter files ({writes} file(s) updated)")
-    return 0
+
+def build_generator(root: Path, manifest: dict, check_only: bool) -> AdapterGenerator:
+    generation = manifest.get("generation", {})
+    generation = require_mapping(generation, "generation")
+    template_root_rel = generation.get("template_root", "adapters/templates")
+    if not isinstance(template_root_rel, str):
+        raise ValueError("generation.template_root must be a string")
+    template_root = resolve_repo_path(root, template_root_rel, "generation.template_root")
+    if not template_root.exists():
+        raise FileNotFoundError(f"Template root not found: {template_root}")
+    legacy = generation.get("legacy_mirrors", {})
+    legacy = require_mapping(legacy, "generation.legacy_mirrors")
+    cursor_mirror_root = legacy.get("cursor_skills_root")
+    codex_playbook_target = legacy.get("codex_playbook")
+    root_entries = require_mapping(
+        legacy.get("root_entries", {}),
+        "generation.legacy_mirrors.root_entries",
+    )
+    return AdapterGenerator(
+        root=root,
+        template_root=template_root,
+        check_only=check_only,
+        cursor_mirror_root=cursor_mirror_root,
+        codex_playbook_target=codex_playbook_target,
+        root_entries=root_entries,
+        runner_titles=resolve_runner_titles(manifest),
+    )
+
+
+def generation_inputs(
+    manifest: dict, requested_names: list[str] | None
+) -> tuple[list[dict], set[str], list[str]]:
+    runners = manifest.get("runners", [])
+    if not isinstance(runners, list) or not runners:
+        raise ValueError("Manifest has no runners.")
+    runner_objects = [require_mapping(runner, "runner entry") for runner in runners]
+    requested = resolve_requested_runners(runner_objects, requested_names)
+    raw_stage_order = manifest.get("stage_order", [])
+    if not isinstance(raw_stage_order, list) or not raw_stage_order:
+        raise ValueError("Manifest missing stage_order.")
+    if not all(isinstance(stage, str) for stage in raw_stage_order):
+        raise ValueError("Manifest stage_order entries must be strings.")
+    return runner_objects, requested, list(raw_stage_order)
+
+
+def run_generation(root: Path, args: argparse.Namespace) -> int:
+    manifest = load_manifest(root, args.manifest)
+    runners, requested, stage_order = generation_inputs(manifest, args.runner)
+    generator = build_generator(root, manifest, args.check)
+    for runner in runners:
+        if runner.get("name") in requested:
+            generator.generate_runner(runner, stage_order)
+    return generator.report()
+
+
+def main() -> int:
+    try:
+        return run_generation(Path(__file__).resolve().parents[2], parse_args())
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

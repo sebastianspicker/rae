@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/**
+ * Aggregates pipeline evaluation artifacts into comparable configuration metrics for repeatable analysis.
+ */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import {
@@ -9,6 +12,9 @@ import {
 } from "../pipeline/lib/state.mjs";
 import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
 import { CONFIG_IDS } from "../lib/constants.mjs";
+import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
+
+assertSupportedNodeRuntime();
 
 function parseArgs(argv) {
   const args = parseCliArgs(

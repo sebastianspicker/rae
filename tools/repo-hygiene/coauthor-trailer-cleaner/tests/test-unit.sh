@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Unit tests for coauthor-trailer-cleaner.sh
+# shellcheck disable=SC2034,SC2329 # Directly sourced module globals and test doubles.
 
 # ── URL Parsing Tests ───────────────────────────────────────────
 
 test_parse_github_url_https() {
   (
-    eval "$(sed -n '/^parse_github_url()/,/^}/p' "$LIB1_PATH")"
     PARSED_USERNAME="" PARSED_REPONAME="" PARSED_CANONICAL_URL=""
     parse_github_url "https://github.com/user/repo"
     assert_equals "user" "$PARSED_USERNAME" "username from HTTPS URL"
@@ -16,7 +16,6 @@ test_parse_github_url_https() {
 
 test_parse_github_url_ssh() {
   (
-    eval "$(sed -n '/^parse_github_url()/,/^}/p' "$LIB1_PATH")"
     PARSED_USERNAME="" PARSED_REPONAME="" PARSED_CANONICAL_URL=""
     parse_github_url "git@github.com:myorg/myrepo.git"
     assert_equals "myorg" "$PARSED_USERNAME" "username from SSH URL"
@@ -27,7 +26,6 @@ test_parse_github_url_ssh() {
 
 test_parse_github_url_ssh_protocol() {
   (
-    eval "$(sed -n '/^parse_github_url()/,/^}/p' "$LIB1_PATH")"
     PARSED_USERNAME="" PARSED_REPONAME="" PARSED_CANONICAL_URL=""
     parse_github_url "ssh://git@github.com/user/repo"
     assert_equals "user" "$PARSED_USERNAME" "username from ssh:// URL"
@@ -37,7 +35,6 @@ test_parse_github_url_ssh_protocol() {
 
 test_parse_github_url_with_dotgit() {
   (
-    eval "$(sed -n '/^parse_github_url()/,/^}/p' "$LIB1_PATH")"
     PARSED_USERNAME="" PARSED_REPONAME="" PARSED_CANONICAL_URL=""
     parse_github_url "https://github.com/user/repo.git"
     assert_equals "user" "$PARSED_USERNAME" "username strips .git"
@@ -47,7 +44,6 @@ test_parse_github_url_with_dotgit() {
 
 test_parse_github_url_trailing_slash() {
   (
-    eval "$(sed -n '/^parse_github_url()/,/^}/p' "$LIB1_PATH")"
     PARSED_USERNAME="" PARSED_REPONAME="" PARSED_CANONICAL_URL=""
     parse_github_url "https://github.com/user/repo/"
     assert_equals "user" "$PARSED_USERNAME" "username with trailing slash"
@@ -57,7 +53,6 @@ test_parse_github_url_trailing_slash() {
 
 test_parse_github_url_invalid() {
   (
-    eval "$(sed -n '/^parse_github_url()/,/^}/p' "$LIB1_PATH")"
     PARSED_USERNAME="" PARSED_REPONAME="" PARSED_CANONICAL_URL=""
     if parse_github_url "https://gitlab.com/user/repo" 2>/dev/null; then
       echo "    Expected parse_github_url to fail for non-GitHub URL"
@@ -73,6 +68,13 @@ test_cli_help_exits_zero() {
   assert_exit_code 0 bash "$SCRIPT_PATH" --help
 }
 
+test_cli_help_matches_committed_snapshot() {
+  local expected actual
+  expected="$(cat "$(dirname "$SCRIPT_PATH")/docs/screenshots/help.txt")"
+  actual="$(bash "$SCRIPT_PATH" --help)"
+  assert_equals "$expected" "$actual" "help snapshot should match the live CLI"
+}
+
 test_cli_version_outputs_version() {
   local output
   output=$(bash "$SCRIPT_PATH" --version 2>&1)
@@ -85,6 +87,11 @@ test_cli_version_outputs_version() {
 
 test_cli_unknown_option_fails() {
   assert_exit_code 1 bash "$SCRIPT_PATH" --nonexistent-option
+}
+
+test_cli_removed_force_push_options_fail() {
+  assert_exit_code 1 bash "$SCRIPT_PATH" --force-push
+  assert_exit_code 1 bash "$SCRIPT_PATH" --no-force-push
 }
 
 test_cli_no_args_fails() {
@@ -119,8 +126,6 @@ origin	fetch	https://github.com/test/repo
 backup	fetch	https://github.com/test/repo-backup
 EOF
   (
-    eval "$(sed -n '/^normalize_github_url_for_compare()/,/^}/p' "$LIB1_PATH")"
-    eval "$(sed -n '/^resolve_target_remote()/,/^}/p' "$LIB1_PATH")"
     local resolved
     resolved="$(resolve_target_remote "$dir/remotes.tsv" "https://github.com/test/repo")" || return 1
     assert_equals "origin" "$resolved" "resolve_target_remote should return the exact canonical match"
@@ -134,8 +139,6 @@ test_resolve_target_remote_rejects_no_match() {
 origin	fetch	https://github.com/test/other-repo
 EOF
   (
-    eval "$(sed -n '/^normalize_github_url_for_compare()/,/^}/p' "$LIB1_PATH")"
-    eval "$(sed -n '/^resolve_target_remote()/,/^}/p' "$LIB1_PATH")"
     if resolve_target_remote "$dir/remotes.tsv" "https://github.com/test/repo" >/dev/null 2>&1; then
       echo "    Expected resolve_target_remote to fail without an exact match"
       return 1
@@ -151,8 +154,6 @@ origin	fetch	https://github.com/test/repo
 mirror	fetch	git@github.com:test/repo.git
 EOF
   (
-    eval "$(sed -n '/^normalize_github_url_for_compare()/,/^}/p' "$LIB1_PATH")"
-    eval "$(sed -n '/^resolve_target_remote()/,/^}/p' "$LIB1_PATH")"
     if resolve_target_remote "$dir/remotes.tsv" "https://github.com/test/repo" >/dev/null 2>&1; then
       echo "    Expected resolve_target_remote to fail for ambiguous exact matches"
       return 1
@@ -171,7 +172,6 @@ origin	fetch	https://github.com/test/repo
 origin	push	git@github.com:test/repo.git
 EOF
   (
-    eval "$(sed -n '/^restore_remotes_from_backup()/,/^}/p' "$LIB1_PATH")"
     restore_remotes_from_backup "$repo" "$dir/remotes.tsv"
     local remotes
     remotes="$(git -C "$repo" remote -v)"
@@ -180,17 +180,180 @@ EOF
   )
 }
 
-test_push_branch_and_tags_does_not_publish_tags() {
+test_push_rewritten_branch_uses_exact_oid_lease() {
   (
-    eval "$(sed -n '/^push_branch_and_tags()/,/^}/p' "$LIB1_PATH")"
     CAPTURED_COMMANDS=""
+    local remotes_file
+    remotes_file="$(mktemp)"
+    printf 'origin\tfetch\thttps://github.com/test/repo\n' >"$remotes_file"
+    BACKUP_REMOTES_TMP="$remotes_file"
+    CANONICAL_URL="https://github.com/test/repo"
+    UPSTREAM_REMOTE="origin"
+    UPSTREAM_REMOTE_REF="refs/heads/main"
+    EXPECTED_UPSTREAM_OID="0123456789012345678901234567890123456789"
+    REWRITTEN_HEAD_OID="abcdefabcdefabcdefabcdefabcdefabcdefabcd"
     run_cmd() {
       CAPTURED_COMMANDS+="$*\n"
       return 0
     }
-    push_branch_and_tags "/tmp/repo" "origin" "main" true || return 1
-    assert_contains "$CAPTURED_COMMANDS" "git -C /tmp/repo push -u origin --force main" "branch push should still run"
-    assert_not_contains "$CAPTURED_COMMANDS" "--tags" "tag pushes should be suppressed after history rewrite"
+    push_rewritten_branch "/tmp/repo" || return 1
+    rm -f "$remotes_file"
+    assert_contains "$CAPTURED_COMMANDS" "--force-with-lease=refs/heads/main:0123456789012345678901234567890123456789" "push must bind the exact observed upstream OID"
+    assert_contains "$CAPTURED_COMMANDS" \
+      "abcdefabcdefabcdefabcdefabcdefabcdefabcd:refs/heads/main" \
+      "push must use the commit-map-derived rewritten OID"
+    assert_not_contains "$CAPTURED_COMMANDS" " --force " "plain force push must never be used"
+  )
+}
+
+test_cleanup_retains_backups_when_verification_fails() {
+  (
+    DRY_RUN=false
+    TARGET_REMOTE="origin"
+    BACKUP_BRANCH="backup/coauthor-trailer-cleaner-test"
+    BACKUP_BRANCH_PREFIX="backup/coauthor-trailer-cleaner-"
+    VERBOSE=false
+    CAPTURED_COMMANDS=""
+    REWRITTEN_HEAD_OID="rewritten-test-oid"
+    transaction_state_matches() { return 0; }
+    check_target_trailers() { return 1; }
+    log_error() { :; }
+    run_cmd() { CAPTURED_COMMANDS+="$*\n"; }
+
+    if verify_and_cleanup "/tmp/coauthor-trailer-cleaner-test-repo"; then
+      echo "    Expected cleanup to fail when trailer verification fails"
+      return 1
+    fi
+    assert_not_contains "$CAPTURED_COMMANDS" "branch -D" "local recovery branch must be retained after verification failure"
+    assert_not_contains "$CAPTURED_COMMANDS" "push origin --delete" "remote recovery branches must never be deleted"
+  )
+}
+
+test_cleanup_deletes_only_current_run_transaction_refs() {
+  local repo current_recovery old_recovery transaction_ref original_oid
+  repo=$(setup_clean_test_repo)
+  original_oid="$(git -C "$repo" rev-parse HEAD)"
+  current_recovery="backup/coauthor-trailer-cleaner-current"
+  old_recovery="backup/coauthor-trailer-cleaner-old"
+  transaction_ref="refs/coauthor-trailer-cleaner/transactions/current"
+  git -C "$repo" branch "$current_recovery" "$original_oid"
+  git -C "$repo" branch "$old_recovery" "$original_oid"
+  git -C "$repo" update-ref "$transaction_ref" "$original_oid"
+  (
+    DRY_RUN=false
+    TARGET_REMOTE=""
+    CURRENT_BRANCH="$(git -C "$repo" symbolic-ref --quiet --short HEAD)"
+    BACKUP_BRANCH="$current_recovery"
+    TRANSACTION_REF="$transaction_ref"
+    ORIGINAL_HEAD_OID="$original_oid"
+    REWRITTEN_HEAD_OID="$original_oid"
+    TARGETS_JSON='[{"name":"Cursor","email":"cursoragent@cursor.com"}]'
+    QUIET=true
+    VERBOSE=false
+    verify_and_cleanup "$repo"
+  )
+  if git -C "$repo" show-ref --verify --quiet "refs/heads/$current_recovery"; then
+    echo "    Expected exact current-run recovery branch to be deleted"
+    return 1
+  fi
+  git -C "$repo" show-ref --verify --quiet "refs/heads/$old_recovery" || {
+    echo "    Older recovery branch must be retained"
+    return 1
+  }
+  if git -C "$repo" show-ref --verify --quiet "$transaction_ref"; then
+    echo "    Expected exact current-run transaction ref to be deleted"
+    return 1
+  fi
+}
+
+test_no_push_propagates_cleanup_verification_failure() {
+  (
+    NO_PUSH=true
+    DRY_RUN=false
+    VALIDATE_ONLY=false
+    QUIET=false
+    validate_repo_input() { return 0; }
+    do_rewrite_and_restore_remotes() { return 0; }
+    verify_and_cleanup() { return 1; }
+    log_info() { :; }
+
+    if process_one_repo "https://github.com/example/repo" "/tmp/example-repo"; then
+      echo "    Expected no-push rewrite to fail when cleanup verification fails"
+      return 1
+    fi
+  )
+}
+
+test_trailer_check_fails_when_forbidden_trailer_remains() {
+  local repo
+  repo=$(setup_test_repo)
+  (
+    QUIET=true
+    TARGETS_JSON='[{"name":"Cursor","email":"cursoragent@cursor.com"}]'
+    log_warn() { :; }
+    log_ok() { :; }
+    if check_target_trailers "$repo"; then
+      echo "    Expected trailer check to fail when a configured trailer remains"
+      return 1
+    fi
+  )
+}
+
+test_trailer_check_fails_when_current_and_backup_share_forbidden_commit() {
+  local repo
+  repo=$(setup_test_repo)
+  (
+    QUIET=true
+    TARGETS_JSON='[{"name":"Cursor","email":"cursoragent@cursor.com"}]'
+    BACKUP_BRANCH_PREFIX="backup/coauthor-trailer-cleaner-"
+    BACKUP_BRANCH="${BACKUP_BRANCH_PREFIX}shared"
+    git -C "$repo" branch "$BACKUP_BRANCH" HEAD
+    log_warn() { :; }
+    log_ok() { :; }
+    if check_target_trailers "$repo"; then
+      echo "    Expected trailer check to scan commits shared with a recovery ref"
+      return 1
+    fi
+  )
+}
+
+test_trailer_check_excludes_recovery_only_commits() {
+  local repo
+  repo=$(setup_clean_test_repo)
+  (
+    QUIET=true
+    TARGETS_JSON='[{"name":"Cursor","email":"cursoragent@cursor.com"}]'
+    BACKUP_BRANCH_PREFIX="backup/coauthor-trailer-cleaner-"
+    BACKUP_BRANCH="${BACKUP_BRANCH_PREFIX}recovery-only"
+    printf 'recovery\n' >"$repo/recovery.txt"
+    git -C "$repo" add recovery.txt
+    git -C "$repo" commit -q -m $'Recovery commit\n\nCo-authored-by: Cursor <cursoragent@cursor.com>'
+    git -C "$repo" branch "$BACKUP_BRANCH" HEAD
+    git -C "$repo" reset --hard -q HEAD^
+    log_warn() { :; }
+    log_ok() { :; }
+    check_target_trailers "$repo"
+  )
+}
+
+test_trailer_check_fails_when_scan_errors() {
+  local repo
+  repo=$(setup_clean_test_repo)
+  (
+    QUIET=true
+    TARGETS_JSON='[{"name":"Cursor","email":"cursoragent@cursor.com"}]'
+    log_warn() { :; }
+    log_ok() { :; }
+    git() {
+      if [[ "$*" == *" log "* ]]; then
+        return 42
+      fi
+      command git "$@"
+    }
+    if check_target_trailers "$repo"; then
+      echo "    Expected trailer check to fail when git log cannot scan refs"
+      return 1
+    fi
   )
 }
 
@@ -272,6 +435,18 @@ CONF
   fi
 }
 
+test_config_rejects_removed_force_push_default() {
+  local dir
+  dir=$(create_test_dir)
+  cat >"$dir/config.json" <<'CONF'
+{
+  "defaults": { "forcePush": true },
+  "repos": [{"url": "https://github.com/u/r", "path": "/tmp/r"}]
+}
+CONF
+  assert_exit_code 1 bash "$SCRIPT_PATH" --config "$dir/config.json" --validate-only
+}
+
 test_config_invalid_target_email() {
   local dir
   dir=$(create_test_dir)
@@ -295,7 +470,7 @@ test_callback_removes_default_target() {
   local result
   result=$(
     TARGETS_JSON='[{"name":"Cursor","email":"cursoragent@cursor.com"}]' \
-      python3 -c "
+      "$PYTHON_BIN" -c "
 import json, re, sys
 targets = json.loads(sys.argv[1])
 message = sys.stdin.buffer.read()
@@ -317,7 +492,7 @@ EOF
 test_callback_preserves_other_trailers() {
   local result
   result=$(
-    python3 -c "
+    "$PYTHON_BIN" -c "
 import json, re, sys
 targets = json.loads(sys.argv[1])
 message = sys.stdin.buffer.read()
@@ -340,7 +515,7 @@ EOF
 test_callback_removes_custom_target() {
   local result
   result=$(
-    python3 -c "
+    "$PYTHON_BIN" -c "
 import json, re, sys
 targets = json.loads(sys.argv[1])
 message = sys.stdin.buffer.read()
@@ -361,7 +536,7 @@ EOF
 test_callback_collapses_blank_lines() {
   local result
   result=$(
-    python3 -c "
+    "$PYTHON_BIN" -c "
 import re, sys
 message = sys.stdin.buffer.read()
 message = re.sub(br'(?:\r?\n){3,}', b'\n\n', message)
@@ -375,7 +550,7 @@ After gap
 EOF
   )
   local consecutive
-  consecutive=$(echo "$result" | python3 -c "
+  consecutive=$(echo "$result" | "$PYTHON_BIN" -c "
 import re, sys
 text = sys.stdin.read()
 print(1 if re.search(r'\n{3,}', text) else 0)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Synchronizes approved learning notes into AGENTS.md so operational guidance stays current.
 
 set -euo pipefail
 

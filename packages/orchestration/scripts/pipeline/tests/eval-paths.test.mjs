@@ -1,3 +1,6 @@
+/**
+ * Rejects evaluation path escapes and unsafe links so matrix fixtures cannot read outside the repository.
+ */
 import { describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

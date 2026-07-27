@@ -1,3 +1,6 @@
+/**
+ * Implements runner subcommands and their stateful artifact, gate, and review transitions.
+ */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
@@ -84,7 +87,7 @@ export function runEndPhase(options, { requireOption, assertKnownPhase }) {
 
   // Note: endPhase intentionally does NOT save pipeline state.
   // Unlike startPhase (which sets current_phase), endPhase has no state
-  // to update — the trace event is the authoritative record of phase
+  // to update: the trace event is the authoritative record of phase
   // completion. The next startPhase call will advance current_phase.
 
   process.stdout.write(
@@ -179,7 +182,9 @@ export function runRecordReviewState(options, { requireOption }) {
       state,
       status,
       changed_at: new Date().toISOString(),
-      ...(typeof options.note === "string" && options.note.length > 0 ? { note: options.note } : {}),
+      ...(typeof options.note === "string" && options.note.length > 0
+        ? { note: options.note }
+        : {}),
     });
     reviewLoop.updated_at = new Date().toISOString();
     writeJson(path, reviewLoop);
@@ -205,124 +210,116 @@ export function runRecordReviewState(options, { requireOption }) {
     pipelineState.artifacts.review_loop = "review-loop.json";
   });
 
-  process.stdout.write(`${JSON.stringify({ success: true, run_id: runId, review_loop: reviewLoop }, null, 2)}\n`);
+  process.stdout.write(
+    `${JSON.stringify({ success: true, run_id: runId, review_loop: reviewLoop }, null, 2)}\n`,
+  );
 }
 
-export function runSummarizeRun(
-  options,
-  { requireOption, ensureStateForRun },
-) {
-  const runId = requireOption(options, "run-id");
-  const root = resolveWorkspaceRootForRun(runId);
-  const format = options.format || "json";
-  if (!SUMMARY_FORMATS.has(format)) {
-    throw badInput("--format must be one of: json, text, markdown");
-  }
-  const outputRef = options.output;
-  const state = loadPipelineState(root);
-  ensureStateForRun(state, runId);
-  ensureTraceFile(runId, root);
-  const summary = summarizeRun(runId, root);
+function valueOr(value, fallback) {
+  return value === undefined || value === null ? fallback : value;
+}
 
-  const jsonPayload = { success: true, run_id: runId, summary };
+function optionalLines(condition, lines) {
+  return condition ? lines : [];
+}
 
-  const gatePass = summary.gate_results?.pass ?? 0;
-  const gateFail = summary.gate_results?.fail ?? 0;
-  const gateWarn = summary.gate_results?.warn ?? 0;
+function runSummaryView(runId, summary) {
+  const gateResults = summary.gate_results || {};
   const issues = Array.isArray(summary.issues) ? summary.issues : [];
-  const phaseDurations = summary.phase_durations_ms ?? {};
-  const activePhases = PHASES.filter((p) => phaseDurations[p] !== undefined);
-
-  const renderText = () => {
-    const phaseLines = activePhases.map((p) => `  - ${p}: ${phaseDurations[p]} ms`);
-
-    return [
-      `Run summary: ${runId}`,
-      `valid: ${summary.valid ? "true" : "false"}`,
-      `events: ${summary.total_events ?? 0}`,
-      `gates: pass=${gatePass} warn=${gateWarn} fail=${gateFail}`,
-      `duration_s: ${summary.summed_phase_duration_s ?? summary.total_duration_s ?? 0}`,
-      ...(summary.total_wall_clock_s !== undefined
-        ? [`wall_clock_s: ${summary.total_wall_clock_s}`]
-        : []),
-      `cost_usd: ${summary.total_cost_usd ?? 0}`,
-      `tokens: in=${summary.total_tokens_in ?? 0} out=${summary.total_tokens_out ?? 0}`,
-      issues.length > 0 ? `issues (${issues.length}):` : "issues: none",
-      ...(issues.length > 0 ? issues.map((issue) => `  - ${issue}`) : []),
-      phaseLines.length > 0 ? "phase_durations_ms:" : "phase_durations_ms: none",
-      ...phaseLines,
-      "",
-    ].join("\n");
+  const phaseDurations = summary.phase_durations_ms || {};
+  return {
+    runId,
+    summary,
+    gatePass: valueOr(gateResults.pass, 0),
+    gateFail: valueOr(gateResults.fail, 0),
+    gateWarn: valueOr(gateResults.warn, 0),
+    issues,
+    phaseDurations,
+    activePhases: PHASES.filter((phase) => phaseDurations[phase] !== undefined),
   };
+}
 
-  const renderMarkdown = () => {
-    const phaseRows = activePhases.map((p) => `| ${p} | ${phaseDurations[p]} |`);
+function runDurationSeconds(summary) {
+  return valueOr(summary.summed_phase_duration_s, valueOr(summary.total_duration_s, 0));
+}
 
-    return [
-      `# Run Summary: ${runId}`,
-      "",
-      `- Valid: \`${summary.valid ? "true" : "false"}\``,
-      `- Total events: \`${summary.total_events ?? 0}\``,
-      `- Gates: pass=\`${gatePass}\`, warn=\`${gateWarn}\`, fail=\`${gateFail}\``,
-      `- Duration (s): \`${summary.summed_phase_duration_s ?? summary.total_duration_s ?? 0}\``,
-      ...(summary.total_wall_clock_s !== undefined
-        ? [`- Wall clock (s): \`${summary.total_wall_clock_s}\``]
-        : []),
-      `- Cost (USD): \`${summary.total_cost_usd ?? 0}\``,
-      `- Tokens: in=\`${summary.total_tokens_in ?? 0}\`, out=\`${summary.total_tokens_out ?? 0}\``,
-      "",
-      "## Phase Durations",
-      "",
-      "| Phase | Duration (ms) |",
-      "| --- | ---: |",
-      ...(phaseRows.length > 0 ? phaseRows : ["| (none) | 0 |"]),
-      "",
-      "## Issues",
-      "",
-      ...(issues.length > 0 ? issues.map((issue) => `- ${issue}`) : ["- None"]),
-      "",
-    ].join("\n");
-  };
+function renderRunSummaryText(view) {
+  const { runId, summary, gatePass, gateWarn, gateFail, issues, phaseDurations, activePhases } =
+    view;
+  const phaseLines = activePhases.map((phase) => `  - ${phase}: ${phaseDurations[phase]} ms`);
+  return [
+    `Run summary: ${runId}`,
+    `valid: ${summary.valid ? "true" : "false"}`,
+    `events: ${valueOr(summary.total_events, 0)}`,
+    `gates: pass=${gatePass} warn=${gateWarn} fail=${gateFail}`,
+    `duration_s: ${runDurationSeconds(summary)}`,
+    ...optionalLines(summary.total_wall_clock_s !== undefined, [
+      `wall_clock_s: ${summary.total_wall_clock_s}`,
+    ]),
+    `cost_usd: ${valueOr(summary.total_cost_usd, 0)}`,
+    `tokens: in=${valueOr(summary.total_tokens_in, 0)} out=${valueOr(summary.total_tokens_out, 0)}`,
+    issues.length > 0 ? `issues (${issues.length}):` : "issues: none",
+    ...optionalLines(issues.length > 0, issues.map((issue) => `  - ${issue}`)),
+    phaseLines.length > 0 ? "phase_durations_ms:" : "phase_durations_ms: none",
+    ...phaseLines,
+    "",
+  ].join("\n");
+}
 
-  let rendered = "";
-  if (format === "text") {
-    rendered = renderText();
-  } else if (format === "markdown") {
-    rendered = renderMarkdown();
-  }
+function renderRunSummaryMarkdown(view) {
+  const { runId, summary, gatePass, gateWarn, gateFail, issues, phaseDurations, activePhases } =
+    view;
+  const phaseRows = activePhases.map((phase) => `| ${phase} | ${phaseDurations[phase]} |`);
+  return [
+    `# Run Summary: ${runId}`,
+    "",
+    `- Valid: \`${summary.valid ? "true" : "false"}\``,
+    `- Total events: \`${valueOr(summary.total_events, 0)}\``,
+    `- Gates: pass=\`${gatePass}\`, warn=\`${gateWarn}\`, fail=\`${gateFail}\``,
+    `- Duration (s): \`${runDurationSeconds(summary)}\``,
+    ...optionalLines(summary.total_wall_clock_s !== undefined, [
+      `- Wall clock (s): \`${summary.total_wall_clock_s}\``,
+    ]),
+    `- Cost (USD): \`${valueOr(summary.total_cost_usd, 0)}\``,
+    `- Tokens: in=\`${valueOr(summary.total_tokens_in, 0)}\`, out=\`${valueOr(summary.total_tokens_out, 0)}\``,
+    "",
+    "## Phase Durations",
+    "",
+    "| Phase | Duration (ms) |",
+    "| --- | ---: |",
+    ...(phaseRows.length > 0 ? phaseRows : ["| (none) | 0 |"]),
+    "",
+    "## Issues",
+    "",
+    ...(issues.length > 0 ? issues.map((issue) => `- ${issue}`) : ["- None"]),
+    "",
+  ].join("\n");
+}
 
+function emitRunSummary({ format, outputRef, root, runId, jsonPayload, rendered }) {
   let outputPath;
   if (outputRef) {
     const outputAbs = resolveWithinRepo(outputRef, root);
     mkdirSync(dirname(outputAbs), { recursive: true });
-    if (format === "json") {
-      writeFileSync(outputAbs, `${JSON.stringify(jsonPayload, null, 2)}\n`, "utf8");
-    } else {
-      writeFileSync(outputAbs, rendered, "utf8");
-    }
+    const output = format === "json" ? `${JSON.stringify(jsonPayload, null, 2)}\n` : rendered;
+    writeFileSync(outputAbs, output, "utf8");
     outputPath = toWorkspaceRelative(outputAbs, root);
   }
-
   if (format === "json") {
     const payload = outputPath ? { ...jsonPayload, format, output_ref: outputPath } : jsonPayload;
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
     return;
   }
-
   if (outputPath) {
     process.stdout.write(
       `${JSON.stringify({ success: true, run_id: runId, format, output_ref: outputPath }, null, 2)}\n`,
     );
     return;
   }
-
   process.stdout.write(rendered);
 }
 
-export function runSummarizeProgress(
-  options,
-  { requireOption, ensureStateForRun },
-) {
+export function runSummarizeRun(options, { requireOption, ensureStateForRun }) {
   const runId = requireOption(options, "run-id");
   const root = resolveWorkspaceRootForRun(runId);
   const format = options.format || "json";
@@ -333,72 +330,90 @@ export function runSummarizeProgress(
   const state = loadPipelineState(root);
   ensureStateForRun(state, runId);
   ensureTraceFile(runId, root);
-
   const summary = summarizeRun(runId, root);
-  const phaseOrder = Array.isArray(state.phase_order) ? state.phase_order : PHASES;
-  const completedGates = new Set(Array.isArray(state.completed_gates) ? state.completed_gates : []);
-  const phaseStatus = phaseOrder.map((phase) => {
-    const gate = readPhaseGate(runId, phase);
-    const gateStatus = gate?.status ?? "pending";
-    const status =
-      gateStatus === "fail"
-        ? "blocked"
-        : completedGates.has(`${phase}-gate`) || gateStatus !== "pending"
-            ? "completed"
-            : state.current_phase === phase
-              ? "active"
-            : "pending";
-    return {
-      phase,
-      status,
-      gate_status: gateStatus,
-    };
-  });
+  const jsonPayload = { success: true, run_id: runId, summary };
+  const view = runSummaryView(runId, summary);
+  const rendered = format === "text" ? renderRunSummaryText(view) : renderRunSummaryMarkdown(view);
+  emitRunSummary({ format, outputRef, root, runId, jsonPayload, rendered });
+}
 
-  const gateTotals = phaseStatus.reduce(
-    (acc, entry) => {
-      acc[entry.gate_status] += 1;
-      return acc;
+function progressPhaseEntry(runId, phase, state, completedGates) {
+  const gateStatus = valueOr(readPhaseGate(runId, phase)?.status, "pending");
+  let status = "pending";
+  if (gateStatus === "fail") status = "blocked";
+  else if (completedGates.has(`${phase}-gate`) || gateStatus !== "pending") status = "completed";
+  else if (state.current_phase === phase) status = "active";
+  return { phase, status, gate_status: gateStatus };
+}
+
+function progressGateTotals(phaseStatus) {
+  return phaseStatus.reduce(
+    (totals, entry) => {
+      totals[entry.gate_status] += 1;
+      return totals;
     },
     { pass: 0, warn: 0, fail: 0, pending: 0 },
   );
-  const blockers = phaseStatus
-    .filter((entry) => entry.status === "blocked")
-    .map((entry) => `${entry.phase}:${entry.gate_status}`);
-  const nextPending = phaseStatus.find((entry) => entry.status === "pending");
-  const nextAction =
-    blockers.length > 0
-      ? `Resolve blockers in ${blockers.join(", ")}`
-      : nextPending
-        ? `Start phase ${nextPending.phase}`
-        : `Continue or inspect phase ${state.current_phase}`;
+}
 
-  const artifact = {
-    run_id: runId,
-    current_phase: state.current_phase,
-    workspace_mode: state.workspace?.mode ?? "main-repo",
-    phase_status: phaseStatus,
-    gate_totals: gateTotals,
-    blockers,
-    activity_summary: summary.activity_resolutions ?? [],
-    cost_summary: {
-      total_cost_usd: summary.total_cost_usd ?? 0,
-      total_tokens_in: summary.total_tokens_in ?? 0,
-      total_tokens_out: summary.total_tokens_out ?? 0,
-    },
-    next_action: nextAction,
-    updated_at: new Date().toISOString(),
-  };
+function progressNextAction(blockers, nextPending, currentPhase) {
+  if (blockers.length > 0) return `Resolve blockers in ${blockers.join(", ")}`;
+  if (nextPending) return `Start phase ${nextPending.phase}`;
+  return `Continue or inspect phase ${currentPhase}`;
+}
 
-  const path = `${getRunDir(runId, root)}/progress.summary.json`;
-  writeJson(path, artifact);
+function renderProgressText(runId, artifact) {
+  const { blockers, gate_totals: gateTotals } = artifact;
+  return [
+    `Progress summary: ${runId}`,
+    `current_phase: ${artifact.current_phase}`,
+    `workspace_mode: ${artifact.workspace_mode}`,
+    `gates: pass=${gateTotals.pass} warn=${gateTotals.warn} fail=${gateTotals.fail} pending=${gateTotals.pending}`,
+    `next_action: ${artifact.next_action}`,
+    blockers.length > 0 ? `blockers (${blockers.length}):` : "blockers: none",
+    ...optionalLines(blockers.length > 0, blockers.map((blocker) => `  - ${blocker}`)),
+    "phase_status:",
+    ...artifact.phase_status.map(
+      (entry) => `  - ${entry.phase}: ${entry.status} (gate=${entry.gate_status})`,
+    ),
+    "",
+  ].join("\n");
+}
 
+function renderProgressMarkdown(runId, artifact) {
+  const gateTotals = artifact.gate_totals;
+  return [
+    `# Progress Summary: ${runId}`,
+    "",
+    `- Current phase: \`${artifact.current_phase}\``,
+    `- Workspace mode: \`${artifact.workspace_mode}\``,
+    `- Gates: pass=\`${gateTotals.pass}\`, warn=\`${gateTotals.warn}\`, fail=\`${gateTotals.fail}\`, pending=\`${gateTotals.pending}\``,
+    `- Next action: ${artifact.next_action}`,
+    "",
+    "## Phase Status",
+    "",
+    "| Phase | Status | Gate |",
+    "| --- | --- | --- |",
+    ...artifact.phase_status.map(
+      (entry) => `| ${entry.phase} | ${entry.status} | ${entry.gate_status} |`,
+    ),
+    "",
+    "## Blockers",
+    "",
+    ...(artifact.blockers.length > 0
+      ? artifact.blockers.map((blocker) => `- ${blocker}`)
+      : ["- None"]),
+    "",
+  ].join("\n");
+}
+
+function persistProgressSummary(runId, root, state, artifact, ensureStateForRun) {
+  writeJson(`${getRunDir(runId, root)}/progress.summary.json`, artifact);
   withLockedState(root, (lockedState) => {
     ensureStateForRun(lockedState, runId);
     lockedState.artifacts ??= {};
     lockedState.artifacts.progress_summary = "progress.summary.json";
   });
-
   appendTraceEvent(
     runId,
     {
@@ -406,69 +421,19 @@ export function runSummarizeProgress(
       phase: state.current_phase,
       status: "ok",
       artifact_ref: "progress.summary.json",
-      metadata: {
-        artifact_kind: "progress_summary",
-      },
+      metadata: { artifact_kind: "progress_summary" },
     },
     root,
   );
+}
 
-  const renderText = () =>
-    [
-      `Progress summary: ${runId}`,
-      `current_phase: ${artifact.current_phase}`,
-      `workspace_mode: ${artifact.workspace_mode}`,
-      `gates: pass=${gateTotals.pass} warn=${gateTotals.warn} fail=${gateTotals.fail} pending=${gateTotals.pending}`,
-      `next_action: ${artifact.next_action}`,
-      blockers.length > 0 ? `blockers (${blockers.length}):` : "blockers: none",
-      ...(blockers.length > 0 ? blockers.map((blocker) => `  - ${blocker}`) : []),
-      "phase_status:",
-      ...artifact.phase_status.map(
-        (entry) => `  - ${entry.phase}: ${entry.status} (gate=${entry.gate_status})`,
-      ),
-      "",
-    ].join("\n");
-
-  const renderMarkdown = () =>
-    [
-      `# Progress Summary: ${runId}`,
-      "",
-      `- Current phase: \`${artifact.current_phase}\``,
-      `- Workspace mode: \`${artifact.workspace_mode}\``,
-      `- Gates: pass=\`${gateTotals.pass}\`, warn=\`${gateTotals.warn}\`, fail=\`${gateTotals.fail}\`, pending=\`${gateTotals.pending}\``,
-      `- Next action: ${artifact.next_action}`,
-      "",
-      "## Phase Status",
-      "",
-      "| Phase | Status | Gate |",
-      "| --- | --- | --- |",
-      ...artifact.phase_status.map(
-        (entry) => `| ${entry.phase} | ${entry.status} | ${entry.gate_status} |`,
-      ),
-      "",
-      "## Blockers",
-      "",
-      ...(blockers.length > 0 ? blockers.map((blocker) => `- ${blocker}`) : ["- None"]),
-      "",
-    ].join("\n");
-
-  const jsonPayload = {
-    success: true,
-    run_id: runId,
-    progress_ref: "progress.summary.json",
-    summary: artifact,
-  };
-
+function emitProgressSummary({ format, outputRef, root, runId, jsonPayload, text, markdown }) {
   if (outputRef) {
     const outputAbs = resolveWithinRepo(outputRef, root);
     mkdirSync(dirname(outputAbs), { recursive: true });
-    if (format === "json") {
-      writeFileSync(outputAbs, `${JSON.stringify(jsonPayload, null, 2)}\n`, "utf8");
-    } else if (format === "text") {
-      writeFileSync(outputAbs, renderText(), "utf8");
-    } else {
-      writeFileSync(outputAbs, renderMarkdown(), "utf8");
-    }
+    const rendered =
+      format === "json" ? `${JSON.stringify(jsonPayload, null, 2)}\n` : format === "text" ? text : markdown;
+    writeFileSync(outputAbs, rendered, "utf8");
     process.stdout.write(
       `${JSON.stringify(
         {
@@ -484,13 +449,70 @@ export function runSummarizeProgress(
     );
     return;
   }
-
   if (format === "json") {
     process.stdout.write(`${JSON.stringify(jsonPayload, null, 2)}\n`);
     return;
   }
+  process.stdout.write(format === "text" ? text : markdown);
+}
 
-  process.stdout.write(format === "text" ? renderText() : renderMarkdown());
+export function runSummarizeProgress(options, { requireOption, ensureStateForRun }) {
+  const runId = requireOption(options, "run-id");
+  const root = resolveWorkspaceRootForRun(runId);
+  const format = options.format || "json";
+  if (!SUMMARY_FORMATS.has(format)) {
+    throw badInput("--format must be one of: json, text, markdown");
+  }
+  const outputRef = options.output;
+  const state = loadPipelineState(root);
+  ensureStateForRun(state, runId);
+  ensureTraceFile(runId, root);
+
+  const summary = summarizeRun(runId, root);
+  const phaseOrder = Array.isArray(state.phase_order) ? state.phase_order : PHASES;
+  const completedGates = new Set(Array.isArray(state.completed_gates) ? state.completed_gates : []);
+  const phaseStatus = phaseOrder.map((phase) =>
+    progressPhaseEntry(runId, phase, state, completedGates),
+  );
+  const gateTotals = progressGateTotals(phaseStatus);
+  const blockers = phaseStatus
+    .filter((entry) => entry.status === "blocked")
+    .map((entry) => `${entry.phase}:${entry.gate_status}`);
+  const nextPending = phaseStatus.find((entry) => entry.status === "pending");
+  const nextAction = progressNextAction(blockers, nextPending, state.current_phase);
+
+  const artifact = {
+    run_id: runId,
+    current_phase: state.current_phase,
+    workspace_mode: valueOr(state.workspace?.mode, "main-repo"),
+    phase_status: phaseStatus,
+    gate_totals: gateTotals,
+    blockers,
+    activity_summary: valueOr(summary.activity_resolutions, []),
+    cost_summary: {
+      total_cost_usd: valueOr(summary.total_cost_usd, 0),
+      total_tokens_in: valueOr(summary.total_tokens_in, 0),
+      total_tokens_out: valueOr(summary.total_tokens_out, 0),
+    },
+    next_action: nextAction,
+    updated_at: new Date().toISOString(),
+  };
+  persistProgressSummary(runId, root, state, artifact, ensureStateForRun);
+  const jsonPayload = {
+    success: true,
+    run_id: runId,
+    progress_ref: "progress.summary.json",
+    summary: artifact,
+  };
+  emitProgressSummary({
+    format,
+    outputRef,
+    root,
+    runId,
+    jsonPayload,
+    text: renderProgressText(runId, artifact),
+    markdown: renderProgressMarkdown(runId, artifact),
+  });
 }
 
 export function printUsage() {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's prd hidden chars contract.
 
 set -euo pipefail
 

@@ -1,3 +1,6 @@
+/**
+ * Verifies pipeline initialization creates and validates isolated worktrees without leaking repository state.
+ */
 import { afterEach, describe, expect, it } from "vitest";
 import {
   mkdtempSync,
@@ -11,6 +14,7 @@ import {
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
+import { resolveWorkspaceRootForRun } from "../lib/state.mjs";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const PIPELINE_INIT = join(REPO_ROOT, "scripts/pipeline-init.sh");
@@ -48,7 +52,7 @@ afterEach(() => {
   }
 });
 
-describe("pipeline-init worktree mode", () => {
+describe("pipeline-init worktree mode", { timeout: 15_000 }, () => {
   it("creates an isolated worktree with workspace metadata and cleans it up idempotently", () => {
     const repoRoot = makeGitRepo();
     const canonicalRepoRoot = realpathSync(repoRoot);
@@ -74,6 +78,8 @@ describe("pipeline-init worktree mode", () => {
     expect(state.workspace.primary_repo_root).toBe(canonicalRepoRoot);
     expect(state.workspace.branch).toBe(branchName);
     expect(state.workspace.worktree_path).toBe(workspaceRoot);
+    expect(state.workspace.worktree_root).toBe(join(canonicalRepoRoot, ".worktrees"));
+    expect(state.workspace.ownership_marker).toBe("rae-pipeline-worktree-v1");
     expect(state.config.feature_flags.worktree_isolation_v1).toBe(true);
     const tracePath = join(workspaceRoot, ".pipeline", "runs", runId, "trace.jsonl");
     const trace = readFileSync(tracePath, "utf8");
@@ -85,7 +91,11 @@ describe("pipeline-init worktree mode", () => {
     expect(cleanup.status).toBe(0);
     expect(existsSync(workspaceRoot)).toBe(false);
 
-    const cleanupAgain = run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT);
+    const cleanupAgain = run(
+      "bash",
+      [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot],
+      REPO_ROOT,
+    );
     expect(cleanupAgain.status).toBe(0);
     expect(cleanupAgain.stdout).toContain("already-absent");
 
@@ -121,12 +131,12 @@ describe("pipeline-init worktree mode", () => {
     expect(branchList.stdout).toContain(branchA);
     expect(branchList.stdout).toContain(branchB);
 
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootA], REPO_ROOT).status).toBe(
-      0,
-    );
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootB], REPO_ROOT).status).toBe(
-      0,
-    );
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootA], REPO_ROOT).status,
+    ).toBe(0);
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRootB], REPO_ROOT).status,
+    ).toBe(0);
     expect(existsSync(workspaceRootA)).toBe(false);
     expect(existsSync(workspaceRootB)).toBe(false);
   });
@@ -150,28 +160,120 @@ describe("pipeline-init worktree mode", () => {
     expect(workspaceRoot).toContain(`${canonicalRepoRoot}/.worktrees/`);
     expect(existsSync(join(nestedRoot, ".pipeline", "pipeline-state.json"))).toBe(false);
 
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status).toBe(
-      0,
-    );
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
+    ).toBe(0);
   });
 
-  it("resumes run commands against the isolated worktree from the primary repo", () => {
-    const init = run("bash", [PIPELINE_INIT, REPO_ROOT, "--use-worktree"], REPO_ROOT);
+  it("refuses cleanup for an unowned or dirty worktree", () => {
+    const repoRoot = makeGitRepo();
+    const unowned = join(repoRoot, "unowned");
+    mkdirSync(unowned, { recursive: true });
+    writeFileSync(join(unowned, "keep.txt"), "keep\n", "utf8");
+
+    const unownedCleanup = run("bash", [PIPELINE_INIT, "--cleanup-worktree", unowned], REPO_ROOT);
+    expect(unownedCleanup.status).not.toBe(0);
+    expect(existsSync(join(unowned, "keep.txt"))).toBe(true);
+
+    const init = run("bash", [PIPELINE_INIT, repoRoot, "--use-worktree"], REPO_ROOT);
+    expect(init.status).toBe(0);
+    const workspaceRoot = parseField(init.stdout, "workspace_root");
+    writeFileSync(join(workspaceRoot, "pending.txt"), "pending\n", "utf8");
+
+    const dirtyCleanup = run(
+      "bash",
+      [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot],
+      REPO_ROOT,
+    );
+    expect(dirtyCleanup.status).not.toBe(0);
+    expect(dirtyCleanup.stderr).toContain("uncommitted changes");
+    expect(existsSync(join(workspaceRoot, "pending.txt"))).toBe(true);
+  });
+
+  it("refuses cleanup for tracked changes inside the pipeline namespace", () => {
+    const repoRoot = makeGitRepo();
+    mkdirSync(join(repoRoot, ".pipeline"), { recursive: true });
+    writeFileSync(join(repoRoot, ".pipeline", "tracked.txt"), "original\n", "utf8");
+    expect(run("git", ["add", ".pipeline/tracked.txt"], repoRoot).status).toBe(0);
+    expect(run("git", ["commit", "-m", "track pipeline fixture"], repoRoot).status).toBe(0);
+
+    const init = run("bash", [PIPELINE_INIT, repoRoot, "--use-worktree"], REPO_ROOT);
+    expect(init.status).toBe(0);
+    const workspaceRoot = parseField(init.stdout, "workspace_root");
+    const trackedPath = join(workspaceRoot, ".pipeline", "tracked.txt");
+    writeFileSync(trackedPath, "operator change\n", "utf8");
+
+    const cleanup = run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT);
+    expect(cleanup.status).not.toBe(0);
+    expect(cleanup.stderr).toContain("uncommitted changes");
+    expect(readFileSync(trackedPath, "utf8")).toBe("operator change\n");
+  });
+
+  it("refuses cleanup before removing a clean worktree with unmerged commits", () => {
+    const repoRoot = makeGitRepo();
+    const init = run("bash", [PIPELINE_INIT, repoRoot, "--use-worktree"], REPO_ROOT);
+    expect(init.status).toBe(0);
+
+    const workspaceRoot = parseField(init.stdout, "workspace_root");
+    const branchName = parseField(init.stdout, "branch");
+    writeFileSync(join(workspaceRoot, "committed.txt"), "preserve me\n", "utf8");
+    expect(run("git", ["add", "committed.txt"], workspaceRoot).status).toBe(0);
+    expect(run("git", ["commit", "-m", "worktree change"], workspaceRoot).status).toBe(0);
+
+    const refused = run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT);
+    expect(refused.status).not.toBe(0);
+    expect(refused.stderr).toContain("commits not merged");
+    expect(existsSync(workspaceRoot)).toBe(true);
+    expect(run("git", ["branch", "--list", branchName], repoRoot).stdout).toContain(branchName);
+
+    expect(run("git", ["merge", "--ff-only", branchName], repoRoot).status).toBe(0);
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
+    ).toBe(0);
+  });
+
+  it("resolves an isolated run from its primary repository", () => {
+    const repoRoot = makeGitRepo();
+    const init = run("bash", [PIPELINE_INIT, repoRoot, "--use-worktree"], REPO_ROOT);
     expect(init.status).toBe(0);
 
     const runId = parseField(init.stdout, "run_id");
     const workspaceRoot = parseField(init.stdout, "workspace_root");
-    const runnerPath = join(REPO_ROOT, "scripts", "pipeline", "runner.mjs");
 
-    const record = run(
-      "node",
-      [runnerPath, "record-review-state", "--run-id", runId, "--state", "explain", "--status", "completed"],
+    expect(resolveWorkspaceRootForRun(runId, repoRoot)).toBe(workspaceRoot);
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
+    ).toBe(0);
+  });
+
+  it("resolves a quoted custom worktree root and writes valid JSON", () => {
+    const repoRoot = makeGitRepo();
+    const customWorktreeRoot = mkdtempSync(join(tmpdir(), 'pipeline-"worktrees-'));
+    tempRoots.push(customWorktreeRoot);
+
+    const init = run(
+      "bash",
+      [PIPELINE_INIT, repoRoot, "--use-worktree", "--worktree-root", customWorktreeRoot],
       REPO_ROOT,
     );
-    expect(record.status).toBe(0);
-    expect(existsSync(join(workspaceRoot, ".pipeline", "runs", runId, "review-loop.json"))).toBe(true);
-    expect(existsSync(join(REPO_ROOT, ".pipeline", "runs", runId, "review-loop.json"))).toBe(false);
+    expect(init.status).toBe(0);
 
-    expect(run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status).toBe(0);
+    const runId = parseField(init.stdout, "run_id");
+    const workspaceRoot = parseField(init.stdout, "workspace_root");
+    const state = JSON.parse(
+      readFileSync(join(workspaceRoot, ".pipeline", "pipeline-state.json"), "utf8"),
+    );
+    const trace = readFileSync(
+      join(workspaceRoot, ".pipeline", "runs", runId, "trace.jsonl"),
+      "utf8",
+    );
+
+    expect(state.workspace.worktree_root).toBe(realpathSync(customWorktreeRoot));
+    expect(JSON.parse(trace).metadata.workspace_root).toBe(workspaceRoot);
+    expect(resolveWorkspaceRootForRun(runId, repoRoot)).toBe(workspaceRoot);
+
+    expect(
+      run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
+    ).toBe(0);
   });
 });

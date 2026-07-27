@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Contract tests for rejecting unsafe evaluation metadata and routing mismatches."""
 
 import json
 import pathlib
@@ -6,154 +6,105 @@ import subprocess
 import sys
 import tempfile
 
-from benchmark_contracts_helpers import RESULTS_ROOT, ROOT, repo_rel, write_json, write_release_gate_fixture
+from benchmark_contracts_helpers import (
+    RESULTS_ROOT,
+    ROOT,
+    calibration_payload,
+    repo_rel,
+    run_release_gate,
+    write_json,
+    write_release_gate_fixture,
+)
+
+
+def test_validate_eval_metadata_rejects_absolute_benchmark_paths() -> None:
+    source = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(source.read_text(encoding="utf-8"))
+    benchmark["benchmark_id"] = "tmp-absolute-scenario-path"
+    benchmark["scenario_path"] = str(ROOT / "evals/scenarios/tool-selection")
+    temp_path = RESULTS_ROOT / ".tmp-absolute-scenario-path.benchmark-card.json"
+    write_json(temp_path, benchmark)
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    finally:
+        temp_path.unlink(missing_ok=True)
+    assert completed.returncode != 0
+    assert "scenario_path must be repository-relative" in (completed.stderr or completed.stdout)
+
+
+def test_validate_eval_metadata_rejects_parent_traversal() -> None:
+    source = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(source.read_text(encoding="utf-8"))
+    benchmark["benchmark_id"] = "tmp-parent-traversal"
+    benchmark["scenario_path"] = "evals/scenarios/../benchmarks"
+    temp_path = RESULTS_ROOT / ".tmp-parent-traversal.benchmark-card.json"
+    write_json(temp_path, benchmark)
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    finally:
+        temp_path.unlink(missing_ok=True)
+    assert completed.returncode != 0
+    assert "scenario_path must be repository-relative" in (completed.stderr or completed.stdout)
+
+
+def test_validate_eval_metadata_rejects_absolute_run_result_path() -> None:
+    source = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(source.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="validate-absolute-result-path-"
+    ) as tmp:
+        output_dir = pathlib.Path(tmp)
+        result_path, _, _, _, run_card_path = write_release_gate_fixture(
+            output_dir,
+            split="dev",
+            run_id="tool-selection-core-dev-absolute-result-path",
+            benchmark=benchmark,
+        )
+        run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
+        run_card["result_path"] = str(result_path)
+        write_json(run_card_path, run_card)
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    assert completed.returncode != 0
+    assert "result_path must be repository-relative" in (completed.stderr or completed.stdout)
+
+
 def test_release_gate_fails_when_calibration_report_is_missing() -> None:
     benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
     benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
-
-    with tempfile.TemporaryDirectory(
-        dir=RESULTS_ROOT, prefix="release-gate-fail-"
-    ) as tmp:
+    with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="release-gate-fail-") as tmp:
         output_dir = pathlib.Path(tmp)
-        result_path = output_dir / "result-tool-selection-core-dev-example.json"
-        regression_path = output_dir / "regression-tool-selection-core-dev-example.json"
-        ledger_path = output_dir / "result-ledger.jsonl"
-        run_card_path = output_dir / "run-card-tool-selection-core-dev-example.json"
-        gate_output_path = (
-            output_dir / "release-gate-tool-selection-core-dev-example.json"
-        )
-
-        write_json(
-            result_path,
-            {
-                "run_id": "tool-selection-core-dev-example",
-                "benchmark_id": "tool-selection-core",
-                "benchmark_version": "1.0.0",
-                "split": "dev",
-                "task_count": 1,
-                "pass_count": 1,
-                "fail_count": 0,
-                "aggregate_metrics": {
-                    "success_rate": 1.0,
-                    "route_accuracy": 1.0,
-                    "artifact_completeness": 1.0,
-                    "checkpoint_compliance": 1.0,
-                },
-            },
-        )
-        write_json(
-            regression_path,
-            {
-                "report_id": "regression-tool-selection-core-dev-example",
-                "benchmark_id": "tool-selection-core",
-                "split": "dev",
-                "generated_at": "2026-04-15T00:00:00Z",
-                "status": "pass",
-                "baseline_result_path": "evals/results/baselines/tool-selection-core-dev.json",
-                "aggregate_metrics": {
-                    "success_rate": 1.0,
-                    "route_accuracy": 1.0,
-                    "artifact_completeness": 1.0,
-                    "checkpoint_compliance": 1.0,
-                },
-                "baseline_metrics": {
-                    "success_rate": 1.0,
-                    "route_accuracy": 1.0,
-                    "artifact_completeness": 1.0,
-                    "checkpoint_compliance": 1.0,
-                },
-                "issues": [],
-            },
-        )
-        ledger_path.write_text(
-            json.dumps(
-                {
-                    "entry_id": "tool-selection-core-dev-example-aggregate",
-                    "kind": "benchmark-run",
-                    "timestamp": "2026-04-15T00:00:00Z",
-                    "benchmark_id": "tool-selection-core",
-                    "run_id": "tool-selection-core-dev-example",
-                    "split": "dev",
-                    "result_path": repo_rel(result_path),
-                    "claim_links": benchmark["claim_links"],
-                    "aggregate_metrics": {
-                        "success_rate": 1.0,
-                        "route_accuracy": 1.0,
-                        "artifact_completeness": 1.0,
-                        "checkpoint_compliance": 1.0,
-                    },
-                }
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        write_json(
-            run_card_path,
-            {
-                "run_id": "tool-selection-core-dev-example",
-                "evidence_type": "benchmark-run",
-                "benchmark_id": "tool-selection-core",
-                "benchmark_version": "1.0.0",
-                "date": "2026-04-15",
-                "split": "dev",
-                "system": {
-                    "model": "rule-based-router-v1",
-                    "runtime": "umbrella-benchmark-runner",
-                },
-                "judge_version": "programmatic-router-judge-v1",
-                "command": "python3 evals/scripts/run_benchmark.py",
-                "result_path": repo_rel(result_path),
-                "status": "pass",
-                "task_spec_path": "evals/datasets/tool-selection/tool-selection-core.task-specs.json",
-                "routed_runtime": "mixed",
-                "trace_paths": [],
-                "artifact_paths": [],
-                "checkpoint_paths": [],
-                "claim_links": benchmark["claim_links"],
-                "ledger_path": repo_rel(ledger_path),
-                "regression_report_path": repo_rel(regression_path),
-                "judge_calibration_report_path": repo_rel(
-                    output_dir / "missing-calibration.json"
-                ),
-                "cost_usd": 0.0,
-                "latency_seconds": 0.1,
-                "notes": "test fixture",
-            },
+        _, regression_path, ledger_path, _, run_card_path = write_release_gate_fixture(
+            output_dir, split="dev", run_id="tool-selection-core-dev-example", benchmark=benchmark
         )
         write_release_gate_fixture(
             output_dir / "held-out-pass",
             split="held-out",
             run_id="tool-selection-core-held-out-pass",
             benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
+            calibration_payload=calibration_payload(),
             release_gate_status="pass",
         )
+        gate_output_path = output_dir / "release-gate-tool-selection-core-dev-example.json"
 
-        completed = subprocess.run(
-            [
-                sys.executable,
-                str(ROOT / "evals/scripts/release_gate.py"),
-                "--benchmark-card",
-                str(benchmark_path),
-                "--run-card",
-                str(run_card_path),
-                "--regression-report",
-                str(regression_path),
-                "--ledger",
-                str(ledger_path),
-                "--output",
-                str(gate_output_path),
-            ],
-            cwd=ROOT,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))

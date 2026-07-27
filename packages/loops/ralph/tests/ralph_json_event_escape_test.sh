@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's json event escape contract.
 
 set -euo pipefail
 
@@ -21,10 +22,7 @@ run_json_event_escape_case() {
     # shellcheck source=lib/ralph/lock.sh
     source "$ROOT_DIR/lib/ralph/lock.sh"
 
-    RALPH_OUTPUT_FORMAT="json"
-    EVENT_LOG=""
-
-    log_event $'WARN line1\nline2\ttab'
+    RALPH_OUTPUT_FORMAT="json" EVENT_LOG="" log_event $'WARN line1\nline2\ttab'
   ) 2> "$stderr_file"
   rc=$?
   set -e

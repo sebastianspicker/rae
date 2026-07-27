@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f7f8">
+    <meta name="color-scheme" content="light">
+    <meta
+      name="description"
+      content="RAE Evidence Dossier — local Runboard operator console for autonomous repository runs."
+    >
+    <title>RAE Evidence Dossier</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2314232b'/%3E%3Cpath d='M6 9h6v6h7v6h7' fill='none' stroke='%231f5eff' stroke-width='2.5'/%3E%3C/svg%3E"
+    >
+    <link rel="stylesheet" href="/styles.css">
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <!-- Symbols referenced by app.js evidence rendering (icon()). -->
+    <svg class="icon-sprite" aria-hidden="true">
+      <symbol id="icon-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14M14 7l5 5-5 5"></path>
+      </symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="m8 12 2.5 2.5L16 9"></path>
+      </symbol>
+      <symbol id="icon-reject" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="m9 9 6 6M15 9l-6 6"></path>
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M12 10v6M12 7h.01"></path>
+      </symbol>
+    </svg>
+
+    <a class="skip" href="#workspace">Skip to dossier</a>
+
+    <div class="runboard">
+      <header class="head">
+        <div class="head__left">
+          <span class="mark" aria-hidden="true"></span>
+          <span class="head__brand">RAE</span>
+          <span class="head__sep" aria-hidden="true">/</span>
+          <span class="head__surface">Evidence Dossier</span>
+        </div>
+
+        <label class="project-switcher" for="project-select">
+          <span class="visually-hidden">Allowlisted project</span>
+          <select id="project-select" aria-label="Allowlisted project"></select>
+        </label>
+
+        <div id="connection-status" class="session-state" data-state="connecting" role="status">
+          <span class="session-state__dot" aria-hidden="true"></span>
+          <span><strong>Connecting</strong><small>Local session</small></span>
+        </div>
+
+        <button id="new-run-button" class="primary-action" type="button" disabled>
+          New run
+        </button>
+      </header>
+
+      <div class="body">
+        <nav class="index" aria-labelledby="runs-heading">
+          <div class="index__heading">
+            <h1 id="runs-heading">Runs</h1>
+            <div class="rail-tools">
+              <button id="toggle-search" type="button" aria-label="Search runs" aria-expanded="false">
+                Search
+              </button>
+              <button id="cycle-filter" type="button" aria-label="Filter runs: all">
+                <span id="filter-label">All</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="run-search" id="run-search" hidden>
+            <label for="run-search-input">Filter runs</label>
+            <input id="run-search-input" type="search" placeholder="Task, branch, or state">
+          </div>
+
+          <div id="runs-loading" class="state-line" role="status">
+            Loading runs…
+          </div>
+          <div id="runs-list" class="run-list index__list" role="listbox" aria-label="Autonomous runs"></div>
+          <div id="runs-empty" class="empty-state" hidden>
+            <strong>No runs yet</strong>
+            <span>Start a bounded run for this project.</span>
+          </div>
+
+          <p class="index__foot">
+            Allowlisted roots only.<br>
+            <span class="session-policy">No publish controls</span>
+          </p>
+        </nav>
+
+        <main class="page workspace" id="workspace">
+          <section class="workspace-empty" id="workspace-empty">
+            <span class="workspace-empty__mark" aria-hidden="true"></span>
+            <p class="eyebrow">Run evidence</p>
+            <h1>Select a run</h1>
+            <p>
+              Choose a durable run to inspect its phases, projected evidence, resources, and human
+              decisions.
+            </p>
+          </section>
+
+          <div id="run-content" hidden>
+            <header class="ident">
+              <div class="ident__ids">
+                <p class="eyebrow">Selected run</p>
+                <h1 class="ident__run mono" id="run-title"></h1>
+                <p class="ident__branch mono" id="run-branch"></p>
+                <p class="task" id="run-task"></p>
+                <button class="mobile-review-jump" type="button" id="review-jump" hidden>
+                  Review checkpoint
+                </button>
+              </div>
+              <dl class="ident__facts run-facts">
+                <div>
+                  <dt>Workspace</dt>
+                  <dd id="run-workspace"></dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd id="run-terminal" class="status-value"></dd>
+                </div>
+              </dl>
+            </header>
+
+            <section class="ledger" aria-labelledby="progress-heading">
+              <header class="ledger__head">
+                <h2 id="progress-heading">Bound ledger</h2>
+                <p>Stage · artifact · gate · claim binding</p>
+              </header>
+              <div class="docket-wrap">
+                <table class="docket phase-spine">
+                  <thead>
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">Stage</th>
+                      <th scope="col">Artifact</th>
+                      <th scope="col">Gate</th>
+                      <th scope="col">Claim</th>
+                    </tr>
+                  </thead>
+                  <tbody id="phase-list" class="phase-spine"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="proof-band" aria-label="Run evidence summary">
+              <article>
+                <div><strong id="gate-count">0 / 0</strong><span>gates passed</span></div>
+              </article>
+              <article>
+                <div><strong id="artifact-count">0</strong><span>projected artifacts</span></div>
+              </article>
+              <article>
+                <div><strong id="agent-count">0</strong><span>agent calls</span></div>
+              </article>
+              <article>
+                <div><strong id="input-count">—</strong><span>input tokens</span></div>
+              </article>
+            </section>
+
+            <!-- Human checkpoint sits in document flow (case hold), not a floating rail. -->
+            <section class="hold" aria-labelledby="checkpoint-heading">
+              <div class="hold__rule" aria-hidden="true"></div>
+              <div id="decision-panel" class="decision-panel">
+                <div class="decision-panel__heading">
+                  <h2 id="checkpoint-heading">Human checkpoint</h2>
+                </div>
+
+                <div id="checkpoint-empty" class="checkpoint-empty">
+                  <h3>No pending checkpoint</h3>
+                  <p id="checkpoint-empty-copy">Select a run to inspect its decision state.</p>
+                </div>
+
+                <div id="checkpoint-content" hidden>
+                  <p class="decision-kicker hold__kicker">Decision required</p>
+                  <h3 id="checkpoint-title"></h3>
+                  <p class="decision-prompt hold__why" id="checkpoint-message"></p>
+                  <form class="decision-form" id="decision-form">
+                    <label class="hold__field" for="checkpoint-rationale">
+                      Rationale <span>(required)</span>
+                    </label>
+                    <textarea
+                      id="checkpoint-rationale"
+                      name="rationale"
+                      rows="6"
+                      maxlength="4096"
+                      aria-describedby="rationale-help rationale-count"
+                      placeholder="Record why this decision is safe and appropriate. Note residual risks or follow-up actions."
+                      required
+                    ></textarea>
+                    <p class="field-help" id="rationale-help">Recorded with every checkpoint outcome.</p>
+                    <output id="rationale-count" for="checkpoint-rationale">0 / 4096</output>
+                    <p id="decision-error" class="field-error" role="alert" hidden></p>
+                    <fieldset class="hold__actions">
+                      <legend>Decision actions</legend>
+                      <button class="decision-action decision-action--approve act act--go" type="button" data-decision="approve">
+                        Approve
+                      </button>
+                      <button class="decision-action act act--no" type="button" data-decision="reject">
+                        Reject
+                      </button>
+                      <button class="decision-action act act--quiet" type="button" data-decision="escalate">
+                        Escalate
+                      </button>
+                    </fieldset>
+                  </form>
+                  <p id="checkpoint-meta" class="checkpoint-meta"></p>
+                </div>
+
+                <dl class="run-context">
+                  <div><dt>Run ID</dt><dd id="context-run">Not selected</dd></div>
+                  <div><dt>Workspace</dt><dd id="context-workspace">Not selected</dd></div>
+                  <div><dt>Started</dt><dd id="context-started">Unavailable</dd></div>
+                  <div><dt>Mode</dt><dd>Local session</dd></div>
+                </dl>
+
+                <section class="next-step hold__limits" aria-labelledby="next-step-heading">
+                  <h3 id="next-step-heading">Operator boundary</h3>
+                  <p id="next-step-copy">
+                    This console exposes no commit, push, publish, or deploy action.
+                  </p>
+                </section>
+              </div>
+            </section>
+
+            <section class="detail" aria-labelledby="events-heading">
+              <div class="ledger-heading detail__tabs">
+                <div>
+                  <h2 id="events-heading">Evidence log</h2>
+                  <span id="event-count">Loading…</span>
+                </div>
+                <div class="ledger-state">
+                  <span id="stream-status" role="status"></span>
+                  <div class="ledger-actions">
+                    <button type="button" id="expand-all">Expand all</button>
+                    <button type="button" id="collapse-all">Collapse all</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="evidence-table-wrap">
+                <table class="evidence-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Time (local)</th>
+                      <th scope="col">Phase</th>
+                      <th scope="col">Event</th>
+                      <th scope="col">Evidence reference</th>
+                      <th scope="col">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody id="event-list"></tbody>
+                </table>
+              </div>
+
+              <dl class="resource-strip" aria-label="Resource summary">
+                <div><dt>Output tokens</dt><dd id="output-count">Unavailable</dd></div>
+                <div><dt>Estimated cost</dt><dd id="cost-count">Unavailable</dd></div>
+                <div><dt>Last update</dt><dd id="updated-value">Unavailable</dd></div>
+                <div><dt>Run ID</dt><dd id="run-id-value">Unavailable</dd></div>
+              </dl>
+
+              <nav class="run-controls" aria-label="Run controls">
+                <button id="stop-button" type="button" disabled>
+                  Stop at boundary
+                </button>
+                <button id="interrupt-button" class="control--warning" type="button" disabled>
+                  Interrupt
+                </button>
+                <button id="resume-button" type="button" disabled>
+                  Resume
+                </button>
+                <button id="cleanup-button" class="control--danger" type="button" disabled>
+                  Cleanup
+                </button>
+              </nav>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <dialog id="start-dialog" class="app-dialog" aria-labelledby="start-heading">
+      <form id="start-form">
+        <header>
+          <div>
+            <p>Isolated worktree</p>
+            <h2 id="start-heading">Start a bounded run</h2>
+          </div>
+          <button id="start-close" type="button" aria-label="Close new run dialog">×</button>
+        </header>
+        <label for="start-task">Task and acceptance criteria</label>
+        <textarea
+          id="start-task"
+          rows="8"
+          maxlength="32768"
+          required
+          placeholder="Describe one repository-scoped outcome and how it will be verified."
+        ></textarea>
+        <label for="start-checkpoint-policy">Human checkpoints</label>
+        <select id="start-checkpoint-policy">
+          <option value="before-mutation-and-ship" selected>Before mutation and release</option>
+          <option value="before-mutation">Before mutation</option>
+          <option value="none">No automatic checkpoint</option>
+        </select>
+        <p class="dialog-note">
+          Runs use Codex in a dedicated Git worktree. The console cannot commit, push, publish,
+          deploy, or force cleanup.
+        </p>
+        <footer>
+          <button id="start-cancel" type="button">Cancel</button>
+          <button id="start-submit" class="primary-button" type="submit">Start run</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="app-dialog confirm-dialog" aria-labelledby="confirm-heading">
+      <form id="confirm-form">
+        <header>
+          <div>
+            <p id="confirm-kicker">Destructive action</p>
+            <h2 id="confirm-heading">Confirm action</h2>
+          </div>
+          <button id="confirm-close" type="button" aria-label="Close confirmation dialog">×</button>
+        </header>
+        <p id="confirm-message" class="dialog-message"></p>
+        <label for="confirm-run-id">Type <code id="confirm-expected-id"></code> to continue</label>
+        <input
+          id="confirm-run-id"
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          aria-describedby="confirm-help"
+          required
+        >
+        <p id="confirm-help" class="dialog-note">
+          The action stays disabled until the run ID matches exactly.
+        </p>
+        <footer>
+          <button id="confirm-cancel" type="button">Cancel</button>
+          <button id="confirm-submit" class="danger-button" type="submit" disabled>Confirm</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

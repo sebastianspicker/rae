@@ -1,58 +1,48 @@
 ---
 status: experimental
 owner: loops
-last_reviewed: 2026-04-12
-source_of_truth: packages/loops/ralph/scripts
+last_reviewed: 2026-07-24
+source_of_truth: packages/loops/ralph/ralph.sh
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Ralph CLI
 
-The Ralph loop package is imported under `packages/loops/ralph/`.
+Ralph is the repository's story-driven audit, linting, and scoped-fixing loop.
+The umbrella entrypoint is:
 
-Umbrella entrypoints:
+```bash
+./scripts/rae.sh ralph --help
+```
 
-- `./scripts/rae.sh ralph ...`
-- `./scripts/rae.sh workflow repo-audit ...`
-
-Imported command surfaces:
-
-- `./ralph.sh`
-- `./scripts/run_tests.sh`
-- `./scripts/bootstrap_embedded.sh`
-
-Package-local reference paths:
-
-- `packages/loops/ralph/README.md`
-- `packages/loops/ralph/INSTRUCTIONS.md`
-
-Recommended operator path:
+Common commands:
 
 ```bash
 ./scripts/rae.sh ralph --check
-./scripts/rae.sh workflow repo-audit bootstrap /tmp/demo-repo
+./scripts/rae.sh ralph --mode audit 20
+./scripts/rae.sh ralph --mode linting 10
+./scripts/rae.sh ralph --mode fixing 5
+./scripts/rae.sh ralph --status --status-format json
 ```
 
-## Thesis validation
+`audit` and `linting` are read-only. `fixing` uses an external workspace,
+immutable baseline, private transaction journal, quarantine, and no-clobber
+promotion. macOS and Linux provide the required promotion primitive;
+unsupported platforms fail closed.
 
-This page documents the Ralph entrypoints while the broader claim it serves is
-that bounded deterministic control surfaces are easier to audit and reproduce.
+`prd.json` defines stories and acceptance criteria. It is local runtime state.
+Use `packages/loops/ralph/prd.json.example` as the public template.
 
-## Related dossiers
-
-- [CLM-010 reproducibility layers](../claims/dossiers/clm-010-reproducibility-layers.md)
-
-## Interpretation limits
-
-- command availability does not by itself prove loop reliability under all task
-  distributions
+The complete command, environment, runtime-file, recovery, and security
+reference is the
+[Ralph package README](../../../packages/loops/ralph/README.md).
 
 ## Source note
 
-- [Amdahl 1967](../claims/bibliography.md#src-amdahl-1967)
-- [Bainbridge automation](../claims/bibliography.md#src-bainbridge-automation)
+- [Diataxis](../claims/bibliography.md#src-diataxis)
 - [NIST GenAI Profile](../claims/bibliography.md#src-nist-genai-profile)
 - [IEEE 1012](../claims/bibliography.md#src-ieee-1012)
 - [Model Cards](../claims/bibliography.md#src-model-cards)
+- [Datasheets](../claims/bibliography.md#src-datasheets)
 - [Pineau reproducibility report](../claims/bibliography.md#src-pineau-reproducibility)
-- [Diataxis](../claims/bibliography.md#src-diataxis)
+- [Nosek open research culture](../claims/bibliography.md#src-nosek-open-research)

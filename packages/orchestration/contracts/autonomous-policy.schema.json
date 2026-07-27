@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RAE autonomous policy",
+  "description": "Structural schema for the narrow experimental policy surface. Runtime loaders additionally enforce UTF-8 byte limits of 8 KiB per phase and 64 KiB total; JSON Schema maxLength is character-based. Runtime safety, gates, models, commands, and release behavior are intentionally absent.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "policy_id", "phase_guidance", "phase_inputs"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "policy_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+    },
+    "phase_guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arm",
+        "design",
+        "adversarial-review",
+        "plan",
+        "pmatch",
+        "build",
+        "quality-static",
+        "quality-tests",
+        "post-build",
+        "release-readiness"
+      ],
+      "properties": {
+        "arm": { "type": "string", "maxLength": 8192 },
+        "design": { "type": "string", "maxLength": 8192 },
+        "adversarial-review": { "type": "string", "maxLength": 8192 },
+        "plan": { "type": "string", "maxLength": 8192 },
+        "pmatch": { "type": "string", "maxLength": 8192 },
+        "build": { "type": "string", "maxLength": 8192 },
+        "quality-static": { "type": "string", "maxLength": 8192 },
+        "quality-tests": { "type": "string", "maxLength": 8192 },
+        "post-build": { "type": "string", "maxLength": 8192 },
+        "release-readiness": { "type": "string", "maxLength": 8192 }
+      }
+    },
+    "phase_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arm",
+        "design",
+        "adversarial-review",
+        "plan",
+        "pmatch",
+        "build",
+        "quality-static",
+        "quality-tests",
+        "post-build",
+        "release-readiness"
+      ],
+      "properties": {
+        "arm": { "type": "array", "maxItems": 0 },
+        "design": { "$ref": "#/$defs/design_inputs" },
+        "adversarial-review": { "$ref": "#/$defs/adversarial_review_inputs" },
+        "plan": { "$ref": "#/$defs/plan_inputs" },
+        "pmatch": { "$ref": "#/$defs/pmatch_inputs" },
+        "build": { "$ref": "#/$defs/build_inputs" },
+        "quality-static": { "$ref": "#/$defs/quality_static_inputs" },
+        "quality-tests": { "$ref": "#/$defs/quality_tests_inputs" },
+        "post-build": { "$ref": "#/$defs/post_build_inputs" },
+        "release-readiness": { "$ref": "#/$defs/release_readiness_inputs" }
+      }
+    }
+  },
+  "$defs": {
+    "design_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 1,
+      "items": { "const": "brief.json" }
+    },
+    "adversarial_review_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "enum": ["brief.json", "design.json"] }
+    },
+    "plan_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 3,
+      "maxItems": 3,
+      "items": { "enum": ["brief.json", "design.json", "review.json"] }
+    },
+    "pmatch_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 2,
+      "maxItems": 3,
+      "items": { "enum": ["brief.json", "design.json", "plan.json"] },
+      "allOf": [{ "contains": { "const": "brief.json" } }, { "contains": { "const": "plan.json" } }]
+    },
+    "build_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 2,
+      "maxItems": 4,
+      "items": { "enum": ["brief.json", "design.json", "plan.json", "drift-reports/pmatch.json"] },
+      "allOf": [
+        { "contains": { "const": "plan.json" } },
+        { "contains": { "const": "drift-reports/pmatch.json" } }
+      ]
+    },
+    "quality_static_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 2,
+      "maxItems": 3,
+      "items": { "enum": ["brief.json", "plan.json", "build.json"] },
+      "allOf": [{ "contains": { "const": "plan.json" } }, { "contains": { "const": "build.json" } }]
+    },
+    "quality_tests_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 2,
+      "maxItems": 4,
+      "items": { "enum": ["brief.json", "plan.json", "build.json", "quality-reports/static.json"] },
+      "allOf": [{ "contains": { "const": "plan.json" } }, { "contains": { "const": "build.json" } }]
+    },
+    "post_build_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 4,
+      "maxItems": 6,
+      "items": {
+        "enum": [
+          "brief.json",
+          "design.json",
+          "plan.json",
+          "build.json",
+          "quality-reports/static.json",
+          "quality-reports/tests.json"
+        ]
+      },
+      "allOf": [
+        { "contains": { "const": "plan.json" } },
+        { "contains": { "const": "build.json" } },
+        { "contains": { "const": "quality-reports/static.json" } },
+        { "contains": { "const": "quality-reports/tests.json" } }
+      ]
+    },
+    "release_readiness_inputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 7,
+      "maxItems": 9,
+      "items": {
+        "enum": [
+          "brief.json",
+          "design.json",
+          "review.json",
+          "plan.json",
+          "drift-reports/pmatch.json",
+          "build.json",
+          "quality-reports/static.json",
+          "quality-reports/tests.json",
+          "quality-reports/post-build.json"
+        ]
+      },
+      "allOf": [
+        { "contains": { "const": "review.json" } },
+        { "contains": { "const": "plan.json" } },
+        { "contains": { "const": "drift-reports/pmatch.json" } },
+        { "contains": { "const": "build.json" } },
+        { "contains": { "const": "quality-reports/static.json" } },
+        { "contains": { "const": "quality-reports/tests.json" } },
+        { "contains": { "const": "quality-reports/post-build.json" } }
+      ]
+    }
+  }
+}

@@ -1,3 +1,6 @@
+/**
+ * Exercises claim extraction and adjudication so drift evidence is classified consistently.
+ */
 import { describe, it, expect } from "vitest";
 import {
   detectDrift,

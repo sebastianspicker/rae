@@ -1,0 +1,25 @@
+{
+  "include": [
+    "evals/scripts",
+    "evals/tests",
+    "packages/loops/ralph/scripts",
+    "packages/orchestration/scripts",
+    "profiles/agent-environments/installers",
+    "scripts",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".git",
+    ".pipeline",
+    ".runtime",
+    "archive",
+    "build",
+    "dist",
+    "node_modules",
+    "site"
+  ],
+  "pythonVersion": "3.14",
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": false
+}

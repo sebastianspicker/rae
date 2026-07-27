@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Verifies that runtime defaults and accepted values match the published PRD schema.
 
 set -euo pipefail
 

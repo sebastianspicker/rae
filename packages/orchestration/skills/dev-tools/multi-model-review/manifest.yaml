@@ -6,7 +6,7 @@ description: >
   Accepts pre-collected findings from multiple reviewer agents,
   deduplicates across reviewers, runs cost/benefit analysis,
   and detects drift between source-of-truth and target documents.
-  No external API calls — review is performed by Cursor Task subagents
+  No external API calls: review is performed by Cursor Task subagents
   or Claude Code agent teams; this skill processes the results.
 category: dev-tools
 language: node

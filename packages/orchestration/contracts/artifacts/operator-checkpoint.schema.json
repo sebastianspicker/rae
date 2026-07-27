@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Operator checkpoint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "request_key",
+    "run_id",
+    "phase",
+    "purpose",
+    "status",
+    "message",
+    "requested_by",
+    "requested_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "checkpoint_id": { "type": "string", "pattern": "^checkpoint-[a-f0-9]{24}$" },
+    "request_key": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "phase": { "type": "string", "minLength": 1 },
+    "purpose": { "type": "string", "enum": ["mutation", "ship"] },
+    "status": { "type": "string", "enum": ["pending", "approved", "rejected", "escalated"] },
+    "message": { "type": "string" },
+    "requested_by": { "type": "string", "minLength": 1 },
+    "requested_at": { "type": "string", "format": "date-time" },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision_id", "outcome", "actor", "at", "rationale"],
+      "properties": {
+        "decision_id": { "type": "string", "minLength": 1 },
+        "outcome": { "type": "string", "enum": ["approved", "rejected", "escalated"] },
+        "actor": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "at": { "type": "string", "format": "date-time" },
+        "rationale": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      }
+    },
+    "resolved_at": { "type": "string", "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "enum": ["approved", "rejected", "escalated"] } } },
+      "then": { "required": ["decision", "resolved_at"] }
+    }
+  ]
+}

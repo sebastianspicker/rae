@@ -1,3 +1,6 @@
+/**
+ * Pins subprocess failure conversion and sandbox enforcement so skill-tool callers receive stable diagnostics.
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // We test spawnSkillTool by mocking child_process.spawnSync
@@ -54,6 +57,27 @@ describe("spawnSkillTool", () => {
     const result = spawnSkillTool(toolOpts);
     expect(result).toEqual({ result: "ok" });
     expect(spawnArgs[0]).toBe(process.execPath);
+    expect(spawnArgs[2].cwd).toMatch(/packages\/orchestration$/);
+    expect(spawnArgs[2].env.WORKSPACE_ROOT).toMatch(/packages\/orchestration$/);
+  });
+
+  it("runs the packaged tool while exposing a separate target workspace", () => {
+    spawnSyncMock = (...args) => {
+      spawnArgs = args;
+      return {
+        stdout: JSON.stringify({ success: true, data: { result: "ok" } }),
+        stderr: "",
+        status: 0,
+        signal: null,
+        error: null,
+      };
+    };
+
+    spawnSkillTool({ ...toolOpts, root: "/tmp/rae-target-workspace" });
+    expect(spawnArgs[1][0]).toMatch(/packages\/orchestration\/skills\//);
+    expect(spawnArgs[2].cwd).toMatch(/packages\/orchestration$/);
+    expect(spawnArgs[2].env.WORKSPACE_ROOT).toBe("/tmp/rae-target-workspace");
+    expect(spawnArgs[2].env.RAE_TOOL_ROOT).toMatch(/packages\/orchestration$/);
   });
 
   it("throws on timeout with clear message", () => {
@@ -180,5 +204,14 @@ describe("spawnSkillTool", () => {
 
     const result = spawnSkillTool(toolOpts);
     expect(result).toEqual({ from: "stderr" });
+  });
+});
+
+describe("sandboxEnforcementReport", () => {
+  it("fails closed while tools are launched directly by Node", async () => {
+    const { sandboxEnforcementReport } = await import("../lib/subprocess.mjs");
+    const report = sandboxEnforcementReport();
+    expect(report.enforced).toBe(false);
+    expect(report.reason).toMatch(/not runtime-enforced/);
   });
 });

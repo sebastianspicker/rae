@@ -1,17 +1,24 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: ../reference/invariants/provenance-requirements.md
 evidence_links: ../research/benchmark-protocol.md
 ---
 
 # Release Criteria
 
+`v0.1.0-alpha.1` is a proposed public alpha candidate. Interfaces may change;
+the current dirty, untagged checkout is not a published release. See the root
+[Release Status](https://github.com/sebastianspicker/rae/blob/main/RELEASE_STATUS.md)
+and [Releasing](https://github.com/sebastianspicker/rae/blob/main/RELEASING.md)
+for the current evidence boundary.
+
 A public release is not complete unless all of the following are true:
 
-- umbrella verification passes
-- imported module verification passes
+- `./scripts/verify.sh --release-candidate` passes from a clean Git worktree
+- every release-essential file is tracked in the candidate commit
+- included module verification passes
 - claim-bearing docs were reviewed for drift
 - benchmark metadata validates
 - evidence links still resolve

@@ -1,3 +1,6 @@
+/**
+ * Builds requirement coverage evidence and evaluates must-traceability gate inputs.
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { SKILL_ENTRYPOINTS } from "../../lib/constants.mjs";
 import { getPackageRoot, getRepoRoot, resolveWithinRepo, toWorkspaceRelative } from "./state.mjs";
@@ -66,46 +69,44 @@ function extractPlanTestRequirementIds(plan) {
   return uniqueSortedStrings(ids);
 }
 
+function planTasks(plan) {
+  return asArray(plan?.task_groups).flatMap((group) => asArray(group?.tasks));
+}
+
+function entryIdentifier(entry, keys) {
+  for (const key of keys) {
+    const value = entry?.[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return null;
+}
+
+function addMappedValues(mapping, keys, values) {
+  for (const key of asArray(keys)) {
+    if (typeof key !== "string" || key.length === 0) continue;
+    const existing = mapping.get(key) ?? [];
+    existing.push(...values);
+    mapping.set(key, existing);
+  }
+}
+
 function collectPlanTaskIdsByRequirement(plan) {
   const mapping = new Map();
-  const taskGroups = asArray(plan?.task_groups);
-  for (const group of taskGroups) {
-    const tasks = asArray(group?.tasks);
-    for (const task of tasks) {
-      const taskId = typeof task?.id === "string" ? task.id : null;
-      if (!taskId) continue;
-      for (const requirementId of asArray(task?.covers_requirement_ids)) {
-        if (typeof requirementId !== "string" || requirementId.length === 0) continue;
-        const existing = mapping.get(requirementId) ?? [];
-        existing.push(taskId);
-        mapping.set(requirementId, existing);
-      }
-    }
+  for (const task of planTasks(plan)) {
+    const taskId = entryIdentifier(task, ["id"]);
+    if (!taskId) continue;
+    addMappedValues(mapping, task?.covers_requirement_ids, [taskId]);
   }
   return mapping;
 }
 
 function collectPlanTestCasesByRequirement(plan) {
   const mapping = new Map();
-  const taskGroups = asArray(plan?.task_groups);
-  for (const group of taskGroups) {
-    const tasks = asArray(group?.tasks);
-    for (const task of tasks) {
-      for (const testCase of asArray(task?.test_cases)) {
-        const testCaseName =
-          typeof testCase?.name === "string"
-            ? testCase.name
-            : typeof testCase?.trace_id === "string"
-              ? testCase.trace_id
-              : null;
-        if (!testCaseName) continue;
-        for (const requirementId of asArray(testCase?.covers_requirement_ids)) {
-          if (typeof requirementId !== "string" || requirementId.length === 0) continue;
-          const existing = mapping.get(requirementId) ?? [];
-          existing.push(testCaseName);
-          mapping.set(requirementId, existing);
-        }
-      }
+  for (const task of planTasks(plan)) {
+    for (const testCase of asArray(task?.test_cases)) {
+      const testCaseName = entryIdentifier(testCase, ["name", "trace_id"]);
+      if (!testCaseName) continue;
+      addMappedValues(mapping, testCase?.covers_requirement_ids, [testCaseName]);
     }
   }
   return mapping;
@@ -230,35 +231,42 @@ function parseRequiredCriteria(phase) {
   return REQUIRED_BY_PHASE[phase] ?? REQUIRED_BY_PHASE.plan;
 }
 
+function missingCoverage(values, marker) {
+  return values.length > 0 ? [] : [marker];
+}
+
+function coverageStatus(plannedTaskIds, plannedTestCases) {
+  const hasTasks = plannedTaskIds.length > 0;
+  const hasTests = plannedTestCases.length > 0;
+  if (hasTasks && hasTests) return "covered";
+  if (hasTasks || hasTests) return "partial";
+  return "missing";
+}
+
+function buildRequirementCoverageEntry(requirementId, taskMap, testMap, acceptanceMap) {
+  const plannedTaskIds = uniqueSortedStrings(taskMap.get(requirementId) ?? []);
+  const plannedTestCases = uniqueSortedStrings(testMap.get(requirementId) ?? []);
+  const acceptanceCriteria = uniqueSortedStrings(acceptanceMap.get(requirementId) ?? []);
+  return {
+    requirement_id: requirementId,
+    planned_task_ids: plannedTaskIds,
+    planned_test_cases: plannedTestCases,
+    acceptance_criteria: acceptanceCriteria,
+    missing_task_ids: missingCoverage(plannedTaskIds, "unplanned-task-coverage"),
+    missing_test_cases: missingCoverage(plannedTestCases, "unplanned-test-coverage"),
+    status: coverageStatus(plannedTaskIds, plannedTestCases),
+  };
+}
+
 export function buildRequirementCoverageLedger({ brief, plan }) {
   const mustRequirementIds = extractMustRequirementIds(brief);
   const taskMap = collectPlanTaskIdsByRequirement(plan);
   const testMap = collectPlanTestCasesByRequirement(plan);
   const acceptanceMap = collectAcceptanceCriteriaByRequirement(plan);
 
-  const requirements = mustRequirementIds.map((requirementId) => {
-    const plannedTaskIds = uniqueSortedStrings(taskMap.get(requirementId) ?? []);
-    const plannedTestCases = uniqueSortedStrings(testMap.get(requirementId) ?? []);
-    const acceptanceCriteria = uniqueSortedStrings(acceptanceMap.get(requirementId) ?? []);
-    const missingTaskIds = plannedTaskIds.length > 0 ? [] : ["unplanned-task-coverage"];
-    const missingTestCases = plannedTestCases.length > 0 ? [] : ["unplanned-test-coverage"];
-    const status =
-      plannedTaskIds.length > 0 && plannedTestCases.length > 0
-        ? "covered"
-        : plannedTaskIds.length > 0 || plannedTestCases.length > 0
-          ? "partial"
-          : "missing";
-
-    return {
-      requirement_id: requirementId,
-      planned_task_ids: plannedTaskIds,
-      planned_test_cases: plannedTestCases,
-      acceptance_criteria: acceptanceCriteria,
-      missing_task_ids: missingTaskIds,
-      missing_test_cases: missingTestCases,
-      status,
-    };
-  });
+  const requirements = mustRequirementIds.map((requirementId) =>
+    buildRequirementCoverageEntry(requirementId, taskMap, testMap, acceptanceMap),
+  );
 
   const coveredRequirements = requirements
     .filter((entry) => entry.status === "covered")
@@ -282,16 +290,16 @@ export function buildRequirementCoverageLedger({ brief, plan }) {
         requirements.length === 0
           ? "No MUST requirements were declared, so traceability cannot be satisfied."
           : missingRequirementIds.length === 0
-          ? "All MUST requirements map to at least one planned task and planned test."
-          : `Coverage gaps remain for ${missingRequirementIds.length} MUST requirement(s).`,
+            ? "All MUST requirements map to at least one planned task and planned test."
+            : `Coverage gaps remain for ${missingRequirementIds.length} MUST requirement(s).`,
       coverage_status:
         requirements.length === 0
           ? "missing"
           : missingRequirementIds.length > 0
-          ? "missing"
-          : partialRequirements > 0
-            ? "partial"
-            : "complete",
+            ? "missing"
+            : partialRequirements > 0
+              ? "partial"
+              : "complete",
       covered_requirements: coveredRequirements,
       missing_requirement_ids: missingRequirementIds,
     },

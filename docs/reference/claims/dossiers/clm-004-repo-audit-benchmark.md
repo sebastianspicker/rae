@@ -61,7 +61,7 @@ on score degradation across the four reported dimensions.
 ## Validity threats
 
 - scores reflect the current Ralph implementation; model or tool changes can
-  break determinism contracts and invalidate historical baselines
+  break determinism contracts and invalidate recorded baselines
 - held-out tasks were authored in the same environment as dev tasks, which may
   introduce correlated coverage gaps
 

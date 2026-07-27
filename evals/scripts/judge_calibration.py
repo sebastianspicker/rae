@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Run calibration for the umbrella's programmatic judge."""
 
-from __future__ import annotations
-
 import argparse
 import pathlib
 from typing import Any
@@ -19,7 +17,9 @@ def judge_case(case: dict[str, Any]) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Calibrate the programmatic judge against gold cases.")
+    parser = argparse.ArgumentParser(
+        description="Calibrate the programmatic judge against gold cases."
+    )
     parser.add_argument("--judge-config", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()

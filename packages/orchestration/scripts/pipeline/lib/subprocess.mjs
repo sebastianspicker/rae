@@ -6,6 +6,22 @@ import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { getPackageRoot, getWorkspaceRoot } from "./state.mjs";
 import { toolError } from "./errors.mjs";
+/**
+ * Provides subprocess support for the orchestration toolchain.
+ */
+
+/**
+ * Report whether this runtime can prove that skill subprocesses are actually
+ * sandboxed. Docker manifests alone do not constrain the direct Node launches
+ * used below, so this remains fail-closed until an execution adapter exists.
+ */
+export function sandboxEnforcementReport() {
+  return {
+    enforced: false,
+    reason:
+      "pipeline skill tools currently run as direct Node subprocesses; declared sandbox manifests are not runtime-enforced",
+  };
+}
 
 /**
  * Spawn a skill tool as a subprocess and parse its JSON output.
@@ -13,10 +29,13 @@ import { toolError } from "./errors.mjs";
  * @param {object} opts
  * @param {string} opts.entrypoint  Repo-relative path to the dist/index.js
  * @param {object} opts.input       JSON payload piped to stdin
- * @param {string} [opts.root]      Workspace root (defaults to repo root)
+ * @param {string} [opts.root]      Target workspace root exposed to the tool
  * @param {string} opts.toolName    Human-readable tool name for error messages
  * @param {number} [opts.timeoutMs] Subprocess timeout in ms (default 30000)
  * @returns {object} Parsed `data` from the tool's JSON envelope
+ */
+/**
+ * Runs a development skill with the sandbox policy and converts process failures into stable tool errors.
  */
 export function spawnSkillTool({
   entrypoint,
@@ -25,7 +44,8 @@ export function spawnSkillTool({
   toolName,
   timeoutMs = 30_000,
 }) {
-  const resolvedEntry = resolve(root, entrypoint);
+  const toolRoot = getPackageRoot();
+  const resolvedEntry = resolve(toolRoot, entrypoint);
   if (!existsSync(resolvedEntry)) {
     throw toolError(
       toolName,
@@ -35,13 +55,14 @@ export function spawnSkillTool({
   }
 
   const proc = spawnSync(process.execPath, [resolvedEntry], {
-    cwd: root,
+    cwd: toolRoot,
     input: JSON.stringify(input),
     encoding: "utf8",
     timeout: timeoutMs,
     env: {
       ...process.env,
       WORKSPACE_ROOT: resolve(root || getWorkspaceRoot()),
+      RAE_TOOL_ROOT: toolRoot,
     },
   });
 

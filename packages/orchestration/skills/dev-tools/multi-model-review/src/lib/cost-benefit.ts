@@ -1,3 +1,6 @@
+/**
+ * Ranks review findings by remediation cost and risk to support deterministic triage.
+ */
 import type { Finding } from "./models/types.js";
 import type { CostBenefitEntry } from "../types.js";
 
@@ -16,13 +19,19 @@ const SEVERITY_TO_RISK: Record<Finding["severity"], Risk> = {
 
 const HIGH_COST_CATEGORIES = new Set(["architecture", "feasibility", "performance"]);
 
-function estimateFixCost(finding: Finding): Cost {
-  if (HIGH_COST_CATEGORIES.has(finding.category.toLowerCase())) {
-    return finding.severity === "critical" ? "prohibitive" : "high";
-  }
-  if (finding.description.length <= 80) return "trivial";
-  if (finding.description.length > 300) return "medium";
-  return "low";
+export function estimateFixCost(finding: Finding): Cost {
+  return HIGH_COST_CATEGORIES.has(finding.category.toLowerCase())
+    ? highImpactCost(finding.severity)
+    : descriptionCost(finding.description);
+}
+
+export function highImpactCost(severity: Severity): Cost {
+  return severity === "critical" ? "prohibitive" : "high";
+}
+
+export function descriptionCost(description: string): Cost {
+  if (description.length <= 80) return "trivial";
+  return description.length > 300 ? "medium" : "low";
 }
 
 /**
@@ -35,13 +44,28 @@ function estimateFixCost(finding: Finding): Cost {
  * low           accept       accept       accept        wont-fix
  * negligible    accept       accept       wont-fix      wont-fix
  */
-function recommend(risk: Risk, cost: Cost): Rec {
+export function recommend(risk: Risk, cost: Cost): Rec {
   if (risk === "catastrophic") return "fix-now";
-  if (risk === "high") return cost === "trivial" || cost === "low" ? "fix-now" : "fix-before-ship";
-  if (risk === "moderate")
-    return cost === "trivial" || cost === "low" ? "fix-before-ship" : "defer";
-  if (risk === "low") return cost === "high" || cost === "prohibitive" ? "wont-fix" : "accept";
-  return cost === "trivial" || cost === "low" ? "accept" : "wont-fix";
+  if (risk === "high") return recommendHighRisk(cost);
+  if (risk === "moderate") return recommendModerateRisk(cost);
+  if (risk === "low") return costly(cost) ? "wont-fix" : "accept";
+  return isCheap(cost) ? "accept" : "wont-fix";
+}
+
+export function costly(cost: Cost): boolean {
+  return cost === "high" || cost === "prohibitive";
+}
+
+export function isCheap(cost: Cost): boolean {
+  return cost === "trivial" || cost === "low";
+}
+
+export function recommendHighRisk(cost: Cost): Rec {
+  return isCheap(cost) ? "fix-now" : "fix-before-ship";
+}
+
+export function recommendModerateRisk(cost: Cost): Rec {
+  return isCheap(cost) ? "fix-before-ship" : "defer";
 }
 
 export function analyzeCostBenefit(findings: Finding[]): CostBenefitEntry[] {

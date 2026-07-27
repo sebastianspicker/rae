@@ -5,11 +5,14 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$REPO_ROOT/scripts/lib/runtime.sh"
+orchestration_require_runtime
 HOOKS_SRC="$REPO_ROOT/scripts/hooks"
 HOOKS_DEST="$REPO_ROOT/.git/hooks"
 
 if [[ ! -d "$HOOKS_DEST" ]]; then
-  echo "error: $HOOKS_DEST not found — are you inside a git repo?" >&2
+  echo "error: $HOOKS_DEST not found: are you inside a git repo?" >&2
   exit 1
 fi
 

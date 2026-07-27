@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's branch sync from prd contract.
 
 set -euo pipefail
 

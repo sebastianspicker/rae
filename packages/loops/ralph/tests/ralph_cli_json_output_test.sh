@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's cli json output contract.
 
 set -euo pipefail
 

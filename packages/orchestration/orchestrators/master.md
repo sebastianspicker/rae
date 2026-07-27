@@ -14,16 +14,16 @@ this file first. If it does not exist, create it with the content below:
 # Master Orchestrator Progress
 
 ## Phase Checklist
-- [ ] Phase 1: ARM — progress-arm.md — arm-gate.json
-- [ ] Phase 2: DESIGN — progress-design.md — design-gate.json
-- [ ] Phase 3: ADVERSARIAL-REVIEW — progress-adversarial-review.md — adversarial-review-gate.json
-- [ ] Phase 4: PLAN — progress-plan.md — plan-gate.json
-- [ ] Phase 5: PMATCH — progress-pmatch.md — pmatch-gate.json
-- [ ] Phase 6: BUILD — progress-build.md — build-gate.json
-- [ ] Phase 7: QUALITY-STATIC — progress-quality-static.md — quality-static-gate.json
-- [ ] Phase 8: QUALITY-TESTS — progress-quality-tests.md — quality-tests-gate.json
-- [ ] Phase 9: POST-BUILD — progress-post-build.md — postbuild-gate.json
-- [ ] Phase 10: RELEASE-READINESS — progress-release-readiness.md — release-readiness-gate.json
+- [ ] Phase 1: ARM: progress-arm.md: arm-gate.json
+- [ ] Phase 2: DESIGN: progress-design.md: design-gate.json
+- [ ] Phase 3: ADVERSARIAL-REVIEW: progress-adversarial-review.md: adversarial-review-gate.json
+- [ ] Phase 4: PLAN: progress-plan.md: plan-gate.json
+- [ ] Phase 5: PMATCH: progress-pmatch.md: pmatch-gate.json
+- [ ] Phase 6: BUILD: progress-build.md: build-gate.json
+- [ ] Phase 7: QUALITY-STATIC: progress-quality-static.md: quality-static-gate.json
+- [ ] Phase 8: QUALITY-TESTS: progress-quality-tests.md: quality-tests-gate.json
+- [ ] Phase 9: POST-BUILD: progress-post-build.md: postbuild-gate.json
+- [ ] Phase 10: RELEASE-READINESS: progress-release-readiness.md: release-readiness-gate.json
 
 ## Human Checkpoints
 
@@ -75,11 +75,11 @@ After completing a phase's work:
 ### Step 5: Human checkpoints
 PAUSE and explicitly ask for human approval at these transitions:
 
-1. **After ARM** — "Brief is ready. Review progress-arm.md and .pipeline/runs/<run-id>/brief.json. Approve to proceed to DESIGN?"
-2. **After DESIGN** — "Design document ready. Review progress-design.md and .pipeline/runs/<run-id>/design.json. Approve to proceed to ADVERSARIAL-REVIEW?"
-3. **After ADVERSARIAL-REVIEW** — "Review report ready. Review progress-adversarial-review.md and .pipeline/runs/<run-id>/review.json. Approve to proceed to PLAN?"
-4. **After BUILD** — "Implementation done. Review progress-build.md. Run ./scripts/verify.sh to confirm. Approve to proceed to QUALITY-STATIC?"
-5. **After RELEASE-READINESS** — "Release assessment ready. Review .pipeline/runs/<run-id>/release-readiness.json. Confirm the go/no-go decision."
+1. After ARM: "Brief is ready. Review progress-arm.md and .pipeline/runs/<run-id>/brief.json. Approve to proceed to DESIGN?"
+2. After DESIGN: "Design document ready. Review progress-design.md and .pipeline/runs/<run-id>/design.json. Approve to proceed to ADVERSARIAL-REVIEW?"
+3. After ADVERSARIAL-REVIEW: "Review report ready. Review progress-adversarial-review.md and .pipeline/runs/<run-id>/review.json. Approve to proceed to PLAN?"
+4. After BUILD: "Implementation done. Review progress-build.md. Run ./scripts/verify.sh to confirm. Approve to proceed to QUALITY-STATIC?"
+5. After RELEASE-READINESS: "Release assessment ready. Review .pipeline/runs/<run-id>/release-readiness.json. Confirm the go/no-go decision."
 
 Record each human approval (or rejection with reason) in progress-master.md under
 "## Human Checkpoints" with timestamp.

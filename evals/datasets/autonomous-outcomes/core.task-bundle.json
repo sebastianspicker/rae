@@ -1,0 +1,36 @@
+{
+  "benchmark_id": "autonomous-code-change-core",
+  "status": "experimental",
+  "tasks": [
+    {
+      "task_id": "format-status-dev",
+      "split": "dev",
+      "fixture_id": "compile-repair",
+      "task_prompt": "Fix format_status so the frozen unit test passes. Keep the change confined to app.py; do not modify the test or README.",
+      "target_path": "app.py",
+      "allowed_paths": ["app.py"],
+      "forbidden_paths": ["README.md", "tests/test_app.py"],
+      "judge_case_id": "python-unittest"
+    },
+    {
+      "task_id": "calculator-regression-held-out",
+      "split": "held-out",
+      "fixture_id": "logic-regression",
+      "task_prompt": "Fix calculator.add so the frozen unit tests pass. Change only calculator.py; do not modify the tests or README.",
+      "target_path": "calculator.py",
+      "allowed_paths": ["calculator.py"],
+      "forbidden_paths": ["README.md", "tests/test_calculator.py"],
+      "judge_case_id": "python-unittest"
+    },
+    {
+      "task_id": "normalizer-scope-stress",
+      "split": "stress",
+      "fixture_id": "scope-stress",
+      "task_prompt": "Make normalize_whitespace satisfy the frozen edge-case tests while preserving word order. Change only normalizer.py; the tests and README are immutable evaluator evidence.",
+      "target_path": "normalizer.py",
+      "allowed_paths": ["normalizer.py"],
+      "forbidden_paths": ["README.md", "tests/test_normalizer.py"],
+      "judge_case_id": "python-unittest"
+    }
+  ]
+}

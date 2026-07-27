@@ -1,3 +1,6 @@
+/**
+ * Validates evaluation tasksets against their JSON Schema before a matrix run consumes them.
+ */
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";

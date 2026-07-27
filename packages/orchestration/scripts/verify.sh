@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
+# Runs the orchestration package verification gates before changes are accepted.
 set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$script_dir/lib/runtime.sh"
+orchestration_require_bash
 
 SKIP_INSTALL=0
 PARALLEL=0
@@ -7,38 +13,46 @@ CHANGED_ONLY=0
 CHANGED_BASE="HEAD"
 SECONDS=0
 
-for arg in "$@"; do
-  if [ "$arg" == "--skip-install" ]; then
+while (($# > 0)); do
+  case "$1" in
+  --skip-install)
     SKIP_INSTALL=1
-  elif [ "$arg" == "--parallel" ]; then
+    ;;
+  --parallel)
     PARALLEL=1
-  elif [ "$arg" == "--changed-only" ]; then
+    ;;
+  --changed-only)
     CHANGED_ONLY=1
-  elif [[ "$arg" == --changed-base=* ]]; then
-    CHANGED_BASE="${arg#--changed-base=}"
-  fi
-done
-
-for ((i=1; i<=$#; i++)); do
-  if [ "${!i}" == "--changed-base" ]; then
-    j=$((i + 1))
-    if [ $j -le $# ] && [[ "${!j}" != --* ]]; then
-      CHANGED_BASE="${!j}"
-    else
+    ;;
+  --changed-base=*)
+    CHANGED_BASE="${1#--changed-base=}"
+    ;;
+  --changed-base)
+    shift
+    if (($# == 0)) || [[ "$1" == --* ]]; then
       echo "ERROR: missing value for --changed-base" >&2
       exit 2
     fi
-  fi
+    CHANGED_BASE="$1"
+    ;;
+  *)
+    printf 'ERROR: unknown verification option: %s\n' "$1" >&2
+    exit 2
+    ;;
+  esac
+  shift
 done
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+orchestration_resolve_python
+export PYTHONDONTWRITEBYTECODE=1
 export NPM_CONFIG_CACHE="${NPM_CONFIG_CACHE:-$root_dir/.cache/npm}"
 
 # Color output (only when stdout is a terminal)
 if [ -t 1 ]; then
-  GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; BOLD='\033[1m'; NC='\033[0m'
+  GREEN='\033[0;32m'; RED='\033[0;31m'; BOLD='\033[1m'; NC='\033[0m'
 else
-  GREEN=''; RED=''; YELLOW=''; BOLD=''; NC=''
+  GREEN=''; RED=''; BOLD=''; NC=''
 fi
 
 step_ok()   { echo -e "${GREEN}PASS${NC}: $1"; }
@@ -46,10 +60,10 @@ step_fail() { echo -e "${RED}FAIL${NC}: $1"; }
 step_info() { echo -e "${BOLD}==> $1${NC}"; }
 
 run_core_checks() {
-  python3 "$root_dir/scripts/skills/validate_skills.py" --manifest "$root_dir/adapters/spec/adapter-manifest.json"
+  "$PYTHON_BIN" "$root_dir/scripts/skills/validate_skills.py" --manifest "$root_dir/adapters/spec/adapter-manifest.json"
   "$root_dir/scripts/check-no-stale-refs.sh"
   "$root_dir/scripts/check-repo-hygiene.sh"
-  python3 "$root_dir/scripts/check-markdown-links.py" --root "$root_dir"
+  "$PYTHON_BIN" "$root_dir/scripts/check-markdown-links.py" --root "$root_dir" --allowed-root "$root_dir/../.." --strict
   "$root_dir/scripts/check-adapter-sync.sh"
   "$root_dir/scripts/check-orchestration-integrity.sh"
 }
@@ -63,12 +77,28 @@ collect_changed_paths() {
   printf "%s\n%s\n" "$diff_paths" "$untracked" | sed '/^$/d' | sort -u
 }
 
+verification_scope_for_path() {
+  local path="$1"
+  case "$path" in
+  skills/dev-tools/quality-gate/*)
+    printf '%s\n' "skills/dev-tools/quality-gate"
+    ;;
+  skills/dev-tools/multi-model-review/*)
+    printf '%s\n' "skills/dev-tools/multi-model-review"
+    ;;
+  skills/dev-tools/trace-collector/*)
+    printf '%s\n' "skills/dev-tools/trace-collector"
+    ;;
+  skills/dev-tools/_shared/* | contracts/* | biome.json | scripts/verify.sh | scripts/pipeline/* | scripts/lib/* | scripts/skills/*)
+    printf '%s\n' "ALL_PACKAGES"
+    ;;
+  esac
+}
+
 selected_packages_from_changes() {
   local base="$1"
-  local changed_paths
-  local full_verify=0
-  local pkg_set=()
-  local path
+  local changed_paths path scope
+  local -a package_set=()
 
   if ! git -C "$root_dir" rev-parse --verify "$base" >/dev/null 2>&1; then
     echo "WARN: --changed-base '$base' not found; falling back to full package verification" >&2
@@ -84,43 +114,29 @@ selected_packages_from_changes() {
 
   while IFS= read -r path; do
     [[ -z "$path" ]] && continue
-    case "$path" in
-      skills/dev-tools/quality-gate/*)
-        pkg_set+=("skills/dev-tools/quality-gate")
-        ;;
-      skills/dev-tools/multi-model-review/*)
-        pkg_set+=("skills/dev-tools/multi-model-review")
-        ;;
-      skills/dev-tools/trace-collector/*)
-        pkg_set+=("skills/dev-tools/trace-collector")
-        ;;
-      skills/dev-tools/_shared/*|contracts/*|biome.json|scripts/verify.sh|scripts/pipeline/*|scripts/lib/*|scripts/skills/*)
-        full_verify=1
-        ;;
-      *)
-        ;;
-    esac
+    scope="$(verification_scope_for_path "$path")"
+    [[ -n "$scope" ]] || continue
+    if [[ "$scope" == "ALL_PACKAGES" ]]; then
+      printf '%s\n' "$scope"
+      return 0
+    fi
+    package_set+=("$scope")
   done <<< "$changed_paths"
 
-  if [ $full_verify -eq 1 ]; then
-    printf "%s\n" "ALL_PACKAGES"
-    return 0
-  fi
-
-  if [ ${#pkg_set[@]} -eq 0 ]; then
+  if [[ "${#package_set[@]}" -eq 0 ]]; then
     printf "%s\n" "NO_PACKAGE_CHANGES"
     return 0
   fi
 
-  printf "%s\n" "${pkg_set[@]}" | sort -u
+  printf "%s\n" "${package_set[@]}" | sort -u
 }
 
 run_core_checks
 
 # Install workspace dependencies early (needed by runner lib tests and package verification)
 if [ "$SKIP_INSTALL" -eq 0 ]; then
-  echo "==> npm install (workspaces)"
-  (cd "$root_dir" && npm install)
+  echo "==> npm ci (workspaces)"
+  (cd "$root_dir" && npm ci)
   echo "==> npm audit (workspaces)"
   (cd "$root_dir" && npm audit --audit-level=moderate)
 fi
@@ -135,12 +151,18 @@ step_ok "skill packages built"
 # Runner CLI smoke test
 step_info "runner CLI smoke test"
 node "$root_dir/scripts/pipeline/runner.mjs" --help >/dev/null 2>&1 || { step_fail "runner CLI smoke test"; exit 1; }
+node "$root_dir/scripts/pipeline/autonomous.mjs" --help >/dev/null 2>&1 || { step_fail "autonomous CLI smoke test"; exit 1; }
 step_ok "runner CLI loads successfully"
 
 # Runner lib unit tests
 step_info "runner lib tests"
-(cd "$root_dir/scripts/pipeline" && npx vitest run --reporter=verbose 2>&1) || { step_fail "runner lib tests"; exit 1; }
+(cd "$root_dir/scripts/pipeline" && "$root_dir/node_modules/.bin/vitest" run --reporter=verbose 2>&1) || { step_fail "runner lib tests"; exit 1; }
 step_ok "runner lib tests passed"
+
+# Operator server, security, control, and UI contracts use Node's test runner.
+step_info "operator tests"
+(cd "$root_dir" && node --test operator/tests/*.test.mjs 2>&1) || { step_fail "operator tests"; exit 1; }
+step_ok "operator tests passed"
 
 export SKIP_INSTALL
 export root_dir
@@ -196,6 +218,7 @@ fi
 if [ ${#packages[@]} -eq 0 ]; then
   :
 elif [ "$PARALLEL" -eq 1 ] && [ ${#packages[@]} -gt 1 ]; then
+  # shellcheck disable=SC2016
   printf "%s\n" "${packages[@]}" | xargs -n 1 -P 3 bash -c 'verify_pkg "$1"' _
 else
   for pkg in "${packages[@]}"; do

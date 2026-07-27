@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title description">
+  <title id="title">RAE social preview</title>
+  <desc id="description">RAE: Reliable Agentic Engineering.</desc>
+  <rect width="1280" height="640" fill="#14232B"/>
+  <path d="M0 104h1280M0 536h1280" stroke="#415663" stroke-width="2"/>
+  <g transform="translate(88 176) scale(4.5)">
+    <rect x="1" y="1" width="62" height="62" rx="9" fill="#14232B" stroke="#F4F7F8" stroke-width="2"/>
+    <path d="M10 17h13v15h17v15h14" fill="none" stroke="#7DA2FF" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+    <rect x="19" y="13" width="9" height="9" fill="#14232B" stroke="#F4F7F8" stroke-width="2"/>
+    <rect x="36" y="28" width="9" height="9" fill="#14232B" stroke="#F0926B" stroke-width="2"/>
+    <path d="M31 25v6M34 25v6" stroke="#CBD5DA" stroke-width="1"/>
+    <rect x="49" y="42" width="10" height="10" fill="#54C9AB" stroke="#F4F7F8" stroke-width="2"/>
+  </g>
+  <text x="450" y="300" fill="#F4F7F8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="154" font-weight="750" letter-spacing="14">RAE</text>
+  <text x="458" y="372" fill="#F4F7F8" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="38" font-weight="600">Reliable Agentic Engineering</text>
+</svg>

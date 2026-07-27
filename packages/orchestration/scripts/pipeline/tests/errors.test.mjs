@@ -1,3 +1,6 @@
+/**
+ * Pins stable pipeline error codes so callers can distinguish invalid input from trace and tool failures.
+ */
 import { describe, it, expect } from "vitest";
 import { badInput, badTrace } from "../lib/errors.mjs";
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Verifies that search-enabled reports retain the required dated external references.
 
 set -euo pipefail
 
@@ -12,9 +13,24 @@ make_fake_tool() {
   cat > "$fake_tool" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
 cat >/dev/null
 
-if [[ "${RALPH_TEST_WITH_REFS:-false}" == "true" ]]; then
+if [[ "${XDG_CONFIG_HOME:-false}" == "true" ]]; then
   cat <<'REPORT'
 # Search Report
 
@@ -80,14 +96,14 @@ run_missing_refs_case() {
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_WITH_REFS=false \
+    XDG_CONFIG_HOME=false \
     ./ralph.sh --search 1
   ) > "$tmpdir/out.log" 2>&1
   rc=$?
@@ -95,8 +111,8 @@ run_missing_refs_case() {
   if [[ "$rc" -eq 0 ]]; then
     fail_case "search-refs-missing" "expected failure when search references are missing" "$tmpdir/out.log" "$tmpdir"
   fi
-  if ! grep -q 'claude exec failed for story AUDIT-001' "$tmpdir/out.log"; then
-    fail_case "search-refs-missing" "expected claude failure path for missing references contract" "$tmpdir/out.log" "$tmpdir"
+  if ! grep -q 'Codex exec failed for story AUDIT-001' "$tmpdir/out.log"; then
+    fail_case "search-refs-missing" "expected Codex failure path for missing references contract" "$tmpdir/out.log" "$tmpdir"
   fi
 
   cleanup_dir "$tmpdir"
@@ -108,14 +124,14 @@ run_with_refs_case() {
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_WITH_REFS=true \
+    XDG_CONFIG_HOME=true \
     ./ralph.sh --search 1
   ) > "$tmpdir/out.log" 2>&1
   rc=$?

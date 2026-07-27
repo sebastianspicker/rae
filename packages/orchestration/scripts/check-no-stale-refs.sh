@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
+# Rejects stale repository references so orchestration documentation and entrypoints stay aligned.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$root_dir/scripts/lib/runtime.sh"
+orchestration_require_runtime
 
 if ! command -v rg >/dev/null 2>&1; then
   echo "ERROR: ripgrep (rg) is required for stale-ref checks." >&2

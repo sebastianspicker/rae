@@ -1,19 +1,23 @@
 ---
 status: stable
 owner: orchestration
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-16
 source_of_truth: packages/orchestration
 evidence_links: ../reference/claims/evidence-index.md
 ---
 
 # First Pipeline
 
-This tutorial walks through the minimum local orchestration path.
+This tutorial walks through the low-level artifact and gate API. It is useful
+for manual integrations and deterministic fixtures; use
+[First Autonomous Code Change](autonomous-code-change.md) when RAE should invoke
+a coding agent and modify a target repository.
 
 ## Assumptions
 
 - you are at the repository root
-- `node`, `npm`, and `python3` are installed
+- GNU Bash 5.3+, Python 3.14.6+, Node.js `>=20.19.0 <21`,
+  `>=22.12.0 <23`, or `>=24.0.0`, and `npm` are installed
 - the orchestration package dependencies are already available via
   `./scripts/verify.sh` or local install
 
@@ -24,6 +28,9 @@ This tutorial walks through the minimum local orchestration path.
 ```
 
 This creates a `.pipeline/` state directory and prints a `run_id`.
+
+The manual pipeline surface does not create a published release. RAE is a
+public alpha candidate and interfaces may change.
 
 ## 2. Start the first real stage
 
@@ -54,7 +61,8 @@ This creates a `.pipeline/` state directory and prints a `run_id`.
 - staged execution
 - explicit run ids
 - artifact and gate discipline
-- local summary generation
+- local summary production
+- no model or code-writing invocation on this low-level path
 
 ## Thesis validation
 

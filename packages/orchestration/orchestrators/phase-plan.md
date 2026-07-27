@@ -38,7 +38,7 @@ Partition work into independent groups. Target 3-6 tasks per group (max 8).
 
 ### Task 4: Define code patterns
 - [ ] For each task, include concrete patterns (imports, function signatures, structure)
-- [ ] No TODO placeholders or vague descriptions — builders must not need to infer intent
+- [ ] No TODO placeholders or vague descriptions: builders must not need to infer intent
 - [ ] Document patterns alongside each task in the task groups
 
 ### Task 5: Define tests and acceptance criteria

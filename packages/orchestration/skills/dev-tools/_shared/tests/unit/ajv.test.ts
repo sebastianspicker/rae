@@ -1,3 +1,6 @@
+/**
+ * Verifies lazy AJV loading yields compatible validators without imposing eager runtime dependencies.
+ */
 import { describe, it, expect } from "vitest";
 import { getAjv, getAddFormats, createAjvInstance } from "../../src/ajv.js";
 

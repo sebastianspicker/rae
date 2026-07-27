@@ -1,3 +1,6 @@
+/**
+ * Verifies trace persistence, bounded event retention, caching, and summary semantics for pipeline auditability.
+ */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -9,6 +12,7 @@ import {
   invalidateTraceCache,
   MAX_TRACE_EVENTS,
   getTracePath,
+  projectOperatorEvents,
 } from "../lib/trace.mjs";
 import { getRunDir, getRepoRoot, ensureRunDirs } from "../lib/state.mjs";
 
@@ -41,6 +45,8 @@ describe("appendTraceEvent and readTraceEvents", () => {
     expect(events[0].phase).toBe("arm");
     expect(events[0].run_id).toBe(testRunId);
     expect(events[0].ts).toBeDefined();
+    expect(events[0].seq).toBe(1);
+    expect(events[0].event_id).toBe(`${testRunId}:1`);
   });
 
   it("appends multiple events", () => {
@@ -64,6 +70,36 @@ describe("appendTraceEvent and readTraceEvents", () => {
   it("rejects non-object payload", () => {
     expect(() => appendTraceEvent(testRunId, "string")).toThrow(/must be an object/);
     expect(() => appendTraceEvent(testRunId, null)).toThrow(/must be an object/);
+  });
+});
+
+describe("operator trace projection", () => {
+  const runId = "test-operator-projection";
+
+  afterEach(() => {
+    rmSync(getRunDir(runId, root), { recursive: true, force: true });
+  });
+
+  it("uses physical line cursors and excludes private message and metadata fields", () => {
+    ensureRunDirs(runId, root);
+    const tracePath = getTracePath(runId, root);
+    writeFileSync(
+      tracePath,
+      `\n${JSON.stringify({ ts: "2026-01-01T00:00:00.000Z", run_id: runId, event: "agent_call", phase: "arm", status: "ok", message: "private", metadata: { prompt: "private" } })}\n`,
+      "utf8",
+    );
+
+    expect(projectOperatorEvents(runId, root)).toEqual([
+      {
+        seq: 2,
+        event_id: `${runId}:2`,
+        run_id: runId,
+        ts: "2026-01-01T00:00:00.000Z",
+        event: "agent_call",
+        phase: "arm",
+        status: "ok",
+      },
+    ]);
   });
 });
 
