@@ -1,3 +1,6 @@
+/**
+ * Defines public quality-gate input, criteria, and result contracts.
+ */
 import type { GatePhase } from "./lib/phases.js";
 
 export type { GatePhase };

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's detected checks cache contract.
 
 set -euo pipefail
 
@@ -13,10 +14,25 @@ make_fake_tool() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${FAKE_STATE_FILE:?missing FAKE_STATE_FILE}"
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
+
+: "${XDG_STATE_HOME:?missing XDG_STATE_HOME}"
 
 prompt="$(cat)"
-if [[ ! -f "$FAKE_STATE_FILE" ]]; then
+if [[ ! -f "$XDG_STATE_HOME" ]]; then
   if printf '%s' "$prompt" | grep -q 'npm run lint'; then
     printf 'unexpected lint command in first fixing prompt\n' >&2
     exit 11
@@ -31,7 +47,7 @@ if [[ ! -f "$FAKE_STATE_FILE" ]]; then
   }
 }
 JSON
-  printf 'first-call-done\n' > "$FAKE_STATE_FILE"
+  printf 'first-call-done\n' > "$XDG_STATE_HOME"
 else
   if ! printf '%s' "$prompt" | grep -q 'npm run lint'; then
     printf 'missing refreshed lint command in second fixing prompt\n' >&2
@@ -101,13 +117,13 @@ run_case() {
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
 
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
-    PATH="$bindir:$PATH" FAKE_STATE_FILE="$tmpdir/fake-state.txt" MODE=fixing ./ralph.sh 2
+    PATH="$bindir:$PATH" XDG_STATE_HOME="$tmpdir/fake-state.txt" MODE=fixing ./ralph.sh 2
   ) > "$tmpdir/out.log" 2>&1
   rc=$?
   set -e

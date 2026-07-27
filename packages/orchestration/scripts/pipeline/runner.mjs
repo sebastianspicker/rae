@@ -1,5 +1,18 @@
 #!/usr/bin/env node
+/**
+ * Provides the pipeline runner CLI that validates and advances staged workflow state.
+ */
 import { CONFIG_IDS as CONFIG_ID_LIST, DEFAULT_CONFIG_ID, PHASE_ORDER } from "../lib/constants.mjs";
+import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
+import { badInput } from "./lib/errors.mjs";
+import {
+  activateWorkspaceRoot,
+  ensureRunDirs,
+  resolveWorkspaceRootForRun,
+  withLockedState,
+} from "./lib/state.mjs";
+import { appendTraceEvent } from "./lib/trace.mjs";
+import { emitRetryEventIfNeeded, gateStatusFromPhaseAndProfile } from "./lib/gates.mjs";
 import {
   printUsage,
   runEndPhase,
@@ -29,13 +42,9 @@ import {
   recordPhaseCompletion,
   resolveAndWriteArtifact,
 } from "./lib/runner-helpers-b.mjs";
-import {
-  ensureRunDirs,
-  loadPipelineState,
-  resolveWorkspaceRootForRun,
-  withLockedState,
-} from "./lib/state.mjs";
-import { appendTraceEvent } from "./lib/trace.mjs";
+import { sandboxEnforcementReport } from "./lib/subprocess.mjs";
+
+assertSupportedNodeRuntime();
 
 const PHASES = PHASE_ORDER;
 const CONFIG_IDS = new Set(CONFIG_ID_LIST);
@@ -82,148 +91,84 @@ function assertKnownPhase(phase, source = "phase") {
     throw badInput(`${source} must be one of: ${PHASES.join(", ")}`);
   }
 }
-function runStage(options) {
+
+function assertPhaseReady(state, phase) {
+  const completedGates = new Set(Array.isArray(state.completed_gates) ? state.completed_gates : []);
+  const expectedPhase = PHASES.find((candidate) => !completedGates.has(`${candidate}-gate`));
+  if (!expectedPhase) {
+    throw badInput("pipeline run is already complete");
+  }
+  if (phase !== expectedPhase) {
+    throw badInput(`phase out of order: expected ${expectedPhase}, received ${phase}`);
+  }
+}
+
+function stageOptions(options) {
   const runId = requireOption(options, "run-id");
   const phase = requireOption(options, "phase");
   const { configId, root, state } = prepareStage(runId, phase, options);
   const stageContext = prepareStageContext({ runId, phase, configId, root, state, options });
   const { taskContext, taskSession, activityProfile, stageProfile, cognitiveTier } = stageContext;
 
-  const result = executeStage({
-    runId,
-    phase,
-    configId,
-    options,
-    taskContext,
-    stageProfile,
-    state,
-    root,
-    cognitiveTier,
-    activityProfile,
-  });
-  completeStage({ runId, phase, primaryGate: result.primaryGate, taskSession, root });
-  writeStageResult({ runId, phase, configId, taskSession, activityProfile, ...result });
+  const configId = options["config-id"] || DEFAULT_CONFIG_ID;
+  if (!CONFIG_IDS.has(configId)) {
+    throw badInput(
+      `unsupported config-id: ${configId}. Valid config IDs: ${[...CONFIG_IDS].join(", ")}`,
+    );
+  }
+  return { runId, phase, configId };
 }
 
-function executeStage(context) {
-  const { runId, phase, configId, options, taskContext, stageProfile, state, root } = context;
-  const { cognitiveTier, activityProfile } = context;
-  const { artifact, artifactRef, schemaRef } = resolveAndWriteArtifact({
-    runId,
-    phase,
-    configId,
-    options,
-    taskContext,
-    stageProfile,
-    state,
-    root,
-  });
-  const { gateStatuses, extraGates } = evaluateAuxiliaryGates({
-    runId,
-    phase,
-    artifact,
-    artifactRef,
-    schemaRef,
-    state,
-    root,
-  });
-
-  const desiredStatus =
-    options["gate-status"] || gateStatusFromPhaseAndProfile(phase, stageProfile);
-
-  const primaryGate = emitPrimaryGate({
-    runId,
-    phase,
-    artifact,
-    artifactRef,
-    schemaRef,
-    configId,
-    cognitiveTier,
-    activityProfile,
-    desiredStatus,
-    gateStatuses,
-    root,
-  });
-
-  return { primaryGate, extraGates, artifactRef, schemaRef };
+function recordTasksetRead(runId, phase, taskContext, root) {
+  if (!taskContext?.taskset_path) return;
+  appendTraceEvent(runId, { event: "artifact_read", phase, artifact_ref: taskContext.taskset_path, status: "ok" }, root);
 }
 
-function prepareStageContext({ runId, phase, configId, root, state, options }) {
+function stageTaskContext({ runId, phase, configId, options, state, root }) {
   const taskContext = loadTasksetTask(options.taskset, options["task-id"]);
   const taskSession = resolveTaskSession(phase, taskContext, options);
   const activityProfile = resolveActivityProfile(phase, state, taskSession);
   if (taskSession) taskSession.activity_profile = activityProfile;
-  const stageProfile = stageProfileFromTask({ task: taskContext?.task, configId, phase });
-  traceStageStart({ runId, phase, root, state, taskContext, taskSession, activityProfile });
-  const cognitiveTier = activityProfile.tier ?? resolveCognitiveTier(phase, state);
-  return { taskContext, taskSession, activityProfile, stageProfile, cognitiveTier };
+  return { taskContext, taskSession, activityProfile, stageProfile: stageProfileFromTask({ task: taskContext?.task, configId, phase }) };
 }
 
-function traceStageStart(context) {
-  const { runId, phase, root, taskContext, taskSession } = context;
-  if (taskContext?.taskset_path) {
-    appendTraceEvent(
-      runId,
-      { event: "artifact_read", phase, artifact_ref: taskContext.taskset_path, status: "ok" },
-      root,
-    );
-  }
-  emitRetryEventIfNeeded(runId, phase, root);
-  appendTraceEvent(runId, buildPhaseStartEvent(context), root);
+function recordStageStart({ runId, phase, state, taskSession, activityProfile, root }) {
+  const cognitiveTier = activityProfile.tier ?? resolveCognitiveTier(phase, state);
+  appendTraceEvent(runId, phaseStartEvent(phase, cognitiveTier, taskSession, activityProfile), root);
   appendTaskSessionEvent(runId, phase, "task_session_start", "ok", taskSession, root);
+  return cognitiveTier;
 }
 
-function buildPhaseStartEvent({ phase, state, taskSession, activityProfile }) {
-  const cognitiveTier = activityProfile.tier ?? resolveCognitiveTier(phase, state);
-  const metadata = {
-    activity_id: activityProfile.activity_id,
-    runtime_name: activityProfile.runtime_name,
-    runtime_version: activityProfile.runtime_version,
-  };
-  addPhaseMetadata(metadata, cognitiveTier, taskSession);
-  return {
-    event: "phase_start",
-    phase,
-    status: "ok",
-    tier: cognitiveTier ?? undefined,
-    model_hint: activityProfile.model_hint ?? undefined,
-    ...metadata,
-    metadata,
-  };
-}
-
-function addPhaseMetadata(metadata, cognitiveTier, taskSession) {
+function phaseStartEvent(phase, cognitiveTier, taskSession, activityProfile) {
+  const metadata = { activity_id: activityProfile.activity_id, runtime_name: activityProfile.runtime_name, runtime_version: activityProfile.runtime_version };
   if (cognitiveTier) metadata.cognitive_tier = cognitiveTier;
-  if (!taskSession) return;
-  metadata.task_session_id = taskSession.session.session_id;
-  metadata.task_session_kind = taskSession.session.session_kind;
+  if (taskSession) Object.assign(metadata, { task_session_id: taskSession.session.session_id, task_session_kind: taskSession.session.session_kind });
+  return { event: "phase_start", phase, status: "ok", tier: cognitiveTier ?? undefined, model_hint: activityProfile.model_hint ?? undefined, activity_id: activityProfile.activity_id, runtime_name: activityProfile.runtime_name, runtime_version: activityProfile.runtime_version, metadata };
 }
 
-function completeStage({ runId, phase, primaryGate, taskSession, root }) {
-  withLockedState(root, (lockedState) => {
-    ensureStateForRun(lockedState, runId);
-    const status = primaryGate.status === "fail" ? "error" : "ok";
-    appendTaskSessionEvent(runId, phase, "task_session_end", status, taskSession, root);
-    recordPhaseCompletion({ runId, phase, state: lockedState, primaryGate, root });
-  });
+function executeStageLocked(state, { runId, phase, configId, options, root }) {
+  ensureStateForRun(state, runId);
+  assertPhaseReady(state, phase);
+  appendRunStartIfMissing(runId, state, root);
+  const context = stageTaskContext({ runId, phase, configId, options, state, root });
+  recordTasksetRead(runId, phase, context.taskContext, root);
+  emitRetryEventIfNeeded(runId, phase, root);
+  const cognitiveTier = recordStageStart({ runId, phase, state, taskSession: context.taskSession, activityProfile: context.activityProfile, root });
+  const { artifact, artifactRef, schemaRef } = resolveAndWriteArtifact({ runId, phase, configId, options, taskContext: context.taskContext, stageProfile: context.stageProfile, state, root });
+  const { gateStatuses, extraGates } = evaluateAuxiliaryGates({ runId, phase, artifact, artifactRef, schemaRef, state, root });
+  const desiredStatus = options["gate-status"] || gateStatusFromPhaseAndProfile(phase, context.stageProfile);
+  const primaryGate = emitPrimaryGate({ runId, phase, artifact, artifactRef, schemaRef, configId, cognitiveTier, activityProfile: context.activityProfile, desiredStatus, gateStatuses, root });
+  ensureStateForRun(state, runId);
+  appendTaskSessionEvent(runId, phase, "task_session_end", primaryGate.status === "fail" ? "error" : "ok", context.taskSession, root);
+  recordPhaseCompletion({ runId, phase, state, primaryGate, root });
+  return { success: primaryGate.status !== "fail", run_id: runId, phase, config_id: configId, gate: primaryGate, auxiliary_gates: extraGates, artifact_ref: artifactRef, schema_ref: schemaRef, task_session: context.taskSession?.session ?? null, activity_profile: context.activityProfile };
 }
 
-function writeStageResult(context) {
-  const {
-    runId,
-    phase,
-    configId,
-    primaryGate,
-    extraGates,
-    artifactRef,
-    schemaRef,
-    taskSession,
-    activityProfile,
-  } = context;
-  process.stdout.write(
-    `${JSON.stringify({ success: primaryGate.status !== "fail", run_id: runId, phase, config_id: configId, gate: primaryGate, auxiliary_gates: extraGates, artifact_ref: artifactRef, schema_ref: schemaRef, task_session: taskSession?.session ?? null, activity_profile: activityProfile }, null, 2)}\n`,
-  );
-}
+function runStage(options) {
+  const { runId, phase, configId } = stageOptions(options);
+  const root = resolveWorkspaceRootForRun(runId);
+  ensureRunDirs(runId, root);
+  const result = withLockedState(root, (state) => executeStageLocked(state, { runId, phase, configId, options, root }));
 
 function prepareStage(runId, phase, options) {
   if (!PHASES.includes(phase))
@@ -250,16 +195,23 @@ const ctx = {
   appendRunEndIfMissing,
 };
 
-const COMMANDS = new Map([
-  ["start-phase", (opts) => runStartPhase(opts, ctx)],
-  ["end-phase", (opts) => runEndPhase(opts, ctx)],
-  ["record-artifact", (opts) => runRecordArtifact(opts, ctx)],
-  ["record-gate", (opts) => runRecordGate(opts, ctx)],
-  ["record-review-state", (opts) => runRecordReviewState(opts, ctx)],
-  ["summarize-run", (opts) => runSummarizeRun(opts, ctx)],
-  ["summarize-progress", (opts) => runSummarizeProgress(opts, ctx)],
-  ["run-stage", runStage],
-]);
+const COMMANDS = {
+  "start-phase": (opts) => runStartPhase(opts, ctx),
+  "end-phase": (opts) => runEndPhase(opts, ctx),
+  "record-artifact": (opts) => runRecordArtifact(opts, ctx),
+  "record-gate": (opts) => runRecordGate(opts, ctx),
+  "record-review-state": (opts) => runRecordReviewState(opts, ctx),
+  "summarize-run": (opts) => runSummarizeRun(opts, ctx),
+  "summarize-progress": (opts) => runSummarizeProgress(opts, ctx),
+  doctor: () => {
+    const sandbox = sandboxEnforcementReport();
+    process.stdout.write(`${JSON.stringify({ success: sandbox.enforced, sandbox }, null, 2)}\n`);
+    if (!sandbox.enforced) {
+      throw badInput(`sandbox enforcement unavailable: ${sandbox.reason}`);
+    }
+  },
+  "run-stage": runStage,
+};
 
 function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -268,14 +220,18 @@ function main() {
     return;
   }
 
-  assertSafeKey(command, "command");
-  const handler = COMMANDS.get(command);
+  const options = parseOptions(rest);
+  if (options["project-root"]) {
+    activateWorkspaceRoot(options["project-root"]);
+  }
+
+  const handler = COMMANDS[command];
   if (!handler) {
     throw badInput(
       `unknown command: ${command}. Available commands: ${[...COMMANDS.keys()].join(", ")}`,
     );
   }
-  handler(parseOptions(rest));
+  handler(options);
 }
 
 /**

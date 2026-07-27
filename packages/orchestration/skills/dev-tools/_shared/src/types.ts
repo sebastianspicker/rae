@@ -1,3 +1,6 @@
+/**
+ * Defines shared result contracts emitted by the development-tool command harness.
+ */
 export interface RunResult<TData = unknown> {
   success: boolean;
   data?: TData;

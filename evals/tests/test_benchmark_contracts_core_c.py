@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Contract tests for evidence containment, timeout provenance, and calibration."""
 
 import json
 import pathlib
@@ -20,6 +20,30 @@ from benchmark_contracts_helpers import (
 )
 
 
+from benchmark_contracts_helpers import (
+    RESULTS_ROOT,
+    ROOT,
+    calibration_payload,
+    load_module,
+    repo_rel,
+    run_release_gate,
+    write_json,
+    write_release_gate_fixture,
+    write_passing_held_out_fixture,
+)
+
+
+def _write_foreign_command_log(path: pathlib.Path) -> None:
+    write_json(path, {"argv": ["foreign"], "cwd": ".", "returncode": 0, "stdout": "", "stderr": "", "duration_seconds": 0.1})
+
+
+def _write_outside_run_card(path: pathlib.Path, benchmark: dict, paths: tuple[pathlib.Path, ...]) -> None:
+    result, regression, ledger, calibration = paths
+    write_json(path, {
+        "run_id": "tool-selection-core-dev-outside-run-card", "evidence_type": "benchmark-run", "benchmark_id": benchmark["benchmark_id"], "benchmark_version": benchmark["version"], "date": "2026-04-15", "split": "dev", "system": {"model": "rule-based-router-v1", "runtime": "umbrella-benchmark-runner"}, "judge_version": "programmatic-router-judge-v1", "command": "python3 evals/scripts/run_benchmark.py", "result_path": repo_rel(result), "status": "pass", "task_spec_path": benchmark["task_specs_path"], "routed_runtime": "mixed", "trace_paths": [], "artifact_paths": [], "checkpoint_paths": [], "claim_links": benchmark["claim_links"], "ledger_path": repo_rel(ledger), "regression_report_path": repo_rel(regression), "judge_calibration_report_path": repo_rel(calibration), "cost_usd": 0.0, "latency_seconds": 0.1, "notes": "test fixture",
+    })
+
+
 def test_release_gate_rejects_verification_evidence_outside_current_run_scope() -> None:
     benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
     benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
@@ -33,12 +57,7 @@ def test_release_gate_rejects_verification_evidence_outside_current_run_scope() 
             split="dev",
             run_id="tool-selection-core-dev-forged-evidence",
             benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
+            calibration_payload=calibration_payload(),
             verification_evidence={
                 "required_types": ["command-log"],
                 "provided": [],
@@ -52,17 +71,7 @@ def test_release_gate_rejects_verification_evidence_outside_current_run_scope() 
         )
         foreign_dir = output_dir.parent / "foreign-evidence"
         foreign_command_log = foreign_dir / "foreign.command-result.json"
-        write_json(
-            foreign_command_log,
-            {
-                "argv": ["foreign"],
-                "cwd": ".",
-                "returncode": 0,
-                "stdout": "",
-                "stderr": "",
-                "duration_seconds": 0.1,
-            },
-        )
+        _write_foreign_command_log(foreign_command_log)
         run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
         run_card["verification_evidence"]["provided"] = [
             {
@@ -72,26 +81,10 @@ def test_release_gate_rejects_verification_evidence_outside_current_run_scope() 
             }
         ]
         write_json(run_card_path, run_card)
-        write_release_gate_fixture(
-            output_dir / "held-out-pass",
-            split="held-out",
-            run_id="tool-selection-core-held-out-pass",
-            benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
-            release_gate_status="pass",
-        )
+        write_passing_held_out_fixture(output_dir, benchmark)
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-forged-evidence.json"
 
-        # B603 rationale: fixed interpreter and repository test entrypoint.
-        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-        completed = run_release_gate(
-            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
-        )
+        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
@@ -117,49 +110,17 @@ def test_release_gate_does_not_mutate_run_card_outside_results_root() -> None:
                     split="dev",
                     run_id="tool-selection-core-dev-outside-run-card",
                     benchmark=benchmark,
-                    calibration_payload={
-                        "judge_id": "router",
-                        "agreement_rate": 1.0,
-                        "calibration_case_count": 4,
-                        "status": "pass",
-                    },
+                    calibration_payload=calibration_payload(),
                 )
             )
             run_card_path = outside_dir / "run-card-tool-selection-core-dev-outside-run-card.json"
-            write_json(
-                run_card_path,
-                release_gate_run_card(
-                    benchmark,
-                    result_path,
-                    regression_path,
-                    ledger_path,
-                    calibration_path,
-                    "dev",
-                    "tool-selection-core-dev-outside-run-card",
-                ),
-            )
-            write_release_gate_fixture(
-                output_dir / "held-out-pass",
-                split="held-out",
-                run_id="tool-selection-core-held-out-pass",
-                benchmark=benchmark,
-                calibration_payload={
-                    "judge_id": "router",
-                    "agreement_rate": 1.0,
-                    "calibration_case_count": 4,
-                    "status": "pass",
-                },
-                release_gate_status="pass",
-            )
+            _write_outside_run_card(run_card_path, benchmark, (result_path, regression_path, ledger_path, calibration_path))
+            write_passing_held_out_fixture(output_dir, benchmark)
             gate_output_path = (
                 output_dir / "release-gate-tool-selection-core-dev-outside-run-card.json"
             )
 
-            # B603 rationale: fixed interpreter and repository test entrypoint.
-            # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-            completed = run_release_gate(
-                benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
-            )
+            completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
 
             assert completed.returncode != 0
             updated_run_card = json.loads(run_card_path.read_text(encoding="utf-8"))

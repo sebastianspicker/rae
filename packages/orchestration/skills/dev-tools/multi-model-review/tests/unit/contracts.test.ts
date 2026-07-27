@@ -1,3 +1,6 @@
+/**
+ * Validates review outputs against published schemas so downstream orchestration receives compatible evidence.
+ */
 import { describe, it, expect } from "vitest";
 import Ajv from "ajv";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";

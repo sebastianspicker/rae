@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Contract tests for benchmark path containment and release-gate failures."""
 
 import json
 import os
@@ -10,10 +10,12 @@ import tempfile
 from benchmark_contracts_helpers import (
     RESULTS_ROOT,
     ROOT,
+    calibration_payload,
     install_path_mirror,
     run_release_gate,
     write_json,
     write_release_gate_fixture,
+    write_passing_held_out_fixture,
 )
 
 
@@ -268,22 +270,13 @@ def test_release_gate_fails_when_required_split_evidence_is_missing() -> None:
             split="held-out",
             run_id="tool-selection-core-missing-split-held-out-required-splits",
             benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
+            calibration_payload=calibration_payload(),
         )
         gate_output_path = (
             output_dir / "release-gate-tool-selection-core-held-out-required-splits.json"
         )
 
-        # B603 rationale: fixed interpreter and repository test entrypoint.
-        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-        completed = run_release_gate(
-            temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
-        )
+        completed = run_release_gate(temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
@@ -305,33 +298,12 @@ def test_release_gate_fails_when_calibration_agreement_is_below_threshold() -> N
             split="dev",
             run_id="tool-selection-core-dev-low-calibration",
             benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 0.5,
-                "calibration_case_count": 4,
-                "status": "fail",
-            },
+            calibration_payload=calibration_payload(agreement_rate=0.5, status="fail"),
         )
-        write_release_gate_fixture(
-            output_dir / "held-out-pass",
-            split="held-out",
-            run_id="tool-selection-core-held-out-pass",
-            benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
-            release_gate_status="pass",
-        )
+        write_passing_held_out_fixture(output_dir, benchmark)
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-low-calibration.json"
 
-        # B603 rationale: fixed interpreter and repository test entrypoint.
-        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-        completed = run_release_gate(
-            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
-        )
+        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))

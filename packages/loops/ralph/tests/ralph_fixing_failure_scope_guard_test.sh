@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's fixing failure scope guard contract.
 
 set -euo pipefail
 
@@ -13,10 +14,32 @@ make_fake_tool() {
 #!/usr/bin/env bash
 set -euo pipefail
 
+last_message=""
+repo=""
+saw_empty_writable_roots="false"
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  elif [[ "$ralph_arg" == 'sandbox_workspace_write.writable_roots=[]' ]]; then
+    saw_empty_writable_roots="true"
+  fi
+done
+[[ "$saw_empty_writable_roots" == "true" ]] || {
+  printf 'missing empty Codex writable-roots override\n' >&2
+  exit 1
+}
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
+
 prompt="$(cat)"
 
 if grep -q 'Story ID: FIX-001' <<< "$prompt"; then
-  case "${FAKE_ACTION_FIRST:-in_scope_fail}" in
+  case "${XDG_DATA_HOME:-in_scope_fail}" in
     in_scope_fail)
       mkdir -p docs/a
       printf 'partial\n' >> docs/a/partial.md
@@ -28,7 +51,7 @@ if grep -q 'Story ID: FIX-001' <<< "$prompt"; then
       exit 9
       ;;
     *)
-      printf 'unknown FAKE_ACTION_FIRST: %s\n' "${FAKE_ACTION_FIRST:-}" >&2
+      printf 'unknown XDG_DATA_HOME: %s\n' "${XDG_DATA_HOME:-}" >&2
       exit 1
       ;;
   esac
@@ -138,13 +161,13 @@ run_case_out_of_scope_on_failure() {
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
 
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo_single_story "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
-    PATH="$bindir:$PATH" FAKE_ACTION_FIRST="out_of_scope_fail" MODE=fixing ./ralph.sh 1
+    PATH="$bindir:$PATH" XDG_DATA_HOME="out_of_scope_fail" MODE=fixing ./ralph.sh 1
   ) > "$tmpdir/out.log" 2>&1
   rc=$?
   set -e
@@ -159,6 +182,9 @@ run_case_out_of_scope_on_failure() {
   if ! printf '%s' "$out" | grep -q 'src/outside.txt'; then
     fail_case "fixing-failure-scope-out-of-scope" "expected out-of-scope path in output" "$tmpdir/out.log" "$tmpdir"
   fi
+  if [[ -e "$tmpdir/repo/src/outside.txt" ]]; then
+    fail_case "fixing-failure-scope-out-of-scope" "isolated out-of-scope edit reached the live checkout" "$tmpdir/out.log" "$tmpdir"
+  fi
 
   cleanup_dir "$tmpdir"
   printf 'PASS [fixing-failure-scope-out-of-scope]\n'
@@ -170,13 +196,13 @@ run_case_skip_updates_fixing_baseline() {
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
 
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo_two_stories "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
-    PATH="$bindir:$PATH" FAKE_ACTION_FIRST="in_scope_fail" MODE=fixing RALPH_SKIP_AFTER_FAILURES=1 ./ralph.sh 2
+    PATH="$bindir:$PATH" XDG_DATA_HOME="in_scope_fail" MODE=fixing RALPH_SKIP_AFTER_FAILURES=1 ./ralph.sh 2
   ) > "$tmpdir/out.log" 2>&1
   rc=$?
   set -e
@@ -190,6 +216,12 @@ run_case_skip_updates_fixing_baseline() {
   fi
   if ! jq -e '.stories[] | select(.id=="FIX-002" and .passes == true)' "$tmpdir/repo/prd.json" >/dev/null; then
     fail_case "fixing-failure-scope-skip-baseline" "expected FIX-002 to pass" "$tmpdir/out.log" "$tmpdir"
+  fi
+  if [[ -e "$tmpdir/repo/docs/a/partial.md" ]]; then
+    fail_case "fixing-failure-scope-skip-baseline" "failed provider edit reached the live checkout" "$tmpdir/out.log" "$tmpdir"
+  fi
+  if ! grep -q '^ok$' "$tmpdir/repo/docs/b/ok.md"; then
+    fail_case "fixing-failure-scope-skip-baseline" "successful scoped provider edit was not promoted" "$tmpdir/out.log" "$tmpdir"
   fi
 
   cleanup_dir "$tmpdir"

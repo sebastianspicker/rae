@@ -1,3 +1,6 @@
+/**
+ * Validates quality-gate outputs and schemas to preserve the tool's machine-readable integration contract.
+ */
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

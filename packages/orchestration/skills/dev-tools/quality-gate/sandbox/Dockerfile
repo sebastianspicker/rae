@@ -1,17 +1,9 @@
+# Build a hermetic quality-gate image so checks run with reproducible dependencies.
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS build
-
-# Build with skills/dev-tools as the Docker context so the local shared package
-# remains available to npm and TypeScript.
-WORKDIR /workspace/_shared
-COPY _shared/package.json _shared/package-lock.json _shared/tsconfig.json ./
+WORKDIR /skill
+COPY package.json package-lock.json tsconfig.json ./
 RUN npm ci --ignore-scripts
-COPY _shared/src/ src/
-RUN ./node_modules/.bin/tsc
-
-WORKDIR /workspace/quality-gate
-COPY quality-gate/package.json quality-gate/package-lock.json quality-gate/tsconfig.json ./
-RUN npm ci --ignore-scripts
-COPY quality-gate/src/ src/
+COPY src/ src/
 RUN ./node_modules/.bin/tsc
 
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0

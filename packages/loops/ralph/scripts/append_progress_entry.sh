@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Appends a validated progress event so Ralph history remains concise and append-only.
 
 set -euo pipefail
 

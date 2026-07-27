@@ -1,19 +1,20 @@
 """Evidence helpers for executable benchmark runs."""
 
-from __future__ import annotations
-
 import json
 import os
 import pathlib
 import re
 import shutil
+import sys
 from typing import Any
 
 from common import (
+    RESULTS_ROOT,
     ROOT,
     dump_json,
     load_json,
     repo_relpath,
+    resolve_metadata_path,
     run_command,
 )
 
@@ -38,16 +39,28 @@ def create_task_workspace(output_dir: pathlib.Path, task_id: str) -> pathlib.Pat
     return workspace
 
 
+def _combined_returncode(results: tuple[dict[str, Any], ...]) -> int:
+    return 0 if all(result["returncode"] == 0 for result in results) else 1
+
+
+def _combined_stream(results: tuple[dict[str, Any], ...], field: str) -> str:
+    return "\n".join(result[field] for result in results if result[field])
+
+
+def _combined_duration(results: tuple[dict[str, Any], ...]) -> float:
+    return round(sum(float(result["duration_seconds"]) for result in results), 4)
+
+
 def merge_command_results(*results: dict[str, Any]) -> dict[str, Any]:
     if not results:
         raise ValueError("at least one command result is required")
     return {
         "argv": ["composite"],
         "cwd": results[-1]["cwd"],
-        "returncode": 0 if all(result["returncode"] == 0 for result in results) else 1,
-        "stdout": "\n".join(result["stdout"] for result in results if result["stdout"]),
-        "stderr": "\n".join(result["stderr"] for result in results if result["stderr"]),
-        "duration_seconds": round(sum(float(result["duration_seconds"]) for result in results), 4),
+        "returncode": _combined_returncode(results),
+        "stdout": _combined_stream(results, "stdout"),
+        "stderr": _combined_stream(results, "stderr"),
+        "duration_seconds": _combined_duration(results),
     }
 
 
@@ -68,7 +81,10 @@ def write_command_result(
 
 
 def load_optional_json_artifact(path_str: str) -> dict[str, Any] | None:
-    path = (ROOT / path_str).resolve(strict=False)
+    try:
+        path = resolve_metadata_path(path_str, label="artifact path", contained_by=RESULTS_ROOT)
+    except ValueError:
+        return None
     if path.suffix != ".json" or not path.exists():
         return None
     try:
@@ -78,73 +94,93 @@ def load_optional_json_artifact(path_str: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def required_evidence_types(task: dict[str, Any]) -> list[str]:
-    required_evidence = task.get("delegation_contract", {}).get("required_evidence", [])
+def _required_evidence_types(task: dict[str, Any]) -> list[str]:
+    required = task.get("delegation_contract", {}).get("required_evidence", [])
     return sorted(
         {
             entry["type"]
-            for entry in required_evidence
+            for entry in required
             if isinstance(entry, dict) and isinstance(entry.get("type"), str)
         }
     )
 
 
-def evidence_entry(task_id: str, evidence_type: str, path: str, description: str) -> dict[str, str]:
-    return {"task_id": task_id, "type": evidence_type, "path": path, "description": description}
-
-
-def add_evidence_entry(
-    task_id: str,
-    path: str,
-    evidence_type: str,
-    description: str,
-    provided: list[dict[str, Any]],
-    provided_types: set[str],
-) -> None:
-    provided.append(evidence_entry(task_id, evidence_type, path, description))
-    provided_types.add(evidence_type)
-
-
-def add_json_artifact_evidence(
-    task_id: str, path: str, provided: list[dict[str, Any]], provided_types: set[str]
-) -> None:
+def _artifact_semantic_entries(task_id: str, path: str) -> tuple[list[dict[str, Any]], set[str]]:
     artifact = load_optional_json_artifact(path)
     if not artifact:
-        return
-    for key, evidence_type, description in (
+        return [], set()
+    fields = (
         ("coverage_ledger", "coverage-ledger", "requirement coverage ledger"),
         ("qc_summary", "qc-summary", "quality coverage summary"),
-    ):
-        if key in artifact:
-            add_evidence_entry(task_id, path, evidence_type, description, provided, provided_types)
+    )
+    entries: list[dict[str, Any]] = []
+    types: set[str] = set()
+    for field, evidence_type, description in fields:
+        if field in artifact:
+            entries.append(
+                {
+                    "task_id": task_id,
+                    "type": evidence_type,
+                    "path": path,
+                    "description": description,
+                }
+            )
+            types.add(evidence_type)
     if "open_risks" in artifact or "review_state" in artifact:
-        add_evidence_entry(
-            task_id,
-            path,
-            "risk-summary",
-            "residual risk or review summary",
-            provided,
-            provided_types,
+        entries.append(
+            {
+                "task_id": task_id,
+                "type": "risk-summary",
+                "path": path,
+                "description": "residual risk or review summary",
+            }
         )
+        types.add("risk-summary")
+    return entries, types
 
 
-def add_artifact_evidence(
-    task_id: str, path: str, provided: list[dict[str, Any]], provided_types: set[str]
-) -> None:
-    if path != next(entry["path"] for entry in provided if entry["type"] == "command-log"):
-        add_evidence_entry(
-            task_id, path, "artifact", "execution artifact", provided, provided_types
-        )
-    add_json_artifact_evidence(task_id, path, provided, provided_types)
+def _artifact_evidence(
+    task_id: str, paths: list[str], command_result_path: str
+) -> tuple[list[dict[str, Any]], set[str]]:
+    provided: list[dict[str, Any]] = []
+    types: set[str] = set()
+    for path in sorted(set(paths)):
+        if path != command_result_path:
+            provided.append(
+                {
+                    "task_id": task_id,
+                    "type": "artifact",
+                    "path": path,
+                    "description": "execution artifact",
+                }
+            )
+            types.add("artifact")
+        semantic_entries, semantic_types = _artifact_semantic_entries(task_id, path)
+        provided.extend(semantic_entries)
+        types.update(semantic_types)
+    return provided, types
 
 
-def evidence_status(required_types: list[str], provided_types: set[str]) -> tuple[str, list[str]]:
-    missing_types = sorted(set(required_types) - provided_types)
+def _path_evidence(
+    task_id: str, paths: list[str], evidence_type: str, description: str
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "task_id": task_id,
+            "type": evidence_type,
+            "path": path,
+            "description": description,
+        }
+        for path in sorted(set(paths))
+    ]
+
+
+def _evidence_status(required_types: list[str], missing_types: list[str]) -> str:
     if not required_types or not missing_types:
-        return "complete", missing_types
+        return "complete"
     if len(missing_types) == len(required_types):
-        return "missing", missing_types
-    return "partial", missing_types
+        return "missing"
+    return "partial"
 
 
 def build_task_verification_evidence(
@@ -156,38 +192,39 @@ def build_task_verification_evidence(
     checkpoint_paths: list[str],
 ) -> dict[str, Any]:
     """Map produced artifacts to the evidence types required by a task."""
-    required_types = required_evidence_types(task)
-
+    required_types = _required_evidence_types(task)
+    task_id = task["task_id"]
     provided: list[dict[str, Any]] = [
         {
-            "task_id": task["task_id"],
+            "task_id": task_id,
             "type": "command-log",
             "path": command_result_path,
             "description": "command result transcript",
         }
     ]
     provided_types = {"command-log"}
-
-    for path in sorted(set(trace_paths)):
-        provided.append(evidence_entry(task["task_id"], "trace", path, "execution trace"))
+    trace_entries = _path_evidence(task_id, trace_paths, "trace", "execution trace")
+    if trace_entries:
+        provided.extend(trace_entries)
         provided_types.add("trace")
-
-    for path in sorted(set(artifact_paths)):
-        add_artifact_evidence(task["task_id"], path, provided, provided_types)
-
-    for path in sorted(set(checkpoint_paths)):
-        provided.append(
-            evidence_entry(task["task_id"], "checkpoint", path, "human checkpoint artifact")
-        )
+    artifact_entries, artifact_types = _artifact_evidence(
+        task_id, artifact_paths, command_result_path
+    )
+    provided.extend(artifact_entries)
+    provided_types.update(artifact_types)
+    checkpoint_entries = _path_evidence(
+        task_id, checkpoint_paths, "checkpoint", "human checkpoint artifact"
+    )
+    if checkpoint_entries:
+        provided.extend(checkpoint_entries)
         provided_types.add("checkpoint")
 
-    status, missing_types = evidence_status(required_types, provided_types)
-
+    missing_types = sorted(set(required_types) - provided_types)
     return {
         "required_types": required_types,
         "provided": provided,
         "summary": {
-            "status": status,
+            "status": _evidence_status(required_types, missing_types),
             "provided_types": sorted(provided_types),
             "missing_types": missing_types,
             "residual_gaps": [
@@ -287,18 +324,14 @@ def init_isolated_orchestration_workspace(
     return package_root, init_result, run_id
 
 
-def create_checkpoint(
-    output_dir: pathlib.Path, run_id: str, task: dict[str, Any], mode: str
-) -> tuple[list[str], bool, list[dict[str, Any]]]:
-    checkpoint_config = task.get("human_checkpoint", {})
-    if not checkpoint_config.get("required", False):
-        return [], True, []
-
-    checkpoint_dir = output_dir / "checkpoints"
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_path = checkpoint_dir / f"{task['task_id']}.checkpoint.json"
-    create_cmd = [
-        "python3",
+def _checkpoint_create_command(
+    checkpoint_path: pathlib.Path,
+    run_id: str,
+    task: dict[str, Any],
+    config: dict[str, Any],
+) -> list[str]:
+    command = [
+        sys.executable,
         str(ROOT / "evals/scripts/checkpoint.py"),
         "create",
         "--output",
@@ -308,39 +341,55 @@ def create_checkpoint(
         "--task-id",
         task["task_id"],
         "--gate-id",
-        checkpoint_config.get("gate_id", "human-review"),
+        config.get("gate_id", "human-review"),
         "--title",
-        checkpoint_config.get("title", f"Review {task['task_id']}"),
+        config.get("title", f"Review {task['task_id']}"),
         "--required-for",
-        checkpoint_config.get("required_for", "execution"),
+        config.get("required_for", "execution"),
         "--actor",
         "umbrella-eval-runner",
     ]
     for claim_link in task.get("claim_links", []):
-        create_cmd.extend(["--claim-link", claim_link])
-    create_result = run_command(create_cmd)
+        command.extend(["--claim-link", claim_link])
+    return command
+
+
+def _approve_checkpoint(
+    checkpoint_path: pathlib.Path,
+) -> tuple[bool, dict[str, Any]]:
+    result = run_command(
+        [
+            sys.executable,
+            str(ROOT / "evals/scripts/checkpoint.py"),
+            "approve",
+            "--checkpoint",
+            str(checkpoint_path),
+            "--actor",
+            "umbrella-eval-runner",
+            "--rationale",
+            "auto-approved for deterministic local benchmark execution",
+        ]
+    )
+    payload = load_optional_json_artifact(repo_relpath(checkpoint_path))
+    approved = result["returncode"] == 0 and bool(payload and payload.get("status") == "approved")
+    return approved, result
+
+
+def create_checkpoint(
+    output_dir: pathlib.Path, run_id: str, task: dict[str, Any], mode: str
+) -> tuple[list[str], bool, list[dict[str, Any]]]:
+    config = task.get("human_checkpoint", {})
+    if not config.get("required", False):
+        return [], True, []
+    checkpoint_path = output_dir / "checkpoints" / f"{task['task_id']}.checkpoint.json"
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    create_result = run_command(_checkpoint_create_command(checkpoint_path, run_id, task, config))
     checkpoint_results = [create_result]
     if create_result["returncode"] != 0 or not checkpoint_path.exists():
         return [], False, checkpoint_results
 
-    approved = mode == "auto-approve"
-    if approved:
-        approve_result = run_command(
-            [
-                "python3",
-                str(ROOT / "evals/scripts/checkpoint.py"),
-                "approve",
-                "--checkpoint",
-                str(checkpoint_path),
-                "--actor",
-                "umbrella-eval-runner",
-                "--rationale",
-                "auto-approved for deterministic local benchmark execution",
-            ]
-        )
+    approved = False
+    if mode == "auto-approve":
+        approved, approve_result = _approve_checkpoint(checkpoint_path)
         checkpoint_results.append(approve_result)
-        if approve_result["returncode"] != 0:
-            return [repo_relpath(checkpoint_path)], False, checkpoint_results
-        checkpoint_ok = load_optional_json_artifact(repo_relpath(checkpoint_path))
-        approved = bool(checkpoint_ok and checkpoint_ok.get("status") == "approved")
     return [repo_relpath(checkpoint_path)], approved, checkpoint_results

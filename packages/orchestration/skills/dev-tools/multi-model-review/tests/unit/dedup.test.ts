@@ -1,3 +1,6 @@
+/**
+ * Verifies finding similarity and source-preserving deduplication prevent repeated review work.
+ */
 import { describe, it, expect } from "vitest";
 import { deduplicateFindings, tokenSimilarity, type TaggedFinding } from "../../src/lib/dedup.js";
 

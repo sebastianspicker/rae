@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's auto archive on project change contract.
 
 set -euo pipefail
 

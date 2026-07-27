@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's runtime state confinement contract.
 
 set -euo pipefail
 

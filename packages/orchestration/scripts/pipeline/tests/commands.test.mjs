@@ -1,3 +1,6 @@
+/**
+ * Verifies runner commands preserve legal state transitions and persist the expected artifacts and gates.
+ */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { rmSync } from "node:fs";
 import {

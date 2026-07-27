@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
+# Validates orchestration package contracts before a pipeline run can rely on them.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$root_dir/scripts/lib/runtime.sh"
+orchestration_require_runtime
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "ERROR: python3 is required for orchestration integrity checks." >&2
-  exit 2
-fi
-
-if ! python3 - "$root_dir" <<'PY'
+if ! "$PYTHON_BIN" - "$root_dir" <<'PY'
 import json
 import pathlib
 import sys
@@ -17,6 +16,7 @@ root = pathlib.Path(sys.argv[1])
 root_real = root.resolve(strict=False)
 manifest_path = root / "adapters/spec/adapter-manifest.json"
 quality_gate_path = root / "contracts/quality-gate.schema.json"
+package_lock_path = root / "package-lock.json"
 
 failures: list[str] = []
 
@@ -164,6 +164,21 @@ else:
     missing_phases = sorted(expected_phases - phase_enum)
     if missing_phases:
         failures.append(f"quality gate schema phase enum missing: {', '.join(missing_phases)}")
+
+if not package_lock_path.exists():
+    failures.append("missing package-lock.json")
+else:
+    package_lock = json.loads(package_lock_path.read_text(encoding="utf-8"))
+    for package_path, package in package_lock.get("packages", {}).items():
+        if (
+            not package_path.startswith("node_modules/")
+            and "/node_modules/" not in package_path
+        ) or "version" not in package:
+            continue
+        if not package.get("resolved") or not package.get("integrity"):
+            failures.append(
+                f"package lock entry lacks resolved artifact metadata: {package_path}"
+            )
 
 if failures:
     print("FAIL: orchestration integrity check failed:", file=sys.stderr)

@@ -1,4 +1,7 @@
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+/**
+ * Verifies repository path checks reject traversal and symlink escapes before tools access workspace files.
+ */
+import { describe, it, expect } from "vitest";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";

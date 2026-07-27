@@ -14,8 +14,6 @@ aggregate_reports() {
     return 0
   fi
 
-  command -v python3 >/dev/null 2>&1 || fail "python3 is required for --aggregate-reports"
-
   report_dir_real="$(resolve_effective_target_path "$report_dir_base")" || fail "Could not resolve report directory path: $report_dir_base"
   report_dir_abs="$(cd "$(dirname "$report_dir_base")" && pwd -P)/$(basename "$report_dir_base")"
   if [[ "$report_dir_real" != "$report_dir_abs" ]]; then
@@ -37,7 +35,7 @@ aggregate_reports() {
     printf '# Ralph Reports Summary\n\n'
     printf 'Generated at (UTC): %s\n\n' "$(ralph_iso_utc)"
     printf '## Reports\n\n'
-    python3 - "$report_dir_real" <<'PY'
+    "$PYTHON_EXECUTABLE" - "$report_dir_real" <<'PY'
 from pathlib import Path
 import sys
 
@@ -53,6 +51,7 @@ PY
     printf '\n'
   } >"$tmp_summary"
 
+  enforce_report_target_confinement "$summary_file" "$summary_rel"
   mv "$tmp_summary" "$summary_file"
 
   log "Wrote report summary to $summary_file"

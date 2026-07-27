@@ -1,3 +1,6 @@
+/**
+ * Pins the shared invalid-input error code used by tool contracts and JSON-lines callers.
+ */
 import { describe, it, expect } from "vitest";
 import { badInput } from "../../src/errors.js";
 

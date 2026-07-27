@@ -1,3 +1,6 @@
+/**
+ * Exercises deterministic risk and remediation-cost ranking used to prioritize review findings.
+ */
 import { describe, it, expect } from "vitest";
 import { analyzeCostBenefit } from "../../src/lib/cost-benefit.js";
 import type { Finding } from "../../src/lib/models/types.js";

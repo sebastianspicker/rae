@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+repo_root="$(git rev-parse --show-toplevel)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$repo_root/scripts/lib/runtime.sh"
+orchestration_require_runtime
+
 mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|mjs|js)$' || true)
 
 if [ ${#staged[@]} -eq 0 ]; then

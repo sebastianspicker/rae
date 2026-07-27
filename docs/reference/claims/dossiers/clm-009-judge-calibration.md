@@ -26,7 +26,7 @@ the RAE judge calibration protocol and G-Eval evidence on LLM scoring variance.
 
 - LLM-based judges exhibit systematic biases and inter-rater variance that must
   be tracked
-- calibration must be versioned alongside judge model and prompt changes
+- calibration must be versioned alongside judge model and instruction changes
 - calibration artifacts are required metadata for any published scorecard
 
 ## Internal anchors

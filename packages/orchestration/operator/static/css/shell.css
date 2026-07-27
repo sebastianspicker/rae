@@ -1,0 +1,217 @@
+/*
+ * Shell: centered case frame, head bar, project switcher, primary actions.
+ */
+
+.runboard,
+.frame.runboard,
+.runboard.frame,
+.frame {
+  max-width: var(--max);
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sheet);
+  border-inline: 1px solid var(--rule);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: var(--index-w) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+/* Head / topbar */
+
+.topbar,
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex: none;
+  min-width: 0;
+  min-height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--ink);
+  background: var(--sheet);
+}
+
+.head__left {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.mark {
+  width: 0.55rem;
+  height: 0.55rem;
+  background: var(--trace);
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.head__brand {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.head__sep {
+  color: var(--faint);
+}
+
+.head__surface {
+  color: var(--mute);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.brand {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.brand__name {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.brand__product {
+  color: var(--mute);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.project-switcher {
+  min-width: 12rem;
+  max-width: min(36vw, 22rem);
+  height: 2.1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.5rem;
+  padding: 0 0.5rem 0 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: transparent;
+}
+
+.project-switcher:hover {
+  border-color: var(--ink-soft);
+  background: var(--paper);
+}
+
+.project-switcher > svg {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  color: var(--mute);
+}
+
+.project-switcher select {
+  min-width: 0;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  appearance: none;
+}
+
+.project-switcher__chevron {
+  width: 0.9rem;
+  height: 0.9rem;
+  pointer-events: none;
+  color: var(--faint);
+}
+
+.session-state {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  line-height: 1.15;
+}
+
+.session-state strong,
+.session-state small {
+  display: block;
+}
+
+.session-state strong {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.session-state small {
+  margin-top: 0.15rem;
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+
+.session-state__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  flex: none;
+  border-radius: 0;
+  background: var(--faint);
+}
+
+.session-state[data-state="connected"] .session-state__dot {
+  background: var(--proof);
+}
+
+.session-state[data-state="error"] .session-state__dot {
+  background: var(--danger);
+}
+
+.primary-action,
+.primary-button,
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.primary-action {
+  min-width: 0;
+  margin: 0;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--sheet);
+}
+
+.primary-action:hover:not(:disabled),
+.primary-button:hover:not(:disabled) {
+  border-color: var(--trace-ink);
+  background: var(--trace-ink);
+}
+
+.primary-action svg {
+  width: 1rem;
+  height: 1rem;
+}

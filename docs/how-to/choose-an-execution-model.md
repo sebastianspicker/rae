@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: editorial
 evidence_links: ../reference/claims/claims-ledger.md
 ---
@@ -17,6 +17,7 @@ evidence_links: ../reference/claims/claims-ledger.md
 
 Primary surfaces:
 
+- `./scripts/rae.sh agent run ...` for autonomous code, tests, docs, and gates
 - `./scripts/rae.sh orchestrate ...`
 - `./scripts/rae.sh workflow long-horizon ...`
 - `./scripts/rae.sh worktree ...`
@@ -45,8 +46,8 @@ Primary surface today:
 ## Escalation rule
 
 Start with the smallest adequate structure. Move to a more complex execution
-model only when the simpler one fails to preserve quality, scope, or
-reproducibility.
+model only when the task needs its additional ownership, artifact, or gate
+controls.
 
 ## Decision table
 
@@ -54,8 +55,9 @@ reproducibility.
 | --- | --- | --- | --- |
 | explicit maintenance with narrow scope | `tool` | `implement` | command log and artifact summary |
 | deterministic audit/fix with story-sized scope | `ralph` | `plan` then `implement` | command log and scoped artifacts |
-| gated multi-phase execution | `orchestration` | `plan` then `review` | trace, artifact bundle, verify command, guard result |
-| long-horizon parallel work | `orchestration` in `worktree` mode | `plan` then `review` | isolated workspace metadata and progress summary |
+| gated multi-phase execution without model invocation | `orchestrate` | `plan` then `review` | trace, artifact bundle, verify command, guard result |
+| autonomous implementation | `agent run` | `implement` then `review` | isolated diff, agent-call trace, gates, run report, documentation report |
+| long-horizon implementation work | `agent run` in default worktree mode | `implement` then `review` | isolated workspace metadata and progress summary |
 | user-surface or high-risk change | runtime-dependent | `review` | screenshot or probe transcript plus command evidence |
 
 The full reusable-asset rubric lives in

@@ -22,7 +22,7 @@ with explicit validity threats.
 
 - rubric ambiguity
 - model judge drift across versions
-- silent changes in prompting or calibration
+- silent changes in provider instructions or calibration
 - weak agreement against stronger references
 
 ## Documentation threats

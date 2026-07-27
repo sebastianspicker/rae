@@ -1,9 +1,9 @@
 ---
 status: historical
 owner: profiles
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-16
 source_of_truth: editorial
-evidence_links: ../archive/migration/source-repo-map.md
+evidence_links: ../reference/repo-map.md
 ---
 
 # Case Study: Agent Profiles
@@ -21,6 +21,10 @@ private machine history.
 The umbrella ships a baseline public payload under
 `profiles/agent-environments/`: generic templates, install/remove scripts, and
 a regression test that checks for forbidden private markers.
+
+The current installer uses manifest v2, descriptor-relative no-follow file
+operations, complete prevalidation, and recovery records for interrupted or
+concurrently changed transactions.
 
 ## Thesis validation
 

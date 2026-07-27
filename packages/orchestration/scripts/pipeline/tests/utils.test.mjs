@@ -1,3 +1,6 @@
+/**
+ * Exercises numeric normalization and profile merging used to derive stable stage configuration.
+ */
 import { describe, it, expect } from "vitest";
 import { toNumber, coalesce, mergeStageProfile } from "../lib/utils.mjs";
 

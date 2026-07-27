@@ -27,7 +27,7 @@ For EACH task group in plan.json:
   - Make the specified change following the code patterns from the plan
   - Verify the change (lint, build, test as appropriate for the file type)
 - [ ] After all tasks in the group, run the group's verification commands
-- [ ] Check each acceptance criterion — it must be satisfied
+- [ ] Check each acceptance criterion: it must be satisfied
 - [ ] Record completion status per task under "## Group: <group_id>" in progress-build.md
 - [ ] Run `./scripts/verify.sh --changed-only` after each group
 - [ ] If verification fails, fix the failures before moving to the next group
@@ -55,7 +55,7 @@ For EACH task group in plan.json:
 - Implement ONLY what the plan specifies. Do not add unrequested features or refactoring.
 - Respect file ownership boundaries. Do not modify files owned by other groups.
 - Run verification after EVERY group, not just at the end.
-- Keep changes minimal and focused — one logical change per task.
+- Keep changes minimal and focused: one logical change per task.
 - If a change causes a test to fail, investigate and fix before moving on.
 
 ## Completion

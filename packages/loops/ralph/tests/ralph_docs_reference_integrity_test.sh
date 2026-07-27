@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's docs reference integrity contract.
 
 set -euo pipefail
 
@@ -20,11 +21,9 @@ run_docs_integrity_case() {
     fail_case "docs-reference-integrity" "found dangling references to removed plan artifacts" "/tmp/ralph-doc-rg.out" ""
   fi
 
-  grep -q '^## Configuration$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing Configuration section" "$ROOT_DIR/README.md" ""
-  grep -q '^## Operations$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing Operations section" "$ROOT_DIR/README.md" ""
-  grep -q '^## How It Works$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing How It Works section" "$ROOT_DIR/README.md" ""
-  grep -q '<a id="loop-flow"></a>' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing loop-flow compatibility anchor" "$ROOT_DIR/README.md" ""
-  grep -q '^## CLI Reference$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing CLI Reference section" "$ROOT_DIR/README.md" ""
+  grep -q '^## Requirements$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing Requirements section" "$ROOT_DIR/README.md" ""
+  grep -q '^## Contracts$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing Contracts section" "$ROOT_DIR/README.md" ""
+  grep -q '^## Runtime Files$' "$ROOT_DIR/README.md" || fail_case "docs-reference-integrity" "README missing Runtime Files section" "$ROOT_DIR/README.md" ""
 
   printf 'PASS [docs-reference-integrity]\n'
 }

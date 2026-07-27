@@ -70,6 +70,17 @@ https://doi.org/10.1098/rspb.2015.2597
 
 ## Agent evaluation and benchmark sources
 
+### SRC-WECO-RECURSIVE-IMPROVEMENT { #src-weco-recursive-improvement }
+
+Weco. "The First Evidence of Recursive Self-Improvement." Accessed July 17,
+2026.
+https://www.weco.ai/blog/first-evidence-of-recursive-self-improvement
+
+### SRC-AGENTRQ { #src-agentrq }
+
+AgentRQ. "AgentRQ." Accessed July 17, 2026.
+https://agentrq.com/
+
 ### SRC-ANTHROPIC-EFFECTIVE-AGENTS { #src-anthropic-effective-agents }
 
 Anthropic. "Building effective agents." December 19, 2024.

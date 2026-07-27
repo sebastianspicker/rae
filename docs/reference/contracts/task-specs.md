@@ -116,7 +116,8 @@ conversation.
 ## Thesis validation
 
 This page validates the claim that runtime routing becomes inspectable only when
-task specs expose routing-relevant signals instead of burying them in prompt
+task specs expose routing-relevant signals instead of burying them in free-form
+task text
 text or operator memory.
 
 ## Related dossiers

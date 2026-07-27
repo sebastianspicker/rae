@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
 # Test helpers for coauthor-trailer-cleaner.sh test suite.
+# shellcheck disable=SC1091,SC2016,SC2034
 
 set -euo pipefail
 
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/coauthor-trailer-cleaner.sh"
-LIB1_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib/coauthor-trailer-cleaner.part1.sh"
-export SCRIPT_PATH LIB1_PATH
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/lib"
+# shellcheck source=tools/repo-hygiene/coauthor-trailer-cleaner/lib/runtime.sh
+source "$LIB_DIR/runtime.sh"
+coauthor_require_runtime
+# Source semantic modules directly; tests must not reconstruct functions with
+# sed/eval because that can silently omit nested functions or future changes.
+source "$LIB_DIR/common.sh"
+source "$LIB_DIR/config.sh"
+source "$LIB_DIR/git-workflow.sh"
+source "$LIB_DIR/cli.sh"
 TEST_TEMP_DIRS=()
 DEFAULT_TARGET_NAME="Cursor"
 DEFAULT_TARGET_EMAIL="cursoragent@cursor.com"
+REAL_GIT_BIN="$(command -v git)"
 
 # Colors (respect NO_COLOR)
 if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
@@ -16,10 +26,6 @@ if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
 else
   GREEN="" RED="" YELLOW="" RESET=""
 fi
-
-PASS_COUNT=0
-FAIL_COUNT=0
-SKIP_COUNT=0
 
 # ── Test Lifecycle ──────────────────────────────────────────────
 
@@ -171,20 +177,17 @@ skip_if_no_filter_repo() {
 # Record a test pass
 record_pass() {
   local name="$1"
-  PASS_COUNT=$((PASS_COUNT + 1))
   echo "  ${GREEN}PASS${RESET} $name"
 }
 
 # Record a test fail
 record_fail() {
   local name="$1"
-  FAIL_COUNT=$((FAIL_COUNT + 1))
   echo "  ${RED}FAIL${RESET} $name"
 }
 
 # Record a test skip
 record_skip() {
   local name="$1"
-  SKIP_COUNT=$((SKIP_COUNT + 1))
   echo "  ${YELLOW}SKIP${RESET} $name"
 }

@@ -94,6 +94,7 @@ show_status() {
 
 validate_config() {
   local tool_ok="missing"
+  local candidate=""
   local lock_tsv lock_flag lock_status
 
   [[ "${RALPH_OUTPUT_FORMAT:-text}" == "json" ]] || log "Validating configuration..."
@@ -102,26 +103,14 @@ validate_config() {
   require_cmd jq
   require_cmd mktemp
 
-  case "$TOOL" in
-    claude)
-      if command -v claude >/dev/null 2>&1; then
-        tool_ok="found"
-        log_event "INFO validate_config tool (claude) found"
-      else
-        log_event "WARN validate_config tool (claude) not in PATH"
-        [[ "${RALPH_OUTPUT_FORMAT:-text}" == "json" ]] || log_warn "claude not in PATH (required for story runs)"
-      fi
-      ;;
-    *)
-      if command -v codex >/dev/null 2>&1 || command -v codex-cli >/dev/null 2>&1; then
-        tool_ok="found"
-        log_event "INFO validate_config tool (codex) found"
-      else
-        log_event "WARN validate_config tool (codex) not in PATH"
-        [[ "${RALPH_OUTPUT_FORMAT:-text}" == "json" ]] || log_warn "codex/codex-cli not in PATH (required for story runs)"
-      fi
-      ;;
-  esac
+  candidate="$(type -P codex || true)"
+  if [[ -n "$candidate" ]]; then
+    tool_ok="found"
+    log_event "INFO validate_config tool (codex) found"
+  else
+    log_event "WARN validate_config tool (codex) not in PATH"
+    [[ "${RALPH_OUTPUT_FORMAT:-text}" == "json" ]] || log_warn "codex not in PATH (required for story runs)"
+  fi
 
   lock_tsv="$(collect_lock_state)"
   IFS=$'\t' read -r lock_flag lock_status _ <<< "$lock_tsv"
@@ -143,6 +132,7 @@ validate_config() {
           prd: "ok",
           jq: "ok",
           mktemp: "ok",
+          python: "ok",
           tool: $tool,
           lock: $lock
         }
@@ -150,7 +140,7 @@ validate_config() {
     return 0
   fi
 
-  printf '[ralph] Checklist: PRD ok, jq ok, mktemp ok, %s %s, lock %s\n' "$TOOL" "$tool_ok" "$lock_flag" >&2
+  printf '[ralph] Checklist: PRD ok, jq ok, mktemp ok, python ok, codex %s, lock %s\n' "$tool_ok" "$lock_flag" >&2
   log "Configuration validation passed."
 }
 
@@ -167,14 +157,7 @@ run_doctor() {
   local strict_ready="true"
   local strict_reason=""
 
-  case "$TOOL" in
-    claude)
-      command -v claude >/dev/null 2>&1 && tool_cmd="found"
-      ;;
-    *)
-      { command -v codex >/dev/null 2>&1 || command -v codex-cli >/dev/null 2>&1; } && tool_cmd="found"
-      ;;
-  esac
+  command -v codex >/dev/null 2>&1 && tool_cmd="found"
   command -v jq >/dev/null 2>&1 && jq_cmd="found"
   command -v mktemp >/dev/null 2>&1 && mktemp_cmd="found"
 
@@ -203,6 +186,7 @@ run_doctor() {
       --arg prd_file "${PRD_FILE:-}" \
       --arg state_dir "${STATE_DIR:-}" \
       --arg tool_dep "$tool_cmd" \
+      --arg python_dep "$PYTHON_EXECUTABLE" \
       --arg jq_dep "$jq_cmd" \
       --arg mktemp_dep "$mktemp_cmd" \
       --arg lock_flag "$lock_flag" \
@@ -223,6 +207,7 @@ run_doctor() {
         },
         dependencies: {
           tool: $tool_dep,
+          python: $python_dep,
           jq: $jq_dep,
           mktemp: $mktemp_dep
         },
@@ -247,7 +232,7 @@ run_doctor() {
   printf 'Script dir: %s\n' "${SCRIPT_DIR:-}"
   printf 'PRD file: %s\n' "${PRD_FILE:-}"
   printf 'State dir: %s\n' "${STATE_DIR:-}"
-  printf 'Dependencies: %s=%s jq=%s mktemp=%s\n' "$TOOL" "$tool_cmd" "$jq_cmd" "$mktemp_cmd"
+  printf 'Dependencies: codex=%s python=%s jq=%s mktemp=%s\n' "$tool_cmd" "$PYTHON_EXECUTABLE" "$jq_cmd" "$mktemp_cmd"
   printf 'Lock: %s\n' "$lock_status"
   if is_true "${STRICT_REPORT_DIR:-true}"; then
     if [[ "$strict_ready" == "true" ]]; then

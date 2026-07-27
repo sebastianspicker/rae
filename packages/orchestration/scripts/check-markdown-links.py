@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
+"""Validate local Markdown links and heading anchors without network access."""
 
 import argparse
 import fnmatch
@@ -81,7 +81,7 @@ def _anchors_for_file(path: Path) -> set[str]:
 
 
 def _iter_markdown_files(root: Path, excludes: list[str]) -> list[Path]:
-    candidates = [root / "README.md", root / "AGENTS.md"]
+    candidates = [root / "README.md", root / "AGENTS.md", root / "CONTRIBUTING.md"]
     docs_root = root / "docs"
     if docs_root.exists():
         candidates.extend(sorted(docs_root.rglob("*.md")))
@@ -101,92 +101,135 @@ def _iter_markdown_files(root: Path, excludes: list[str]) -> list[Path]:
     return out
 
 
-def _validate_anchor(path: Path, anchor: str, root: Path) -> str | None:
-    anchors = _anchors_for_file(path)
-    if anchor not in anchors:
-        return f"missing anchor '#{anchor}' in {path.relative_to(root)}"
+def _validate_same_file_anchor(source_file: Path, anchor: str, root: Path) -> str | None:
+    if not anchor:
+        return None
+    if anchor not in _anchors_for_file(source_file):
+        return f"missing anchor '#{anchor}' in {source_file.relative_to(root)}"
     return None
 
 
-def _validate_local_anchor(source_file: Path, target: str, root: Path, strict: bool) -> str | None:
+def _resolve_destination(
+    source_file: Path, target: str, root: Path, allowed_root: Path
+) -> tuple[Path | None, str, str | None]:
+    path_part, _, anchor = target.partition("#")
+    destination = (source_file.parent / path_part).resolve(strict=False)
+    try:
+        destination.relative_to(allowed_root.resolve(strict=False))
+    except ValueError:
+        return None, anchor, f"target escapes repository root: {target}"
+    return destination, anchor, None
+
+
+def _validate_destination_anchor(
+    destination: Path, anchor: str, target: str, root: Path
+) -> str | None:
+    if not anchor:
+        return None
+    if not destination.is_file():
+        return f"anchor '#{anchor}' points to non-file target: {target}"
+    if anchor not in _anchors_for_file(destination):
+        try:
+            display = destination.relative_to(root)
+        except ValueError:
+            display = destination
+        return f"missing anchor '#{anchor}' in {display}"
+    return None
+
+
+def _validate_local_target(
+    source_file: Path,
+    target: str,
+    root: Path,
+    allowed_root: Path,
+    strict: bool,
+) -> str | None:
+    destination, anchor, error = _resolve_destination(
+        source_file, target, root, allowed_root
+    )
+    if error:
+        return error
+    if destination is None:
+        return f"could not resolve target: {target}"
+    if not destination.exists():
+        return f"missing target: {target}"
     if not strict:
         return None
-    anchor = target[1:]
-    if anchor:
-        return _validate_anchor(source_file, anchor, root)
-    return None
-
-
-def _validate_relative_target(
-    source_file: Path, target: str, root: Path, strict: bool
-) -> str | None:
-    path_part, _, anchor = target.partition("#")
-    dest = (source_file.parent / path_part).resolve(strict=False)
-    root_real = root.resolve(strict=False)
-    try:
-        dest.relative_to(root_real)
-    except ValueError:
-        return f"target escapes repository root: {target}"
-    if not dest.exists():
-        return f"missing target: {target}"
-    if strict and anchor:
-        if not dest.is_file():
-            return f"anchor '#{anchor}' points to non-file target: {target}"
-        return _validate_anchor(dest, anchor, root)
-    return None
+    return _validate_destination_anchor(destination, anchor, target, root)
 
 
 def _validate_target(
     source_file: Path,
     target: str,
     root: Path,
+    allowed_root: Path,
     strict: bool,
 ) -> str | None:
     if not target:
         return "empty link target"
     if target.startswith("#"):
-        return _validate_local_anchor(source_file, target, root, strict)
+        return _validate_same_file_anchor(source_file, target[1:], root) if strict else None
     if _is_external(target):
         return None
-    return _validate_relative_target(source_file, target, root, strict)
+    return _validate_local_target(source_file, target, root, allowed_root, strict)
 
 
-def _check_file(path: Path, root: Path, strict: bool) -> list[str]:
-    text = _strip_code_fences(_read_text(path))
-    errors: list[str] = []
-
-    reference_defs: dict[str, str] = {}
+def _reference_definitions(text: str) -> dict[str, str]:
+    definitions: dict[str, str] = {}
     for line in text.splitlines():
         match = REFERENCE_DEF_RE.match(line)
-        if not match:
-            continue
-        label = _normalize_ref_label(match.group(1))
-        target = _extract_target(match.group(2))
-        reference_defs[label] = target
+        if match:
+            definitions[_normalize_ref_label(match.group(1))] = _extract_target(match.group(2))
+    return definitions
 
+
+def _inline_link_errors(
+    path: Path, text: str, root: Path, allowed_root: Path, strict: bool
+) -> list[str]:
+    errors: list[str] = []
     for match in INLINE_LINK_RE.finditer(text):
-        raw = match.group(1) or match.group(2) or ""
-        target = _extract_target(raw)
-        error = _validate_target(path, target, root, strict)
-        if error:
+        target = _extract_target(match.group(1) or match.group(2) or "")
+        if error := _validate_target(path, target, root, allowed_root, strict):
             errors.append(f"{path.relative_to(root)}: {error}")
+    return errors
 
+
+def _reference_link_errors(
+    path: Path,
+    text: str,
+    root: Path,
+    allowed_root: Path,
+    strict: bool,
+    definitions: dict[str, str],
+) -> list[str]:
+    errors: list[str] = []
     for match in REFERENCE_USE_RE.finditer(text):
         label = _normalize_ref_label(match.group(2) or match.group(1))
-        target = reference_defs.get(label)
-        if not target:
+        target = definitions.get(label)
+        if target is None:
             errors.append(f"{path.relative_to(root)}: missing reference definition [{label}]")
-            continue
-        error = _validate_target(path, target, root, strict)
-        if error:
+        elif error := _validate_target(path, target, root, allowed_root, strict):
             errors.append(f"{path.relative_to(root)}: {error}")
-
     return errors
+
+
+def _check_file(
+    path: Path, root: Path, allowed_root: Path, strict: bool
+) -> list[str]:
+    text = _strip_code_fences(_read_text(path))
+    definitions = _reference_definitions(text)
+    return _inline_link_errors(path, text, root, allowed_root, strict) + _reference_link_errors(
+        path, text, root, allowed_root, strict, definitions
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check relative markdown links.")
     parser.add_argument("--root", default=".", help="Repository root (default: current directory)")
+    parser.add_argument(
+        "--allowed-root",
+        help="Outer boundary allowed for local link targets (default: --root)",
+    )
     parser.add_argument(
         "--strict",
         action="store_true",
@@ -201,8 +244,14 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root).resolve(strict=False)
+    allowed_root = Path(args.allowed_root or args.root).resolve(strict=False)
     if not root.exists():
         print(f"Root does not exist: {root}", file=sys.stderr)
+        return 2
+    try:
+        root.relative_to(allowed_root)
+    except ValueError:
+        print("Root must be within allowed root.", file=sys.stderr)
         return 2
 
     files = _iter_markdown_files(root, args.exclude)
@@ -212,7 +261,7 @@ def main() -> int:
 
     all_errors: list[str] = []
     for file in files:
-        all_errors.extend(_check_file(file, root, args.strict))
+        all_errors.extend(_check_file(file, root, allowed_root, args.strict))
 
     if all_errors:
         print("FAIL: markdown link check failed:", file=sys.stderr)

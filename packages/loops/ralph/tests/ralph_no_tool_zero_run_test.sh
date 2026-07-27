@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's no tool zero run contract.
 
 set -euo pipefail
 

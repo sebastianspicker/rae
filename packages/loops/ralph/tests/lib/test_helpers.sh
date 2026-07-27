@@ -76,6 +76,8 @@ prepare_fixture() {
   cp "$POLICY_FILE" "$dir/INSTRUCTIONS.md"
   mkdir -p "$dir/lib/ralph"
   cp "$LIB_DIR"/*.sh "$dir/lib/ralph/"
+  mkdir -p "$dir/scripts"
+  cp "$ROOT_DIR/scripts/ralph_supervisor.py" "$ROOT_DIR/scripts/ralph_fs_txn.py" "$dir/scripts/"
 }
 
 prepare_runner_and_tool() {
@@ -86,4 +88,6 @@ prepare_runner_and_tool() {
   cp "$POLICY_FILE" "$dir/INSTRUCTIONS.md"
   mkdir -p "$dir/lib/ralph"
   cp "$LIB_DIR"/*.sh "$dir/lib/ralph/"
+  mkdir -p "$dir/scripts"
+  cp "$ROOT_DIR/scripts/ralph_supervisor.py" "$ROOT_DIR/scripts/ralph_fs_txn.py" "$dir/scripts/"
 }

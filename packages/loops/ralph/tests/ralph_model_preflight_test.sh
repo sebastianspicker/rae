@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's model preflight contract.
 
 set -euo pipefail
 
@@ -13,10 +14,25 @@ make_fake_tool() {
 #!/usr/bin/env bash
 set -euo pipefail
 
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
+
 payload="$(cat)"
 
 if grep -q 'MODEL_PREFLIGHT_OK' <<< "$payload"; then
-  if [[ "${RALPH_TEST_PREFLIGHT_OK:-true}" == "true" ]]; then
+  if [[ "${XDG_CONFIG_HOME:-true}" == "true" ]]; then
     printf 'MODEL_PREFLIGHT_OK\n'
   else
     printf 'NOT_OK\n'
@@ -73,14 +89,14 @@ run_preflight_failure_case() {
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_PREFLIGHT_OK=false \
+    XDG_CONFIG_HOME=false \
     ./ralph.sh --model-preflight 1
   ) > "$tmpdir/out.log" 2>&1
   rc=$?
@@ -101,14 +117,14 @@ run_preflight_success_case() {
   tmpdir="$(mktemp -d)"
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
-  make_fake_tool "$bindir/claude"
+  make_fake_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
   (
     cd "$tmpdir/repo"
     PATH="$bindir:$PATH" \
-    RALPH_TEST_PREFLIGHT_OK=true \
+    XDG_CONFIG_HOME=true \
     ./ralph.sh --model-preflight 1
   ) > "$tmpdir/out.log" 2>&1
   rc=$?

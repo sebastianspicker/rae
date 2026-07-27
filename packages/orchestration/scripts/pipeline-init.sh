@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
+# Creates or safely cleans pipeline-owned worktrees while enforcing ownership and path boundaries.
 set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$script_dir/lib/runtime.sh"
+orchestration_require_runtime
 
 usage() {
   cat <<'EOF'
@@ -10,7 +16,7 @@ Options:
   --use-worktree            Create a dedicated git worktree for the run.
   --worktree-root <path>    Parent directory for worktrees. Default: <git-root>/.worktrees
   --branch-prefix <prefix>  Branch prefix for isolated worktrees. Default: pipeline
-  --cleanup-worktree <path> Remove a previously created worktree and its branch. Idempotent.
+  --cleanup-worktree <path> Remove a clean, pipeline-owned worktree and its branch. Idempotent.
   -h, --help                Show this help.
 EOF
 }
@@ -20,7 +26,7 @@ canonical_path() {
   if command -v realpath >/dev/null 2>&1; then
     realpath "$path" 2>/dev/null && return 0
   fi
-  python3 - <<'PY' "$path"
+  "$PYTHON_BIN" - <<'PY' "$path"
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
@@ -29,7 +35,7 @@ PY
 json_field() {
   local json_path="$1"
   local key_path="$2"
-  python3 - <<'PY' "$json_path" "$key_path"
+  "$PYTHON_BIN" - <<'PY' "$json_path" "$key_path"
 import json, sys
 path, key_path = sys.argv[1], sys.argv[2]
 with open(path, encoding="utf-8") as handle:
@@ -48,11 +54,121 @@ else:
 PY
 }
 
+json_string() {
+  "$PYTHON_BIN" - <<'PY' "$1"
+import json, sys
+print(json.dumps(sys.argv[1]))
+PY
+}
+
+load_cleanup_state() {
+  local state_path="$1"
+  # shellcheck disable=SC2178 # The second argument names an associative array.
+  local -n state_ref="$2"
+  state_ref["primary_repo_root"]="$(json_field "$state_path" "workspace.primary_repo_root")"
+  state_ref["worktree_root"]="$(json_field "$state_path" "workspace.worktree_root")"
+  state_ref["declared_worktree"]="$(json_field "$state_path" "workspace.worktree_path")"
+  state_ref["marker"]="$(json_field "$state_path" "workspace.ownership_marker")"
+  state_ref["branch_name"]="$(json_field "$state_path" "workspace.branch")"
+}
+
+# Cleanup accepts only an ownership record that confines the requested path to its declared root.
+validate_cleanup_state() {
+  local worktree_path="$1"
+  # shellcheck disable=SC2178 # The second argument names an associative array.
+  local -n state_ref="$2"
+  [[ "${state_ref[marker]}" == "rae-pipeline-worktree-v1" ]] || {
+    echo "ERROR: refusing cleanup: worktree is not marked as pipeline-owned" >&2
+    return 1
+  }
+  [[ -n "${state_ref[primary_repo_root]}" &&
+    -n "${state_ref[worktree_root]}" &&
+    -n "${state_ref[declared_worktree]}" &&
+    -n "${state_ref[branch_name]}" ]] || {
+    echo "ERROR: refusing cleanup: incomplete pipeline ownership state" >&2
+    return 1
+  }
+
+  state_ref[primary_repo_root]="$(canonical_path "${state_ref[primary_repo_root]}")"
+  state_ref[worktree_root]="$(canonical_path "${state_ref[worktree_root]}")"
+  state_ref[declared_worktree]="$(canonical_path "${state_ref[declared_worktree]}")"
+  [[ "${state_ref[declared_worktree]}" == "$worktree_path" ]] || {
+    echo "ERROR: refusing cleanup: target does not match owned worktree path" >&2
+    return 1
+  }
+  [[ "$worktree_path" == "${state_ref[worktree_root]}"/* ]] || {
+    echo "ERROR: refusing cleanup: target is outside owned worktree root" >&2
+    return 1
+  }
+}
+
+validate_cleanup_registration() {
+  local worktree_path="$1"
+  # shellcheck disable=SC2178 # The second argument names an associative array.
+  local -n state_ref="$2"
+  local actual_branch
+  git -C "${state_ref[primary_repo_root]}" rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+    echo "ERROR: refusing cleanup: primary repository is unavailable" >&2
+    return 1
+  }
+  git -C "${state_ref[primary_repo_root]}" worktree list --porcelain |
+    grep -Fqx "worktree $worktree_path" || {
+    echo "ERROR: refusing cleanup: target is not registered by the primary repository" >&2
+    return 1
+  }
+  actual_branch="$(git -C "$worktree_path" branch --show-current 2>/dev/null || true)"
+  [[ "$actual_branch" == "${state_ref[branch_name]}" ]] || {
+    echo "ERROR: refusing cleanup: branch ownership does not match" >&2
+    return 1
+  }
+}
+
+validate_cleanup_contents() {
+  local worktree_path="$1"
+  local untracked_path
+  # Never discard tracked changes, including tracked files below .pipeline.
+  if ! git -C "$worktree_path" diff --quiet --ignore-submodules -- . \
+    || ! git -C "$worktree_path" diff --cached --quiet --ignore-submodules -- .; then
+    echo "ERROR: refusing cleanup: owned worktree has uncommitted changes" >&2
+    return 1
+  fi
+
+  # The ownership state authorizes only the pipeline runtime namespace. Any
+  # other ignored or untracked file may belong to the operator and must keep the
+  # worktree alive.
+  while IFS= read -r -d '' untracked_path; do
+    case "$untracked_path" in
+      .pipeline/pipeline-state.json | .pipeline/runs/* | .pipeline/evaluations/*) ;;
+      *)
+        echo "ERROR: refusing cleanup: owned worktree has uncommitted changes at: $untracked_path" >&2
+        return 1
+        ;;
+    esac
+  done < <(
+    git -C "$worktree_path" ls-files --others --exclude-standard -z
+    git -C "$worktree_path" ls-files --others --ignored --exclude-standard -z
+  )
+}
+
+remove_owned_worktree() {
+  local worktree_path="$1"
+  # shellcheck disable=SC2178 # The second argument names an associative array.
+  local -n state_ref="$2"
+  git -C "${state_ref[primary_repo_root]}" merge-base \
+    --is-ancestor "refs/heads/${state_ref[branch_name]}" HEAD || {
+    echo "ERROR: refusing cleanup: owned branch has commits not merged into the primary branch" >&2
+    return 1
+  }
+  git -C "${state_ref[primary_repo_root]}" worktree remove --force "$worktree_path"
+  git -C "${state_ref[primary_repo_root]}" branch -d -- "${state_ref[branch_name]}"
+}
+
+# Never delete an arbitrary worktree: cleanup requires a valid pipeline-owned state record.
 cleanup_worktree() {
   local target="$1"
-  local worktree_path
+  local worktree_path state_path
+  local -A state=()
   worktree_path="$(canonical_path "$target")"
-
   if [[ ! -e "$worktree_path" ]]; then
     echo "Worktree cleanup:"
     echo "  worktree_path: $worktree_path"
@@ -60,39 +176,20 @@ cleanup_worktree() {
     return 0
   fi
 
-  local state_path="$worktree_path/.pipeline/pipeline-state.json"
-  local primary_repo_root=""
-  local branch_name=""
-
-  if [[ -f "$state_path" ]]; then
-    primary_repo_root="$(json_field "$state_path" "workspace.primary_repo_root")"
-    branch_name="$(json_field "$state_path" "workspace.branch")"
-  fi
-
-  if [[ -z "$primary_repo_root" ]]; then
-    local git_common_dir
-    git_common_dir="$(git -C "$worktree_path" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-    if [[ -n "$git_common_dir" ]]; then
-      primary_repo_root="$(dirname "$git_common_dir")"
-    fi
-  fi
-
-  if [[ -z "$branch_name" ]]; then
-    branch_name="$(git -C "$worktree_path" branch --show-current 2>/dev/null || true)"
-  fi
-
-  if [[ -n "$primary_repo_root" ]]; then
-    git -C "$primary_repo_root" worktree remove --force "$worktree_path" >/dev/null 2>&1 || true
-    if [[ -n "$branch_name" ]]; then
-      git -C "$primary_repo_root" branch -D "$branch_name" >/dev/null 2>&1 || true
-    fi
-  fi
-
-  rm -rf "$worktree_path"
+  state_path="$worktree_path/.pipeline/pipeline-state.json"
+  [[ -f "$state_path" ]] || {
+    echo "ERROR: refusing cleanup: missing pipeline ownership state at $state_path" >&2
+    return 1
+  }
+  load_cleanup_state "$state_path" state
+  validate_cleanup_state "$worktree_path" state
+  validate_cleanup_registration "$worktree_path" state
+  validate_cleanup_contents "$worktree_path"
+  remove_owned_worktree "$worktree_path" state
 
   echo "Worktree cleanup:"
   echo "  worktree_path: $worktree_path"
-  echo "  branch:        ${branch_name:-unknown}"
+  echo "  branch:        ${state[branch_name]:-unknown}"
   echo "  status:        removed"
 }
 
@@ -142,14 +239,17 @@ if [[ -n "$cleanup_target" ]]; then
 fi
 
 project_root="$(canonical_path "$project_root")"
+script_path="$(canonical_path "${BASH_SOURCE[0]}")"
 workspace_root="$project_root"
 primary_repo_root="$project_root"
 workspace_mode="main-repo"
 branch_name="$(git -C "$project_root" branch --show-current 2>/dev/null || true)"
 worktree_path_json="null"
+worktree_root_json="null"
+ownership_marker_json="null"
 cleanup_command_json="null"
 
-run_id="$(uuidgen 2>/dev/null || python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null || date +%s)"
+run_id="$(uuidgen 2>/dev/null || "$PYTHON_BIN" -c 'import uuid; print(uuid.uuid4())' 2>/dev/null || date +%s)"
 run_id="$(echo "$run_id" | tr '[:upper:]' '[:lower:]')"
 
 if [[ "$use_worktree" == "true" ]]; then
@@ -163,13 +263,15 @@ if [[ "$use_worktree" == "true" ]]; then
   if [[ -z "$worktree_root" ]]; then
     worktree_root="$primary_repo_root/.worktrees"
   fi
+  mkdir -p "$worktree_root"
   worktree_root="$(canonical_path "$worktree_root")"
   branch_name="${branch_prefix}/${run_id}"
   workspace_root="$worktree_root/$run_id"
-  mkdir -p "$worktree_root"
   git -C "$primary_repo_root" worktree add -b "$branch_name" "$workspace_root" HEAD >/dev/null
-  worktree_path_json="\"$workspace_root\""
-  cleanup_command_json="\"bash scripts/pipeline-init.sh --cleanup-worktree $workspace_root\""
+  worktree_path_json="$(json_string "$workspace_root")"
+  worktree_root_json="$(json_string "$worktree_root")"
+  ownership_marker_json="$(json_string "rae-pipeline-worktree-v1")"
+  cleanup_command_json="$(json_string "bash \"$script_path\" --cleanup-worktree \"$workspace_root\"")"
 fi
 
 pipeline_dir="$workspace_root/.pipeline"
@@ -182,26 +284,34 @@ mkdir -p "$run_dir/evaluations"
 
 timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 trace_path="$run_dir/trace.jsonl"
+timestamp_json="$(json_string "$timestamp")"
+run_id_json="$(json_string "$run_id")"
+workspace_mode_json="$(json_string "$workspace_mode")"
+workspace_root_json="$(json_string "$workspace_root")"
+primary_repo_root_json="$(json_string "$primary_repo_root")"
+branch_name_json="$(json_string "$branch_name")"
 
-printf '{"ts":"%s","run_id":"%s","event":"run_start","phase":"arm","status":"ok","metadata":{"source":"pipeline-init","workspace_mode":"%s","workspace_root":"%s","primary_repo_root":"%s","branch":"%s"}}\n' \
-  "$timestamp" \
-  "$run_id" \
-  "$workspace_mode" \
-  "$workspace_root" \
-  "$primary_repo_root" \
-  "$branch_name" > "$trace_path"
+printf '{"ts":%s,"run_id":%s,"event":"run_start","phase":"arm","status":"ok","metadata":{"source":"pipeline-init","workspace_mode":%s,"workspace_root":%s,"primary_repo_root":%s,"branch":%s}}\n' \
+  "$timestamp_json" \
+  "$run_id_json" \
+  "$workspace_mode_json" \
+  "$workspace_root_json" \
+  "$primary_repo_root_json" \
+  "$branch_name_json" > "$trace_path"
 
 cat > "$pipeline_dir/pipeline-state.json" <<EOF
 {
-  "run_id": "$run_id",
-  "created_at": "$timestamp",
+  "run_id": $run_id_json,
+  "created_at": $timestamp_json,
   "current_phase": "arm",
   "workspace": {
-    "mode": "$workspace_mode",
-    "root": "$workspace_root",
-    "primary_repo_root": "$primary_repo_root",
-    "branch": "$branch_name",
+    "mode": $workspace_mode_json,
+    "root": $workspace_root_json,
+    "primary_repo_root": $primary_repo_root_json,
+    "branch": $branch_name_json,
     "worktree_path": $worktree_path_json,
+    "worktree_root": $worktree_root_json,
+    "ownership_marker": $ownership_marker_json,
     "cleanup_command": $cleanup_command_json
   },
   "phase_order": [

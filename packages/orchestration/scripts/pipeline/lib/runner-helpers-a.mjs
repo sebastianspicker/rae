@@ -1,3 +1,6 @@
+/**
+ * Resolves task sessions, profiles, and artifact references for deterministic runner stages.
+ */
 import { existsSync } from "node:fs";
 import { badInput } from "./errors.mjs";
 import {
@@ -11,6 +14,26 @@ import {
 import { appendTraceEvent } from "./trace.mjs";
 import { buildRequirementCoverageLedger } from "./traceability.mjs";
 import { coalesce, mergeStageProfile, toNumber } from "./utils.mjs";
+
+const ACTIVITY_ID_BY_PHASE = {
+  arm: "arm_briefing",
+  design: "design_synthesis",
+  "adversarial-review": "adversarial_review_lead",
+  plan: "plan_synthesis",
+  pmatch: "pmatch_adjudicator",
+  "quality-static": "quality_static",
+  "quality-tests": "quality_tests_case",
+  "post-build": "post_build",
+  "release-readiness": "release_readiness",
+};
+
+function normalizedMaxAttempts(value) {
+  return Number.isInteger(value) ? Math.max(1, value) : 1;
+}
+
+function nullishDefault(value, fallback) {
+  return value === undefined || value === null ? fallback : value;
+}
 
 export function loadTasksetTask(tasksetRef, taskId) {
   if (!tasksetRef) return null;
@@ -55,12 +78,12 @@ export function normalizeTaskSession(session, fallback) {
   }
 
   return {
-    session_id: session.session_id ?? fallback.session_id,
-    session_kind: session.session_kind ?? fallback.session_kind,
+    session_id: coalesce(session.session_id, fallback.session_id),
+    session_kind: coalesce(session.session_kind, fallback.session_kind),
     fresh_context: session.fresh_context !== false,
     inherits_history: session.inherits_history === true,
-    max_attempts: Number.isInteger(session.max_attempts) ? Math.max(1, session.max_attempts) : 1,
-    retry_behavior: session.retry_behavior ?? "restart-fresh-session",
+    max_attempts: normalizedMaxAttempts(session.max_attempts),
+    retry_behavior: coalesce(session.retry_behavior, "restart-fresh-session"),
   };
 }
 
@@ -149,18 +172,9 @@ export function resolveCognitiveTier(phase, state) {
 }
 
 function resolveActivityId(phase, taskSession) {
-  if (phase === "arm") return "arm_briefing";
-  if (phase === "design") return "design_synthesis";
-  if (phase === "adversarial-review") return "adversarial_review_lead";
-  if (phase === "plan") return "plan_synthesis";
-  if (phase === "pmatch") return "pmatch_adjudicator";
   if (phase === "build")
     return taskSession?.session?.session_kind === "build-task" ? "build_worker" : "build_lead";
-  if (phase === "quality-static") return "quality_static";
-  if (phase === "quality-tests") return "quality_tests_case";
-  if (phase === "post-build") return "post_build";
-  if (phase === "release-readiness") return "release_readiness";
-  return phase.replace(/-/g, "_");
+  return coalesce(ACTIVITY_ID_BY_PHASE[phase], phase.replace(/-/g, "_"));
 }
 
 export function resolveActivityProfile(phase, state, taskSession) {
@@ -168,10 +182,10 @@ export function resolveActivityProfile(phase, state, taskSession) {
   const assignment = state?.config?.activity_assignments?.[activityId] ?? {};
   return {
     activity_id: activityId,
-    tier: assignment.tier ?? resolveCognitiveTier(phase, state),
-    model_hint: assignment.model_hint ?? null,
-    runtime_name: assignment.runtime_name ?? "default",
-    runtime_version: assignment.runtime_version ?? "v1",
+    tier: nullishDefault(assignment.tier, resolveCognitiveTier(phase, state)),
+    model_hint: nullishDefault(assignment.model_hint, null),
+    runtime_name: nullishDefault(assignment.runtime_name, "default"),
+    runtime_version: nullishDefault(assignment.runtime_version, "v1"),
   };
 }
 

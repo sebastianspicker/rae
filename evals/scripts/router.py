@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Route umbrella task specs to the smallest adequate runtime and emit a run card."""
 
-from __future__ import annotations
-
 import argparse
 import pathlib
 from typing import Any
@@ -47,28 +45,8 @@ EXECUTION_PROFILE_RUNTIMES = {
 }
 
 
-def route_task(task: dict[str, Any]) -> dict[str, Any]:
-    """Choose the smallest runtime that satisfies the task's explicit signals."""
-    runtime, reasons = select_runtime(task)
-    execution_profile = select_execution_profile(task, runtime)
-    profile_runtime = EXECUTION_PROFILE_RUNTIMES[execution_profile]
-    if profile_runtime != runtime:
-        raise ValueError(
-            f"execution_profile {execution_profile} is for runtime {profile_runtime}, "
-            f"not routed runtime {runtime}"
-        )
-    return {
-        "runtime": runtime,
-        "execution_profile": execution_profile,
-        "profile_runtime": profile_runtime,
-        "reasons": reasons,
-        "command_preview": EXECUTION_COMMANDS[execution_profile],
-    }
-
-
-def select_runtime(task: dict[str, Any]) -> tuple[str, list[str]]:
+def _select_runtime(task: dict[str, Any]) -> tuple[str, list[str]]:
     reasons: list[str] = []
-
     if task.get("repo_hygiene_operation") or task.get("destructive_operation"):
         runtime = "tool"
         reasons.append("narrow repo hygiene or destructive maintenance should stay explicit")
@@ -85,11 +63,10 @@ def select_runtime(task: dict[str, Any]) -> tuple[str, list[str]]:
     else:
         runtime = "ralph"
         reasons.append("defaulting to the smaller deterministic loop")
-
     return runtime, reasons
 
 
-def select_execution_profile(task: dict[str, Any], runtime: str) -> str:
+def _select_execution_profile(task: dict[str, Any], runtime: str) -> str:
     if "execution_profile" not in task or task["execution_profile"] is None:
         return {
             "orchestration": "orchestration-init",
@@ -102,7 +79,27 @@ def select_execution_profile(task: dict[str, Any], runtime: str) -> str:
     if execution_profile not in EXECUTION_COMMANDS:
         valid = ", ".join(sorted(EXECUTION_COMMANDS))
         raise ValueError(f"unknown execution_profile: {execution_profile}. Valid profiles: {valid}")
+    profile_runtime = EXECUTION_PROFILE_RUNTIMES[execution_profile]
+    if profile_runtime != runtime:
+        raise ValueError(
+            f"execution_profile {execution_profile} is for runtime {profile_runtime}, "
+            f"not routed runtime {runtime}"
+        )
     return execution_profile
+
+
+def route_task(task: dict[str, Any]) -> dict[str, Any]:
+    """Choose the smallest runtime that satisfies the task's explicit signals."""
+    runtime, reasons = _select_runtime(task)
+    execution_profile = _select_execution_profile(task, runtime)
+    profile_runtime = EXECUTION_PROFILE_RUNTIMES[execution_profile]
+    return {
+        "runtime": runtime,
+        "execution_profile": execution_profile,
+        "profile_runtime": profile_runtime,
+        "reasons": reasons,
+        "command_preview": EXECUTION_COMMANDS[execution_profile],
+    }
 
 
 def build_run_card(
@@ -148,6 +145,36 @@ def build_run_card(
     return run_card
 
 
+def _resolve_cli_path(value: str) -> pathlib.Path:
+    path = pathlib.Path(value)
+    return (ROOT / path).resolve() if not path.is_absolute() else path.resolve()
+
+
+def _find_task(tasks: list[object], task_id: str) -> dict[str, Any] | None:
+    for item in tasks:
+        if isinstance(item, dict) and item.get("task_id") == task_id:
+            return item
+    return None
+
+
+def _select_task(task_data: dict[str, Any], task_id: str | None) -> dict[str, Any]:
+    if "tasks" not in task_data:
+        return task_data
+    if not task_id:
+        raise SystemExit("task bundle requires --task-id")
+    tasks = task_data.get("tasks", [])
+    if not isinstance(tasks, list):
+        raise SystemExit("task bundle tasks must be an array")
+    task = _find_task(tasks, task_id)
+    if task is None:
+        raise SystemExit(f"task_id not found in bundle: {task_id}")
+    if "benchmark_id" in task_data:
+        task.setdefault("benchmark_id", task_data["benchmark_id"])
+    if "version" in task_data:
+        task.setdefault("benchmark_version", task_data["version"])
+    return task
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Route a task spec to the umbrella runtime and emit a run card."
@@ -162,14 +189,16 @@ def main() -> int:
     parser.add_argument("--run-id", help="Optional explicit run id.")
     args = parser.parse_args()
 
-    task_spec_path = resolve_path(args.task_spec)
+    task_spec_path = _resolve_cli_path(args.task_spec)
     task_data = load_json(task_spec_path)
-    task = select_task(task_data, args.task_id)
+    if not isinstance(task_data, dict):
+        raise SystemExit("task spec must be a JSON object")
+    task = _select_task(task_data, args.task_id)
     if "task_id" not in task:
         raise SystemExit("task spec must contain task_id")
 
     routed = route_task(task)
-    output_path = resolve_path(args.output)
+    output_path = _resolve_cli_path(args.output)
     run_id = args.run_id or new_run_id(task["task_id"])
     run_card = build_run_card(
         task=task,

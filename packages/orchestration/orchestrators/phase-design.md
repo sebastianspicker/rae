@@ -24,7 +24,7 @@ file first. If it does not exist, create it with a `# DESIGN Phase Progress` hea
 - [ ] Flag any over-constrained assumptions
 - [ ] Document under "## Constraint Analysis" in progress-design.md
 
-### Task 3: Architecture analysis — Pipeline runtime layer
+### Task 3: Architecture analysis: Pipeline runtime layer
 - [ ] Read scripts/pipeline/runner.mjs and all scripts/pipeline/lib/*.mjs modules
 - [ ] Map imports and dependencies between modules
 - [ ] Check function responsibility (flag functions >100 lines that lack single responsibility)
@@ -32,23 +32,23 @@ file first. If it does not exist, create it with a `# DESIGN Phase Progress` hea
 - [ ] Check state management (pipeline-state.json read/write patterns, race conditions)
 - [ ] Document under "## Layer 1: Pipeline Runtime" in progress-design.md
 
-### Task 4: Architecture analysis — Runtime skills layer
+### Task 4: Architecture analysis: Runtime skills layer
 - [ ] Read all skills/dev-tools/*/src/**/*.ts files
 - [ ] Map the _shared package dependencies and what each skill package exports
 - [ ] Check the subprocess invocation boundary (JSON-over-stdin protocol robustness)
 - [ ] Check for pattern consistency (naming, exports, error handling)
 - [ ] Document under "## Layer 2: Runtime Skills" in progress-design.md
 
-### Task 5: Architecture analysis — Contracts layer
+### Task 5: Architecture analysis: Contracts layer
 - [ ] Read all contracts/artifacts/*.schema.json and contracts/quality-gate.schema.json
 - [ ] Verify that artifact builder functions produce objects matching declared schemas
 - [ ] Check for schema fields never populated by any artifact builder
 - [ ] Check backward compatibility constraints
 - [ ] Document under "## Layer 3: Contracts" in progress-design.md
 
-### Task 6: Architecture analysis — Adapter layer
+### Task 6: Architecture analysis: Adapter layer
 - [ ] Read adapters/spec/adapter-manifest.json and scripts/adapters/generate_adapters.py
-- [ ] Sample 2-3 templates in adapters/templates/ and their generated outputs
+- [ ] Sample 2-3 templates in adapters/templates/ and their synchronized outputs
 - [ ] Verify template token substitution correctness
 - [ ] Check for adapter sync drift potential
 - [ ] Document under "## Layer 4: Adapters" in progress-design.md

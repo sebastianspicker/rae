@@ -1,6 +1,10 @@
+/**
+ * Exercises state locking and path containment so pipeline persistence resists races and traversal escapes.
+ */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { existsSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
+import { tmpdir } from "node:os";
 import {
   phaseToArtifactKey,
   getRunDir,
@@ -16,6 +20,7 @@ import {
   resolveWithinDirectory,
   savePipelineState,
   withLockedState,
+  writeJson,
 } from "../lib/state.mjs";
 
 describe("phaseToArtifactKey", () => {
@@ -338,6 +343,20 @@ describe("withLockedState", () => {
     expect(existsSync(lockPath)).toBe(false);
   });
 
+  it("removes the lock file when state loading fails", () => {
+    const root = mkdtempSync(resolve(tmpdir(), "rae-pipeline-missing-state-"));
+    const pipelineDir = resolve(root, ".pipeline");
+    const lockPath = resolve(pipelineDir, "pipeline-state.lock");
+    mkdirSync(pipelineDir, { recursive: true });
+
+    try {
+      expect(() => withLockedState(root, () => {})).toThrow(/pipeline state not found/);
+      expect(existsSync(lockPath)).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("throws when lock is already held", () => {
     const lockPath = resolve(getPipelineDir(), "pipeline-state.lock");
     writeFileSync(lockPath, "", "utf8");
@@ -368,5 +387,36 @@ describe("withLockedState", () => {
     await expect(pending).resolves.toBe(42);
     expect(existsSync(lockPath)).toBe(false);
     expect(loadPipelineState()._async_marker).toBe(true);
+  });
+});
+
+describe("writeJson", () => {
+  const outputDir = resolve("/tmp", "rae-pipeline-state-atomic");
+
+  beforeEach(() => {
+    mkdirSync(outputDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(outputDir, { recursive: true, force: true });
+  });
+
+  it("atomically replaces JSON without leaving temporary state files", () => {
+    const outputPath = resolve(outputDir, "state.json");
+    writeFileSync(outputPath, '{"previous":true}\n', "utf8");
+
+    writeJson(outputPath, { next: true });
+
+    expect(readJsonStrict(outputPath)).toEqual({ next: true });
+    expect(readdirSync(outputDir)).toEqual(["state.json"]);
+  });
+
+  it("preserves serialization failures when no temporary file was created", () => {
+    const outputPath = resolve(outputDir, "state.json");
+    const cyclic = {};
+    cyclic.self = cyclic;
+
+    expect(() => writeJson(outputPath, cyclic)).toThrow(/circular structure/i);
+    expect(readdirSync(outputDir)).toEqual([]);
   });
 });

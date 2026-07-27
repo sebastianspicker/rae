@@ -1,109 +1,167 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-24
 source_of_truth: scripts/rae.sh
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Umbrella CLI
 
-The umbrella operator entrypoint is:
+`./scripts/rae.sh` is the repository entrypoint. It validates the runtime
+before dispatching to the package that owns each command.
 
-- `./scripts/rae.sh`
+## Command ownership
 
-It is the top-level harness for this repository. It does not replace the
-imported runtimes. It dispatches to them with one stable surface and keeps the
-umbrella-level workflows explicit.
+| Command | Owner | Purpose |
+| --- | --- | --- |
+| `verify` | `scripts/verify.sh` | Run repository verification |
+| `doctor` | `scripts/rae.sh` | Check runtime versions, tools, and entrypoints |
+| `agent` | orchestration autonomous CLI | Run, inspect, stop, or resume an autonomous workflow |
+| `operator serve` | orchestration operator console | Serve the loopback console for allowlisted repositories |
+| `task route` | evaluation router | Select a runtime for one task specification |
+| `checkpoint` | evaluation checkpoint CLI | Create or resolve an operator checkpoint |
+| `orchestrate` | orchestration stage runner | Manage pipeline stages, artifacts, gates, and summaries |
+| `worktree` | orchestration worktree CLI | Create, inspect, resume, or clean isolated runs |
+| `ralph` | Ralph package | Run audit, linting, or story-scoped fixing |
+| `hygiene` | repository hygiene tools | Run an explicitly selected maintenance utility |
+| `eval` | evaluation CLI | Validate, execute, compare, calibrate, or gate benchmark evidence |
+| `release-gate` | evaluation release gate | Check release-blocking regression evidence |
+| `workflow` | umbrella aliases | Use task-oriented aliases for the same package commands |
 
-## Command families
+Run:
 
-- `./scripts/rae.sh verify`
-  Run repository verification.
-- `./scripts/rae.sh doctor`
-  Check local prerequisites and imported entrypoints.
-- `./scripts/rae.sh task route ...`
-  Route one task spec to the smallest adequate runtime and emit a planned run
-  card.
-- `./scripts/rae.sh checkpoint ...`
-  Create or resolve explicit human checkpoint cards.
-- `./scripts/rae.sh orchestrate ...`
-  Dispatch to `packages/orchestration/`. This is the complete orchestration
-  command surface.
-- `./scripts/rae.sh worktree ...`
-  Use orchestration's worktree-backed lifecycle through a thinner umbrella alias.
-- `./scripts/rae.sh ralph ...`
-  Dispatch to `packages/loops/ralph/`.
-- `./scripts/rae.sh hygiene coauthor-cleaner ...`
-  Dispatch to `tools/repo-hygiene/coauthor-trailer-cleaner/`.
-- `./scripts/rae.sh eval validate`
-  Validate benchmark and run-card metadata.
-- `./scripts/rae.sh eval run ...`
-  Execute one benchmark split and emit result artifacts.
-- `./scripts/rae.sh eval calibrate ...`
-  Calibrate the current judge.
-- `./scripts/rae.sh release-gate ...`
-  Enforce release-blocking regression and evidence gates.
-- `./scripts/rae.sh workflow ...`
-  Use scenario-oriented aliases for the imported runtimes.
+```bash
+./scripts/rae.sh --help
+```
+
+Subcommand options are owned by the selected runtime:
+
+```bash
+./scripts/rae.sh agent --help
+./scripts/rae.sh orchestrate --help
+./scripts/rae.sh ralph --help
+./scripts/rae.sh eval --help
+```
+
+## Diagnostics
+
+```bash
+./scripts/rae.sh doctor
+```
+
+The command enforces:
+
+- GNU Bash 5.3 or newer
+- Python 3.14.6 or newer
+- a supported Node.js version
+- `git`, `rg`, `jq`, and `shellcheck`
+- runnable package entrypoints
+
+Optional documentation and maintenance tools are reported without failing the
+core diagnostic.
+
+Provider-backed autonomous work has a separate diagnostic:
+
+```bash
+./scripts/rae.sh agent doctor
+```
+
+It requires authentication, workspace sandboxing, JSON-schema output, event
+streaming, and ephemeral sessions.
+
+## Autonomous run
+
+```bash
+./scripts/rae.sh agent run \
+  --project-root /path/to/target-repository \
+  --task "Implement the change, add regression tests, and update the documentation"
+```
+
+The default run creates `pipeline/<run-id>` under
+`.git/rae-worktrees/<run-id>`. It prints the worktree and run-report paths.
+Use `--through plan` to stop before mutation and `--checkpoint-policy` to add
+operator decisions at protected boundaries.
+
+Resume after correcting an environmental failure:
+
+```bash
+./scripts/rae.sh agent resume \
+  --project-root /path/from/the-run-output \
+  --run-id <run-id>
+```
+
+RAE does not expose commit, push, publish, or deploy actions. Supported runs
+reject protected Git-state changes.
+
+## Operator console
+
+```bash
+./scripts/rae.sh operator serve \
+  --project /canonical/path/to/target-repository
+```
+
+Repeat `--project` for additional allowlisted roots. The server binds to
+loopback and prints an ephemeral token in the URL fragment. The console starts
+only isolated-worktree runs and does not expose arbitrary commands, environment
+overrides, in-place execution, Git publication, or deployment.
+
+## Task routing and evaluation
+
+Route one task:
+
+```bash
+./scripts/rae.sh task route \
+  --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json \
+  --task-id tool-selection-dev-orchestration \
+  --output evals/results/local/planned-route.json
+```
+
+Run one benchmark split:
+
+```bash
+./scripts/rae.sh eval run \
+  --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json \
+  --split dev \
+  --output-dir evals/results/local-dev
+```
+
+The evaluation CLI also provides metadata validation, autonomous outcomes,
+paired outcome comparison, policy optimization, suite execution, judge
+calibration, and release gates. Run `./scripts/rae.sh eval --help` before using
+an outcome or optimization command because those commands have explicit
+provider and isolation requirements.
 
 ## Workflow aliases
 
-- `workflow repo-audit`
-  Use Ralph as the deterministic audit and scoped-fix engine. This alias keeps
-  the common audit actions short while `./scripts/rae.sh ralph ...` remains the
-  full runtime surface.
-- `workflow long-horizon`
-  Use phased orchestration for explicit stage/gate pipelines. This alias maps
-  to the same orchestration runtime and exposes the common stage, artifact,
-  review-state, and progress-summary actions.
-- `workflow hygiene`
-  Use the narrow repo-hygiene tool lane.
+- `workflow autonomous` forwards to `agent`
+- `workflow repo-audit` forwards common audit operations to Ralph
+- `workflow long-horizon` forwards to staged orchestration
+- `workflow hygiene` forwards to repository hygiene tools
 
-## Doctor semantics
+Aliases do not define independent behavior. The package command remains the
+source of truth.
 
-`./scripts/rae.sh doctor` treats the umbrella execution stack as required and
-reports secondary tooling separately. Optional commands such as `mkdocs` or
-`git-filter-repo` are reported as warnings when absent instead of failing the
-core runtime check.
+## Exit behavior
 
-## Design rule
+`rae.sh` rejects unknown command families and propagates the selected runtime's
+exit status. A command that cannot establish its required safety boundary fails
+closed.
 
-The umbrella CLI is intentionally thin. Reliability comes from:
+## Related documentation
 
-- keeping umbrella memory in `AGENTS.md`
-- preserving package-local source-of-truth behavior
-- exposing one stable operator path
-- making eval and verification entrypoints as easy to reach as the runtimes
-
-Worktree mode follows the same rule: the umbrella exposes worktree lifecycle
-aliases, but the orchestration package remains the source of truth for worktree
-state, branches, traces, and cleanup behavior.
-
-Do not add umbrella-only behavior that silently diverges from the imported
-packages.
-
-## Thesis validation
-
-This page is an implementation-reference surface. Its command truth lives in
-`scripts/rae.sh`, while its broader rationale is that one thin operator entry
-reduces routing ambiguity without erasing package-local ownership.
-
-## Related dossiers
-
-- [CLM-011 runtime-selection signals](../claims/evidence-index.md#clm-011)
-- [CLM-017 documentation reliability](../claims/dossiers/clm-017-documentation-reliability.md)
-
-## Interpretation limits
-
-- a thin umbrella CLI improves discoverability, not universal workflow quality
+- [Orchestration CLI](orchestration.md)
+- [Ralph CLI](ralph.md)
+- [Repository hygiene CLI](repo-hygiene.md)
+- [Orchestration package](../../../packages/orchestration/README.md)
+- [Ralph package](../../../packages/loops/ralph/README.md)
 
 ## Source note
 
 - [Diataxis](../claims/bibliography.md#src-diataxis)
-- [Anthropic effective agents](../claims/bibliography.md#src-anthropic-effective-agents)
 - [NIST GenAI Profile](../claims/bibliography.md#src-nist-genai-profile)
 - [IEEE 1012](../claims/bibliography.md#src-ieee-1012)
 - [Model Cards](../claims/bibliography.md#src-model-cards)
 - [Datasheets](../claims/bibliography.md#src-datasheets)
-- [OpenAI evals guidance](../claims/bibliography.md#src-openai-evals)
+- [Pineau reproducibility report](../claims/bibliography.md#src-pineau-reproducibility)
+- [Nosek open research culture](../claims/bibliography.md#src-nosek-open-research)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's bootstrap embedded contract.
 
 set -euo pipefail
 
@@ -56,6 +57,12 @@ run_basic_bootstrap_case() {
   if [[ ! -x "$target_repo/.claude/ralph-audit/scripts/sync_agents_from_learnings.sh" ]]; then
     fail_case "bootstrap-basic" "sync_agents_from_learnings.sh should be executable" "$tmpdir/out.log" "$tmpdir"
   fi
+  if [[ ! -x "$target_repo/.claude/ralph-audit/scripts/ralph_supervisor.py" ]]; then
+    fail_case "bootstrap-basic" "ralph_supervisor.py should be executable" "$tmpdir/out.log" "$tmpdir"
+  fi
+  if [[ ! -x "$target_repo/.claude/ralph-audit/scripts/ralph_fs_txn.py" ]]; then
+    fail_case "bootstrap-basic" "ralph_fs_txn.py should be executable" "$tmpdir/out.log" "$tmpdir"
+  fi
   if [[ ! -f "$target_repo/.claude/ralph-audit/skills/prd/SKILL.md" ]]; then
     fail_case "bootstrap-basic" "missing copied PRD skill" "$tmpdir/out.log" "$tmpdir"
   fi
@@ -92,6 +99,22 @@ run_basic_bootstrap_case() {
   printf 'PASS [bootstrap-basic]\n'
 }
 
+run_unsafe_claude_parent_case() {
+  local tmpdir target_repo outside
+  tmpdir="$(mktemp -d)"
+  target_repo="$tmpdir/target-repo"
+  outside="$tmpdir/outside"
+  mkdir -p "$target_repo" "$outside"
+  ln -s "$outside" "$target_repo/.claude"
+  if "$BOOTSTRAP_SCRIPT" "$target_repo" >"$tmpdir/out.log" 2>&1; then
+    fail_case "bootstrap-symlink-parent" "symlinked .claude parent was accepted" "$tmpdir/out.log" "$tmpdir"
+  fi
+  grep -q '.claude must not be a symlink' "$tmpdir/out.log" \
+    || fail_case "bootstrap-symlink-parent" "missing symlink diagnostic" "$tmpdir/out.log" "$tmpdir"
+  cleanup_dir "$tmpdir"
+  printf 'PASS [bootstrap-symlink-parent]\n'
+}
+
 run_with_tests_case() {
   local tmpdir target_repo rc
   tmpdir="$(mktemp -d)"
@@ -119,4 +142,5 @@ run_with_tests_case() {
 
 run_basic_bootstrap_case
 run_with_tests_case
+run_unsafe_claude_parent_case
 printf 'All bootstrap embedded tests passed.\n'

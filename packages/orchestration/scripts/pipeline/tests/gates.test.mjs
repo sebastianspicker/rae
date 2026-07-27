@@ -1,3 +1,6 @@
+/**
+ * Verifies gate ranking, artifact paths, retry events, budgets, and traceability evidence drive consistent outcomes.
+ */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
@@ -128,8 +131,8 @@ describe("QUALITY_GATE_PHASES", () => {
     expect(QUALITY_GATE_PHASES.has("release-readiness")).toBe(true);
   });
 
-  it("does not include post-build", () => {
-    expect(QUALITY_GATE_PHASES.has("post-build")).toBe(false);
+  it("validates post-build as a quality phase", () => {
+    expect(QUALITY_GATE_PHASES.has("post-build")).toBe(true);
   });
 });
 

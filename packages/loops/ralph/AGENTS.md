@@ -15,7 +15,7 @@ MODE=linting ./ralph.sh 10
 MODE=fixing  ./ralph.sh 10
 ```
 
-Use `--tool claude` (default) or `--tool codex` for Codex CLI. Aliases accepted: `claude-code`/`claude-cli` → `claude`, `codex-cli` → `codex`. Set via `RALPH_TOOL` env var or `--tool` flag.
+Ralph is Codex-only. It requires Bash >=5.3 and Python >=3.14.6.
 
 Quick checks: `--validate-prd`, `--validate-config`, `--status`, `--list-stories`, `--export-state`, `--import-state <file>`. Use `--dry-run N` to preview story runs without executing the tool. Use `--version` to print the version. Exit codes 0–6 (e.g. 2=PRD, 5=lock): see `README.md` CLI Reference.
 
@@ -25,20 +25,22 @@ Quick checks: `--validate-prd`, `--validate-config`, `--status`, `--list-stories
 - Runtime policy: `INSTRUCTIONS.md`
 - Validation: `prd.schema.json` + `prd.validate.jq`
 - Runtime artifacts: `.runtime/`
-- Generated progress snapshot: `progress.txt`
+- Derived progress snapshot: `progress.txt`
 - Append-only long-term knowledge: `learnings.md`
 - Companion authoring skills: `skills/prd/SKILL.md`, `skills/ralph/SKILL.md`
 
 ## Mandatory Safety Rules
 
 - `audit` / `linting` stay read-only.
-- `fixing` must remain story-scoped by path patterns.
+- `fixing` must remain story-scoped through the external mirror transaction.
 - Exactly one `Created <path>.md ...` acceptance criterion per story.
 - Report writes are atomic and repository-confined.
 - PRD updates are atomic and lock-protected.
 - PRD text must not contain hidden control/bidi characters.
 - If search is enabled, reports must contain `## External References` with links and ISO dates.
 - Security preflight can warn/fail on sensitive env var exposure (`RALPH_SECURITY_PREFLIGHT*`).
+- Codex raw output is capped at 16 MiB and final reports at 2 MiB.
+- Hardlinks, special files, nested repositories, and submodules are unsupported.
 
 ## Authoring Guidance
 

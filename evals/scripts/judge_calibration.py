@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Run calibration for the umbrella's programmatic judge."""
 
-from __future__ import annotations
-
 import argparse
 import pathlib
 from typing import Any

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
+# Checks generated adapter definitions against their sources to prevent stale orchestration behavior.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$root_dir/scripts/lib/runtime.sh"
+orchestration_require_runtime
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "ERROR: python3 is required for adapter sync checks." >&2
-  exit 2
-fi
-
-python3 "$root_dir/scripts/adapters/generate_adapters.py" --check
+"$PYTHON_BIN" "$root_dir/scripts/adapters/generate_adapters.py" --check

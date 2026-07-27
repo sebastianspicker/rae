@@ -1,4 +1,7 @@
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
+/**
+ * Persists and summarizes bounded pipeline trace events without exposing malformed state.
+ */
+import { appendFileSync, closeSync, existsSync, openSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ensureRunDirs, getRepoRoot, getRunDir, toWorkspaceRelative, writeJson } from "./state.mjs";
 import { badInput, badTrace } from "./errors.mjs";
@@ -27,10 +30,15 @@ export function getTracePath(runId, root = getRepoRoot()) {
 export function ensureTraceFile(runId, root = getRepoRoot()) {
   ensureRunDirs(runId, root);
   const tracePath = getTracePath(runId, root);
-  writeFileSync(tracePath, "", { encoding: "utf8", flag: "a" });
+  // Opening in append mode atomically creates a missing file without ever
+  // truncating an event written by another process racing to initialize it.
+  closeSync(openSync(tracePath, "a", 0o600));
   return tracePath;
 }
 
+/**
+ * Appends one validated trace event while bounding retained history for predictable runner state.
+ */
 export function appendTraceEvent(runId, payload, root = getRepoRoot()) {
   if (!payload || typeof payload !== "object") {
     throw badInput("trace payload must be an object");
@@ -57,16 +65,23 @@ export function appendTraceEvent(runId, payload, root = getRepoRoot()) {
 export function readTraceEvents(runId, root = getRepoRoot()) {
   const tracePath = ensureTraceFile(runId, root);
   const raw = readFileSync(tracePath, "utf8");
-  const lines = raw
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+  const lines = raw.split("\n");
 
   const events = [];
 
   for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx].trim();
+    if (!line) continue;
     try {
-      events.push(JSON.parse(lines[idx]));
+      const parsed = JSON.parse(line);
+      // The physical JSONL line number is the replay cursor.  Older traces did
+      // not persist a cursor, so project one without rewriting history.
+      const seq = idx + 1;
+      events.push({
+        ...parsed,
+        seq,
+        event_id: typeof parsed.event_id === "string" ? parsed.event_id : `${runId}:${seq}`,
+      });
     } catch (error) {
       throw badTrace(`corrupt trace JSONL at line ${idx + 1}: ${String(error)}`);
     }
@@ -79,6 +94,30 @@ export function readTraceEvents(runId, root = getRepoRoot()) {
   }
 
   return events;
+}
+
+/**
+ * Projects trace events into the deliberately small, replay-safe operator stream.
+ * Raw messages, prompts, paths, and provider metadata remain private evidence.
+ */
+export function projectOperatorEvents(runId, root = getRepoRoot()) {
+  if (!existsSync(getTracePath(runId, root))) {
+    throw badTrace(`operator trace does not exist for run: ${runId}`);
+  }
+  return readTraceEvents(runId, root).map((event) => {
+    const projected = {
+      seq: event.seq,
+      event_id: event.event_id,
+      run_id: event.run_id,
+      ts: event.ts,
+      event: event.event,
+      phase: event.phase,
+    };
+    for (const key of ["status", "tier", "artifact_ref", "gate_id"]) {
+      if (typeof event[key] === "string") projected[key] = event[key];
+    }
+    return projected;
+  });
 }
 
 /**

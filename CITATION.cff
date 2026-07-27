@@ -3,6 +3,7 @@ message: >-
   If you use RAE, cite the repository with this metadata and cite page-level
   external sources through docs/reference/claims/bibliography.md.
 title: RAE
+version: 0.1.0-alpha.1
 type: software
 authors:
   - given-names: Sebastian

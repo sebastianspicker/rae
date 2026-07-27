@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's compat mktemp contract.
 
 set -euo pipefail
 

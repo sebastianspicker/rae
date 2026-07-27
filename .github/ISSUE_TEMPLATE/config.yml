@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability (private reporting)
+    url: https://github.com/sebastianspicker/rae/security/advisories/new
+    about: Do not open public issues for suspected vulnerabilities.
+  - name: Support guidance
+    url: https://github.com/sebastianspicker/rae/blob/main/SUPPORT.md
+    about: Read the public alpha support boundary before filing an issue.

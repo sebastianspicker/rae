@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Execute benchmark tasks through the umbrella runtimes and emit artifacts."""
 
-from __future__ import annotations
-
 from lib.run_benchmark_exec import judge_task
 from lib.run_benchmark_report import main
 

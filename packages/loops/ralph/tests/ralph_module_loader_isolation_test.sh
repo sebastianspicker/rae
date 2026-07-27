@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's module loader isolation contract.
 
 set -euo pipefail
 

@@ -1,3 +1,6 @@
+/**
+ * Pins input validation rules so malformed criteria and unsupported requests fail before evaluation.
+ */
 import { describe, it, expect } from "vitest";
 import type { Input } from "../../src/types.js";
 import { validateInput } from "../../src/lib/input.js";

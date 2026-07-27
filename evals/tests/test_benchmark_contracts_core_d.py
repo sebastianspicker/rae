@@ -1,4 +1,4 @@
-from __future__ import annotations
+"""Contract tests for rejecting unsafe evaluation metadata and routing mismatches."""
 
 import json
 import pathlib
@@ -9,23 +9,90 @@ import tempfile
 from benchmark_contracts_helpers import (
     RESULTS_ROOT,
     ROOT,
+    calibration_payload,
+    repo_rel,
     run_release_gate,
     write_json,
     write_release_gate_fixture,
 )
 
 
+def test_validate_eval_metadata_rejects_absolute_benchmark_paths() -> None:
+    source = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(source.read_text(encoding="utf-8"))
+    benchmark["benchmark_id"] = "tmp-absolute-scenario-path"
+    benchmark["scenario_path"] = str(ROOT / "evals/scenarios/tool-selection")
+    temp_path = RESULTS_ROOT / ".tmp-absolute-scenario-path.benchmark-card.json"
+    write_json(temp_path, benchmark)
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    finally:
+        temp_path.unlink(missing_ok=True)
+    assert completed.returncode != 0
+    assert "scenario_path must be repository-relative" in (completed.stderr or completed.stdout)
+
+
+def test_validate_eval_metadata_rejects_parent_traversal() -> None:
+    source = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(source.read_text(encoding="utf-8"))
+    benchmark["benchmark_id"] = "tmp-parent-traversal"
+    benchmark["scenario_path"] = "evals/scenarios/../benchmarks"
+    temp_path = RESULTS_ROOT / ".tmp-parent-traversal.benchmark-card.json"
+    write_json(temp_path, benchmark)
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    finally:
+        temp_path.unlink(missing_ok=True)
+    assert completed.returncode != 0
+    assert "scenario_path must be repository-relative" in (completed.stderr or completed.stdout)
+
+
+def test_validate_eval_metadata_rejects_absolute_run_result_path() -> None:
+    source = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(source.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(
+        dir=RESULTS_ROOT, prefix="validate-absolute-result-path-"
+    ) as tmp:
+        output_dir = pathlib.Path(tmp)
+        result_path, _, _, _, run_card_path = write_release_gate_fixture(
+            output_dir,
+            split="dev",
+            run_id="tool-selection-core-dev-absolute-result-path",
+            benchmark=benchmark,
+        )
+        run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
+        run_card["result_path"] = str(result_path)
+        write_json(run_card_path, run_card)
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    assert completed.returncode != 0
+    assert "result_path must be repository-relative" in (completed.stderr or completed.stdout)
+
+
 def test_release_gate_fails_when_calibration_report_is_missing() -> None:
     benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
     benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
-
     with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="release-gate-fail-") as tmp:
         output_dir = pathlib.Path(tmp)
         _, regression_path, ledger_path, _, run_card_path = write_release_gate_fixture(
-            output_dir,
-            split="dev",
-            run_id="tool-selection-core-dev-example",
-            benchmark=benchmark,
+            output_dir, split="dev", run_id="tool-selection-core-dev-example", benchmark=benchmark
         )
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-example.json"
         write_release_gate_fixture(
@@ -33,20 +100,12 @@ def test_release_gate_fails_when_calibration_report_is_missing() -> None:
             split="held-out",
             run_id="tool-selection-core-held-out-pass",
             benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
+            calibration_payload=calibration_payload(),
             release_gate_status="pass",
         )
+        gate_output_path = output_dir / "release-gate-tool-selection-core-dev-example.json"
 
-        # B603 rationale: fixed interpreter and repository test entrypoint.
-        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-        completed = run_release_gate(
-            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
-        )
+        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))

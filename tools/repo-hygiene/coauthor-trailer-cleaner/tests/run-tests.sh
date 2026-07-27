@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Test runner for coauthor-trailer-cleaner.sh
-# Usage: bash tests/run-tests.sh [--filter <pattern>] [--verbose]
+# Usage: bash tests/run-tests.sh [--filter <pattern>]
+# shellcheck disable=SC1090,SC1091
 
 set -euo pipefail
 
@@ -8,13 +9,10 @@ TESTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$TESTS_DIR/helpers.sh"
 
 FILTER=""
-VERBOSE=false
-export VERBOSE
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --filter) FILTER="$2"; shift 2 ;;
-    --verbose) VERBOSE=true; shift ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -53,12 +51,6 @@ for test_file in "$TESTS_DIR"/test-*.sh; do
     if [[ -n "$FILTER" && "$func" != *"$FILTER"* ]]; then
       continue
     fi
-
-    # Reset counters for this test
-    PASS_COUNT=0
-    FAIL_COUNT=0
-    SKIP_COUNT=0
-    export PASS_COUNT FAIL_COUNT SKIP_COUNT
 
     # Run test in subshell to isolate failures
     set +e

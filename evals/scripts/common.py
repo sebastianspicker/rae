@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """Shared helpers for the umbrella eval and routing harness."""
 
-from __future__ import annotations
-
 import json
 import os
 import pathlib
-import shutil
+import signal
 import subprocess
 import sys
 import time
 import uuid
+from contextlib import suppress
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, cast
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 EVALS = ROOT / "evals"
@@ -36,6 +35,10 @@ def _resolve_trusted_executables() -> dict[str, pathlib.Path]:
 
 
 _TRUSTED_EXECUTABLES = _resolve_trusted_executables()
+
+type JsonScalar = None | bool | int | float | str
+type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]
+type JsonObject = dict[str, JsonValue]
 
 
 def _nearest_existing_ancestor(path: pathlib.Path) -> pathlib.Path:
@@ -95,15 +98,25 @@ def new_run_id(prefix: str) -> str:
     return f"{prefix}-{today_iso()}-{suffix}"
 
 
+def load_json_value(path: pathlib.Path) -> JsonValue:
+    return cast(JsonValue, json.loads(path.read_text(encoding="utf-8")))
+
+
 def load_json(path: pathlib.Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
+    """Compatibility loader for callers that validate their own JSON shape."""
+    return load_json_value(path)
+
+
+def load_json_object(path: pathlib.Path) -> JsonObject:
+    data = load_json_value(path)
+    if not isinstance(data, dict):
+        raise ValueError(f"{repo_relpath(path)} must be a JSON object")
+    return data
 
 
 def dump_json(path: pathlib.Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(data, indent=2, sort_keys=False) + "\n", encoding="utf-8"
-    )
+    path.write_text(json.dumps(data, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
 
 def append_jsonl(path: pathlib.Path, record: dict[str, Any]) -> None:
@@ -112,16 +125,89 @@ def append_jsonl(path: pathlib.Path, record: dict[str, Any]) -> None:
         handle.write(json.dumps(record, sort_keys=False) + "\n")
 
 
-def ensure_relative_to_root(path: pathlib.Path) -> str:
+def resolve_metadata_path(
+    value: object,
+    *,
+    label: str,
+    contained_by: pathlib.Path = ROOT,
+    must_exist: bool = False,
+) -> pathlib.Path:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"{label} must be a non-empty repository-relative path")
+    candidate = pathlib.Path(value)
+    if candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError(f"{label} must be repository-relative")
+    resolved = (ROOT / candidate).resolve(strict=False)
+    if not is_within_directory(resolved, contained_by):
+        raise ValueError(f"{label} must point under {repo_relpath(contained_by)}")
+    if must_exist and not resolved.exists():
+        raise ValueError(f"{label} points to a missing path")
+    return resolved
+
+
+COMMAND_TERMINATION_GRACE_SECONDS = 1.0
+
+
+def _timeout_result(
+    argv: list[str],
+    cwd: pathlib.Path,
+    stdout: str,
+    stderr: str,
+    started: float,
+    timeout_seconds: float | None,
+    termination: str,
+) -> dict[str, Any]:
+    timeout_label = (
+        f"{timeout_seconds:g}" if isinstance(timeout_seconds, (int, float)) else "unknown"
+    )
+    message = f"command timed out after {timeout_label}s; process group {termination}"
+    return {
+        "argv": argv,
+        "cwd": repo_relpath(cwd),
+        "returncode": 124,
+        "stdout": stdout,
+        "stderr": f"{stderr.rstrip()}\n{message}".strip(),
+        "duration_seconds": round(time.monotonic() - started, 4),
+        "timed_out": True,
+        "timeout_seconds": timeout_seconds,
+        "containment": {
+            "status": "uncertain",
+            "scope": "process-group",
+            "reason": "a descendant that created a new session cannot be proven terminated",
+        },
+    }
+
+
+def _text_output(value: str | bytes | None) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return ""
+
+
+def _terminate_process_group(process: subprocess.Popen[str]) -> tuple[str, str, str]:
+    """Bound a timed-out command and every child it started in its session."""
+    if os.name != "posix":
+        process.terminate()
+        try:
+            stdout, stderr = process.communicate(timeout=COMMAND_TERMINATION_GRACE_SECONDS)
+            return stdout, stderr, "terminated"
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            return stdout, stderr, "killed after bounded termination grace"
+
+    with suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGTERM)
     try:
-        rel = relative_to_directory(path, ROOT)
-        return "." if rel == pathlib.Path(".") else rel.as_posix()
-    except ValueError:
-        return str(path.resolve(strict=False))
-
-
-def relative_to_root(input_path: str | pathlib.Path) -> str:
-    return ensure_relative_to_root(pathlib.Path(input_path))
+        stdout, stderr = process.communicate(timeout=COMMAND_TERMINATION_GRACE_SECONDS)
+        return stdout, stderr, "terminated"
+    except subprocess.TimeoutExpired:
+        with suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        stdout, stderr = process.communicate()
+        return stdout, stderr, "killed after bounded termination grace"
 
 
 def _coerce_subprocess_output(value: object) -> str:
@@ -222,21 +308,38 @@ def run_command(
     command_cwd = (cwd or ROOT).resolve()
     prepared_argv = _prepare_command(argv, command_cwd, env)
     started = time.monotonic()
+    command_cwd = cwd or ROOT
+    process: subprocess.Popen[str] | None = None
     try:
-        # The executable and Node entrypoint are resolved through the trusted allowlist above.
-        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-        completed = subprocess.run(  # nosec B603
-            prepared_argv,
+        # Commands come from repository-owned benchmark metadata and are
+        # intentionally executed as argument vectors without a shell.
+        process = subprocess.Popen(  # noqa: S603
+            argv,
             cwd=command_cwd,
             env=env,
             text=True,
-            capture_output=True,
-            check=False,
-            timeout=timeout_seconds,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
         )
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
     except subprocess.TimeoutExpired as exc:
-        return _timeout_transcript(exc, requested_argv, command_cwd, timeout_seconds, started)
-    return _completed_transcript(completed, requested_argv, command_cwd, timeout_seconds, started)
+        if process is None:
+            raise RuntimeError("command timed out before its process was created") from exc
+        stdout, stderr, termination = _terminate_process_group(process)
+        # ``communicate`` returns complete stream contents after termination;
+        # retain TimeoutExpired output only if the platform provided no stream.
+        stdout = stdout or _text_output(exc.stdout)
+        stderr = stderr or _text_output(exc.stderr)
+        return _timeout_result(
+            argv,
+            command_cwd,
+            stdout,
+            stderr,
+            started,
+            timeout_seconds,
+            termination,
+        )
 
 
 def _timeout_transcript(
@@ -246,31 +349,20 @@ def _timeout_transcript(
     label = f"{timeout_seconds:g}" if isinstance(timeout_seconds, (int, float)) else "unknown"
     message = f"command timed out after {label}s"
     return {
-        "argv": argv, "cwd": relative_to_root(cwd), "returncode": 124,
-        "stdout": _coerce_subprocess_output(exc.stdout),
-        "stderr": f"{_coerce_subprocess_output(exc.stderr).rstrip()}\n{message}".strip(),
-        "duration_seconds": round(time.monotonic() - started, 4), "timed_out": True,
-        "timeout_seconds": timeout_seconds,
-    }
-
-
-def _completed_transcript(
-    completed: subprocess.CompletedProcess[str], argv: list[str], cwd: pathlib.Path,
-    timeout_seconds: float | None, started: float,
-) -> dict[str, Any]:
-    if isinstance(completed.returncode, bool) or not isinstance(completed.returncode, int):
-        raise RuntimeError("subprocess returned malformed exit status")
-    return {
-        "argv": argv, "cwd": relative_to_root(cwd), "returncode": completed.returncode,
-        "stdout": _coerce_subprocess_output(completed.stdout),
-        "stderr": _coerce_subprocess_output(completed.stderr),
-        "duration_seconds": round(time.monotonic() - started, 4), "timed_out": False,
+        "argv": argv,
+        "cwd": repo_relpath(command_cwd),
+        "returncode": process.returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "duration_seconds": duration,
+        "timed_out": False,
         "timeout_seconds": timeout_seconds,
     }
 
 
 def repo_relpath(path: pathlib.Path) -> str:
-    return ensure_relative_to_root(path)
+    rel = relative_to_directory(path, ROOT)
+    return "." if rel == pathlib.Path(".") else rel.as_posix()
 
 
 def default_system_metadata(runtime: str) -> dict[str, str]:
@@ -290,7 +382,11 @@ def metric_ratio(numerator: int, denominator: int) -> float:
 
 
 def path_exists(path_str: str) -> bool:
-    return (ROOT / path_str).exists()
+    try:
+        resolve_metadata_path(path_str, label="path", must_exist=True)
+    except ValueError:
+        return False
+    return True
 
 
 def sanitize_env(extra_env: dict[str, str] | None = None) -> dict[str, str]:

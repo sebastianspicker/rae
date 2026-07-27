@@ -9,16 +9,19 @@ on:
     branches:
       - main
       - dev
-  schedule:
-    - cron: "17 3 * * 1"
   workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions: {}
 
 jobs:
   analyze:
     name: Analyze
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
@@ -30,34 +33,14 @@ jobs:
           - python
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+        uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357
         with:
           languages: ${{ matrix.language }}
-          build-mode: none
-          queries: security-extended
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
-        with:
-          output: ../results
-
-      - name: Sanitize CodeQL result locations
-        if: ${{ always() }}
-        env:
-          CODEQL_LANGUAGE: ${{ matrix.language }}
-        run: |
-          output_path="codeql-${CODEQL_LANGUAGE}-sanitized.json"
-          jq -s -f scripts/sanitize-codeql-report.jq \
-            ../results/*.sarif > "$output_path"
-          cat "$output_path"
-
-      - name: Upload sanitized CodeQL result locations
-        if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: codeql-${{ matrix.language }}-sanitized
-          path: codeql-${{ matrix.language }}-sanitized.json
-          if-no-files-found: error
+        uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357

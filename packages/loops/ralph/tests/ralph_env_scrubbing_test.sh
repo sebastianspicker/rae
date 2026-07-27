@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's env scrubbing contract.
 
 set -euo pipefail
 
@@ -7,11 +8,26 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/test_helpers.sh"
 
 require_cmds mktemp jq
 
-make_fake_claude() {
+make_fake_codex() {
   local fake_tool="$1"
   cat >"$fake_tool" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
 
 cat >/dev/null
 
@@ -19,12 +35,24 @@ if [[ -n "${AWS_SESSION_TOKEN:-}" ]]; then
   printf 'unexpected inherited secret env\n' >&2
   exit 21
 fi
-if [[ -z "${FAKE_STATE_FILE:-}" ]]; then
+if [[ -n "${FAKE_SHOULD_NOT_LEAK:-}" || -n "${CODEX_SHOULD_NOT_LEAK:-}" ]]; then
+  printf 'unexpected inherited non-allowlisted env\n' >&2
+  exit 23
+fi
+if [[ "${CODEX_INTERNAL_ORIGINATOR_OVERRIDE:-}" != "codex_cli_rs" ]]; then
+  printf 'originator override was not fixed\n' >&2
+  exit 24
+fi
+if [[ "$PWD" != "$repo" ]]; then
+  printf 'PWD was not set to repository root\n' >&2
+  exit 25
+fi
+if [[ -z "${XDG_STATE_HOME:-}" ]]; then
   printf 'missing allowed fake env\n' >&2
   exit 22
 fi
 
-printf 'scrubbed\n' >"$FAKE_STATE_FILE"
+printf 'scrubbed\n' >"$XDG_STATE_HOME"
 printf '# fake report\n'
 EOF
   chmod +x "$fake_tool"
@@ -76,7 +104,7 @@ run_case() {
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
 
-  make_fake_claude "$bindir/claude"
+  make_fake_codex "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
@@ -85,7 +113,10 @@ run_case() {
     PATH="$bindir:$PATH" \
       MODE=audit \
       AWS_SESSION_TOKEN="should-not-leak" \
-      FAKE_STATE_FILE="$tmpdir/seen.txt" \
+      FAKE_SHOULD_NOT_LEAK="no" \
+      CODEX_SHOULD_NOT_LEAK="no" \
+      CODEX_INTERNAL_ORIGINATOR_OVERRIDE="untrusted" \
+      XDG_STATE_HOME="$tmpdir/seen.txt" \
       ./ralph.sh 1
   ) >"$tmpdir/out.log" 2>&1
   rc=$?

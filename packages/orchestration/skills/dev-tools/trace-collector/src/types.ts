@@ -1,3 +1,6 @@
+/**
+ * Defines trace event and summary contracts consumed by orchestration tooling.
+ */
 export interface TraceEvent {
   ts: string;
   run_id: string;

@@ -1,3 +1,6 @@
+/**
+ * Pins trace request validation so malformed run identifiers and paths fail before collection.
+ */
 import { describe, expect, it } from "vitest";
 import { validateInput } from "../../src/lib/input.js";
 

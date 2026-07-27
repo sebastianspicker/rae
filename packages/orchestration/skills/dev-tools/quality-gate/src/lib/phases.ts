@@ -1,3 +1,6 @@
+/**
+ * Declares the canonical gate phases shared by validation and orchestration contracts.
+ */
 export const VALID_GATE_PHASES = [
   "arm",
   "design",

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's tool failure diagnostics contract.
 
 set -euo pipefail
 
@@ -12,6 +13,21 @@ make_failing_tool() {
   cat > "$fake_tool" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+last_message=""
+repo=""
+for ((ralph_i=1; ralph_i<=$#; ralph_i++)); do
+  ralph_arg="${!ralph_i}"
+  if [[ "$ralph_arg" == "--output-last-message" ]]; then
+    ralph_j=$((ralph_i + 1))
+    last_message="${!ralph_j}"
+  elif [[ "$ralph_arg" == "-C" ]]; then
+    ralph_j=$((ralph_i + 1))
+    repo="${!ralph_j}"
+  fi
+done
+[[ -z "$repo" ]] || cd "$repo"
+[[ -z "$last_message" ]] || exec >"$last_message"
 
 cat >/dev/null
 printf 'Authorization: Bearer topsecret-token-value\n' >&2
@@ -68,7 +84,7 @@ run_case() {
   bindir="$tmpdir/bin"
   mkdir -p "$bindir" "$tmpdir/repo"
 
-  make_failing_tool "$bindir/claude"
+  make_failing_tool "$bindir/codex"
   prepare_repo "$tmpdir/repo"
 
   set +e
@@ -83,7 +99,7 @@ run_case() {
     fail_case "tool-failure-redaction" "expected failure, got success" "$tmpdir/out.log" "$tmpdir"
   fi
 
-  if ! grep -q 'claude exec failed for story AUDIT-001' "$tmpdir/out.log"; then
+  if ! grep -q 'Codex exec failed for story AUDIT-001' "$tmpdir/out.log"; then
     fail_case "tool-failure-redaction" "missing high-level tool failure message" "$tmpdir/out.log" "$tmpdir"
   fi
   if ! grep -q '\[REDACTED\]' "$tmpdir/out.log"; then

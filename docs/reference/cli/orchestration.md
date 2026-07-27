@@ -1,59 +1,87 @@
 ---
 status: experimental
 owner: orchestration
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-24
 source_of_truth: packages/orchestration/scripts
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Orchestration CLI
 
-The orchestration package is imported under `packages/orchestration/`.
+The orchestration package has three command surfaces:
 
-Umbrella entrypoint:
+| Surface | Entrypoint | Use |
+| --- | --- | --- |
+| Autonomous workflow | `./scripts/rae.sh agent ...` | Repository planning, changes, checks, and handoff |
+| Stage runner | `./scripts/rae.sh orchestrate ...` | Explicit pipeline state, stages, artifacts, gates, and summaries |
+| Worktree lifecycle | `./scripts/rae.sh worktree ...` | Isolated run creation, inspection, resume, and cleanup |
 
-- `./scripts/rae.sh orchestrate ...`
+## Autonomous workflow
 
-Imported command surfaces:
+```bash
+./scripts/rae.sh agent doctor
+./scripts/rae.sh agent run \
+  --project-root /path/to/target-repository \
+  --task "Implement the change and verify it"
+```
 
-- `./scripts/pipeline-init.sh`
-- `node scripts/pipeline/runner.mjs --help`
-- `./scripts/verify.sh`
+The default run uses `.git/rae-worktrees/<run-id>`. `--through plan` stops
+before mutation. `--checkpoint-policy before-mutation-and-ship` pauses before
+the first writable stage and before the final release decision.
 
-Package-local reference paths:
+Run `./scripts/rae.sh agent --help` for run, resume, status, stop, checkpoint,
+and event options.
 
-- `packages/orchestration/README.md`
-- `packages/orchestration/docs/RUNBOOK.md`
-
-Recommended operator path:
+## Stage runner
 
 ```bash
 ./scripts/rae.sh orchestrate init
-./scripts/rae.sh orchestrate run-stage --run-id <id> --phase arm
-./scripts/rae.sh orchestrate summarize-run --run-id <id> --format markdown
+./scripts/rae.sh orchestrate run-stage --run-id <run-id> --phase arm
+./scripts/rae.sh orchestrate summarize-run --run-id <run-id> --format markdown
 ```
 
-## Thesis validation
+`run-stage` is a low-level artifact and gate interface. Without an input
+artifact it produces deterministic fixtures; it does not modify application
+code.
 
-This page is an implementation-reference surface. It documents the orchestration
-entrypoints while the supporting theory for staged execution lives in the
-science layer and claim dossiers.
+The stage order is:
 
-## Related dossiers
+```text
+arm
+design
+adversarial-review
+plan
+pmatch
+build
+quality-static
+quality-tests
+post-build
+release-readiness
+```
 
-- [CLM-014 staged separation](../claims/dossiers/clm-014-staged-separation.md)
+## Worktree lifecycle
 
-## Interpretation limits
+```bash
+./scripts/rae.sh worktree --help
+```
 
-- the page documents command entrypoints, not a general empirical claim about
-  all orchestration systems
+Worktree mode owns the `pipeline/<run-id>` branch, isolated checkout, run
+state, and cleanup checks. Cleanup is explicit and refuses uncertain or active
+state.
+
+## Package references
+
+- [Package README](../../../packages/orchestration/README.md)
+- [Runbook](../../../packages/orchestration/docs/RUNBOOK.md)
+- [Platform support](../../../packages/orchestration/docs/PLATFORMS.md)
+- [Repository map](../../../packages/orchestration/docs/REPO_MAP.md)
 
 ## Source note
 
-- [Anthropic effective agents](../claims/bibliography.md#src-anthropic-effective-agents)
-- [Conway 1968](../claims/bibliography.md#src-conway-1968)
-- [Amdahl 1967](../claims/bibliography.md#src-amdahl-1967)
+- [Diataxis](../claims/bibliography.md#src-diataxis)
 - [NIST GenAI Profile](../claims/bibliography.md#src-nist-genai-profile)
 - [IEEE 1012](../claims/bibliography.md#src-ieee-1012)
 - [Model Cards](../claims/bibliography.md#src-model-cards)
-- [Diataxis](../claims/bibliography.md#src-diataxis)
+- [Datasheets](../claims/bibliography.md#src-datasheets)
+- [Pineau reproducibility report](../claims/bibliography.md#src-pineau-reproducibility)
+- [Nosek open research culture](../claims/bibliography.md#src-nosek-open-research)

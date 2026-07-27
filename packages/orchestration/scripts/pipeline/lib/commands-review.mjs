@@ -1,3 +1,6 @@
+/**
+ * Maintains the persisted review-loop state machine used by pipeline review commands.
+ */
 import { getRunDir } from "./state.mjs";
 import { badInput } from "./errors.mjs";
 
@@ -31,13 +34,14 @@ export function defaultReviewLoop(runId) {
   };
 }
 
+function assertExplainComplete(reviewLoop, state) {
+  if (reviewLoop.states.explain.status !== "completed") {
+    throw badInput(`${state} state requires explain to be completed first`);
+  }
+}
+
 export function assertReviewTransition(reviewLoop, state, status) {
-  if (state === "fix" && reviewLoop.states.explain.status !== "completed") {
-    throw badInput("fix state requires explain to be completed first");
-  }
-  if (state === "ship" && reviewLoop.states.explain.status !== "completed") {
-    throw badInput("ship state requires explain to be completed first");
-  }
+  if (["fix", "ship"].includes(state)) assertExplainComplete(reviewLoop, state);
   if (
     state === "ship" &&
     !["not-started", "completed", "approved"].includes(reviewLoop.states.fix.status)

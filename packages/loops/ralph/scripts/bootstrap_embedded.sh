@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Copies the Ralph template into a target repository so the loop can run as a self-contained tool.
 
 set -euo pipefail
 
@@ -59,8 +60,17 @@ if [[ ! -d "$TARGET_REPO" ]]; then
 fi
 
 TARGET_REPO="$(cd "$TARGET_REPO" && pwd)"
+CLAUDE_DIR="$TARGET_REPO/.claude"
 DEST="$TARGET_REPO/.claude/ralph-audit"
 
+if [[ -L "$CLAUDE_DIR" ]]; then
+  printf '.claude must not be a symlink: %s\n' "$CLAUDE_DIR" >&2
+  exit 1
+fi
+if [[ -e "$CLAUDE_DIR" && ! -d "$CLAUDE_DIR" ]]; then
+  printf '.claude must be a directory: %s\n' "$CLAUDE_DIR" >&2
+  exit 1
+fi
 if [[ -e "$DEST" && "$FORCE" != "true" ]]; then
   printf 'destination already exists: %s (use --force to overwrite)\n' "$DEST" >&2
   exit 1
@@ -93,12 +103,13 @@ copy_file "scripts/record_learning.sh"
 copy_file "scripts/archive_run_state.sh"
 copy_file "scripts/append_progress_entry.sh"
 copy_file "scripts/sync_agents_from_learnings.sh"
+copy_file "scripts/ralph_supervisor.py"
+copy_file "scripts/ralph_fs_txn.py"
 copy_file "scripts/lib/parse_opts.sh"
 copy_file "scripts/lib/append_safe.sh"
 copy_file "scripts/lib/prd_counts.sh"
 copy_file "skills/prd/SKILL.md"
 copy_file "skills/ralph/SKILL.md"
-copy_file "CLAUDE.md"
 copy_file "scripts/run_tests.sh"
 
 for mod in "$TEMPLATE_ROOT"/lib/ralph/*.sh; do
@@ -111,7 +122,7 @@ if [[ "$WITH_TESTS" == "true" ]]; then
   cp "$TEMPLATE_ROOT"/tests/lib/*.sh "$DEST/tests/lib/"
 fi
 
-chmod +x "$DEST/ralph.sh" "$DEST/scripts/generate_progress.sh" "$DEST/scripts/record_learning.sh" "$DEST/scripts/archive_run_state.sh" "$DEST/scripts/append_progress_entry.sh" "$DEST/scripts/sync_agents_from_learnings.sh" "$DEST/scripts/run_tests.sh"
+chmod +x "$DEST/ralph.sh" "$DEST/scripts/generate_progress.sh" "$DEST/scripts/record_learning.sh" "$DEST/scripts/archive_run_state.sh" "$DEST/scripts/append_progress_entry.sh" "$DEST/scripts/sync_agents_from_learnings.sh" "$DEST/scripts/ralph_supervisor.py" "$DEST/scripts/ralph_fs_txn.py" "$DEST/scripts/run_tests.sh"
 if [[ "$WITH_TESTS" == "true" ]]; then
   chmod +x "$DEST"/tests/*.sh
 fi

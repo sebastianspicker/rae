@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
+# Removes disposable local editor and tool residue to restore a clean working directory.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$root_dir/scripts/lib/runtime.sh"
+orchestration_require_runtime
 cd "$root_dir"
 
 deleted=0
@@ -33,4 +37,3 @@ for cache_dir in ".pytest_cache" ".mypy_cache" ".ruff_cache"; do
 done
 
 echo "cleanup complete: removed $deleted item(s)"
-

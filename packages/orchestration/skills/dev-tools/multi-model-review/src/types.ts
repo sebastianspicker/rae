@@ -1,3 +1,6 @@
+/**
+ * Defines public input, finding, and result contracts for multi-model review.
+ */
 import type { Finding, ReviewerFindings } from "./lib/models/types.js";
 
 export type ActionType = "review" | "drift-detect";

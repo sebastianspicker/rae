@@ -1,3 +1,6 @@
+/**
+ * Verifies gate evaluation rejects unsafe schema references and composes validation results correctly.
+ */
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";

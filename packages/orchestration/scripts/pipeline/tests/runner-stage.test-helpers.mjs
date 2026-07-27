@@ -1,3 +1,6 @@
+/**
+ * Supplies controlled runner fixtures so stage tests can assert lifecycle and artifact behavior deterministically.
+ */
 import { beforeAll, afterAll } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -22,55 +25,63 @@ export function runRunner(args) {
   });
 }
 
-export function initState() {
+function defaultArtifacts() {
+  return {
+    brief: null,
+    design: null,
+    review: null,
+    review_loop: null,
+    plan: null,
+    build: null,
+    post_build: null,
+    release_readiness: null,
+    drift_reports: [],
+    quality_reports: [],
+  };
+}
+
+function defaultConfig() {
+  return {
+    context_budgets: { design: 24000 },
+    activity_assignments: {
+      arm_briefing: {
+        tier: "high_reasoning",
+        model_hint: "brief-architect",
+        runtime_name: "default",
+        runtime_version: "v1",
+      },
+      build_worker: {
+        tier: "fast",
+        model_hint: "build-worker",
+        runtime_name: "default",
+        runtime_version: "v1",
+      },
+      quality_tests_case: {
+        tier: "fast",
+        model_hint: "quality-tests",
+        runtime_name: "default",
+        runtime_version: "v1",
+      },
+    },
+    feature_flags: { context_budget_v1: true },
+  };
+}
+
+export function initState(nextPhase = "arm") {
+  const nextPhaseIndex = PHASE_ORDER.indexOf(nextPhase);
+  if (nextPhaseIndex === -1) {
+    throw new Error(`unknown next phase: ${nextPhase}`);
+  }
   mkdirSync(PIPELINE_DIR, { recursive: true });
   rmSync(join(PIPELINE_DIR, "runs", TEST_RUN_ID), { recursive: true, force: true });
   const state = {
     run_id: TEST_RUN_ID,
     created_at: new Date().toISOString(),
-    current_phase: "arm",
+    current_phase: PHASE_ORDER[Math.max(0, nextPhaseIndex - 1)],
     phase_order: PHASE_ORDER,
-    completed_gates: [],
-    artifacts: {
-      brief: null,
-      design: null,
-      review: null,
-      review_loop: null,
-      plan: null,
-      build: null,
-      post_build: null,
-      release_readiness: null,
-      drift_reports: [],
-      quality_reports: [],
-    },
-    config: {
-      context_budgets: {
-        design: 24000,
-      },
-      activity_assignments: {
-        arm_briefing: {
-          tier: "high_reasoning",
-          model_hint: "brief-architect",
-          runtime_name: "default",
-          runtime_version: "v1",
-        },
-        build_worker: {
-          tier: "fast",
-          model_hint: "build-worker",
-          runtime_name: "default",
-          runtime_version: "v1",
-        },
-        quality_tests_case: {
-          tier: "fast",
-          model_hint: "quality-tests",
-          runtime_name: "default",
-          runtime_version: "v1",
-        },
-      },
-      feature_flags: {
-        context_budget_v1: true,
-      },
-    },
+    completed_gates: PHASE_ORDER.slice(0, nextPhaseIndex).map((phase) => `${phase}-gate`),
+    artifacts: defaultArtifacts(),
+    config: defaultConfig(),
   };
   writeFileSync(STATE_PATH, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
@@ -237,6 +248,7 @@ export function registerStateLifecycle() {
     rmSync(runDir, { recursive: true, force: true });
     rmSync(TASKSET_PATH, { force: true });
     rmSync(join(PIPELINE_DIR, "empty-brief.json"), { force: true });
+    rmSync(join(PIPELINE_DIR, "caller-quality.json"), { force: true });
 
     if (originalState !== null) {
       writeFileSync(STATE_PATH, originalState, "utf8");

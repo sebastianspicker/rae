@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's archive run state contract.
 
 set -euo pipefail
 

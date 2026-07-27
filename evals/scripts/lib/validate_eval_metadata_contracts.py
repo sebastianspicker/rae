@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 """Validate eval benchmark and run metadata contracts for the umbrella repo."""
 
-from __future__ import annotations
-
-import json
 import pathlib
+from collections.abc import Sequence
+from typing import cast
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
-EVALS = ROOT / "evals"
+from common import (
+    EVALS,
+    RESULTS_ROOT,
+    ROOT,
+    load_json_object,
+    resolve_metadata_path,
+)
+
 BENCHMARK_SPLITS = {"dev", "held-out", "stress", "ablation"}
 BENCHMARK_STATUSES = {"draft", "experimental", "frozen", "deprecated"}
 JUDGE_TYPES = {"programmatic", "rubric", "hybrid"}
@@ -18,10 +23,6 @@ RUN_EVIDENCE_TYPES = {"benchmark-run", "operator-run", "vendor-doc"}
 RUN_STATUSES = {"planned", "pass", "fail", "blocked", "observed"}
 WORKFLOW_VERBS = {"discover", "plan", "implement", "review", "compound"}
 EVIDENCE_SUMMARY_STATUSES = {"complete", "partial", "missing"}
-
-
-def load_json(path: pathlib.Path) -> object:
-    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def iter_benchmark_paths() -> list[pathlib.Path]:
@@ -41,8 +42,13 @@ def iter_task_bundle_paths() -> list[pathlib.Path]:
     return sorted(EVALS.rglob("*.task-specs.json"))
 
 
-def path_exists(relative_path: str) -> bool:
-    return (ROOT / relative_path).exists()
+def iter_outcome_bundle_paths() -> list[pathlib.Path]:
+    return sorted(EVALS.rglob("*.task-bundle.json"))
+
+
+def iter_optimizer_campaign_paths() -> list[pathlib.Path]:
+    campaigns = EVALS / "campaigns"
+    return sorted(campaigns.glob("*.json")) if campaigns.exists() else []
 
 
 def require_non_empty_string(value: object, message: str) -> None:
@@ -58,114 +64,100 @@ def validate_command_contract(data: object, label: str) -> None:
         value = data.get(key)
         if value is not None and not isinstance(value, str):
             raise ValueError(f"{label}.{key} must be a string when present")
+    working_directory = data.get("working_directory")
+    if working_directory is not None:
+        resolve_metadata_path(
+            working_directory,
+            label=f"{label}.working_directory",
+            contained_by=ROOT,
+        )
+
+
+def _require_string_list(
+    value: object,
+    label: str,
+    *,
+    required: bool = False,
+) -> list[str]:
+    if not isinstance(value, list) or (required and not value):
+        qualifier = "non-empty " if required else ""
+        raise ValueError(f"{label} must be a {qualifier}array")
+    for entry in value:
+        require_non_empty_string(entry, f"{label} entries must be strings")
+    return cast(list[str], value)
+
+
+def _validate_metadata_path_list(value: object, label: str, *, required: bool) -> None:
+    for entry in _require_string_list(value, label, required=required):
+        resolve_metadata_path(entry, label=f"{label} entry", contained_by=ROOT)
+
+
+def _validate_delegation_guard(data: object, label: str) -> None:
+    if not isinstance(data, dict):
+        raise ValueError(f"{label}.guard must be an object")
+    require_non_empty_string(data.get("rule"), f"{label}.guard.rule must be a non-empty string")
+    for key in ("command", "metric"):
+        value = data.get(key)
+        if value is not None and not isinstance(value, str):
+            raise ValueError(f"{label}.guard.{key} must be a string when present")
+
+
+def _validate_required_evidence(data: object, label: str) -> None:
+    if not isinstance(data, list) or not data:
+        raise ValueError(f"{label}.required_evidence must be a non-empty array")
+    for index, entry in enumerate(data):
+        entry_label = f"{label}.required_evidence[{index}]"
+        if not isinstance(entry, dict):
+            raise ValueError(f"{entry_label} must be an object")
+        require_non_empty_string(
+            entry.get("type"), f"{entry_label}.type must be a non-empty string"
+        )
+        require_non_empty_string(entry.get("why"), f"{entry_label}.why must be a non-empty string")
+        required = entry.get("required")
+        if required is not None and not isinstance(required, bool):
+            raise ValueError(f"{entry_label}.required must be boolean when present")
 
 
 def validate_delegation_contract(data: object, label: str) -> None:
     if not isinstance(data, dict):
         raise ValueError(f"{label} must be an object")
 
-    validate_allowed_paths(data, label)
-    validate_optional_string_lists(data, label)
+    _validate_metadata_path_list(data.get("allowed_paths"), f"{label}.allowed_paths", required=True)
+    out_of_scope = data.get("out_of_scope_paths")
+    if out_of_scope is not None:
+        _validate_metadata_path_list(out_of_scope, f"{label}.out_of_scope_paths", required=False)
+    dependency_ids = data.get("dependency_task_ids")
+    if dependency_ids is not None:
+        _require_string_list(dependency_ids, f"{label}.dependency_task_ids")
     validate_command_contract(data.get("verify"), label + ".verify")
-    validate_guard(data, label)
-    validate_required_evidence(data, label)
+    _validate_delegation_guard(data.get("guard"), label)
+    _validate_required_evidence(data.get("required_evidence"), label)
     fallback_rule = data.get("fallback_rule")
     if fallback_rule is not None and not isinstance(fallback_rule, str):
         raise ValueError(f"{label}.fallback_rule must be a string when present")
 
 
-def validate_allowed_paths(data: dict[object, object], label: str) -> None:
-
-    allowed_paths = data.get("allowed_paths")
-    if not isinstance(allowed_paths, list) or not allowed_paths:
-        raise ValueError(f"{label}.allowed_paths must be a non-empty array")
-    for entry in allowed_paths:
-        require_non_empty_string(entry, f"{label}.allowed_paths entries must be strings")
-
-
-def validate_optional_string_lists(data: dict[object, object], label: str) -> None:
-    for key in ("out_of_scope_paths", "dependency_task_ids"):
-        values = data.get(key)
-        if values is None:
-            continue
-        if not isinstance(values, list):
-            raise ValueError(f"{label}.{key} must be an array when present")
-        for entry in values:
-            require_non_empty_string(entry, f"{label}.{key} entries must be strings")
-
-
-def validate_guard(data: dict[object, object], label: str) -> None:
-    guard = data.get("guard")
-    if not isinstance(guard, dict):
-        raise ValueError(f"{label}.guard must be an object")
-    require_non_empty_string(guard.get("rule"), f"{label}.guard.rule must be a non-empty string")
-    for key in ("command", "metric"):
-        value = guard.get(key)
-        if value is not None and not isinstance(value, str):
-            raise ValueError(f"{label}.guard.{key} must be a string when present")
-
-
-def validate_required_evidence(data: dict[object, object], label: str) -> None:
-    required_evidence = data.get("required_evidence")
-    if not isinstance(required_evidence, list) or not required_evidence:
-        raise ValueError(f"{label}.required_evidence must be a non-empty array")
-    for index, entry in enumerate(required_evidence):
-        if not isinstance(entry, dict):
-            raise ValueError(f"{label}.required_evidence[{index}] must be an object")
-        require_non_empty_string(
-            entry.get("type"),
-            f"{label}.required_evidence[{index}].type must be a non-empty string",
-        )
-        require_non_empty_string(
-            entry.get("why"),
-            f"{label}.required_evidence[{index}].why must be a non-empty string",
-        )
-        required = entry.get("required")
-        if required is not None and not isinstance(required, bool):
-            raise ValueError(
-                f"{label}.required_evidence[{index}].required must be boolean when present"
-            )
-
-
-def validate_verification_evidence(data: object, label: str) -> None:
-    if not isinstance(data, dict):
-        raise ValueError(f"{label} must be an object")
-
-    validate_optional_evidence_types(data, label)
-    validate_provided_evidence(data, label)
-    validate_evidence_summary(data, label)
-    validate_evidence_task_statuses(data, label)
-
-
-def validate_optional_evidence_types(data: dict[object, object], label: str) -> None:
-
-    required_types = data.get("required_types")
-    if required_types is not None:
-        if not isinstance(required_types, list):
-            raise ValueError(f"{label}.required_types must be an array when present")
-        for entry in required_types:
-            require_non_empty_string(entry, f"{label}.required_types entries must be strings")
-
-
-def validate_provided_evidence(data: dict[object, object], label: str) -> None:
-    provided = data.get("provided")
+def _validate_provided_evidence(provided: object, label: str) -> None:
     if not isinstance(provided, list):
         raise ValueError(f"{label}.provided must be an array")
     for index, entry in enumerate(provided):
+        entry_label = f"{label}.provided[{index}]"
         if not isinstance(entry, dict):
-            raise ValueError(f"{label}.provided[{index}] must be an object")
+            raise ValueError(f"{entry_label} must be an object")
         require_non_empty_string(
-            entry.get("type"),
-            f"{label}.provided[{index}].type must be a non-empty string",
+            entry.get("type"), f"{entry_label}.type must be a non-empty string"
         )
         require_non_empty_string(
+            entry.get("path"), f"{entry_label}.path must be a non-empty string"
+        )
+        resolve_metadata_path(
             entry.get("path"),
-            f"{label}.provided[{index}].path must be a non-empty string",
+            label=f"{entry_label}.path",
+            contained_by=RESULTS_ROOT,
         )
 
 
-def validate_evidence_summary(data: dict[object, object], label: str) -> None:
-    summary = data.get("summary")
+def _validate_evidence_summary(summary: object, label: str) -> None:
     if not isinstance(summary, dict):
         raise ValueError(f"{label}.summary must be an object")
     status = summary.get("status")
@@ -179,53 +171,55 @@ def validate_evidence_summary(data: dict[object, object], label: str) -> None:
             require_non_empty_string(entry, f"{label}.summary.{key} entries must be strings")
 
 
-def validate_evidence_task_statuses(data: dict[object, object], label: str) -> None:
+def _validate_task_statuses(task_statuses: object, label: str) -> None:
+    if not isinstance(task_statuses, list):
+        raise ValueError(f"{label}.task_statuses must be an array when present")
+    for index, entry in enumerate(task_statuses):
+        entry_label = f"{label}.task_statuses[{index}]"
+        if not isinstance(entry, dict):
+            raise ValueError(f"{entry_label} must be an object")
+        require_non_empty_string(
+            entry.get("task_id"), f"{entry_label}.task_id must be a non-empty string"
+        )
+        if entry.get("status") not in EVIDENCE_SUMMARY_STATUSES:
+            raise ValueError(f"{entry_label}.status has invalid value")
+        _require_string_list(entry.get("missing_types"), f"{entry_label}.missing_types")
+
+
+def validate_verification_evidence(data: object, label: str) -> None:
+    if not isinstance(data, dict):
+        raise ValueError(f"{label} must be an object")
+    required_types = data.get("required_types")
+    if required_types is not None:
+        _require_string_list(required_types, f"{label}.required_types")
+    _validate_provided_evidence(data.get("provided"), label)
+    _validate_evidence_summary(data.get("summary"), label)
     task_statuses = data.get("task_statuses")
     if task_statuses is not None:
-        if not isinstance(task_statuses, list):
-            raise ValueError(f"{label}.task_statuses must be an array when present")
-        for index, entry in enumerate(task_statuses):
-            if not isinstance(entry, dict):
-                raise ValueError(f"{label}.task_statuses[{index}] must be an object")
-            require_non_empty_string(
-                entry.get("task_id"),
-                f"{label}.task_statuses[{index}].task_id must be a non-empty string",
-            )
-            if entry.get("status") not in EVIDENCE_SUMMARY_STATUSES:
-                raise ValueError(f"{label}.task_statuses[{index}].status has invalid value")
-            missing_types = entry.get("missing_types")
-            if not isinstance(missing_types, list):
-                raise ValueError(f"{label}.task_statuses[{index}].missing_types must be an array")
-            for missing in missing_types:
-                require_non_empty_string(
-                    missing,
-                    f"{label}.task_statuses[{index}].missing_types entries must be strings",
-                )
+        _validate_task_statuses(task_statuses, label)
+
+
+def _validate_calibration_cases(cases: Sequence[object], label: str) -> None:
+    for case in cases:
+        if not isinstance(case, dict):
+            raise ValueError(f"{label} calibration case must be an object")
+        if case.get("expected_verdict") not in {"pass", "fail"}:
+            raise ValueError(f"{label} calibration case has invalid expected_verdict")
 
 
 def validate_judge_config(path: pathlib.Path) -> None:
-    data = load_json(path)
-    if not isinstance(data, dict):
-        raise ValueError(f"{path.relative_to(ROOT)} must be a JSON object")
+    data = load_json_object(path)
     for key in ("judge_id", "judge_version", "rubric_version", "calibration_cases"):
         if key not in data:
             raise ValueError(f"{path.relative_to(ROOT)} is missing key: {key}")
     cases = data["calibration_cases"]
     if not isinstance(cases, list) or not cases:
         raise ValueError(f"{path.relative_to(ROOT)} calibration_cases must be non-empty")
-    for case in cases:
-        if not isinstance(case, dict):
-            raise ValueError(f"{path.relative_to(ROOT)} calibration case must be an object")
-        if case.get("expected_verdict") not in {"pass", "fail"}:
-            raise ValueError(
-                f"{path.relative_to(ROOT)} calibration case has invalid expected_verdict"
-            )
+    _validate_calibration_cases(cases, str(path.relative_to(ROOT)))
 
 
 def validate_baseline_result(path: pathlib.Path) -> None:
-    data = load_json(path)
-    if not isinstance(data, dict):
-        raise ValueError(f"{path.relative_to(ROOT)} must be a JSON object")
+    data = load_json_object(path)
     metrics = data.get("aggregate_metrics")
     if not isinstance(metrics, dict) or not metrics:
         raise ValueError(f"{path.relative_to(ROOT)} aggregate_metrics must be a non-empty object")

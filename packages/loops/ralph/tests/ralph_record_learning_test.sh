@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Regression coverage for Ralph's record learning contract.
 
 set -euo pipefail
 

@@ -1,3 +1,6 @@
+/**
+ * Coordinates validated artifacts, schemas, and criteria into a deterministic gate result.
+ */
 import { randomUUID } from "node:crypto";
 import { resolveWithinWorkspace } from "@coding-agents-space/shared";
 import type { GateResult, GateStatus, Input } from "../types.js";
@@ -10,6 +13,9 @@ interface EvaluateGateOptions {
   now?: Date;
 }
 
+/**
+ * Coordinates schema and criterion evaluation while keeping schema references inside the workspace.
+ */
 export async function evaluateGate(
   input: Input,
   opts: EvaluateGateOptions = {},
