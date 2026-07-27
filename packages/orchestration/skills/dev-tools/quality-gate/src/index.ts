@@ -1,3 +1,6 @@
+/**
+ * Exposes the quality-gate evaluator through the common JSON-lines tool harness.
+ */
 import type { GateResult, Input } from "./types.js";
 import { evaluateGate } from "./lib/engine.js";
 import { runTool } from "@coding-agents-space/shared";

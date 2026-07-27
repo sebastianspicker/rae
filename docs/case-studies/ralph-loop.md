@@ -1,21 +1,22 @@
 ---
 status: historical
 owner: loops
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-16
 source_of_truth: editorial
-evidence_links: ../archive/migration/source-repo-map.md
+evidence_links: ../reference/repo-map.md
 ---
 
 # Case Study: Ralph Loop
 
-The Ralph import supplies the umbrella’s deterministic iteration model.
+Ralph `0.3.0` supplies the umbrella's Codex-only deterministic execution loop.
 
 ## What it contributes
 
-- mode-separated audit, linting, and fixing
-- atomic state handling
+- read-only audit and linting, plus transactional story-scoped fixing
+- journaled transaction handling and crash recovery
 - deterministic story selection
 - scope enforcement for fixing runs
+- bounded Codex deadline and output capture
 - a strong regression suite for loop invariants
 
 ## Why it matters to the umbrella

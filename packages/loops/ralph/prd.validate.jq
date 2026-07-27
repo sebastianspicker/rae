@@ -1,3 +1,4 @@
+# Enforce Ralph PRD relationships and text constraints that JSON Schema cannot express alone.
 def is_rfc3339:
   type == "string"
   and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$");

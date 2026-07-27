@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
+# Runs the orchestration evaluation matrix to exercise supported planning and execution paths.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$root_dir/scripts/lib/runtime.sh"
+orchestration_require_runtime
 
 eval_id="eval-$(date -u +%Y%m%dT%H%M%SZ)"
 taskset="docs/eval/tasksets/default.json"

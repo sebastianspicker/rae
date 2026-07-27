@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-17
+last_reviewed: 2026-07-19
 source_of_truth: editorial
 evidence_links: ../reference/claims/claims-ledger.md
 ---
@@ -16,6 +16,14 @@ Documentation is part of the product surface and part of the reliability model.
 - use `research/` for benchmark doctrine and results
 - use `governance/` for policy, release, and review rules
 - keep command truth in package-local docs when the package owns the CLI
+
+## Frontmatter status
+
+The `status` field records the review maturity of the page. It does not promise
+API, schema, configuration, or behavioral stability. Capability maturity must
+be stated in prose as implemented, experimental, limited, deprecated, or
+planned. During the alpha series, a page may be `stable` as documentation while
+the interface it describes remains subject to change.
 
 ## Article classes and proof modes
 

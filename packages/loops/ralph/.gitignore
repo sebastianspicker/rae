@@ -2,6 +2,8 @@
 prd.json
 .runtime/
 progress.txt
+progress.log.md
+backup.json
 archive/
 *.tmp
 *.XXXXXX
@@ -25,4 +27,3 @@ id_ed25519.*
 *.secret
 credentials.json
 service-account*.json
-

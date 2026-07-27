@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-17
+last_reviewed: 2026-07-19
 source_of_truth: ../claims-ledger.md
 evidence_links: ../evidence-index.md#clm-017
 ---
@@ -33,6 +33,8 @@ and governance literature.
 - `docs/governance/documentation-policy.md`
 - `scripts/verify_repo.py`
 - `docs/INDEX.md`
+- `packages/orchestration/scripts/pipeline/autonomous.mjs`
+- `packages/orchestration/scripts/pipeline/tests/autonomous-checkpoint-scenarios.test.mjs`
 
 ## External anchors
 
@@ -46,8 +48,11 @@ and governance literature.
 
 ## Benchmark artifacts
 
-Documentation review is enforced via `scripts/verify_repo.py` and release review
-checklists, but no frozen benchmark isolates documentation effects yet.
+Documentation review is enforced via `scripts/verify_repo.py`, autonomous
+post-build instructions, emitted `documentation-report.json`, and release
+review checklists. The end-to-end autonomous fixture verifies that a target doc
+change is surfaced in the run report, but no frozen benchmark isolates the
+effect of documentation quality yet.
 
 ## Counterarguments
 

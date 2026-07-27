@@ -156,6 +156,24 @@
       "type": "number",
       "minimum": 0
     },
+    "resource_usage": {
+      "type": "object",
+      "required": ["measurement_status", "agent_duration_seconds", "agent_calls", "max_parallelism", "missing_measurements"],
+      "properties": {
+        "measurement_status": {"type": "string", "enum": ["complete", "partial", "unavailable"]},
+        "agent_duration_seconds": {"type": ["number", "null"], "minimum": 0},
+        "input_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "cached_input_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "output_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "reasoning_output_tokens": {"type": ["integer", "null"], "minimum": 0},
+        "agent_calls": {"type": "integer", "minimum": 0},
+        "command_events": {"type": "integer", "minimum": 0},
+        "max_parallelism": {"type": "integer", "minimum": 1},
+        "missing_measurements": {"type": "array", "items": {"type": "string"}},
+        "source_refs": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
     "notes": {
       "type": "string"
     }

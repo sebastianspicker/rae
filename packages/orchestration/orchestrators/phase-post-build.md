@@ -51,8 +51,8 @@ read this file first. If it does not exist, create it with a
 ### Task 4: Code quality audit
 - [ ] Check error handling consistency: pipeline modules use badInput(), eval scripts use Error()
 - [ ] Check naming conventions: camelCase in JS/TS, kebab-case in filenames, snake_case in JSON schema keys
-- [ ] Check for remaining TODO/FIXME/HACK comments — resolve or document as known-issue
-- [ ] Check for any commented-out code blocks — remove or document why kept
+- [ ] Check for remaining TODO/FIXME/HACK comments: resolve or document as known-issue
+- [ ] Check for any commented-out code blocks: remove or document why kept
 - [ ] Write backend.json to .pipeline/runs/<run-id>/quality-reports/backend.json conforming to contracts/artifacts/quality-report.schema.json with audit_type "backend"
 - [ ] Document under "## Code Quality Audit"
 

@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
+# Runs the frozen evaluation suite so releases can compare against a stable benchmark baseline.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$ROOT_DIR/scripts/lib/runtime.sh"
+rae_require_runtime
+
 OUTPUT_ROOT="${1:-}"
 RESULTS_ROOT="$ROOT_DIR/evals/results"
 
@@ -11,20 +16,20 @@ if [[ -z "$OUTPUT_ROOT" ]]; then
 fi
 
 OUTPUT_ROOT="$(
-  python3 - "$OUTPUT_ROOT" <<'PY'
+  "$PYTHON_BIN" - "$OUTPUT_ROOT" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
 )"
 
 RESULTS_ROOT="$(
-  python3 - "$RESULTS_ROOT" <<'PY'
+  "$PYTHON_BIN" - "$RESULTS_ROOT" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
 )"
 
-if ! python3 - "$OUTPUT_ROOT" "$RESULTS_ROOT" <<'PY'; then
+if ! "$PYTHON_BIN" - "$OUTPUT_ROOT" "$RESULTS_ROOT" <<'PY'; then
 from pathlib import Path
 import sys
 
@@ -53,7 +58,7 @@ mkdir -p "$OUTPUT_ROOT"
 
 for benchmark_card in "$ROOT_DIR"/evals/benchmarks/*.benchmark-card.json; do
   benchmark_status="$(
-    python3 - "$benchmark_card" <<'PY'
+    "$PYTHON_BIN" - "$benchmark_card" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     data = json.load(handle)
@@ -67,7 +72,7 @@ PY
   for split in dev held-out; do
     output_dir="$OUTPUT_ROOT/$benchmark_name/$split"
     mkdir -p "$output_dir"
-    python3 "$ROOT_DIR/evals/scripts/run_benchmark.py" \
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/run_benchmark.py" \
       --benchmark-card "$benchmark_card" \
       --split "$split" \
       --output-dir "$output_dir" >/dev/null

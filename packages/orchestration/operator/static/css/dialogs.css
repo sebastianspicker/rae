@@ -1,0 +1,195 @@
+/*
+ * Dialogs, confirmations, toast — square, no soft chrome.
+ */
+
+.app-dialog {
+  width: min(36rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--sheet);
+  box-shadow: none;
+  color: var(--ink);
+}
+
+.app-dialog::backdrop {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+  backdrop-filter: none;
+}
+
+.app-dialog form {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.35rem;
+}
+
+.app-dialog header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.app-dialog header p {
+  margin: 0 0 0.35rem;
+  color: var(--faint);
+  font: 500 0.7rem/1 var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-dialog h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.app-dialog header button {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--mute);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.app-dialog header button:hover {
+  color: var(--ink);
+}
+
+.app-dialog label {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.app-dialog textarea,
+.app-dialog select,
+.app-dialog input {
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.app-dialog textarea:focus-visible,
+.app-dialog select:focus-visible,
+.app-dialog input:focus-visible {
+  border-color: var(--trace);
+  background: var(--sheet);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--trace);
+}
+
+.app-dialog select,
+.app-dialog input {
+  height: 2.4rem;
+}
+
+.dialog-note,
+.dialog-message {
+  color: var(--mute);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.dialog-note {
+  margin: 0.15rem 0;
+}
+
+.dialog-message {
+  margin: 0.25rem 0 0.15rem;
+}
+
+.app-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+
+.app-dialog footer button {
+  min-width: 5.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.app-dialog footer button:hover:not(:disabled) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.app-dialog footer .primary-button {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--sheet);
+}
+
+.app-dialog footer .primary-button:hover:not(:disabled) {
+  border-color: var(--trace-ink);
+  background: var(--trace-ink);
+}
+
+.app-dialog footer .danger-button {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--sheet);
+}
+
+.app-dialog footer .danger-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 85%, #000);
+  border-color: color-mix(in srgb, var(--danger) 85%, #000);
+}
+
+.confirm-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+}
+
+.confirm-dialog code {
+  padding: 0.1rem 0.3rem;
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 0.85em;
+}
+
+.toast {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 50;
+  max-width: min(24rem, calc(100vw - 2.5rem));
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--sheet);
+  box-shadow: none;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.toast[data-tone="error"] {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+.toast[data-tone="notice"] {
+  border-color: var(--proof);
+  background: var(--proof);
+}

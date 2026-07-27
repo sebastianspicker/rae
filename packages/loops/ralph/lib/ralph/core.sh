@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# Defines Ralph shared runtime primitives used to keep runs observable and failure handling consistent.
 
 ralph_mktemp_init
 
@@ -44,7 +45,7 @@ usage() {
   cat <<'USAGE'
 Usage: ralph.sh [N] [OPTIONS]
 
-  Process up to N stories for the active mode using an AI tool (claude or codex).
+  Process up to N stories for the active mode using Codex CLI.
   If embedded, invoke as: .claude/ralph-audit/ralph.sh [N] [OPTIONS]
 
 Arguments:
@@ -53,14 +54,12 @@ Arguments:
 
 Options:
   --mode <mode>              Override MODE env (audit|linting|fixing)
-  --tool <tool>              Runner tool adapter (supported: codex, claude)
-  --search                   Enable web search (codex native; logged as warning for claude)
+  --search                   Enable Codex web search
   --no-search                Disable web search (default)
   --model-preflight          Run lightweight model preflight check before first story
   --no-model-preflight       Disable model preflight check (default)
   --security-preflight       Enable sensitive env-var preflight warning scan (default)
   --no-security-preflight    Disable security preflight warning scan
-  --skip-security-check      Alias for --no-security-preflight
   --auto-archive             Auto-archive run state when PRD project value changes
   --no-auto-archive          Disable auto-archive on project change (default)
   --require-learning-entry   Require learnings.md update for successful fixing stories
@@ -68,9 +67,9 @@ Options:
                              Disable learnings.md enforcement (default)
   --sync-branch              Sync current git branch to PRD branch_name/branchName
   --no-sync-branch           Disable branch sync from PRD (default)
-  --model <model>            Override model id (default: sonnet for claude, gpt-5.3 for codex)
+  --model <model>            Override model id (default: gpt-5.3)
   --reasoning-effort <lvl>   Override reasoning effort (default: high)
-  --timeout-seconds <secs>   Per-story timeout (default: 900, 0 = disabled)
+  --timeout-seconds <secs>   Positive per-story timeout (default: 900)
   --strict-report-dir        Require Created report path under defaults.report_dir (default)
   --no-strict-report-dir     Allow Created report path outside defaults.report_dir for new files
   -q, --quiet                Only errors and final summary
@@ -96,7 +95,6 @@ Options:
 
 Environment:
   MODE                        Same as --mode
-  RALPH_TOOL                  Same as --tool (default: claude; also accepts codex)
   RALPH_SEARCH_ENABLED_BY_DEFAULT
                               true|false, default false
   RALPH_REPO_ROOT             Optional explicit repo root override
@@ -120,10 +118,11 @@ Environment:
                               true|false, append progress.log.md entries on story completion (default: true)
   RALPH_AUTO_SYNC_AGENTS_FROM_LEARNINGS
                               true|false, sync AGENTS.md from latest learnings after fixing stories (default: false)
-  RALPH_TIMEOUT_SECONDS       Optional timeout override (legacy: CODEX_TIMEOUT_SECONDS)
+  RALPH_TIMEOUT_SECONDS       Positive per-story timeout override
   RALPH_CAPTURE_TOOL_OUTPUT   true|false, default false
   RALPH_STRICT_REPORT_DIR     true|false, default true
-  RALPH_FIXING_STATE_METHOD   auto|full|git (default: auto)
+  RALPH_TRANSACTION_METADATA_ROOT
+                              Private absolute non-temp directory for fixing transaction metadata
   RALPH_AUTO_PROGRESS_REFRESH true|false, default true
   RALPH_STALE_LOCK_NO_PID_SECONDS
                               Seconds before a lock dir without valid pid is considered stale (default: 30)
@@ -131,9 +130,6 @@ Environment:
   RALPH_OUTPUT_FORMAT         text|json (default: text). If json, emit event lines as JSON to stderr.
   RALPH_STATUS_FORMAT         full|compact|json (optional, default full)
   RALPH_LIST_STORIES_FORMAT   full|ids|id+title|json (optional, default full)
-  RALPH_CLAUDE_PERMISSION_MODE
-                              Override Claude --permission-mode (default: bypassPermissions)
-
 For details and troubleshooting: see README.md
 USAGE
 }
@@ -221,6 +217,9 @@ cleanup() {
 
 on_exit() {
   local rc="$1"
+  if [[ -n "${ACTIVE_TXN_JOURNAL:-}" ]]; then
+    rollback_story_transaction "process-exit" || true
+  fi
   release_run_lock
   cleanup
   if [[ "$rc" -ne 0 ]]; then
@@ -243,11 +242,8 @@ require_cmd() {
   fi
 
   case "$cmd" in
-    codex|codex-cli)
+    codex)
       fail "Missing required dependency: $cmd" "Install Codex CLI, or run a read-only check with --check/--doctor"
-      ;;
-    claude)
-      fail "Missing required dependency: $cmd" "Install Claude Code CLI (https://docs.anthropic.com/en/docs/claude-code), or run a read-only check with --check/--doctor"
       ;;
     jq|mktemp)
       fail "Missing required dependency: $cmd" "Install $cmd and re-run; see README.md dependencies"
@@ -256,6 +252,46 @@ require_cmd() {
       fail "Missing required dependency: $cmd"
       ;;
   esac
+}
+
+require_runtime_versions() {
+  local python_path
+
+  if (( BASH_VERSINFO[0] < 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 3) )); then
+    printf '[ralph][ERROR] Bash >= 5.3 is required (found %s)\n' "$BASH_VERSION" >&2
+    exit 1
+  fi
+  python_path="$(type -P python3 || true)"
+  [[ -n "$python_path" ]] || {
+    printf '[ralph][ERROR] Python >= 3.14.6 is required (python3 not found)\n' >&2
+    exit 1
+  }
+  if ! PYTHON_EXECUTABLE="$(
+    "$python_path" -c '
+import os
+import sys
+if sys.version_info < (3, 14, 6):
+    raise SystemExit(1)
+print(os.path.realpath(sys.executable))
+'
+  )"; then
+    printf '[ralph][ERROR] Python >= 3.14.6 is required\n' >&2
+    exit 1
+  fi
+}
+
+resolve_codex_executable() {
+  local candidate resolved
+  candidate="$(type -P codex || true)"
+  [[ -n "$candidate" ]] || require_cmd codex
+  resolved="$("$PYTHON_EXECUTABLE" -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$candidate")"
+  [[ "$resolved" == /* && -f "$resolved" && -x "$resolved" ]] \
+    || fail "Codex executable did not resolve to an executable file: $candidate"
+  if is_path_within_root "$REPO_ROOT_REAL" "$resolved"; then
+    fail "Refusing to execute Codex from inside the repository: $resolved"
+  fi
+  # shellcheck disable=SC2034
+  CODEX_EXECUTABLE="$resolved"
 }
 
 is_true() {

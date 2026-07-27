@@ -44,11 +44,11 @@ You are running inside a story-driven Ralph loop.
 
 Every report should include at minimum:
 
-1. **Context**: story goal and scope.
-2. **Method**: what was inspected/executed.
-3. **Findings / Results**: evidence-backed results.
-4. **Risks**: severity-oriented impact summary.
-5. **Next Steps**: safe, minimal recommendations.
+1. Context: story goal and scope.
+2. Method: what was inspected/executed.
+3. Findings / Results: evidence-backed results.
+4. Risks: severity-oriented impact summary.
+5. Next Steps: safe, minimal recommendations.
 
 ## Suggested Report Shape
 

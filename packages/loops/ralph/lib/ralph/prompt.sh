@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034
+# Builds constrained agent prompts so each Ralph story carries its scope and verification contract.
 
 add_detected_check() {
   local entry="$1"
@@ -265,7 +266,7 @@ _build_prompt_body() {
   printf '%s\n' '- Keep report deterministic, explicit, and evidence-based.'
 }
 
-# Build prompt with policy appended (used by tool adapters).
+# Build the Codex prompt with policy appended.
 build_prompt() {
   local story_id="$1"
   local report_rel="$2"
@@ -276,13 +277,4 @@ build_prompt() {
     printf '\n%s\n\n' '---'
     cat "$POLICY_FILE"
   } >"$prompt_file"
-}
-
-# Build prompt WITHOUT policy (used by claude adapter; policy goes to --append-system-prompt).
-build_prompt_without_policy() {
-  local story_id="$1"
-  local report_rel="$2"
-  local prompt_file="$3"
-
-  _build_prompt_body "$story_id" "$report_rel" >"$prompt_file"
 }

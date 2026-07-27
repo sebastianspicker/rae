@@ -10,17 +10,16 @@
 
 set -euo pipefail
 
-RALPH_VERSION="0.2.0"
+RALPH_VERSION="0.3.0"
 
 MODE="${MODE:-}"
-TOOL="${RALPH_TOOL:-claude}"
 MAX_STORIES=""
 MAX_STORIES_EXPLICIT="false"
 ENABLE_SEARCH="${RALPH_SEARCH_ENABLED_BY_DEFAULT:-false}"
-RALPH_TIMEOUT_SECONDS="${RALPH_TIMEOUT_SECONDS:-${CODEX_TIMEOUT_SECONDS:-900}}"
+RALPH_TIMEOUT_SECONDS="${RALPH_TIMEOUT_SECONDS:-900}"
 REQUESTED_MODEL="${RALPH_MODEL:-}"
 REASONING_EFFORT="${RALPH_REASONING_EFFORT:-}"
-CAPTURE_TOOL_OUTPUT="${RALPH_CAPTURE_TOOL_OUTPUT:-${RALPH_CAPTURE_CODEX_OUTPUT:-false}}"
+CAPTURE_TOOL_OUTPUT="${RALPH_CAPTURE_TOOL_OUTPUT:-false}"
 MAX_ATTEMPTS_PER_STORY="${RALPH_MAX_ATTEMPTS_PER_STORY:-1}"
 REQUIRE_EXTERNAL_REFERENCES_ON_SEARCH="${RALPH_REQUIRE_EXTERNAL_REFERENCES_ON_SEARCH:-true}"
 MODEL_PREFLIGHT="${RALPH_MODEL_PREFLIGHT:-false}"
@@ -34,7 +33,6 @@ SECURITY_PREFLIGHT="${RALPH_SECURITY_PREFLIGHT:-true}"
 SECURITY_PREFLIGHT_FAIL_ON_RISK="${RALPH_SECURITY_PREFLIGHT_FAIL_ON_RISK:-false}"
 LOCK_STALE_NO_PID_SECONDS="${RALPH_STALE_LOCK_NO_PID_SECONDS:-30}"
 STRICT_REPORT_DIR="${RALPH_STRICT_REPORT_DIR:-true}"
-FIXING_STATE_METHOD="${RALPH_FIXING_STATE_METHOD:-auto}"
 AUTO_PROGRESS_REFRESH="${RALPH_AUTO_PROGRESS_REFRESH:-true}"
 RALPH_VERBOSITY="${RALPH_VERBOSITY:-normal}"
 RALPH_OUTPUT_FORMAT="${RALPH_OUTPUT_FORMAT:-text}"
@@ -42,7 +40,6 @@ RALPH_STATUS_FORMAT="${RALPH_STATUS_FORMAT:-}"
 RALPH_LIST_STORIES_FORMAT="${RALPH_LIST_STORIES_FORMAT:-}"
 SUPPORTED_MODES_JSON='["audit","linting","fixing"]'
 SUPPORTED_MODES_HINT='audit | linting | fixing'
-SUPPORTED_TOOLS_HINT='codex | claude'
 # shellcheck disable=SC2016
 CREATED_AC_REGEX='^Created\s+`?[^`\s]+`?(\s+.*)?$'
 DEFAULT_MODE_FALLBACK="audit"
@@ -52,18 +49,19 @@ DEFAULT_REASONING_FALLBACK="high"
 SCRIPT_DIR=""
 REPO_ROOT=""
 REPO_ROOT_REAL=""
+TOOL_REPO_ROOT=""
 PRD_FILE=""
 PRD_SCHEMA_FILE=""
 PRD_VALIDATE_FILTER_FILE=""
 POLICY_FILE=""
 STATE_DIR=""
+STATE_DIR_REAL=""
+TRANSACTION_METADATA_ROOT=""
 RUN_LOG=""
 EVENT_LOG=""
 SANDBOX_MODE=""
 LOCK_DIR=""
 LOCK_OWNED="false"
-SCRIPT_REL_IN_REPO=""
-STATE_REL_IN_REPO=""
 STAT_FLAVOR=""
 DEFAULT_REPORT_DIR=""
 MAX_STORIES_DEFAULT="all_open"
@@ -98,12 +96,13 @@ STORY_CACHE_ACCEPTANCE_LINES=()
 STORY_CACHE_STEP_LINES=()
 STORY_CACHE_VERIFICATION_LINES=()
 STORY_CACHE_OUT_OF_SCOPE_LINES=()
-FIXING_BASE_STATE_FILE=""
-FIXING_STATE_METHOD_LOGGED="false"
 RESET_STORY_ID=""
 RETRY_FAILED="false"
 RALPH_NO_COLOR="${RALPH_NO_COLOR:-false}"
-RALPH_CLAUDE_PERMISSION_MODE="${RALPH_CLAUDE_PERMISSION_MODE:-}"
+PYTHON_EXECUTABLE=""
+CODEX_EXECUTABLE=""
+ACTIVE_TXN_JOURNAL=""
+ACTIVE_LEARNINGS_BASELINE_SIGNATURE="__missing__"
 
 RALPH_ENTRYPOINT="${BASH_SOURCE[0]}"
 RALPH_LIB_DIR=""
@@ -136,7 +135,6 @@ resolve_lib_dir
 source_module compat.sh
 source_module core.sh
 source_module config.sh
-source_module tool.sh
 source_module prd.sh
 source_module status.sh
 source_module prompt.sh
@@ -145,12 +143,14 @@ source_module state_io.sh
 source_module runner.sh
 
 main() {
+  require_runtime_versions
   parse_args "$@"
   validate_runtime_config
 
   resolve_script_dir
   resolve_repo_root
   REPO_ROOT_REAL="$(cd "$REPO_ROOT" && pwd -P)"
+  TOOL_REPO_ROOT="$REPO_ROOT_REAL"
   if [[ "$CHECK_ONLY" == "true" || "$DOCTOR_ONLY" == "true" ]]; then
     resolve_paths_readonly
   else
@@ -249,6 +249,7 @@ main() {
 
   detect_stat_flavor
   acquire_run_lock
+  recover_story_transaction
   run_security_preflight_check
 
   require_cmd jq
@@ -286,14 +287,14 @@ main() {
   fi
 
   if [[ "$MAX_STORIES" -gt 0 ]]; then
-    require_selected_tool_cmd
+    resolve_codex_executable
     maybe_run_model_preflight_check
   else
-    log_event "INFO tool dependency check skipped (max_stories=0 tool=$TOOL)"
+    log_event "INFO codex dependency check skipped (max_stories=0)"
   fi
 
-  log "start mode=$MODE tool=$TOOL max_stories=$MAX_STORIES sandbox=$SANDBOX_MODE"
-  log_event "RUN_START mode=$MODE tool=$TOOL max_stories=$MAX_STORIES sandbox=$SANDBOX_MODE search=$ENABLE_SEARCH"
+  log "start mode=$MODE tool=codex max_stories=$MAX_STORIES sandbox=$SANDBOX_MODE"
+  log_event "RUN_START mode=$MODE tool=codex max_stories=$MAX_STORIES sandbox=$SANDBOX_MODE search=$ENABLE_SEARCH"
 
   while [[ "$processed" -lt "$MAX_STORIES" ]]; do
     local story_id
@@ -332,8 +333,8 @@ main() {
     run_elapsed=0
   fi
 
-  log "summary processed=$processed passed=$passed remaining=$remaining mode=$MODE tool=$TOOL elapsed=${run_elapsed}s"
-  log_event "RUN_END processed=$processed passed=$passed remaining=$remaining mode=$MODE tool=$TOOL elapsed_seconds=$run_elapsed"
+  log "summary processed=$processed passed=$passed remaining=$remaining mode=$MODE tool=codex elapsed=${run_elapsed}s"
+  log_event "RUN_END processed=$processed passed=$passed remaining=$remaining mode=$MODE tool=codex elapsed_seconds=$run_elapsed"
 
   if [[ "$processed" -gt 0 && "${RALPH_VERBOSITY:-normal}" != "quiet" && "${RALPH_OUTPUT_FORMAT:-text}" == "text" ]]; then
     local failed=$((processed - passed))

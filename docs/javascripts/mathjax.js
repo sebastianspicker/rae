@@ -1,3 +1,7 @@
+/**
+ * Configures MathJax for documentation pages so rendered arithmetic stays consistent with the site theme.
+ */
+/* global document$ */
 window.MathJax = {
   tex: {
     inlineMath: [["\\(", "\\)"]],

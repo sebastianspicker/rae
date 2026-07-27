@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Archives selected Ralph run state for inspection without mutating the active runtime record.
 
 set -euo pipefail
 

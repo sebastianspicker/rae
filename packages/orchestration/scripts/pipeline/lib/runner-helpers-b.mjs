@@ -1,3 +1,6 @@
+/**
+ * Records stage lifecycle results and coordinates primary and auxiliary gate emission.
+ */
 import { existsSync } from "node:fs";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 import {
@@ -46,7 +49,7 @@ export function appendRunStartIfMissing(runId, state, root = getRepoRoot()) {
   }
 }
 
-export function appendRunEndIfMissing(runId, state, root = getRepoRoot()) {
+export function appendRunEndIfMissing(runId, state, root = getRepoRoot(), options = {}) {
   ensureTraceFile(runId, root);
   if (!hasEvent(runId, "run_end", root)) {
     appendTraceEvent(
@@ -54,9 +57,10 @@ export function appendRunEndIfMissing(runId, state, root = getRepoRoot()) {
       {
         event: "run_end",
         phase: state?.current_phase ?? "release-readiness",
-        status: "ok",
+        status: options.status ?? "ok",
         metadata: {
-          source: "runner",
+          source: options.source ?? "runner",
+          ...(options.reason ? { reason: options.reason } : {}),
         },
       },
       root,
@@ -99,7 +103,6 @@ export function resolveAndWriteArtifact({
         root,
       );
       artifact = readJsonStrict(inputAbs, `input artifact ${options["input-artifact"]}`);
-      writeJson(artifactAbs, artifact);
       wroteArtifact = true;
     } else {
       artifact = buildArtifactForPhase({
@@ -111,26 +114,6 @@ export function resolveAndWriteArtifact({
         budget,
       });
       if (artifact) {
-        const coverageLedger = resolveQualityCoverageLedger(runId, state, phase, root);
-        if (coverageLedger) {
-          artifact = {
-            ...artifact,
-            coverage_ledger: {
-              coverage_scope: coverageLedger.coverage_scope,
-              requirements: coverageLedger.requirements,
-              summary: coverageLedger.summary,
-            },
-            qc_summary: coverageLedger.qc_summary,
-          };
-        }
-        const reviewLoopSnapshot = resolveReviewLoopSnapshot(runId, phase, root);
-        if (reviewLoopSnapshot) {
-          artifact = {
-            ...artifact,
-            ...reviewLoopSnapshot,
-          };
-        }
-        writeJson(artifactAbs, artifact);
         wroteArtifact = true;
       } else if (existsSync(artifactAbs)) {
         appendTraceEvent(
@@ -145,6 +128,32 @@ export function resolveAndWriteArtifact({
         );
         artifact = readJsonStrict(artifactAbs, `artifact ${artifactRef}`);
       }
+    }
+
+    if (artifact && !options["input-artifact"]) {
+      const coverageLedger = resolveQualityCoverageLedger(runId, state, phase, root);
+      if (coverageLedger) {
+        artifact = {
+          ...artifact,
+          coverage_ledger: {
+            coverage_scope: coverageLedger.coverage_scope,
+            requirements: coverageLedger.requirements,
+            summary: coverageLedger.summary,
+          },
+          qc_summary: coverageLedger.qc_summary,
+        };
+      }
+      const reviewLoopSnapshot = resolveReviewLoopSnapshot(runId, phase, root);
+      if (reviewLoopSnapshot) {
+        artifact = {
+          ...artifact,
+          ...reviewLoopSnapshot,
+        };
+      }
+    }
+
+    if (wroteArtifact) {
+      writeJson(artifactAbs, artifact);
     }
 
     if (wroteArtifact) {
@@ -223,17 +232,47 @@ export function evaluateAuxiliaryGates({
   return { gateStatuses, extraGates };
 }
 
-export function emitPrimaryGate(context) {
-  const { artifact, schemaRef, phase } = context;
-  if (artifact && schemaRef && QUALITY_GATE_PHASES.has(phase)) {
-    return emitValidatedGate(context);
-  }
-  return emitStatusGate(context);
+function valueOrNull(value) {
+  return value === undefined || value === null ? null : value;
 }
 
-function emitValidatedGate(context) {
-  const gate = runQualityGate(stageGateInput(context));
-  const status = worstStatus(gate.status, context.desiredStatus, ...context.gateStatuses);
+function primaryGateMetadata(options) {
+  const activityProfile = options.activityProfile || {};
+  return {
+    gate_type: "phase",
+    schema_ref: options.schemaRef,
+    config_id: options.configId,
+    cognitive_tier: options.cognitiveTier,
+    activity_id: valueOrNull(activityProfile.activity_id),
+    runtime_name: valueOrNull(activityProfile.runtime_name),
+    runtime_version: valueOrNull(activityProfile.runtime_version),
+    model_hint: valueOrNull(activityProfile.model_hint),
+  };
+}
+
+function emitQualityPrimaryGate(options) {
+  const { runId, phase, artifact, artifactRef, schemaRef, desiredStatus, gateStatuses, root } =
+    options;
+  const gate = runQualityGate(stageGateInput({ phase, artifact, artifactRef, schemaRef }));
+  const stageStatus = worstStatus(gate.status, desiredStatus, ...gateStatuses);
+  return emitGate({
+    runId,
+    phase,
+    gateId: `${phase}-gate`,
+    status: stageStatus,
+    artifactRef: artifactRef || gate.artifact_ref,
+    criteria: gate.criteria,
+    blockingFailures: stageStatus === "fail" ? gate.blocking_failures : [],
+    schemaValidation: gate.schema_validation,
+    metadata: primaryGateMetadata(options),
+    gateFileOverride: gateFileNameForPhase(phase),
+    root,
+  });
+}
+
+function emitPlainPrimaryGate(options) {
+  const { runId, phase, artifactRef, desiredStatus, gateStatuses, root } = options;
+  const stageStatus = worstStatus(desiredStatus, ...gateStatuses);
   return emitGate({
     ...baseGate(context, status),
     artifactRef: context.artifactRef || gate.artifact_ref,
@@ -259,8 +298,11 @@ function baseGate(context, status) {
     runId,
     phase,
     gateId: `${phase}-gate`,
-    status,
-    metadata: gateMetadata(context),
+    status: stageStatus,
+    artifactRef: artifactRef || "n/a",
+    criteria: [],
+    blockingFailures: stageStatus === "fail" ? ["phase-status"] : [],
+    metadata: primaryGateMetadata(options),
     gateFileOverride: gateFileNameForPhase(phase),
     root,
   };
@@ -290,6 +332,13 @@ function valueOrNull(value) {
   return value ?? null;
 }
 
+export function emitPrimaryGate(options) {
+  if (options.artifact && options.schemaRef && QUALITY_GATE_PHASES.has(options.phase)) {
+    return emitQualityPrimaryGate(options);
+  }
+  return emitPlainPrimaryGate(options);
+}
+
 export function recordPhaseCompletion({ runId, phase, state, primaryGate, root }) {
   appendTraceEvent(
     runId,
@@ -306,10 +355,12 @@ export function recordPhaseCompletion({ runId, phase, state, primaryGate, root }
 
   const isTerminalPhase = PHASE_ORDER[PHASE_ORDER.length - 1] === phase;
   state.current_phase = phase;
-  const completed = Array.isArray(state.completed_gates) ? state.completed_gates : [];
-  completed.push(primaryGate.gate_id);
-  state.completed_gates = [...new Set(completed)];
-  if (primaryGate.status === "fail" || isTerminalPhase) {
+  if (primaryGate.status !== "fail") {
+    const completed = Array.isArray(state.completed_gates) ? state.completed_gates : [];
+    completed.push(primaryGate.gate_id);
+    state.completed_gates = [...new Set(completed)];
+  }
+  if (primaryGate.status !== "fail" && isTerminalPhase) {
     appendRunEndIfMissing(runId, state, root);
   }
 

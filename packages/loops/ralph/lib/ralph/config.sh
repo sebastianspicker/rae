@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034
+# Loads and validates Ralph runtime configuration so execution policy stays explicit and deterministic.
 
 _ralph_lib="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/ralph/validate_prd.sh
@@ -24,24 +25,24 @@ resolve_repo_root() {
   fi
 
   # 1) Check current working directory first - if it has prd.json and a policy file, it's likely the intended root.
-  if [[ -f "prd.json" ]] && [[ -f "INSTRUCTIONS.md" || -f "CODEX.md" ]]; then
+  if [[ -f "prd.json" ]] && [[ -f "INSTRUCTIONS.md" ]]; then
     REPO_ROOT="$(pwd)"
     return
   fi
 
-  # 2) Embedded layout marker: <repo>/.claude/ralph-audit (or legacy .codex/ralph-audit)
+  # 2) Embedded layout marker: <repo>/.claude/ralph-audit
   local embedded_parent
   embedded_parent="$(basename "$(dirname "$SCRIPT_DIR")")"
-  if [[ "$(basename "$SCRIPT_DIR")" == "ralph-audit" ]] && [[ "$embedded_parent" == ".claude" || "$embedded_parent" == ".codex" ]]; then
+  if [[ "$(basename "$SCRIPT_DIR")" == "ralph-audit" ]] && [[ "$embedded_parent" == ".claude" ]]; then
     candidate="$(cd "$SCRIPT_DIR/../.." && pwd)"
-    if [[ -f "$candidate/$embedded_parent/ralph-audit/prd.json" ]] && [[ -f "$candidate/$embedded_parent/ralph-audit/INSTRUCTIONS.md" || -f "$candidate/$embedded_parent/ralph-audit/CODEX.md" ]]; then
+    if [[ -f "$candidate/$embedded_parent/ralph-audit/prd.json" ]] && [[ -f "$candidate/$embedded_parent/ralph-audit/INSTRUCTIONS.md" ]]; then
       REPO_ROOT="$candidate"
       return
     fi
   fi
 
   # 3) Standalone template layout: script lives at repository root.
-  if [[ -f "$SCRIPT_DIR/prd.json" ]] && [[ -f "$SCRIPT_DIR/INSTRUCTIONS.md" || -f "$SCRIPT_DIR/CODEX.md" ]]; then
+  if [[ -f "$SCRIPT_DIR/prd.json" ]] && [[ -f "$SCRIPT_DIR/INSTRUCTIONS.md" ]]; then
     REPO_ROOT="$SCRIPT_DIR"
     return
   fi
@@ -58,13 +59,7 @@ resolve_repo_root() {
 }
 
 _resolve_policy_file() {
-  if [[ -f "$SCRIPT_DIR/INSTRUCTIONS.md" ]]; then
-    POLICY_FILE="$SCRIPT_DIR/INSTRUCTIONS.md"
-  elif [[ -f "$SCRIPT_DIR/CODEX.md" ]]; then
-    POLICY_FILE="$SCRIPT_DIR/CODEX.md"
-  else
-    POLICY_FILE="$SCRIPT_DIR/INSTRUCTIONS.md"
-  fi
+  POLICY_FILE="$SCRIPT_DIR/INSTRUCTIONS.md"
 }
 
 resolve_paths() {
@@ -83,8 +78,8 @@ resolve_paths() {
   if [[ "$state_dir_real" != "$REPO_ROOT_REAL" && "$state_dir_real" != "$REPO_ROOT_REAL/"* ]]; then
     fail "Runtime state directory resolves outside repository: $STATE_DIR -> $state_dir_real"
   fi
+  STATE_DIR_REAL="$state_dir_real"
   touch "$RUN_LOG" "$EVENT_LOG"
-  cache_internal_paths
 }
 
 resolve_paths_readonly() {
@@ -102,8 +97,10 @@ resolve_paths_readonly() {
     if [[ "$state_dir_real" != "$REPO_ROOT_REAL" && "$state_dir_real" != "$REPO_ROOT_REAL/"* ]]; then
       fail "Runtime state directory resolves outside repository: $STATE_DIR -> $state_dir_real"
     fi
+    STATE_DIR_REAL="$state_dir_real"
+  else
+    STATE_DIR_REAL="$(cd "$(dirname "$STATE_DIR")" && pwd -P)/$(basename "$STATE_DIR")"
   fi
-  cache_internal_paths
 }
 
 mode_to_sandbox() {
@@ -145,6 +142,7 @@ apply_prd_runtime_defaults() {
     REASONING_EFFORT="$prd_reason"
   fi
 
+  # shellcheck disable=SC2153
   [[ -n "$MODE" ]] || MODE="$DEFAULT_MODE_FALLBACK"
   [[ -n "$REQUESTED_MODEL" ]] || REQUESTED_MODEL="$DEFAULT_MODEL_FALLBACK"
   [[ -n "$REASONING_EFFORT" ]] || REASONING_EFFORT="$DEFAULT_REASONING_FALLBACK"
@@ -175,7 +173,7 @@ finalize_runtime_config() {
 
 validate_prd_structure() {
   [[ -f "$PRD_FILE" ]] || fail "${RALPH_EXIT_PRD:-2}" "Missing PRD file: $PRD_FILE" "Create prd.json (e.g. from prd.json.example) or run from repository root"
-  [[ -f "$POLICY_FILE" ]] || fail "${RALPH_EXIT_PRD:-2}" "Missing policy file: $POLICY_FILE" "Add INSTRUCTIONS.md (or legacy CODEX.md) or run from repository root"
+  [[ -f "$POLICY_FILE" ]] || fail "${RALPH_EXIT_PRD:-2}" "Missing policy file: $POLICY_FILE" "Add INSTRUCTIONS.md or run from repository root"
   [[ -f "$PRD_SCHEMA_FILE" ]] || fail "${RALPH_EXIT_PRD:-2}" "Missing PRD schema file: $PRD_SCHEMA_FILE" "Run from template or embedded repo root"
   [[ -f "$PRD_VALIDATE_FILTER_FILE" ]] || fail "${RALPH_EXIT_PRD:-2}" "Missing PRD validation filter: $PRD_VALIDATE_FILTER_FILE" "Run from template or embedded repo root"
 

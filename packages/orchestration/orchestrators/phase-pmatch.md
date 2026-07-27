@@ -21,14 +21,14 @@ file first. If it does not exist, create it with a `# PMATCH Phase Progress` hea
 ### Task 2: First claim extraction pass
 Extract all testable claims from design.json independently:
 - [ ] For each recommendation/decision in the design, extract a claim (id, text, verification method)
-- [ ] Work without reference to plan.json — extract what the design SAYS should happen
+- [ ] Work without reference to plan.json: extract what the design SAYS should happen
 - [ ] Document under "## Extractor 1 Claims"
 
 ### Task 3: Second claim extraction pass
 Re-read design.json with a different strategy:
 - [ ] Extract claims by constraint (what hard/soft constraints mandate)
 - [ ] Extract claims by component (what each architectural layer must deliver)
-- [ ] This pass is independent — may find claims the first pass missed
+- [ ] This pass is independent: may find claims the first pass missed
 - [ ] Document under "## Extractor 2 Claims"
 
 ### Task 4: Cross-reference claims against plan

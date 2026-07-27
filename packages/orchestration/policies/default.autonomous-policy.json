@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "default",
+  "phase_guidance": {
+    "arm": "",
+    "design": "",
+    "adversarial-review": "",
+    "plan": "",
+    "pmatch": "",
+    "build": "",
+    "quality-static": "",
+    "quality-tests": "",
+    "post-build": "",
+    "release-readiness": ""
+  },
+  "phase_inputs": {
+    "arm": [],
+    "design": ["brief.json"],
+    "adversarial-review": ["brief.json", "design.json"],
+    "plan": ["brief.json", "design.json", "review.json"],
+    "pmatch": ["brief.json", "design.json", "plan.json"],
+    "build": ["brief.json", "design.json", "plan.json", "drift-reports/pmatch.json"],
+    "quality-static": ["brief.json", "plan.json", "build.json"],
+    "quality-tests": ["brief.json", "plan.json", "build.json", "quality-reports/static.json"],
+    "post-build": [
+      "brief.json",
+      "design.json",
+      "plan.json",
+      "build.json",
+      "quality-reports/static.json",
+      "quality-reports/tests.json"
+    ],
+    "release-readiness": [
+      "brief.json",
+      "design.json",
+      "review.json",
+      "plan.json",
+      "drift-reports/pmatch.json",
+      "build.json",
+      "quality-reports/static.json",
+      "quality-reports/tests.json",
+      "quality-reports/post-build.json"
+    ]
+  }
+}

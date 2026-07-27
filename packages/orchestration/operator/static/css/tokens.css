@@ -1,0 +1,191 @@
+/*
+ * RAE Runboard — design tokens and base.
+ * Case-file system: hairlines, square corners, system fonts only (CSP).
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Core palette (evidence dossier 2026) */
+  --ink: #14232b;
+  --ink-soft: #31454f;
+  --mute: #5a6d76;
+  --faint: #7a8c95;
+  --rule: #c5d0d6;
+  --rule-soft: #e1e8eb;
+  --paper: #f4f7f8;
+  --sheet: #ffffff;
+  --trace: #1f5eff;
+  --trace-ink: #1648c7;
+  --proof: #08735f;
+  --hold: #a94725;
+  --danger: #9b2f2a;
+
+  /* Legacy aliases (existing class rules / JS data-tone paths) */
+  --canvas: var(--paper);
+  --surface: var(--sheet);
+  --ink-faint: var(--faint);
+  --line: var(--rule);
+  --line-strong: var(--rule);
+  --trace-strong: var(--trace-ink);
+  --trace-soft: color-mix(in srgb, var(--trace) 8%, transparent);
+  --proof-soft: color-mix(in srgb, var(--proof) 8%, transparent);
+  --review: var(--hold);
+  --review-strong: var(--hold);
+  --review-soft: color-mix(in srgb, var(--hold) 6%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 8%, transparent);
+  --focus: var(--trace);
+
+  /* Type: system UI stacks only — no external fonts */
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --body: var(--sans);
+  --display: var(--sans);
+
+  /* Layout */
+  --pad: clamp(1.25rem, 2.5vw, 2.5rem);
+  --index-w: 14rem;
+  --max: 78rem;
+  --topbar-height: 3.25rem;
+  --radius: 0;
+
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  font-synthesis: none;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--paper);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+button,
+input,
+textarea,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+}
+
+button,
+[role="option"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus {
+  outline: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible,
+:focus-visible {
+  position: relative;
+  z-index: 3;
+  outline: 2px solid var(--trace);
+  outline-offset: 2px;
+}
+
+button:disabled,
+select:disabled,
+textarea:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.44;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.65;
+}
+
+code {
+  font-family: var(--mono);
+}
+
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-feature-settings: "tnum" 1;
+  font-size: 0.92em;
+  letter-spacing: -0.015em;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--faint);
+  font: 500 0.7rem/1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes measured-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--trace) 18%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--trace) 0%, transparent);
+  }
+}

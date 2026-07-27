@@ -11,11 +11,11 @@
 - `agent-config/`
   Tool definitions and orchestration constraints.
 - `adapters/`
-  Generated per-runner orchestration guidance plus the adapter manifest.
+  Synchronized per-runner orchestration guidance plus the adapter manifest.
 - `orchestrators/`
-  Stage prompts and orchestration instructions used by the pipeline.
+  Stage instructions used by the pipeline.
 - `scripts/`
-  Verification, adapter generation, integrity checks, and pipeline runner code.
+  Verification, adapter synchronization, integrity checks, and pipeline runner code.
 - `skills/dev-tools/`
   Deterministic runtime packages used by the orchestration pipeline.
 
@@ -35,8 +35,9 @@ Validates execution traces and produces deterministic run summaries.
 
 ## Cross-cutting flows
 
-- adapter generation and sync:
+- adapter synchronization:
   `scripts/adapters/generate_adapters.py` and `scripts/check-adapter-sync.sh`
 - package verification: `scripts/verify.sh`
-- pipeline execution: `scripts/pipeline-init.sh` and `scripts/pipeline/runner.mjs`
+- autonomous code-writing execution: `scripts/pipeline/autonomous.mjs`
+- low-level pipeline state/gates: `scripts/pipeline-init.sh` and `scripts/pipeline/runner.mjs`
 - artifact and gate validation: `contracts/` plus `skills/dev-tools/*`

@@ -6,12 +6,13 @@ Security issues are accepted for:
 
 - `ralph.sh`
 - `lib/ralph/*.sh`
-- `scripts/*.sh`
+- `scripts/*.sh`, `scripts/*.py`
 - PRD/runtime validation and path/scope enforcement logic
 
 ## Reporting a Vulnerability
 
-Please report vulnerabilities privately to the maintainers.
+Follow the [repository security policy](../../../SECURITY.md) for private
+reporting instructions.
 
 When reporting, include:
 
@@ -34,7 +35,16 @@ When reporting, include:
 
 - `audit` and `linting` are read-only
 - report target path is validated and repository-confined
-- `fixing` changes are scope-validated using pre/post state snapshots
+- `fixing` providers edit an external workspace, not the live checkout
+- fixing pointers, journals, and baselines are outside provider workspace and
+  temp writable roots
+- fixing metadata is bound to canonical root/runtime identities
+- promotion atomically quarantines an existing entry before validating it
+- promotion and recovery install entries with native no-clobber renames
+- concurrent target entries are preserved and conflict evidence is retained
+- recovery touches only paths named by the transaction journal and evidence
+- Codex runs with an exact child-environment allowlist
+- raw output and final report size are bounded
 - optional security preflight warns/fails on sensitive env vars
 - runtime logs redact common secret/token patterns
 
@@ -45,6 +55,13 @@ When reporting, include:
 - enable `RALPH_SECURITY_PREFLIGHT_FAIL_ON_RISK=true` in stricter environments
 - run in isolated CI runners for untrusted repositories
 - avoid passing unnecessary secrets into the execution environment
+- do not use hardlinks, special files, nested repositories, or submodules in a fixing target
+
+The filesystem transaction is recoverable across multiple paths, not globally
+atomic. Its concurrent-entry guarantee assumes stable parent directories.
+Adversarial parent-directory replacement is outside this path-based boundary
+until live renames are anchored to validated directory descriptors. Native
+no-clobber rename support is required; unsupported platforms fail closed.
 
 ## Disclosure Process
 

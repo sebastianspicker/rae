@@ -4,13 +4,13 @@ Finding-processing engine for adversarial review pipelines. Accepts pre-collecte
 
 ## No external APIs
 
-This skill does **not** call external model APIs. The actual adversarial review is performed by your agent runner (e.g. by spawning independent reviewer workers such as architect/security/performance). This skill processes the collected results.
+This skill does not call external model APIs. The actual adversarial review is performed by your agent runner (e.g. by spawning independent reviewer workers such as architect/security/performance). This skill processes the collected results.
 
 ## Actions
 
 ### review
 
-Accepts `reviewer_findings` — an array of findings from multiple reviewers — and:
+Accepts `reviewer_findings`: an array of findings from multiple reviewers: and:
 1. Deduplicates similar findings across reviewers (Jaccard token similarity)
 2. Promotes severity when findings overlap
 3. Runs cost/benefit analysis per finding

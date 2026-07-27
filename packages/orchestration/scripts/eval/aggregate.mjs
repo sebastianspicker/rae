@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+/**
+ * Aggregates pipeline evaluation artifacts into comparable configuration metrics for repeatable analysis.
+ */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,15 +13,11 @@ import {
   resolveWithinRepo,
   toWorkspaceRelative,
 } from "../pipeline/lib/state.mjs";
+import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
+import { CONFIG_IDS } from "../lib/constants.mjs";
+import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
 
-const UNSAFE_AGGREGATION_KEYS = new Set(["__proto__", "prototype", "constructor", "toString"]);
-
-function assertSafeAggregationKey(key, label) {
-  if (typeof key !== "string" || UNSAFE_AGGREGATION_KEYS.has(key)) {
-    throw new Error(`${label} contains an unsafe key`);
-  }
-  return key;
-}
+assertSupportedNodeRuntime();
 
 function parseArgs(argv) {
   const args = parseCliArgs(

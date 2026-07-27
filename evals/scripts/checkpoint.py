@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Create and resolve human checkpoint contracts for umbrella runs."""
 
-from __future__ import annotations
-
 import argparse
 import pathlib
 

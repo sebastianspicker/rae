@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: evals
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: evals
 evidence_links: ../research/benchmark-protocol.md
 ---
@@ -21,7 +21,7 @@ uses repo-relative result paths, so arbitrary external output directories are
 not valid publication surfaces.
 
 Some executable families remain intentionally experimental and are not part of
-the frozen production suite. In that case, the benchmark surface is real, but
+the frozen release-gate suite. In that case, the benchmark surface is real, but
 broader public claim promotion still waits for ablation coverage and stricter
 review.
 
@@ -83,11 +83,61 @@ This emits:
   --output evals/results/local-dev/release-gate-manual.json
 ```
 
-## Run the frozen production suite
+## Run the frozen release-gate suite
 
 ```bash
 ./evals/harness/run-local.sh suite /tmp/rae-benchmarks
 ```
+
+## Run experimental autonomous outcomes
+
+Autonomous outcome runs can incur provider usage and are excluded from the
+frozen release-gate suite. The explicit acknowledgement flag is mandatory:
+
+```bash
+./scripts/rae.sh eval outcome \
+  --task-bundle evals/datasets/autonomous-outcomes/core.task-bundle.json \
+  --fixture-root evals/fixtures/autonomous-outcomes \
+  --policy packages/orchestration/policies/default.autonomous-policy.json \
+  --split dev \
+  --repeats 2 \
+  --output-dir evals/results/outcomes/default-dev \
+  --acknowledge-provider-usage
+```
+
+The runner commits a fresh copy of each fixture, invokes the fixed
+`rae.sh agent run` path, judges the returned isolated worktree with a closed
+verifier registry, enforces allowed and forbidden paths, and aggregates real
+trace measurements. Missing token or duration data is a hard incomplete-
+measurement result.
+
+The verifier executes candidate code only when the evaluator can apply its
+default-deny OS sandbox. The sandbox exposes the candidate worktree read-only,
+denies network access, clears ambient credentials and environment variables,
+and provides only a temporary writable scratch directory. On unsupported hosts
+or when sandbox initialization is prohibited, the task fails with
+`evaluator_safety_failure`; there is no unsandboxed fallback.
+
+Compare a challenger against the exact baseline matrix:
+
+```bash
+./scripts/rae.sh eval compare-outcomes \
+  --baseline evals/results/outcomes/default-dev/outcome-benchmark-report.json \
+  --challenger evals/results/outcomes/candidate-dev/outcome-benchmark-report.json \
+  --output evals/results/outcomes/candidate-dev/paired-comparison.json
+```
+
+`eval optimize` consumes the raw baseline report, one or more candidate
+policies and their raw outcome reports, plus sealed evidence. It recomputes
+each paired comparison internally, rather than trusting a standalone
+comparison file. It writes candidates, evaluations, comparisons, an exact
+trusted manifest, `lineage.jsonl`, and a campaign report. It
+returns successfully for a completed no-recommendation campaign and never
+modifies `default.autonomous-policy.json`; promotion is a separate reviewed
+change. Development evidence must share the same benchmark, split, repeat
+count, and task-matrix digest. Sealed evidence must be a genuine `held-out`
+outcome report for the accepted policy and a distinct task matrix. See
+[Autonomous Improvement Boundary](../explanation/autonomous-improvement-boundary.md).
 
 ## Required checks before publication
 

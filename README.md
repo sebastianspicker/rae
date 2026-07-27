@@ -1,4 +1,10 @@
-# RAE
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/rae-lockup-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/brand/rae-lockup-light.svg">
+    <img alt="RAE: Reliable Agentic Engineering" src="docs/assets/brand/rae-lockup-light.svg" width="820">
+  </picture>
+</p>
 
 [![ci](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/138a23bb9a53432d899877961b8d2ab2)](https://app.codacy.com/gh/sebastianspicker/rae/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
@@ -6,114 +12,144 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sebastianspicker/rae/badge)](https://scorecard.dev/viewer/?uri=github.com/sebastianspicker/rae)
 [![License: MIT](https://img.shields.io/github/license/sebastianspicker/rae)](LICENSE)
 
-Reliable Agentic Engineering.
+RAE is a source-distributed toolkit for staged repository changes, bounded
+audit and repair loops, repository maintenance, and evaluation. It combines a
+thin command dispatcher with package-owned runtimes, JSON contracts,
+verification scripts, benchmark fixtures, and evidence-oriented documentation.
 
-Evaluation-first reference implementation for reliable agentic engineering:
-phased orchestration, deterministic loop execution, narrow repo-hygiene tools,
-reproducible benchmarks, and evidence-bearing docs.
+The repository is an alpha candidate. It does not publish a package, container,
+hosted service, or stable API. See [Release Status](RELEASE_STATUS.md) for the
+current release evidence.
 
-This repository is meant to be more than a bundle of imported repos. Its
-purpose is to turn several working codebases into one public reference system
-with:
+## Capabilities and limitations
 
-- a coherent architecture
-- a scientific documentation layer
-- contamination-aware benchmark doctrine
-- explicit claim, assumption, and evidence handling
-- reproducible local verification
+RAE currently provides:
 
-The design target follows this repo's current engineering stance for reliable
-agent workflows: prefer simple structures first, add autonomy only when it
-measurably helps, and treat evaluation and documentation as first-class
-reliability machinery.
+- a ten-stage orchestration runtime with typed artifacts and pass/fail gates
+- isolated Git worktrees for autonomous repository changes
+- a loopback-only operator console for run status, checkpoints, resume, and stop
+- Ralph audit, linting, and story-scoped fixing modes
+- benchmark validation, execution, comparison, calibration, and release gates
+- a transactional Git co-author trailer cleaner
+- sanitized environment-profile templates and installers
 
-## Core thesis
+The following limits are part of the current implementation:
 
-Reliable agentic systems fail for repeatable reasons:
+- autonomous execution supports the installed Codex CLI; other committed
+  adapters are guidance, not executable provider integrations
+- the custom command provider is an unsandboxed test surface and always fails
+  `agent doctor`
+- RAE does not commit, push, publish, or deploy target-repository changes
+- isolated worktree runs require a committed Git repository with usable
+  `HEAD` and current-branch reflogs
+- Ralph fixing transactions support macOS and Linux; unsupported platforms
+  fail closed
+- evaluation results apply only to the recorded benchmark, configuration, and
+  environment
 
-- they mix planning, execution, and verification into one loop
-- they let producers certify their own output
-- they compare systems without frozen tasks, judges, or provenance
-- they publish documentation that mixes theory, reference, and opinion
+## Requirements
 
-This repo answers that with five linked layers:
+- GNU Bash 5.3 or newer
+- Python 3.14.6 or newer
+- Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`
+- npm
+- `git`, `jq`, `rg`, and `shellcheck`
+- Python dependencies from `requirements-ci.txt` or
+  `requirements-macos.txt`
+- Codex CLI only for provider-backed autonomous and Ralph runs
+- `git-filter-repo` only for the co-author trailer cleaner
 
-1. `packages/orchestration/`
-   Multi-stage, contract-driven orchestration for long-horizon work.
-2. `packages/loops/ralph/`
-   Deterministic audit/lint/fix loops with atomic state handling.
-3. `tools/repo-hygiene/`
-   Narrow utilities for explicit maintenance operations.
-4. `evals/`
-   Benchmark cards, task specs, run cards, checkpoints, regression reports,
-   release gates, and result ledger artifacts.
-5. `docs/`
-   Diataxis-structured scientific, operational, and governance documentation.
+`./scripts/rae.sh doctor` checks the required runtime versions and executable
+entrypoints. It reports optional tools separately.
 
-The structure is easier to understand as a layered system:
+## Installation
 
-```mermaid
-flowchart TB
-  A[Task or operator need]
-  A --> B[Choose execution model]
-
-  subgraph Runtime["Execution surfaces"]
-    B --> C[packages/orchestration<br/>long-horizon staged runtime]
-    B --> D[packages/loops/ralph<br/>deterministic audit/fix loop]
-    B --> E[tools/repo-hygiene<br/>narrow explicit utilities]
-  end
-
-  subgraph Evidence["Measurement and publication discipline"]
-    C --> F[evals<br/>task specs, run cards, gates, ledgers]
-    D --> F
-    E --> F
-    F --> G[docs<br/>claims, science, governance, how-to]
-  end
-
-  subgraph Publication["Publication lane"]
-    G --> P[profiles/agent-environments<br/>sanitized portable profiles]
-  end
-
-  G --> H[reproducible public reference system]
-  P --> H
-```
-
-## Imported working modules
-
-- `packages/orchestration/`
-  Imported from a prior standalone phased orchestration runtime
-- `packages/loops/ralph/`
-  Imported from a prior standalone Ralph loop runtime
-- `tools/repo-hygiene/coauthor-trailer-cleaner/`
-  Imported and generalized from a prior standalone co-author trailer cleaner
-
-The umbrella also includes a public profile publication lane under
-`profiles/agent-environments/`. That lane ships a sanitized profile payload for
-RAE-shaped targets, with templates, safe install/remove scripts, and regression
-tests.
-
-## Quick Start
-
-Requirements:
-
-- Python 3.11+
-- Node.js 20+
-- `bash`, `git`, `jq`, `rg`, and `shellcheck`
-- Python docs dependencies from `requirements-docs.txt`
-
-Install and verify:
+Create a virtual environment and install the pinned Python verification
+dependencies:
 
 ```bash
-./scripts/verify.sh
-```
-
-Inspect the operator surface:
-
-```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --require-hashes -r requirements-ci.txt
+npm --prefix packages/orchestration ci
 ./scripts/rae.sh doctor
 ```
 
-Route one task:
+On macOS with Python 3.14, install `requirements-macos.txt` instead. That lock
+selects the pinned Watchdog source archive and requires the Xcode command-line
+tools.
+
+This setup prepares a source checkout. There is no separate installation
+artifact.
+
+## Configuration
+
+The umbrella command forwards arguments to the runtime that owns them:
+
+| Surface | Configuration source |
+| --- | --- |
+| Autonomous runs and operator console | [`packages/orchestration/README.md`](packages/orchestration/README.md) |
+| Ralph | [`packages/loops/ralph/README.md`](packages/loops/ralph/README.md) |
+| Evaluation | [`docs/reference/cli/umbrella.md`](docs/reference/cli/umbrella.md) |
+| Co-author trailer cleaner | [`tools/repo-hygiene/coauthor-trailer-cleaner/README.md`](tools/repo-hygiene/coauthor-trailer-cleaner/README.md) |
+| Environment profiles | [`profiles/agent-environments/README.md`](profiles/agent-environments/README.md) |
+
+Use `--policy <path>` to select a validated orchestration policy. Use
+`--checkpoint-policy before-mutation` or
+`before-mutation-and-ship` to require operator approval at those boundaries.
+Ralph accepts command flags and `RALPH_*` environment variables documented in
+its package README.
+
+Do not place credentials, tokens, keys, or unrelated private material in task
+text, task files, policy files, or predecessor artifacts. Provider-backed
+commands transmit the task and selected execution context to the configured
+provider.
+
+## Usage
+
+List the command families:
+
+```bash
+./scripts/rae.sh --help
+```
+
+Check the autonomous runtime:
+
+```bash
+./scripts/rae.sh agent doctor
+```
+
+Run a task in an isolated worktree:
+
+```bash
+./scripts/rae.sh agent run \
+  --project-root /path/to/target-repository \
+  --task "Add a tested health endpoint and document its behavior"
+```
+
+Use `--through plan` to stop before repository mutation. The default worktree
+is stored under the target repository's Git metadata at
+`.git/rae-worktrees/<run-id>`. The final output identifies the worktree and
+`.pipeline/runs/<run-id>/run-report.md`.
+
+Serve the local operator console for explicitly allowlisted repositories:
+
+```bash
+./scripts/rae.sh operator serve \
+  --project /canonical/path/to/target-repository
+```
+
+Run Ralph health checks or an audit:
+
+```bash
+./scripts/rae.sh ralph --check
+./scripts/rae.sh ralph --mode audit 10
+```
+
+Ralph requires a local `prd.json`. Follow the
+[Ralph setup](packages/loops/ralph/README.md#setup) before the first run.
+
+Route one task specification:
 
 ```bash
 ./scripts/rae.sh task route \
@@ -131,156 +167,126 @@ Run one benchmark split:
   --output-dir evals/results/local-dev
 ```
 
-Install the public profile payload into an RAE-shaped target directory:
+Local outputs under `evals/results/local*`, `.pipeline/`, and package runtime
+directories are intentionally ignored.
+
+## Repository structure
+
+| Path | Responsibility |
+| --- | --- |
+| `scripts/` | Umbrella CLI, verification, screenshot checks, and repository validators |
+| `packages/orchestration/` | Staged runtime, operator console, policies, contracts, and tests |
+| `packages/loops/ralph/` | Audit, linting, and transactional fixing loop |
+| `tools/repo-hygiene/` | Narrow repository-maintenance utilities |
+| `evals/` | Benchmark cards, task specifications, schemas, fixtures, and committed baselines |
+| `profiles/agent-environments/` | Sanitized profile templates and installer tests |
+| `docs/` | Tutorials, how-to guides, reference, explanation, research, and governance |
+| `examples/` | Minimal runnable layouts and command examples |
+| `tests/` | Umbrella runtime and repository-contract tests |
+
+See the [repository map](docs/reference/repo-map.md) for ownership details.
+
+## Development workflow
+
+1. Read `AGENTS.md`, this README, `CONTRIBUTING.md`, and the nearest
+   package documentation.
+2. Make changes in the package that owns the behavior.
+3. Run the narrow package test or validator while iterating.
+4. Run the repository verifier before requesting review.
+5. Inspect `git diff --check` and the complete diff.
+
+Synchronized orchestration adapters are derived from
+`packages/orchestration/adapters/templates/`. Regenerate and check them with:
 
 ```bash
-mkdir -p /tmp/rae-profile/scripts
-printf '#!/usr/bin/env bash\nexit 0\n' > /tmp/rae-profile/scripts/verify.sh
-chmod +x /tmp/rae-profile/scripts/verify.sh
-bash profiles/agent-environments/installers/install-profile.sh /tmp/rae-profile
+python3 packages/orchestration/scripts/adapters/generate_adapters.py
+python3 packages/orchestration/scripts/adapters/generate_adapters.py --check
 ```
 
-## Umbrella Harness
+## Testing
 
-The umbrella runtime entrypoint is:
+The complete suite layout and focused commands are documented in
+[TESTING.md](TESTING.md).
+
+The documented repository gate is:
 
 ```bash
-./scripts/rae.sh
+./scripts/verify.sh --skip-install
 ```
 
-Use it to:
+Run `./scripts/verify.sh` to install declared dependencies before verification.
+Use `--skip-mkdocs` only when the pinned documentation toolchain is unavailable;
+that mode is partial and is not release evidence.
 
-- inspect the local operator surface with `./scripts/rae.sh doctor`
-- read umbrella workflow memory in `AGENTS.md`
-- route one task spec with `./scripts/rae.sh task route ...`
-- run phased orchestration with `./scripts/rae.sh orchestrate ...`
-- create or supervise isolated worktree runs with `./scripts/rae.sh worktree ...`
-- run or bootstrap Ralph with `./scripts/rae.sh ralph ...`
-- run hygiene tooling with `./scripts/rae.sh hygiene ...`
-- create or resolve explicit checkpoints with `./scripts/rae.sh checkpoint ...`
-- run executable benchmark splits with `./scripts/rae.sh eval run ...`
-- validate benchmark metadata with `./scripts/rae.sh eval validate`
-- enforce publication gates with `./scripts/rae.sh release-gate ...`
-- use scenario-oriented aliases with `./scripts/rae.sh workflow ...`
+Package-level commands:
 
-The top-level harness is intentionally thin. The imported runtimes remain the
-source of truth for execution behavior; the umbrella adds routing, benchmark
-execution, result ledgers, checkpoints, and publication gates.
-
-The shared umbrella operating model lives in `AGENTS.md`. Use it for repeated
-cross-repo corrections, workflow verbs, and escalation rules. Keep package
-command details in package-local docs.
-
-Use `./scripts/rae.sh orchestrate ...` for the complete orchestration command
-surface. Use `./scripts/rae.sh workflow long-horizon ...` when you want the
-scenario-oriented alias for that same runtime.
-
-Use `./scripts/rae.sh worktree init ...` when long-horizon work should run in an
-isolated checkout with a dedicated branch and cleanup path.
-
-The intended operating loop looks like this:
-
-```mermaid
-flowchart LR
-  A[Operator task] --> B[./scripts/rae.sh]
-  B --> C{Which surface fits?}
-  C -->|Long-horizon| D[orchestrate]
-  C -->|Deterministic audit/fix| E[ralph]
-  C -->|Narrow maintenance| F[hygiene]
-  D --> G[Artifacts and gates]
-  E --> G
-  F --> G
-  G --> H[verify or benchmark]
-  H --> I[result cards, ledgers, checkpoints]
-  I --> J[claims and docs update]
+```bash
+npm --prefix packages/orchestration run test:operator
+npm --prefix packages/orchestration run test:runner
+bash packages/loops/ralph/scripts/run_tests.sh
+bash tools/repo-hygiene/coauthor-trailer-cleaner/tests/run-tests.sh
 ```
 
-## Public repo hygiene
+The umbrella verifier runs repository validation, Python linting and type
+checks, Python tests, shell checks, package tests, benchmark checks, profile
+installer tests, screenshot validation, and documentation checks.
 
-This repository keeps generated state and local process artifacts out of the
-published tree. In practice that means:
+## Operation and release
 
-- benchmark baselines and schemas are committed; ad hoc local run outputs are not
-- package runtimes keep their own operator docs only where those docs are part
-  of the runtime contract
-- local caches, `.pipeline/`, `site/`, temporary eval outputs, and machine junk
-  stay ignored
-- local audit notes, closure reports, and remediation scratch plans stay ignored
-- the profile lane publishes only sanitized, machine-agnostic material
+RAE operates from a source checkout. Runtime state remains local to the
+checkout, isolated worktree, or the package-specific private state directory.
+The operator console binds to loopback and requires an ephemeral bearer token.
 
-## Why the docs matter
+Release candidates follow [RELEASING.md](RELEASING.md). The complete release
+gate is:
 
-The documentation layer is not decorative. It is part of the reliability model.
+```bash
+./scripts/verify.sh --release-candidate
+```
 
-The repo uses:
+A release consists of a reviewed source tag and optional source archive. The
+repository contains no application deployment configuration.
 
-- Diataxis separation for tutorial, how-to, reference, and explanation docs
-- `research/` for benchmark doctrine and result reporting
-- `governance/` for claim quality, citation, and release policy
-- `reference/claims/` for the claim ledger, assumptions register, bibliography,
-  and evidence index
-- `CITATION.cff` for machine-readable repository citation metadata and
-  `docs/reference/claims/bibliography.md` for page-level external cite keys
+## Troubleshooting
 
-That structure is intended to stop four common failure modes:
+- `rae.sh doctor` reports the installed version and path for each required
+  command. Install the missing command or select Python with `PYTHON_BIN`.
+- `agent doctor` fails when the installed Codex CLI is unauthenticated or lacks
+  sandbox, JSON-schema output, event streaming, or ephemeral-session support.
+- A failed autonomous phase names its gate and run report. Correct the reported
+  dependency or target issue, then use `agent resume` with the printed run ID
+  and worktree path.
+- A stale Ralph lock without a valid process ID becomes recoverable after
+  `RALPH_STALE_LOCK_NO_PID_SECONDS`, which defaults to 30 seconds.
+- A strict report-path error means the story's `Created <path>.md` criterion
+  does not resolve under the configured `defaults.report_dir`.
+- Documentation link or metadata failures can be checked with
+  `python3 -B scripts/verify_repo.py --skip-mkdocs`.
 
-- theory leaking into reference pages
-- benchmark results reported without enough metadata
-- implementation details presented as general science
-- stale docs inheriting authority they no longer deserve
+Package-specific recovery procedures are in the
+[orchestration runbook](packages/orchestration/docs/RUNBOOK.md) and
+[Ralph README](packages/loops/ralph/README.md).
 
-## Start here
+## Security considerations
 
-- [Documentation Index](docs/INDEX.md)
-- [Project Scope](docs/explanation/overview/project-scope.md)
-- [System Overview](docs/reference/architecture/system-overview.md)
-- [Repo Map](docs/reference/repo-map.md)
-- [Umbrella CLI](docs/reference/cli/umbrella.md)
-- [Claims Ledger](docs/reference/claims/claims-ledger.md)
-- [Evidence Index](docs/reference/claims/evidence-index.md)
-- [Benchmark Protocol](docs/research/benchmark-protocol.md)
-- [Frozen Benchmark Results](docs/research/frozen-benchmark-results.md)
-- [Profile Publication Guide](docs/how-to/publish-a-sanitized-profile.md)
+- Treat provider-backed execution as a data-transfer boundary.
+- Keep autonomous work in the default isolated worktree unless a clean,
+  in-place run is required.
+- Do not enable the custom command provider outside controlled tests.
+- Review all diffs and run reports before making any Git or publication change.
+- Keep local state, benchmark outputs, credentials, and private overlays
+  untracked.
+- Back up repositories before using the history-rewrite utility.
 
-For a new maintainer, the fastest mental model is:
+See [SECURITY.md](SECURITY.md) for reporting, supported scope, and runtime
+boundaries.
 
-1. `./scripts/rae.sh` is the stable operator entrypoint.
-2. Package-local docs remain the source of truth for runtime behavior.
-3. `evals/` records what was run, what artifacts were produced, and whether a
-   claim can use the result.
-4. `docs/reference/claims/` decides how far documentation claims may go.
+## Contributing
 
-## Verification
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, documentation rules, checks,
+and review expectations. Use [SUPPORT.md](SUPPORT.md) for usage questions and
+the private route in [SECURITY.md](SECURITY.md) for vulnerability reports.
 
-`./scripts/verify.sh` includes:
+## License
 
-- strict MkDocs build
-- umbrella metadata and link checks
-- umbrella CLI smoke tests
-- eval metadata harness validation
-- executable benchmark split runs
-- frozen benchmark family suite for dev and held-out splits
-- judge calibration
-- release gate enforcement
-- public profile installation regression test
-- orchestration package verification
-- Ralph regression suite
-- co-author trailer cleaner test suite
-
-The verification path writes only to ignored transient locations such as
-`site/`, `evals/results/.verify-*`, and package-local temporary outputs.
-
-## Scope boundary
-
-This repository is not trying to be:
-
-- a monolithic agent runtime
-- a prompt dump
-- a benchmark leaderboard with thin methods
-- a pseudo-scientific whitepaper detached from working code
-
-It is trying to be:
-
-- a reference architecture
-- a measurement and documentation discipline
-- a reproducible local system for building and studying agent workflows
+[MIT](LICENSE)

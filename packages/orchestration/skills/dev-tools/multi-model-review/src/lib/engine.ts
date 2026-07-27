@@ -1,3 +1,6 @@
+/**
+ * Coordinates review and drift-detection operations over validated tool input.
+ */
 import { readFileSync } from "node:fs";
 import type {
   DedupFinding,
@@ -53,6 +56,9 @@ function readTargetDocument(targetRef: string, logs: string[]): string {
   }
 }
 
+/**
+ * Normalizes reviewer outputs into a deterministic deduplicated review report.
+ */
 export function runReview(input: Input, logs: string[]): ReviewData {
   const reviewerFindings = input.reviewer_findings as ReviewerFindings[];
   const taggedFindings: TaggedFinding[] = [];
@@ -92,6 +98,9 @@ export function runReview(input: Input, logs: string[]): ReviewData {
   };
 }
 
+/**
+ * Computes drift evidence from validated claim sets and workspace-contained target documents.
+ */
 export function runDriftDetect(
   input: Input,
   logs: string[],

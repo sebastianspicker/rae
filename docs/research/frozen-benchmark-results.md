@@ -24,12 +24,12 @@ This repository ships a frozen umbrella benchmark suite rerun during
 These five families are executed for `dev` and `held-out` splits in the root
 verification flow. The committed baseline artifacts require perfect
 success-rate, route-accuracy, artifact-completeness, and checkpoint-compliance
-for those two production splits.
+for those two documented splits.
 
 ## Executable experimental families
 
 The repo also ships two executable control-surface families that are not part of
-the frozen production suite:
+the frozen release-gate suite:
 
 | Family | Status | Dev baseline | Held-out baseline |
 | --- | --- | --- | --- |

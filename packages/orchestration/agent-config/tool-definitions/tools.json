@@ -8,7 +8,7 @@
   },
   {
     "name": "dev_tools_multi_model_review",
-    "description": "Finding-processing engine: deduplicates findings from multiple reviewer agents, runs cost/benefit analysis, and detects drift between documents. Accepts pre-collected ReviewerFindings[] — no external API calls.",
+    "description": "Finding-processing engine: deduplicates findings from multiple reviewer agents, runs cost/benefit analysis, and detects drift between documents. Accepts pre-collected ReviewerFindings[]: no external API calls.",
     "parameters": {
       "$ref": "../../skills/dev-tools/multi-model-review/schemas/input.schema.json"
     }

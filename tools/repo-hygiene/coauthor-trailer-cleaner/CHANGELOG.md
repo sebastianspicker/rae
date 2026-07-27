@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [3.0.0] - 2026-07-16
+
+### Changed
+- Removed `--force-push`, `--no-force-push`, and `defaults.forcePush`.
+- Remote rewrites now always use an exact
+  `--force-with-lease=<upstream-ref>:<pre-rewrite-upstream-OID>` guard.
+- Split the implementation into directly sourced semantic modules instead of
+  extracting functions through `sed` and `eval` in tests.
+
+### Security
+- Remote recovery branches are retained and are never wildcard-deleted.
+- Cleanup deletes only the exact current-run local recovery branch after
+  successful trailer verification and verifies that the branch still points at
+  the captured pre-rewrite commit.
+- The rewrite transaction now derives the rewritten tip from git-filter-repo's
+  commit map, pushes that exact OID, and revalidates state before and after the
+  remote update.
+- `git-filter-repo` operates only on a private ref pinned to the captured
+  original OID. The checked-out branch is promoted separately with an exact
+  old/new OID compare-and-swap, so concurrent branch commits are preserved.
+- Failed pushes roll back only the branch ref, using an exact compare-and-swap
+  after verifying identical trees. The cleaner never resets the worktree or
+  index; concurrent changes retain recovery data for manual inspection.
+- Successful cleanup atomically verifies the rewritten branch and
+  compare-deletes both the recovery and private transaction refs.
+
+### Runtime
+- Enforces Bash 5.3+ and Python 3.14.6+ and resolves all Python execution
+  through `PYTHON_BIN`.
+
 ## [2.0.0] - 2026-04-12
 
 ### Changed (2.0.0)
@@ -15,16 +45,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.3.2] - 2026-03-22
 
-### Fixed (1.3.2)
-- Fixed `grep -P` portability issue in test suite — replaced with Python-based
+### Fixed
+- Fixed the `grep -P` portability issue in the test suite by using Python-based
   check for macOS compatibility (ISSUE-016)
 - Fixed unquoted `$TARGET_REMOTE` in for-each-ref glob pattern (ISSUE-018)
 - Fixed misleading "no trailers" message on empty repos with no commits (ISSUE-019)
 - Removed redundant newline sanitization in `_json_extract` Python code,
   now handled by upstream `validate_config_json` (ISSUE-020)
 
-### Improved (1.3.2)
-- CI test job now depends on lint job (`needs: lint`) — tests only run after
+### Improved
+- CI test job now depends on the lint job (`needs: lint`), so tests run only after
   linting passes (ISSUE-017)
 - Documented `--option=value` syntax limitation in usage text (ISSUE-021)
 
@@ -35,7 +65,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   by adding a counter to the branch name (ISSUE-013)
 - Added `backupRemote` pattern validation to `validate_config_json`, consistent
   with schema and CLI validation (ISSUE-014)
-- Updated prompt line numbers to match post-Round 1 codebase (ISSUE-015)
+- Updated input line references (ISSUE-015)
 
 ### Added (1.3.1)
 - 9 new tests: detached HEAD, relative path, --repos-file (plaintext + JSON),

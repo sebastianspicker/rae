@@ -4,30 +4,31 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    groups:
-      github-actions:
-        update-types:
-          - minor
-          - patch
+    open-pull-requests-limit: 5
   - package-ecosystem: npm
     directory: /packages/orchestration
     schedule:
       interval: weekly
-    groups:
-      npm-development:
-        dependency-type: development
-        update-types:
-          - minor
-          - patch
+  - package-ecosystem: npm
+    directory: /packages/orchestration/skills/dev-tools/_shared
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /packages/orchestration/skills/dev-tools/multi-model-review
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /packages/orchestration/skills/dev-tools/quality-gate
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /packages/orchestration/skills/dev-tools/trace-collector
+    schedule:
+      interval: weekly
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
-    groups:
-      python-development:
-        update-types:
-          - minor
-          - patch
   - package-ecosystem: docker
     directory: /packages/orchestration/skills/dev-tools/multi-model-review/sandbox
     schedule:

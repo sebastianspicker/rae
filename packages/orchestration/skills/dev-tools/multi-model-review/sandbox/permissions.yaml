@@ -1,3 +1,4 @@
+# Keep review processing offline and limit writes to disposable scratch space.
 network:
   allow: []
 filesystem:

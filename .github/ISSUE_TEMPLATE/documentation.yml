@@ -1,0 +1,25 @@
+name: Documentation improvement
+description: Report missing, stale, unclear, or misleading public documentation.
+title: "docs: "
+labels:
+  - documentation
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: Link the page or provide the repository path.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Explain what is missing, stale, unclear, or inconsistent with current behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested improvement
+      description: Describe the smallest correction or addition that would resolve the problem.

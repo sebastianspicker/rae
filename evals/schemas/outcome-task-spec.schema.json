@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExperimentalAutonomousCodeChangeTask",
+  "type": "object",
+  "required": ["task_id", "split", "fixture_id", "task_prompt", "target_path", "allowed_paths", "forbidden_paths", "judge_case_id"],
+  "properties": {
+    "task_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "split": {"type": "string", "enum": ["dev", "held-out", "stress", "ablation"]},
+    "fixture_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+    "task_prompt": {"type": "string", "minLength": 1, "maxLength": 32768},
+    "target_path": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"},
+    "allowed_paths": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}},
+    "forbidden_paths": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9._/-]+$"}},
+    "judge_case_id": {"enum": ["python-compile", "python-unittest"]}
+  },
+  "additionalProperties": false
+}

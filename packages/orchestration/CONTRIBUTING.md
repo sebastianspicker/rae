@@ -10,12 +10,13 @@
 
 ```bash
 cd packages/orchestration
-npm install
+npm ci
 bash scripts/install-hooks.sh   # optional: install pre-commit hook
 ./scripts/verify.sh
 ```
 
-Requirements: Node.js >= 20, npm, Python 3.
+Requirements: Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`;
+npm; and Python 3.14.6 or newer.
 
 ## Pre-commit Hook
 
@@ -52,7 +53,7 @@ git commit --no-verify
 ## Repository Rules
 
 - Do not move or rename `manifest.yaml`, `schemas/*`, `src/*`, or `sandbox/*` in runtime skill packages.
-- Adapter files under `adapters/<runner>/` are generated — edit `adapters/templates/` instead and regenerate:
+- Adapter files under `adapters/<runner>/` are synchronized: edit `adapters/templates/` instead and run:
 
   ```bash
   python3 scripts/adapters/generate_adapters.py
@@ -67,4 +68,4 @@ Keep commits small and focused. One logical change per commit. No need for a spe
 
 ## Security
 
-For security vulnerabilities, follow the process in [SECURITY.md](SECURITY.md) — do not open a public issue.
+For security vulnerabilities, follow the process in [SECURITY.md](../../SECURITY.md): do not open a public issue.

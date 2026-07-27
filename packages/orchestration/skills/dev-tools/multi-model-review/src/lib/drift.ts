@@ -1,3 +1,6 @@
+/**
+ * Extracts and adjudicates design-to-implementation drift claims for review evidence.
+ */
 import type {
   DriftAdjudication,
   DriftClaim,
@@ -34,30 +37,176 @@ interface CorrelationPair {
 
 const TAXONOMY: DriftClaimType[] = ["interface", "invariant", "security", "performance", "docs"];
 
-function correlateClaims(
+/**
+ * Splits a document into sections by markdown-style headings.
+ * Lines starting with # are section boundaries.
+ */
+export function parseSections(text: string): Section[] {
+  const lines = text.split("\n");
+  const sections: Section[] = [];
+  let current: Section | null = null;
+  const preambleLines: string[] = [];
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^#{1,6}\s+(.+)/);
+    if (headingMatch) {
+      const heading = headingMatch[1];
+      if (!heading) continue;
+      if (current) sections.push(current);
+      current = { heading: heading.trim(), body: "" };
+    } else if (current) {
+      current.body += `${line}\n`;
+    } else {
+      preambleLines.push(line);
+    }
+  }
+  if (current) sections.push(current);
+
+  const preamble = preambleLines.join("\n").trim();
+  if (preamble.length > 0) {
+    sections.unshift({
+      heading: sections.length > 0 ? "Preamble" : "Document",
+      body: preamble,
+      synthetic: true,
+    });
+  }
+
+  return sections;
+}
+
+export function extractNormalizedHeadings(text: string): Set<string> {
+  const headings = new Set<string>();
+  for (const line of text.split("\n")) {
+    const headingMatch = line.match(/^#{1,6}\s+(.+)/);
+    if (!headingMatch) continue;
+    const heading = headingMatch[1];
+    if (!heading) continue;
+    headings.add(normalize(heading.trim()));
+  }
+  return headings;
+}
+
+/**
+ * Extracts key assertions from a section body.
+ * Looks for: bullet points, bold text, constraint keywords.
+ */
+export function extractAssertions(body: string): string[] {
+  const assertions: string[] = [];
+  const lines = body.split("\n");
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const isBullet = /^[-*•]\s+/.test(trimmed);
+    const isNumbered = /^\d+[.)]\s+/.test(trimmed);
+    const hasKeyword =
+      /\b(must|shall|should|requires?|constraint|ensures?|guarantees?|limit)\b/i.test(trimmed);
+
+    if (isBullet || isNumbered || hasKeyword) {
+      assertions.push(trimmed.replace(/^[-*•\d.)]+\s*/, "").trim());
+    }
+  }
+
+  return assertions.filter((a) => a.length > 5);
+}
+
+export function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function classifyClaimType(claim: string): DriftClaimType {
+  const text = normalize(claim);
+  if (
+    /\b(auth|jwt|csrf|xss|secret|encryption|token|permission|rbac|owasp|vulnerability|security)\b/.test(
+      text,
+    )
+  ) {
+    return "security";
+  }
+  if (
+    /\b(latency|throughput|cache|performance|memory|cpu|scale|rate limit|qps|timeout)\b/.test(text)
+  ) {
+    return "performance";
+  }
+  if (/\b(readme|docs|documentation|changelog|guide|example)\b/.test(text)) {
+    return "docs";
+  }
+  if (/\b(api|endpoint|route|schema|contract|interface|payload|request|response)\b/.test(text)) {
+    return "interface";
+  }
+  return "invariant";
+}
+
+export function toDriftScore(status: DriftVerificationStatus): number {
+  if (status === "verified") return 0;
+  if (status === "partial") return 0.5;
+  if (status === "violated") return 1;
+  return 0.75;
+}
+
+/**
+ * Calculates significant keyword overlap score between claim and target.
+ */
+export function claimMatchScore(claim: string, targetText: string): number {
+  const claimWords = normalize(claim)
+    .split(" ")
+    .filter((w) => w.length > 2);
+  if (claimWords.length === 0) return -1;
+
+  const targetNorm = normalize(targetText);
+  let hits = 0;
+  for (const w of claimWords) {
+    if (targetNorm.includes(w)) hits++;
+  }
+  return hits / claimWords.length;
+}
+
+export function toVerificationStatus(score: number): DriftVerificationStatus {
+  if (score < 0) return "unverifiable";
+  if (score >= 0.6) return "verified";
+  if (score >= 0.35) return "partial";
+  return "violated";
+}
+
+export function findingSeverity(status: DriftVerificationStatus): DriftFinding["severity"] {
+  if (status === "violated") return "high";
+  if (status === "partial" || status === "unverifiable") return "medium";
+  return "low";
+}
+
+export function buildFindingsFromClaims(claims: DriftClaim[]): DriftFinding[] {
+  const findings: DriftFinding[] = [];
+  for (const claim of claims) {
+    if (claim.verification_status === "verified") continue;
+    findings.push({
+      description: `Claim is ${claim.verification_status}: "${claim.claim}"`,
+      claim_type: claim.claim_type,
+      severity: findingSeverity(claim.verification_status),
+      claim_ids: [claim.id],
+      mitigation:
+        "Verify this requirement is addressed in the target artifact and update implementation or plan accordingly.",
+    });
+  }
+  return findings;
+}
+
+export function correlateClaims(
   first: ExtractorClaimSet,
   second: ExtractorClaimSet,
 ): { pairs: CorrelationPair[]; unmatchedSecond: ExtractorClaimInput[] } {
   const pairs: CorrelationPair[] = [];
   const usedSecond = new Set<number>();
-  const minSimilarity = 0.55;
 
   for (const left of first.claims) {
-    let bestIdx = -1;
-    let bestScore = 0;
-    for (let idx = 0; idx < second.claims.length; idx++) {
-      if (usedSecond.has(idx)) continue;
-      const right = second.claims[idx];
-      if (!right) continue;
-      const score = left.id === right.id ? 1 : tokenSimilarity(left.claim, right.claim);
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = idx;
-      }
-    }
-    if (bestIdx >= 0 && bestScore >= minSimilarity) {
-      usedSecond.add(bestIdx);
-      pairs.push({ first: left, second: second.claims[bestIdx] });
+    const best = findBestClaimMatch(left, second.claims, usedSecond);
+    if (best) {
+      usedSecond.add(best.index);
+      pairs.push({ first: left, second: best.claim });
       continue;
     }
     pairs.push({ first: left });
@@ -67,7 +216,25 @@ function correlateClaims(
   return { pairs, unmatchedSecond };
 }
 
-const mergeConfidence = (first?: number, second?: number): number | undefined => {
+export function findBestClaimMatch(
+  left: ExtractorClaimInput,
+  candidates: ExtractorClaimInput[],
+  used: Set<number>,
+): { index: number; claim: ExtractorClaimInput } | undefined {
+  let best: { index: number; claim: ExtractorClaimInput; score: number } | undefined;
+  candidates.forEach((candidate, index) => {
+    if (used.has(index)) return;
+    const score = claimSimilarity(left, candidate);
+    if (!best || score > best.score) best = { index, claim: candidate, score };
+  });
+  return best && best.score >= 0.55 ? { index: best.index, claim: best.claim } : undefined;
+}
+
+export function claimSimilarity(left: ExtractorClaimInput, right: ExtractorClaimInput): number {
+  return left.id === right.id ? 1 : tokenSimilarity(left.claim, right.claim);
+}
+
+export function mergeConfidence(first?: number, second?: number): number | undefined {
   const hasFirst = typeof first === "number";
   const hasSecond = typeof second === "number";
   if (hasFirst && hasSecond) {
@@ -78,20 +245,29 @@ const mergeConfidence = (first?: number, second?: number): number | undefined =>
   return undefined;
 };
 
-function adjudicatePair(
+export function adjudicatePair(
   firstStatus: DriftVerificationStatus,
   secondStatus?: DriftVerificationStatus,
 ): { status: DriftVerificationStatus; conflict: boolean } {
   if (!secondStatus) return { status: "unverifiable", conflict: false };
-  const pair = new Set([firstStatus, secondStatus]);
-  if (pair.has("verified") && pair.has("violated")) return { status: "partial", conflict: true };
-  if (pair.size === 1 && pair.has("verified")) return { status: "verified", conflict: false };
-  if (pair.has("violated")) return { status: "violated", conflict: false };
-  return {
-    status: pair.has("verified") || pair.has("partial") ? "partial" : "unverifiable",
-    conflict: false,
-  };
+  const statuses = new Set([firstStatus, secondStatus]);
+  return adjudicateStatuses(statuses);
 }
+
+export function adjudicateStatuses(
+  statuses: Set<DriftVerificationStatus>,
+): { status: DriftVerificationStatus; conflict: boolean } {
+  if (statuses.has("verified")) {
+    return statuses.has("violated")
+      ? { status: "partial", conflict: true }
+      : { status: statuses.size === 1 ? "verified" : "partial", conflict: false };
+  }
+  if (statuses.has("violated")) return { status: "violated", conflict: false };
+  return statuses.has("partial")
+    ? { status: "partial", conflict: false }
+    : { status: "unverifiable", conflict: false };
+}
+
 
 export function detectDrift(sourceText: string, targetText: string): DriftDetectionResult {
   const sourceSections = parseSections(sourceText);
@@ -231,16 +407,31 @@ export function detectDriftFromExtractorClaims(
   extractorClaimSets: ExtractorClaimSet[],
 ): DriftDetectionResult {
   const [first, second] = extractorClaimSets;
-  if (extractorClaimSets.length !== 2 || !first || !second) {
-    throw Object.assign(new Error("dual-extractor mode requires exactly 2 extractor_claim_sets"), {
-      code: "E_BAD_INPUT",
-    });
-  }
-  const { pairs, unmatchedSecond } = correlateClaims(first, second);
+  validateExtractorClaimSets(extractorClaimSets, first, second);
+  const { pairs, unmatchedSecond } = correlateClaims(first!, second!);
+  const correlated = buildCorrelatedClaims(pairs, first!, second!);
+  const claims = [...correlated.claims, ...buildUnmatchedClaims(unmatchedSecond, first!, second!, correlated.claims.length)];
+  return buildDualExtractorResult(claims, first!, second!, correlated.conflictsResolved);
+}
+
+function validateExtractorClaimSets(
+  claimSets: ExtractorClaimSet[],
+  first?: ExtractorClaimSet,
+  second?: ExtractorClaimSet,
+): asserts first is ExtractorClaimSet & NonNullable<typeof second> {
+  if (claimSets.length === 2 && first && second) return;
+  throw Object.assign(new Error("dual-extractor mode requires exactly 2 extractor_claim_sets"), {
+    code: "E_BAD_INPUT",
+  });
+}
+
+function buildCorrelatedClaims(
+  pairs: CorrelationPair[],
+  first: ExtractorClaimSet,
+  second: ExtractorClaimSet,
+): { claims: DriftClaim[]; conflictsResolved: number } {
   const claims: DriftClaim[] = [];
   let conflictsResolved = 0;
-  let claimIdx = 0;
-
   for (const pair of pairs) {
     const result = appendAdjudicatedClaim(
       claims,
@@ -249,13 +440,42 @@ export function detectDriftFromExtractorClaims(
       second.extractor,
       claimIdx,
     );
-    claimIdx = result.claimIdx;
-    conflictsResolved += result.conflict;
-  }
+    if (adjudicated.conflict) {
+      conflictsResolved++;
+    }
 
-  for (const claim of unmatchedSecond) {
-    claims.push({
-      id: `drift-${++claimIdx}`,
+    claims.push(buildCorrelatedClaim(pair, adjudicated.status, first, second, claims.length + 1));
+  }
+  return { claims, conflictsResolved };
+}
+
+function buildCorrelatedClaim(
+  pair: CorrelationPair,
+  status: DriftVerificationStatus,
+  first: ExtractorClaimSet,
+  second: ExtractorClaimSet,
+  index: number,
+): DriftClaim {
+  const claimText = !pair.second || pair.first.claim.length >= pair.second.claim.length ? pair.first.claim : pair.second.claim;
+  return {
+    id: `drift-${index}`,
+    claim: claimText,
+    claim_type: pair.first.claim_type ?? pair.second?.claim_type ?? classifyClaimType(claimText),
+    verification_status: status,
+    evidence: pair.second
+      ? `${first.extractor}: ${pair.first.verification_status} (${pair.first.evidence}) | ${second.extractor}: ${pair.second.verification_status} (${pair.second.evidence})`
+      : `${first.extractor}: ${pair.first.verification_status} (${pair.first.evidence}); no corresponding claim from ${second.extractor}`,
+    extractor: `dual-adjudicator:${first.extractor}+${second.extractor}`,
+    drift_score: toDriftScore(status),
+    confidence: mergeConfidence(pair.first.confidence, pair.second?.confidence),
+  };
+}
+
+function buildUnmatchedClaims(
+  unmatched: ExtractorClaimInput[], first: ExtractorClaimSet, second: ExtractorClaimSet, start: number,
+): DriftClaim[] {
+  return unmatched.map((claim, offset) => ({
+      id: `drift-${start + offset + 1}`,
       claim: claim.claim,
       claim_type: claim.claim_type ?? classifyClaimType(claim.claim),
       verification_status: "unverifiable",
@@ -263,9 +483,12 @@ export function detectDriftFromExtractorClaims(
       extractor: `dual-adjudicator:${first.extractor}+${second.extractor}`,
       drift_score: toDriftScore("unverifiable"),
       confidence: claim.confidence,
-    });
-  }
+    }));
+}
 
+function buildDualExtractorResult(
+  claims: DriftClaim[], first: ExtractorClaimSet, second: ExtractorClaimSet, conflictsResolved: number,
+): DriftDetectionResult {
   return {
     claims,
     findings: buildFindingsFromClaims(claims),
@@ -320,7 +543,7 @@ export interface DriftQualityMetrics {
   by_class: Record<DriftClaimType, DriftQualityClassMetrics>;
 }
 
-function toMetrics(tp: number, fp: number, fn: number): DriftQualityClassMetrics {
+export function toMetrics(tp: number, fp: number, fn: number): DriftQualityClassMetrics {
   const precision = tp + fp === 0 ? 0 : tp / (tp + fp);
   const recall = tp + fn === 0 ? 0 : tp / (tp + fn);
   const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);

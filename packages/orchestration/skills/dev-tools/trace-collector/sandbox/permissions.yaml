@@ -1,3 +1,4 @@
+# Keep trace parsing offline and prevent mutation of the mounted workspace.
 network:
   allow: []
 filesystem:

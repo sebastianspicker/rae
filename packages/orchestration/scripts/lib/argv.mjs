@@ -1,3 +1,6 @@
+/**
+ * Parses shared command-line options with explicit type and input validation for orchestration scripts.
+ */
 function badInput(message) {
   const err = new Error(message);
   err.code = "E_BAD_INPUT";
@@ -19,105 +22,96 @@ function parseBoolean(raw, flagName) {
   throw badInput(`Invalid boolean for --${flagName}: ${raw}`);
 }
 
-function readRawValue(type, hasInline, inlineValue, next, flagName) {
-  if (hasInline) return { rawValue: inlineValue, consumesNext: false };
-  if (type === "boolean") {
-    return next && !next.startsWith("--")
-      ? { rawValue: next, consumesNext: true }
-      : { rawValue: true, consumesNext: false };
-  }
-  if (!next || next.startsWith("--")) throw badInput(`Missing value for --${flagName}`);
-  return { rawValue: next, consumesNext: true };
-}
-
-function parseValue(type, rawValue, flagName) {
-  if (type === "number") {
-    const value = Number(rawValue);
-    if (!Number.isFinite(value)) throw badInput(`Invalid number for --${flagName}: ${rawValue}`);
-    return value;
-  }
-  if (type === "boolean") return parseBoolean(rawValue, flagName);
-  return String(rawValue);
-}
-
-function assertAllowedValue(entry, value, flagName) {
-  if (Array.isArray(entry.enum) && !entry.enum.includes(value)) {
-    throw badInput(`--${flagName} must be one of: ${entry.enum.join(", ")}`);
-  }
-}
-
-function getOption(token, optionSpec) {
-  const eqIdx = token.indexOf("=");
-  const rawKey = token.slice(2, eqIdx === -1 ? undefined : eqIdx);
-  assertSafeKey(rawKey, "option name");
-  if (!Object.hasOwn(optionSpec, rawKey)) throw badInput(`Unknown argument: --${rawKey}`);
+function optionToken(token, optionSpec) {
+  const equalsIndex = token.indexOf("=");
+  const rawKey = token.slice(2, equalsIndex === -1 ? undefined : equalsIndex);
+  const entry = optionSpec[rawKey];
+  if (!entry) throw badInput(`Unknown argument: --${rawKey}`);
   return {
     rawKey,
-    entry: optionSpec[rawKey],
-    hasInline: eqIdx !== -1,
-    inlineValue: token.slice(eqIdx + 1),
+    entry,
+    outputKey: entry.key ?? rawKey,
+    type: entry.type ?? "string",
+    inlineValue: equalsIndex === -1 ? undefined : token.slice(equalsIndex + 1),
   };
 }
 
-function parseOption(token, next, optionSpec) {
-  const { rawKey, entry, hasInline, inlineValue } = getOption(token, optionSpec);
-  const outputKey = entry.key ?? rawKey;
-  assertSafeKey(outputKey, "option output key");
-  const { rawValue, consumesNext } = readRawValue(
-    entry.type ?? "string",
-    hasInline,
-    inlineValue,
-    next,
-    rawKey,
-  );
-  let value = parseValue(entry.type ?? "string", rawValue, rawKey);
-  assertAllowedValue(entry, value, rawKey);
-  if (typeof entry.parse === "function") value = entry.parse(value, rawKey);
-  return { outputKey, value, consumesNext };
+function optionRawValue(option, next) {
+  if (option.inlineValue !== undefined) {
+    return { value: option.inlineValue, consumedNext: false };
+  }
+  if (option.type === "boolean" && (!next || next.startsWith("--"))) {
+    return { value: true, consumedNext: false };
+  }
+  if (!next || next.startsWith("--")) {
+    throw badInput(`Missing value for --${option.rawKey}`);
+  }
+  return { value: next, consumedNext: true };
 }
 
-function assertRequiredOptions(optionSpec, out) {
+function parsedOptionValue(option, rawValue) {
+  let value;
+  if (option.type === "number") {
+    value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+      throw badInput(`Invalid number for --${option.rawKey}: ${rawValue}`);
+    }
+  } else {
+    value = option.type === "boolean" ? parseBoolean(rawValue, option.rawKey) : String(rawValue);
+  }
+
+  if (Array.isArray(option.entry.enum) && !option.entry.enum.includes(value)) {
+    throw badInput(`--${option.rawKey} must be one of: ${option.entry.enum.join(", ")}`);
+  }
+  return typeof option.entry.parse === "function"
+    ? option.entry.parse(value, option.rawKey)
+    : value;
+}
+
+function validateRequiredOptions(optionSpec, values) {
   for (const [flag, entry] of Object.entries(optionSpec)) {
     if (!entry.required) continue;
-    const key = entry.key ?? flag;
-    assertSafeKey(key, "required option key");
-    const value = out[key];
-    if (value === undefined || value === null || value === "")
+    const value = values[entry.key ?? flag];
+    if (value === undefined || value === null || value === "") {
       throw badInput(`Missing required argument: --${flag}`);
+    }
+  }
+}
+
+function normalizedArgumentSpec(spec) {
+  const source = spec || {};
+  return {
+    defaults: source.defaults || {},
+    options: source.options || {},
+    allowPositionals: source.allowPositionals === true,
+  };
+}
+
+function appendPositional(token, allowPositionals, positionals) {
+  if (!allowPositionals) throw badInput(`Unknown argument: ${token}`);
+  positionals.push(token);
+}
+
+function consumeArguments(argv, optionSpec, allowPositionals, values, positionals) {
+  for (let index = 0; index < argv.length; index++) {
+    const token = argv[index];
+    if (!token.startsWith("--")) {
+      appendPositional(token, allowPositionals, positionals);
+      continue;
+    }
+    const option = optionToken(token, optionSpec);
+    const raw = optionRawValue(option, argv[index + 1]);
+    if (raw.consumedNext) index++;
+    values[option.outputKey] = parsedOptionValue(option, raw.value);
   }
 }
 
 export function parseArgs(spec, argv) {
-  const defaults = spec?.defaults ?? {};
-  const optionSpec = spec?.options ?? {};
-  const allowPositionals = spec?.allowPositionals === true;
-  const out = Object.assign(Object.create(null), defaults);
+  const normalized = normalizedArgumentSpec(spec);
+  const out = { ...normalized.defaults };
   const positionals = [];
-
-  for (let i = 0; i < argv.length; i++) {
-    const token = argv[i];
-    if (!token.startsWith("--")) {
-      if (!allowPositionals) {
-        throw badInput(`Unknown argument: ${token}`);
-      }
-      positionals.push(token);
-      continue;
-    }
-
-    const {
-      outputKey,
-      value: parsedValue,
-      consumesNext,
-    } = parseOption(token, argv[i + 1], optionSpec);
-    if (consumesNext) i++;
-    out[outputKey] = parsedValue;
-  }
-
-  assertRequiredOptions(optionSpec, out);
-
-  if (allowPositionals) {
-    out._ = positionals;
-  }
-
+  consumeArguments(argv, normalized.options, normalized.allowPositionals, out, positionals);
+  validateRequiredOptions(normalized.options, out);
+  if (normalized.allowPositionals) out._ = positionals;
   return out;
 }

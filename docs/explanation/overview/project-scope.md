@@ -1,16 +1,19 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: README.md
 evidence_links: ../../reference/architecture/system-overview.md
 ---
 
 # Project Scope
 
-RAE, short for Reliable Agentic Engineering, is a public reference implementation for studying
-and operating agent workflows under stronger measurement and documentation
-discipline.
+RAE, short for Reliable Agentic Engineering, is a public reference
+implementation for studying and operating agent workflows with explicit
+measurement and documentation controls.
+
+The proposed `v0.1.0-alpha.1` is a public alpha candidate. Interfaces may
+change, and this wording does not claim a published release.
 
 ## In scope
 
@@ -25,11 +28,11 @@ discipline.
 - claiming universal scientific laws about all agent systems
 - hiding implementation uncertainty behind authoritative prose
 - reporting benchmark numbers without frozen metadata
-- collapsing every imported runtime into one giant binary or CLI
+- collapsing every included runtime into one giant binary or CLI
 
 ## Design stance
 
-The umbrella improves on the source repos by adding:
+The umbrella adds:
 
 - a shared terminology layer
 - a claim and evidence discipline

@@ -1,3 +1,6 @@
+/**
+ * Prints the runner CLI contract from one shared implementation to keep command help synchronized.
+ */
 export function printUsage(phases) {
   process.stdout.write(`Usage: node scripts/pipeline/runner.mjs <command> [options]\n\n`);
   process.stdout.write(`Commands:\n`);
@@ -18,6 +21,11 @@ export function printUsage(phases) {
   );
   process.stdout.write(
     `  summarize-progress --run-id <id> [--format <json|text|markdown>] [--output <path>]\n`,
+  );
+  process.stdout.write(`  doctor          Verify runtime safety prerequisites\n`);
+  process.stdout.write(`\nGlobal options:\n`);
+  process.stdout.write(
+    `  --project-root <path>   Target repository containing .pipeline (default: current directory)\n`,
   );
   process.stdout.write(`\nrun-stage options:\n`);
   process.stdout.write(`  --run-id <id>           Run identifier (from pipeline-init.sh)\n`);

@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-28
+last_reviewed: 2026-07-19
 source_of_truth: README.md
 evidence_links: claims/evidence-index.md
 ---
@@ -10,36 +10,33 @@ evidence_links: claims/evidence-index.md
 
 ## Top-level surfaces
 
-- `AGENTS.md`
-  Umbrella shared memory for cross-runtime workflow rules and repeated
-  corrections.
 - `docs/`
   Scientific, operational, research, and governance documentation.
 - `packages/orchestration/`
-  Imported phased orchestration runtime, contracts, adapters, and docs.
+  Included phased orchestration runtime, contracts, adapters, and docs.
 - `packages/loops/ralph/`
-  Imported deterministic audit/lint/fix loop runtime and tests.
+  Included Codex-only deterministic audit/lint/fix loop runtime and tests.
 - `tools/repo-hygiene/coauthor-trailer-cleaner/`
-  Imported and generalized history-rewrite utility.
+  Included `3.0.0` transactional history-rewrite utility.
 - `evals/`
   Benchmark cards, run cards, schemas, scenario families, and results.
 - `profiles/agent-environments/`
-  Public profile publication lane and sanitization boundary.
+  Public profile publication lane with manifest v2 transaction and recovery.
 - `examples/`
   Small end-to-end examples and starter layouts.
 - `scripts/`
-  Umbrella harness, verification, and metadata validation.
+  Umbrella harness, autonomous-agent dispatch, verification, and metadata validation.
 
 ## Reading rule
 
 Use package-local docs for command truth and umbrella docs for:
 
 - integration logic
-- shared workflow memory
+- shared workflow contracts
 - benchmark method
 - claim quality
 - publication constraints
-- stable umbrella entrypoints
+- primary umbrella entrypoints
 
 ## Maintainer data flow
 
@@ -55,9 +52,9 @@ Most repository flows follow the same path:
 5. Claim-bearing docs link to the evidence layer instead of asserting behavior
    directly.
 
-Generated or mirrored surfaces should be edited at their declared source of
+Derived or mirrored surfaces should be edited at their declared source of
 truth. In particular, orchestration adapter files under
-`packages/orchestration/adapters/<runner>/` are generated from templates, while
+`packages/orchestration/adapters/<runner>/` are derived from templates, while
 package-local runtime behavior stays under the package that owns it.
 
 ## Thesis validation

@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: evals
-last_reviewed: 2026-04-17
+last_reviewed: 2026-07-19
 source_of_truth: evals
 evidence_links: ../reference/invariants/provenance-requirements.md
 ---
@@ -109,9 +109,9 @@ Retain the benchmark card, run card, result ledger, release gate, regression
 report, verification summary, baseline reference, and any screenshots, traces,
 or probes needed to inspect operator-visible behavior.
 
-## Production rule in this repo
+## Release-gate rule in this repo
 
-Production-facing benchmark families must be rerunnable through the local
+Release-gated benchmark families must be rerunnable through the local
 verification matrix. In RAE that means the frozen benchmark suite is executed in
 `./scripts/verify.sh` for `dev` and `held-out` splits.
 

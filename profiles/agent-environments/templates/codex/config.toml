@@ -1,3 +1,4 @@
+# Publish safe defaults that require local verification before release actions.
 [profile]
 name = "rae-public"
 mode = "safe-default"

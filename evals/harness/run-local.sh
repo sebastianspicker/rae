@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
+# Runs local evaluation checks with the repository harness to make benchmark evidence reproducible.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/lib/runtime.sh
+source "$ROOT_DIR/scripts/lib/runtime.sh"
+rae_require_runtime
+
+BASH_BIN="$BASH"
 EVALS_DIR="$ROOT_DIR/evals"
 VALIDATOR="$ROOT_DIR/evals/scripts/validate_eval_metadata.py"
 
@@ -13,6 +19,10 @@ Commands:
   validate      Validate benchmark and run-card metadata
   route         Route one task spec and emit a planned run card
   run           Execute one benchmark split and emit run/result/regression artifacts
+  outcome       Run experimental autonomous code-change outcomes (provider usage requires acknowledgement)
+  compare-outcomes
+                Compare paired outcome reports for optimizer evidence
+  optimize      Evaluate a bounded experimental policy campaign from precomputed evidence
   suite         Execute all frozen benchmark families for dev and held-out splits under evals/results
   calibrate     Run judge calibration
   release-gate  Evaluate release-blocking gates for a run card
@@ -30,17 +40,6 @@ doctor_line() {
   local label="$2"
   local detail="$3"
   printf '%-6s %-18s %s\n' "$status" "$label" "$detail"
-}
-
-check_command() {
-  local label="$1"
-  local cmd="$2"
-  if command -v "$cmd" >/dev/null 2>&1; then
-    doctor_line "OK" "$label" "$(command -v "$cmd")"
-    return 0
-  fi
-  doctor_line "FAIL" "$label" "missing command: $cmd"
-  return 1
 }
 
 check_file() {
@@ -66,10 +65,14 @@ run_doctor() {
   printf 'validator         %s\n' "$relative_validator"
 
   printf '\n'
-  check_command "python3" "python3" || failed=1
+  doctor_line "OK" "bash" "$BASH_VERSION ($BASH_BIN)"
+  doctor_line "OK" "python" "$(rae_python_version "$PYTHON_BIN") ($PYTHON_BIN)"
   check_file "validator" "$VALIDATOR" || failed=1
   check_file "router" "$ROOT_DIR/evals/scripts/router.py" || failed=1
   check_file "benchmark-runner" "$ROOT_DIR/evals/scripts/run_benchmark.py" || failed=1
+  check_file "outcome-runner" "$ROOT_DIR/evals/scripts/run_outcome_benchmark.py" || failed=1
+  check_file "outcome-compare" "$ROOT_DIR/evals/scripts/compare_outcome_reports.py" || failed=1
+  check_file "policy-optimizer" "$ROOT_DIR/evals/scripts/optimize_harness.py" || failed=1
   check_file "release-gate" "$ROOT_DIR/evals/scripts/release_gate.py" || failed=1
 
   if [[ "$failed" -ne 0 ]]; then
@@ -89,22 +92,31 @@ main() {
     usage
     ;;
   validate)
-    python3 "$VALIDATOR" "$@"
+    "$PYTHON_BIN" "$VALIDATOR" "$@"
     ;;
   route)
-    python3 "$ROOT_DIR/evals/scripts/router.py" "$@"
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/router.py" "$@"
     ;;
   run)
-    python3 "$ROOT_DIR/evals/scripts/run_benchmark.py" "$@"
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/run_benchmark.py" "$@"
+    ;;
+  outcome)
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/run_outcome_benchmark.py" "$@"
+    ;;
+  compare-outcomes)
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/compare_outcome_reports.py" "$@"
+    ;;
+  optimize)
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/optimize_harness.py" "$@"
     ;;
   suite)
-    bash "$ROOT_DIR/evals/harness/run-frozen-suite.sh" "$@"
+    "$BASH_BIN" "$ROOT_DIR/evals/harness/run-frozen-suite.sh" "$@"
     ;;
   calibrate)
-    python3 "$ROOT_DIR/evals/scripts/judge_calibration.py" "$@"
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/judge_calibration.py" "$@"
     ;;
   release-gate)
-    python3 "$ROOT_DIR/evals/scripts/release_gate.py" "$@"
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/release_gate.py" "$@"
     ;;
   doctor)
     run_doctor "$@"

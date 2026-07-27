@@ -9,7 +9,7 @@ evidence_links: ../../reference/claims/claims-ledger.md
 # Abstract
 
 Reliable agentic engineering should be treated as a systems, measurement, and
-publication problem rather than as prompt iteration in isolation.
+publication problem rather than as isolated instruction tuning.
 
 ## Thesis
 

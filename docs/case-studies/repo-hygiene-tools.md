@@ -1,9 +1,9 @@
 ---
 status: historical
 owner: tools
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-16
 source_of_truth: editorial
-evidence_links: ../archive/migration/source-repo-map.md
+evidence_links: ../reference/repo-map.md
 ---
 
 # Case Study: Repo Hygiene Tools
@@ -14,6 +14,10 @@ and separately testable.
 ## Current example
 
 - `tools/repo-hygiene/coauthor-trailer-cleaner/`
+
+The included coauthor trailer cleaner `3.0.0` defaults to `--no-push`. It
+rewrites a private ref pinned to a captured OID, retains recovery data under
+concurrent changes, and uses compare-and-swap checks with atomic cleanup.
 
 ## Why this case matters
 

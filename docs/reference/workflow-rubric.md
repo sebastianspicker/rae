@@ -2,7 +2,7 @@
 status: experimental
 owner: core
 last_reviewed: 2026-04-17
-source_of_truth: AGENTS.md
+source_of_truth: scripts/rae.sh
 evidence_links: claims/evidence-index.md
 ---
 
@@ -46,7 +46,7 @@ Every non-trivial workflow asset should make the following explicit:
 
 Promote a reusable asset only when all of the following are true:
 
-- it solves a repeated workflow rather than a one-off prompt
+- it solves a repeated workflow rather than a one-off request
 - the boundary is narrow enough to review quickly
 - success and regression checks are explicit
 - required evidence is named up front

@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: evals
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: ../../../evals/schemas/run-card.schema.json
 evidence_links: ../result-report-template.md
 ---
@@ -30,7 +30,7 @@ benchmark executions. Use the `evidence_type` field to distinguish:
 Use the schema in `evals/schemas/run-card.schema.json` and the example in
 `evals/run-card.example.json`.
 
-Production run cards are emitted by the frozen benchmark suite into temporary or
+Release-gate run cards are emitted by the frozen benchmark suite into temporary or
 CI-managed output roots under `evals/results/` and must satisfy the
 release-gate requirements before their results are cited.
 

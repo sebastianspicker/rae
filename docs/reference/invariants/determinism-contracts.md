@@ -18,7 +18,7 @@ It means the control surface around execution is explicit and auditable.
 - report paths are predictable and confined
 - retries are bounded and observable
 - mode changes are explicit
-- safety checks happen in code, not only in prompts
+- safety checks happen in code, not only in provider instructions
 
 ## Why it matters
 

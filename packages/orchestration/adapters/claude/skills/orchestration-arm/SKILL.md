@@ -17,7 +17,7 @@ Use a high-reasoning model. This stage handles ambiguous, unstructured input tha
 - Human control points: close unresolved decisions with explicit user confirmation.
 
 ## Input
-- User prompt (unstructured intent).
+- User request (unstructured intent).
 
 ## Procedure
 

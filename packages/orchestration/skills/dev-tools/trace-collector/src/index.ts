@@ -1,3 +1,6 @@
+/**
+ * Exposes trace collection through the common JSON-lines tool harness.
+ */
 import type { Input, TraceResult } from "./types.js";
 import { validateInput } from "./lib/input.js";
 import { collectTrace } from "./lib/trace.js";
@@ -9,6 +12,7 @@ runTool<Input, TraceResult>(TOOL_VERSION, async (input: Input, logs: string[]) =
   validateInput(input);
   const data = await collectTrace(input, logs, {
     workspaceRoot: process.env.WORKSPACE_ROOT ?? "/workspace",
+    schemaRoot: process.env.RAE_TOOL_ROOT ?? process.env.WORKSPACE_ROOT ?? "/workspace",
   });
   return { data, logs };
 });

@@ -2,7 +2,6 @@
 # shellcheck disable=SC2034
 # CLI argument parsing and runtime config validation.
 # Sourced by config.sh; variables set here are used by ralph.sh main().
-# validate_tool_config is from tool.sh (loaded after config.sh).
 
 parse_args() {
   STATUS_FORMAT_EXPLICIT="${STATUS_FORMAT_EXPLICIT:-false}"
@@ -15,15 +14,6 @@ parse_args() {
         [[ $# -ge 2 ]] || fail "--mode requires a value"
         MODE="$2"
         shift 2
-        ;;
-      --tool)
-        [[ $# -ge 2 ]] || fail "--tool requires a value"
-        TOOL="$2"
-        shift 2
-        ;;
-      --tool=*)
-        TOOL="${1#*=}"
-        shift
         ;;
       --search)
         ENABLE_SEARCH="true"
@@ -58,7 +48,7 @@ parse_args() {
         SECURITY_PREFLIGHT="true"
         shift
         ;;
-      --no-security-preflight|--skip-security-check)
+      --no-security-preflight)
         SECURITY_PREFLIGHT="false"
         shift
         ;;
@@ -229,10 +219,10 @@ validate_runtime_config() {
   if [[ -n "$MODE" ]]; then
     is_supported_mode "$MODE" || fail "MODE must be one of: $SUPPORTED_MODES_HINT"
   fi
-  validate_tool_config
-  resolve_tool_defaults
+  DEFAULT_MODEL_FALLBACK="gpt-5.3"
   require_bool_var "RALPH_SEARCH_ENABLED_BY_DEFAULT" "$ENABLE_SEARCH"
-  require_nonneg_int_var "RALPH_TIMEOUT_SECONDS" "$RALPH_TIMEOUT_SECONDS"
+  [[ "$RALPH_TIMEOUT_SECONDS" =~ ^[0-9]+$ && "$RALPH_TIMEOUT_SECONDS" -gt 0 ]] \
+    || fail "RALPH_TIMEOUT_SECONDS must be a positive integer"
   [[ "$MAX_ATTEMPTS_PER_STORY" =~ ^[0-9]+$ && "$MAX_ATTEMPTS_PER_STORY" -ge 1 ]] || fail "RALPH_MAX_ATTEMPTS_PER_STORY must be an integer >= 1"
   require_nonneg_int_var "RALPH_SKIP_AFTER_FAILURES" "$SKIP_AFTER_FAILURES"
   require_bool_var "RALPH_CAPTURE_TOOL_OUTPUT" "$CAPTURE_TOOL_OUTPUT"
@@ -246,7 +236,6 @@ validate_runtime_config() {
   require_bool_var "RALPH_AUTO_PROGRESS_LOG_APPEND" "$AUTO_PROGRESS_LOG_APPEND"
   require_bool_var "RALPH_AUTO_SYNC_AGENTS_FROM_LEARNINGS" "$AUTO_SYNC_AGENTS_FROM_LEARNINGS"
   require_bool_var "RALPH_STRICT_REPORT_DIR" "$STRICT_REPORT_DIR"
-  [[ "$FIXING_STATE_METHOD" == "auto" || "$FIXING_STATE_METHOD" == "full" || "$FIXING_STATE_METHOD" == "git" ]] || fail "RALPH_FIXING_STATE_METHOD must be auto|full|git"
   require_bool_var "RALPH_AUTO_PROGRESS_REFRESH" "$AUTO_PROGRESS_REFRESH"
   require_nonneg_int_var "RALPH_STALE_LOCK_NO_PID_SECONDS" "$LOCK_STALE_NO_PID_SECONDS"
   case "${RALPH_OUTPUT_FORMAT:-text}" in

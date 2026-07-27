@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: science
-last_reviewed: 2026-04-17
+last_reviewed: 2026-07-19
 source_of_truth: ../claims-ledger.md
 evidence_links: ../evidence-index.md#clm-014
 ---
@@ -34,6 +34,9 @@ and failure-analysis literature.
 - `docs/explanation/science/problem-statement.md`
 - `docs/explanation/science/drift-and-self-certification.md`
 - `packages/orchestration/scripts/pipeline/runner.mjs`
+- `packages/orchestration/scripts/pipeline/autonomous.mjs`
+- `packages/orchestration/scripts/pipeline/tests/autonomous-core-scenarios.test.mjs`
+- `packages/orchestration/scripts/pipeline/tests/autonomous-checkpoint-scenarios.test.mjs`
 
 ## External anchors
 
@@ -47,7 +50,9 @@ and failure-analysis literature.
 
 ## Benchmark artifacts
 
-Pending targeted stage-ablation studies.
+The autonomous integration regression proves stage separation, actual target
+mutation, plan-ownership blocking, and independent gate progression on a local
+fixture. Targeted model-quality ablation studies remain pending.
 
 ## Counterarguments
 

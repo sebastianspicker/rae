@@ -1,3 +1,6 @@
+/**
+ * Defines minimal AJV interfaces and lazy loaders shared by schema-validating development tools.
+ */
 export interface AjvErrorObject {
   instancePath: string;
   message?: string;
@@ -43,6 +46,9 @@ export async function getAddFormats(): Promise<AjvFormatsFn> {
   return _addFormats;
 }
 
+/**
+ * Creates a schema validator lazily so tools share consistent strict-validation defaults.
+ */
 export async function createAjvInstance(
   formats: string[] = ["date-time", "uri"],
 ): Promise<AjvInstance> {

@@ -8,14 +8,14 @@ Use this repository with the {{RUNNER_TITLE}} adapter pipeline:
 
 ## Claude Code Native Features
 
-Claude Code users get additional native integrations beyond the standard adapter. These are **Claude Code exclusive** and do not affect other runners.
+Claude Code users get additional native integrations beyond the standard adapter. These integrations apply only to that runner.
 
 ### Slash Commands (Skills)
 
 | Command | Description |
 |---------|-------------|
 | `/pipeline` | Run the full orchestration pipeline |
-| `/arm` | Brief formation — convert raw idea to structured requirements |
+| `/arm` | Brief formation: convert raw idea to structured requirements |
 | `/design` | Design from validated brief |
 | `/ar` | Adversarial review with parallel reviewers |
 | `/plan` | Implementation planning with task groups |
@@ -36,24 +36,24 @@ Claude Code users get additional native integrations beyond the standard adapter
 ### Path-Specific Rules
 
 Rules auto-load when you touch matching files:
-- `contracts/**` — schema validation and backward-compatibility warnings
-- `adapters/templates/**` — template editing workflow reminders
-- `adapters/<runner>/**` — DO NOT EDIT warnings (generated files)
-- `skills/dev-tools/**` — build/test workflow and workspace conventions
-- `.pipeline/**`, `scripts/pipeline/**` — pipeline state and CLI guidance
-- `docs/**`, `AGENTS.md` — link validation reminders
+- `contracts/**`: schema validation and backward-compatibility warnings
+- `adapters/templates/**`: template editing workflow reminders
+- `adapters/<runner>/**`: synchronized files; edit their templates instead
+- `skills/dev-tools/**`: build/test workflow and workspace conventions
+- `.pipeline/**`, `scripts/pipeline/**`: pipeline state and CLI guidance
+- `docs/**`, `AGENTS.md`: link validation reminders
 
 ## Architecture Overview
 
-This repo implements a **phased AI orchestration pipeline** with 10 delivery stages:
+This repository implements a phased orchestration pipeline with 10 delivery stages:
 
 ```
 arm -> design -> adversarial-review -> plan -> pmatch -> build -> quality-static -> quality-tests -> post-build -> release-readiness
 ```
 
 Two layers:
-- **Orchestration adapters** (`adapters/<runner>/skills/`) — agent guidance documents for 5 runners (codex, cursor, claude, gemini, kilo), generated from templates via `scripts/adapters/generate_adapters.py`.
-- **Runtime skills** (`skills/dev-tools/`) — Node.js packages that perform validation, review, and trace collection at runtime.
+- Orchestration adapters (`adapters/<runner>/skills/`): runner guidance for Codex, Cursor, Claude, Gemini, and Kilo, synchronized from templates by `scripts/adapters/generate_adapters.py`.
+- Runtime skills (`skills/dev-tools/`): Node.js packages that perform validation, review, and trace collection at runtime.
 
 ## Key Locations
 
@@ -110,10 +110,10 @@ node scripts/pipeline/runner.mjs run-stage --run-id test --phase arm --config-id
 
 ### Work with the pipeline runner
 The runner CLI at `scripts/pipeline/runner.mjs` supports these commands:
-- `run-stage` — execute a full pipeline stage (artifact + gate)
-- `start-phase` / `end-phase` — manual phase lifecycle events
-- `record-artifact` / `record-gate` — manual trace entries
-- `summarize-run` — generate run summary (json/text/markdown)
+- `run-stage`: execute a full pipeline stage (artifact + gate)
+- `start-phase` / `end-phase`: manual phase lifecycle events
+- `record-artifact` / `record-gate`: manual trace entries
+- `summarize-run`: generate run summary (json/text/markdown)
 
 ## npm Workspaces
 

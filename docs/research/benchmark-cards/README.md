@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: evals
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: ../../../evals/schemas/benchmark-card.schema.json
 evidence_links: ../benchmark-protocol.md
 ---
@@ -23,7 +23,7 @@ Benchmark cards define the stable metadata for one benchmark family.
 Use the schema in `evals/schemas/benchmark-card.schema.json` and the example in
 `evals/benchmark-card.example.json`.
 
-Production benchmark cards live under `evals/benchmarks/`.
+Maintained benchmark cards live under `evals/benchmarks/`.
 
 ## Thesis validation
 

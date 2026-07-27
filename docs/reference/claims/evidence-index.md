@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-07-19
 source_of_truth: editorial
 evidence_links: bibliography.md
 ---
@@ -86,6 +86,9 @@ evidence_links: bibliography.md
 - Internal anchor: `docs/explanation/science/problem-statement.md`
 - Internal anchor: `docs/explanation/science/drift-and-self-certification.md`
 - Internal anchor: `packages/orchestration/scripts/pipeline/runner.mjs`
+- Internal anchor: `packages/orchestration/scripts/pipeline/autonomous.mjs`
+- Regression evidence: `packages/orchestration/scripts/pipeline/tests/autonomous-core-scenarios.test.mjs`
+- Regression evidence: `packages/orchestration/scripts/pipeline/tests/autonomous-checkpoint-scenarios.test.mjs`
 - External anchor: [Anthropic effective agents](bibliography.md#src-anthropic-effective-agents)
 - External anchor: [NIST GenAI Profile](bibliography.md#src-nist-genai-profile)
 - External anchor: [PaperBench](bibliography.md#src-openai-paperbench)

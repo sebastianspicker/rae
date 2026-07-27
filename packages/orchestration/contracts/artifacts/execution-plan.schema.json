@@ -238,16 +238,59 @@
       "additionalProperties": { "type": "string" },
       "description": "Map of file_path -> group_id. No file may appear in more than one group."
     },
+    "documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "paths", "rationale"],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "required": { "const": true } },
+            "required": ["required"]
+          },
+          "then": {
+            "properties": { "paths": { "minItems": 1 } }
+          }
+        }
+      ],
+      "properties": {
+        "required": { "type": "boolean" },
+        "paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "rationale": { "type": "string", "minLength": 1 }
+      },
+      "description": "Explicit decision and owned target paths for user-facing documentation work. Autonomous runs require this contract."
+    },
     "verification_commands": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["command", "description"],
+        "required": [
+          "command",
+          "description",
+          "working_directory",
+          "evidence_roles",
+          "evidence_kind"
+        ],
         "properties": {
           "command": { "type": "string", "minLength": 1 },
           "description": { "type": "string", "minLength": 1 },
-          "working_directory": { "type": "string" }
+          "working_directory": { "type": "string", "minLength": 1 },
+          "evidence_roles": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": ["build", "quality-static", "quality-tests", "post-build"]
+            }
+          },
+          "evidence_kind": {
+            "enum": ["build", "static", "tests", "security"]
+          }
         }
       },
       "minItems": 1

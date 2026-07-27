@@ -4,10 +4,24 @@ repo_name: rae
 repo_url: https://github.com/sebastianspicker/rae
 theme:
   name: material
+  logo: assets/brand/rae-mark.svg
+  favicon: assets/brand/rae-mark.svg
+  font: false
   features:
     - navigation.sections
     - navigation.expand
     - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
 markdown_extensions:
   - admonition
   - attr_list
@@ -18,10 +32,16 @@ markdown_extensions:
       permalink: true
 extra_javascript:
   - javascripts/mathjax.js
-  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js
+extra_css:
+  - stylesheets/brand.css
+exclude_docs: |
+  agent/
+  archive/
 nav:
   - Home: INDEX.md
   - Tutorials:
+      - Autonomous Code Change: tutorials/autonomous-code-change.md
       - First Pipeline: tutorials/first-pipeline.md
       - First Ralph Run: tutorials/first-ralph-run.md
       - First Profile Install: tutorials/first-profile-install.md
@@ -62,9 +82,18 @@ nav:
           - Evidence Index: reference/claims/evidence-index.md
           - Dossiers:
               - Overview: reference/claims/dossiers/README.md
+              - CLM-002 Documentation Separation: reference/claims/dossiers/clm-002-diataxis-separation.md
+              - CLM-003 Benchmark Provenance: reference/claims/dossiers/clm-003-benchmark-provenance.md
+              - CLM-004 Repository Audit Benchmark: reference/claims/dossiers/clm-004-repo-audit-benchmark.md
+              - CLM-005 Utility Placement: reference/claims/dossiers/clm-005-utility-placement.md
+              - CLM-006 Benchmark Contamination: reference/claims/dossiers/clm-006-benchmark-contamination.md
               - CLM-007 Information Density: reference/claims/dossiers/clm-007-information-density.md
               - CLM-008 Coordination Topology: reference/claims/dossiers/clm-008-coordination-topology.md
+              - CLM-009 Judge Calibration: reference/claims/dossiers/clm-009-judge-calibration.md
               - CLM-010 Reproducibility Layers: reference/claims/dossiers/clm-010-reproducibility-layers.md
+              - CLM-011 Explicit Routing: reference/claims/dossiers/clm-011-explicit-routing.md
+              - CLM-012 Benchmark Interpretability: reference/claims/dossiers/clm-012-benchmark-interpretability.md
+              - CLM-013 Release Gate: reference/claims/dossiers/clm-013-release-gate.md
               - CLM-014 Staged Separation: reference/claims/dossiers/clm-014-staged-separation.md
               - CLM-015 Contract-Gate Distinction: reference/claims/dossiers/clm-015-contract-gate-distinction.md
               - CLM-016 Cognitive Tiering: reference/claims/dossiers/clm-016-cognitive-tiering.md
@@ -76,6 +105,7 @@ nav:
       - Overview:
           - Project Scope: explanation/overview/project-scope.md
           - Decision Tree: explanation/overview/decision-tree.md
+          - Autonomous Improvement Boundary: explanation/autonomous-improvement-boundary.md
       - Science:
           - Abstract: explanation/science/abstract.md
           - Problem Statement: explanation/science/problem-statement.md
@@ -118,15 +148,18 @@ nav:
       - Source Quality Policy: governance/source-quality-policy.md
       - Release Criteria: governance/release-criteria.md
       - Review Checklists: governance/review-checklists.md
+  - Project:
+      - Changelog: https://github.com/sebastianspicker/rae/blob/main/CHANGELOG.md
+      - Proposed Release Notes: https://github.com/sebastianspicker/rae/blob/main/RELEASE_NOTES.md
+      - Release Status: https://github.com/sebastianspicker/rae/blob/main/RELEASE_STATUS.md
+      - Releasing: https://github.com/sebastianspicker/rae/blob/main/RELEASING.md
+      - Contributing: https://github.com/sebastianspicker/rae/blob/main/CONTRIBUTING.md
+      - Security: https://github.com/sebastianspicker/rae/blob/main/SECURITY.md
+      - Support: https://github.com/sebastianspicker/rae/blob/main/SUPPORT.md
+      - Governance: https://github.com/sebastianspicker/rae/blob/main/GOVERNANCE.md
+      - Code of Conduct: https://github.com/sebastianspicker/rae/blob/main/CODE_OF_CONDUCT.md
   - Case Studies:
       - Phased Orchestration: case-studies/phased-orchestration.md
       - Ralph Loop: case-studies/ralph-loop.md
       - Agent Profiles: case-studies/agent-profiles.md
       - Repo Hygiene Tools: case-studies/repo-hygiene-tools.md
-  - Archive:
-      - Migration:
-          - Source Repo Map: archive/migration/source-repo-map.md
-          - Consolidation Plan: archive/migration/consolidation-plan.md
-          - Deprecation Strategy: archive/migration/deprecation-strategy.md
-      - Audits:
-          - 2026-04-17 Repo Audit Remediation Plan: archive/audits/2026-04-17-repo-audit-remediation-plan.md

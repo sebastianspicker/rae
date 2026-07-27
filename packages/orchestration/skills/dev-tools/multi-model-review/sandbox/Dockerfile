@@ -1,17 +1,9 @@
+# Build a hermetic review-skill image so validation does not depend on host tooling.
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS build
-
-# Build with skills/dev-tools as the Docker context so the local shared package
-# remains available to npm and TypeScript.
-WORKDIR /workspace/_shared
-COPY _shared/package.json _shared/package-lock.json _shared/tsconfig.json ./
+WORKDIR /skill
+COPY package.json package-lock.json tsconfig.json ./
 RUN npm ci --ignore-scripts
-COPY _shared/src/ src/
-RUN ./node_modules/.bin/tsc
-
-WORKDIR /workspace/multi-model-review
-COPY multi-model-review/package.json multi-model-review/package-lock.json multi-model-review/tsconfig.json ./
-RUN npm ci --ignore-scripts
-COPY multi-model-review/src/ src/
+COPY src/ src/
 RUN ./node_modules/.bin/tsc
 
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0

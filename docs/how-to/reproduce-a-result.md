@@ -44,7 +44,7 @@ and interpretation.
 
 ## Interpretation limits
 
-- full reproducibility can still fail if dependencies, prompts, or judge logic
+- full reproducibility can still fail if dependencies, provider input, or judge logic
   drift outside the recorded artifact bundle
 
 ## Source note

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016
+# Regenerates the human-readable progress snapshot from the authoritative PRD state.
 
 set -euo pipefail
 

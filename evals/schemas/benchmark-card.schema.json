@@ -106,6 +106,17 @@
       },
       "additionalProperties": false
     },
+    "resource_policy": {
+      "type": "object",
+      "properties": {
+        "require_measurement": {"type": "boolean"},
+        "max_agent_duration_seconds": {"type": "number", "minimum": 0},
+        "max_total_tokens": {"type": "integer", "minimum": 0},
+        "max_agent_calls": {"type": "integer", "minimum": 0},
+        "max_parallelism": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
     "release_gate": {
       "type": "object",
       "required": ["required_splits", "block_on_pending_checkpoints", "required_claim_links"],

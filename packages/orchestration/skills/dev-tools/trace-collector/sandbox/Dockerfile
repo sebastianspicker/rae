@@ -1,17 +1,9 @@
+# Build a hermetic trace-collector image so evidence parsing is reproducible.
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS build
-
-# Build with skills/dev-tools as the Docker context so the local shared package
-# remains available to npm and TypeScript.
-WORKDIR /workspace/_shared
-COPY _shared/package.json _shared/package-lock.json _shared/tsconfig.json ./
+WORKDIR /skill
+COPY package.json package-lock.json tsconfig.json ./
 RUN npm ci --ignore-scripts
-COPY _shared/src/ src/
-RUN ./node_modules/.bin/tsc
-
-WORKDIR /workspace/trace-collector
-COPY trace-collector/package.json trace-collector/package-lock.json trace-collector/tsconfig.json ./
-RUN npm ci --ignore-scripts
-COPY trace-collector/src/ src/
+COPY src/ src/
 RUN ./node_modules/.bin/tsc
 
 FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0

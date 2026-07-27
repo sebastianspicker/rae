@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-28
+last_reviewed: 2026-07-16
 source_of_truth: README.md
 evidence_links: ../claims/evidence-index.md
 ---
@@ -26,10 +26,12 @@ flowchart LR
 
 1. `packages/orchestration/`
    Use when work is long-horizon, stageable, and benefits from explicit
-   handoffs, typed artifacts, and gated progression.
+   handoffs, typed artifacts, and gated progression. Its autonomous executor
+   launches real coding-agent sessions; its low-level runner remains available
+   for manual artifact and gate control.
 2. `packages/loops/ralph/`
-   Use when work should proceed as deterministic story-sized iterations with
-   atomic state updates and strict mode control.
+   Ralph `0.3.0` is Codex-only. Use it for deterministic story-sized audit,
+   linting, or transactional fixing runs with strict mode control.
 3. `tools/repo-hygiene/`
    Use for narrow, explicit maintenance operations that should not be mistaken
    for the core runtime architecture.
@@ -41,7 +43,8 @@ flowchart LR
 6. `profiles/agent-environments/`
    Public machine-agnostic publication lane for portable operator
    environments. The current committed surface defines policy and boundaries;
-   sanitized payloads land here only after extraction.
+   sanitized payloads land here only after extraction. Manifest v2 uses
+   no-follow filesystem operations and retained recovery evidence.
 
 ## Integration rule
 
@@ -60,7 +63,9 @@ sharing:
    to decide whether the task needs orchestration, a deterministic loop, or a
    narrow tool.
 2. Start from the umbrella harness: `./scripts/rae.sh`.
-3. Dispatch into the selected runtime locally.
+3. Dispatch into the selected runtime locally. For autonomous delivery, use
+   `./scripts/rae.sh agent run ...`; for manual stage control, use
+   `./scripts/rae.sh orchestrate ...`.
 4. Record the resulting artifacts, gates, or reports.
 5. If the result is used for comparison or publication, register it through the
    `evals/` metadata model.
@@ -86,7 +91,7 @@ artifacts, or stay inside the package-local runtime that owns the behavior.
 ## Thesis validation
 
 This page validates the architectural thesis that RAE is an evidence loop rather
-than a pile of imported runtimes. The supporting proof is structural:
+than a pile of disconnected modules. The supporting proof is structural:
 explicitly separated modules, shared publication doctrine, and traceable claims.
 
 ## Related dossiers

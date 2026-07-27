@@ -344,7 +344,7 @@ extract_report_path() {
       esac
     elif ! is_true "$STRICT_REPORT_DIR"; then
       case "$rel" in
-        audit/*|.claude/ralph-audit/audit/*|.codex/ralph-audit/audit/*) ;;
+        audit/*|.claude/ralph-audit/audit/*) ;;
         *) fail "Refusing to overwrite existing non-report file: $rel" ;;
       esac
     fi
@@ -395,10 +395,11 @@ resolve_effective_target_path() {
 enforce_report_target_confinement() {
   local report_abs="$1"
   local report_rel="$2"
+  local confinement_root="${3:-$REPO_ROOT_REAL}"
   local effective_target
 
   effective_target="$(resolve_effective_target_path "$report_abs")" || fail "Could not resolve report target path for: $report_rel"
-  if ! is_path_within_root "$REPO_ROOT_REAL" "$effective_target"; then
+  if ! is_path_within_root "$confinement_root" "$effective_target"; then
     fail "Report path resolves outside repository: $report_rel"
   fi
 }

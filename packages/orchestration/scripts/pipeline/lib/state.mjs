@@ -1,3 +1,6 @@
+/**
+ * Owns pipeline state storage, locking, and containment-safe workspace path resolution.
+ */
 import {
   closeSync,
   existsSync,
@@ -5,16 +8,33 @@ import {
   openSync,
   readdirSync,
   readFileSync,
+  renameSync,
   realpathSync,
+  rmSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { badInput } from "./errors.mjs";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const ARTIFACT_KEY_BY_PHASE = {
+  arm: "brief",
+  design: "design",
+  "adversarial-review": "review",
+  plan: "plan",
+  pmatch: "drift_reports",
+  build: "build",
+  "release-readiness": "release_readiness",
+  "post-build": "post_build",
+};
+const QUALITY_REPORT_PHASES = new Set(["security-review", "denoise"]);
+let activeWorkspaceRoot = null;
 
 export function getPackageRoot() {
   return packageRoot;
@@ -25,7 +45,19 @@ export function getWorkspaceRoot() {
 }
 
 export function getRepoRoot() {
-  return getWorkspaceRoot();
+  return activeWorkspaceRoot ?? getWorkspaceRoot();
+}
+
+export function activateWorkspaceRoot(pathValue) {
+  if (typeof pathValue !== "string" || pathValue.length === 0) {
+    throw badInput("project root must be a non-empty path");
+  }
+  const resolvedRoot = resolve(pathValue);
+  if (!existsSync(resolvedRoot) || !statSync(resolvedRoot).isDirectory()) {
+    throw badInput(`project root is not a directory: ${pathValue}`);
+  }
+  activeWorkspaceRoot = realpathSync(resolvedRoot);
+  return activeWorkspaceRoot;
 }
 
 export function getPipelineDir(root = getRepoRoot()) {
@@ -79,8 +111,25 @@ export function readJsonStrict(path, context = path) {
 }
 
 export function writeJson(path, value) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+  const parent = dirname(path);
+  mkdirSync(parent, { recursive: true });
+
+  // A state or artifact reader must never observe a partially written JSON file.
+  // Keep the temporary file in the target directory so rename is atomic on the
+  // same filesystem, then replace the old version only after the full payload
+  // has been written.
+  const temporaryPath = join(parent, `.${basename(path)}.${process.pid}.${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+      flag: "wx",
+    });
+    renameSync(temporaryPath, path);
+  } catch (error) {
+    rmSync(temporaryPath, { force: true });
+    throw error;
+  }
 }
 
 export function loadPipelineState(root = getRepoRoot()) {
@@ -119,11 +168,14 @@ export function getWorkspaceFromState(state, root = getRepoRoot()) {
  * @param {(state: object) => *} fn Callback receiving the loaded state; may mutate it.
  * @returns {*} The value returned by fn.
  */
+/**
+ * Serializes state updates with an exclusive lock so concurrent pipeline commands cannot overwrite each other.
+ */
 export function withLockedState(root = getRepoRoot(), fn) {
   const lockPath = join(getPipelineDir(root), "pipeline-state.lock");
   let fd;
   try {
-    fd = openSync(lockPath, "wx"); // fails if lock exists
+    fd = openSync(lockPath, "wx", 0o600); // fails if lock exists
   } catch (err) {
     if (err.code === "EEXIST") {
       throw badInput(
@@ -141,7 +193,13 @@ export function withLockedState(root = getRepoRoot(), fn) {
   };
 
   closeSync(fd);
-  const state = loadPipelineState(root);
+  let state;
+  try {
+    state = loadPipelineState(root);
+  } catch (error) {
+    releaseLock();
+    throw error;
+  }
   let result;
   try {
     result = fn(state);
@@ -226,6 +284,9 @@ function resolveWithinBase(pathRef, baseDir, options = {}) {
   return resolved;
 }
 
+/**
+ * Resolves a user-provided reference only when it remains contained by the active repository root.
+ */
 export function resolveWithinRepo(pathRef, root = getRepoRoot()) {
   return resolveWithinBase(pathRef, root, {
     allowAbsolute: true,
@@ -260,15 +321,9 @@ export function gateFileNameForPhase(phase) {
 }
 
 export function phaseToArtifactKey(phase) {
-  if (phase === "arm") return "brief";
-  if (phase === "design") return "design";
-  if (phase === "adversarial-review") return "review";
-  if (phase === "plan") return "plan";
-  if (phase === "pmatch") return "drift_reports";
-  if (phase === "build") return "build";
-  if (phase === "release-readiness") return "release_readiness";
-  if (phase === "post-build") return "post_build";
-  if (phase.startsWith("quality") || phase === "security-review" || phase === "denoise") {
+  const directKey = ARTIFACT_KEY_BY_PHASE[phase];
+  if (directKey) return directKey;
+  if (phase.startsWith("quality") || QUALITY_REPORT_PHASES.has(phase)) {
     return "quality_reports";
   }
   return null;
@@ -294,16 +349,32 @@ export function resolveWorkspaceRootForRun(runId, root = getRepoRoot()) {
     gitTopLevel = dirname(gitTopLevel);
   }
 
+  const candidateRoots = new Set();
   const worktreesDir = resolve(gitTopLevel, ".worktrees");
-  if (!existsSync(worktreesDir)) {
-    return root;
+  if (existsSync(worktreesDir)) {
+    for (const entry of readdirSync(worktreesDir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        candidateRoots.add(resolve(worktreesDir, entry.name));
+      }
+    }
   }
 
-  for (const entry of readdirSync(worktreesDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) {
-      continue;
+  // Custom --worktree-root paths are not descendants of .worktrees. Git's
+  // registry is the authoritative source for every linked worktree location.
+  const worktreeList = spawnSync(
+    "git",
+    ["-C", gitTopLevel, "worktree", "list", "--porcelain", "-z"],
+    { encoding: "utf8" },
+  );
+  if (worktreeList.status === 0) {
+    for (const field of worktreeList.stdout.split("\0")) {
+      if (field.startsWith("worktree ")) {
+        candidateRoots.add(resolve(field.slice("worktree ".length)));
+      }
     }
-    const candidateRoot = resolve(worktreesDir, entry.name);
+  }
+
+  for (const candidateRoot of candidateRoots) {
     const candidateState = readJson(
       resolve(candidateRoot, ".pipeline", "pipeline-state.json"),
       null,

@@ -1,3 +1,4 @@
+# Keep quality evaluation offline and confine temporary output to /tmp.
 network:
   allow: []
 filesystem:

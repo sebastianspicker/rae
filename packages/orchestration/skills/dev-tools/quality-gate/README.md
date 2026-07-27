@@ -27,18 +27,18 @@ echo '{ ... }' | node dist/index.js
 }
 ```
 
-- **artifact** — the JSON object to validate
-- **artifact_ref** — optional path/reference of the artifact being validated
-- **schema_ref** — path to a JSON Schema file (resolved relative to `/workspace`)
-- **phase** — pipeline phase (`arm`, `design`, `adversarial-review`, etc.)
-- **criteria** — acceptance checks to run against the artifact
+- artifact: the JSON object to validate
+- artifact_ref: optional path/reference of the artifact being validated
+- schema_ref: path to a JSON Schema file (resolved relative to `/workspace`)
+- phase: pipeline phase (`arm`, `design`, `adversarial-review`, etc.)
+- criteria: acceptance checks to run against the artifact
 
 ### Criterion types
 
 | Type | Description | `value` |
 |------|-------------|---------|
-| `field-exists` | Field at `path` exists and is non-null | — |
-| `field-empty` | Array at `path` has length 0 | — |
+| `field-exists` | Field at `path` exists and is non-null | None |
+| `field-empty` | Array at `path` has length 0 | None |
 | `count-min` | Array at `path` has at least N items | number |
 | `count-max` | Array at `path` has at most N items | number |
 | `number-max` | Number at `path` is less than or equal to N | number |
