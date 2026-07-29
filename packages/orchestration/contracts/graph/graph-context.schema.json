@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/graph/graph-context.schema.json",
+  "title": "RAE bounded graph context bundle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "repository_id", "snapshot_id", "run_id", "phase", "query_id", "seed", "generated_at", "limits", "records"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "repository_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "snapshot_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": ["string", "null"] },
+    "phase": { "type": "string" },
+    "query_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "seed": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "limits": { "type": "object", "additionalProperties": false, "required": ["max_depth", "max_records"], "properties": { "max_depth": { "type": "integer", "maximum": 4 }, "max_records": { "type": "integer", "maximum": 200 } } },
+    "records": { "type": "array", "maxItems": 200, "items": { "type": "object", "additionalProperties": false, "required": ["node_id", "kind", "selection_reason", "traversal_path", "trust_class", "source_ref", "source_digest", "staleness", "score", "snippet"], "properties": { "node_id": { "type": "string" }, "kind": { "type": "string" }, "selection_reason": { "type": "string" }, "traversal_path": { "type": "array", "maxItems": 5, "items": { "type": "string" } }, "trust_class": { "type": "string" }, "source_ref": { "type": "string" }, "source_digest": { "type": "string" }, "staleness": { "enum": ["current", "historical", "stale", "conflicting"] }, "score": { "type": "object", "additionalProperties": false, "required": ["exact", "lexical", "distance", "total"], "properties": { "exact": { "type": "number" }, "lexical": { "type": "number" }, "distance": { "type": "number" }, "total": { "type": "number" } } }, "snippet": { "type": "string", "maxLength": 2000 } } } }
+  }
+}

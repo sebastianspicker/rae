@@ -16,6 +16,17 @@
     },
     "seq": { "type": "integer", "minimum": 1 },
     "event_id": { "type": "string", "minLength": 1 },
+    "parent_event_id": { "type": "string", "minLength": 1 },
+    "input_digests": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "uniqueItems": true
+    },
+    "output_digests": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "uniqueItems": true
+    },
     "event": {
       "type": "string",
       "enum": [
