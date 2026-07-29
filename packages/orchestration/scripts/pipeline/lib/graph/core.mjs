@@ -1,16 +1,23 @@
 /** Builds, validates, queries, and persists RAE's local rebuildable graph projections. */
 import {
+  closeSync,
+  constants,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
+  openSync,
+  readSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
+  writeSync,
   writeFileSync,
 } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 
@@ -183,6 +190,52 @@ export function safeRegularFile(path, root) {
   } catch {
     return false;
   }
+}
+
+/** Reads a bounded regular UTF-8 file without following its final path component. */
+export function readUtf8RegularFile(path, maxBytes = 16 * 1024 * 1024) {
+  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const details = fstatSync(descriptor);
+    if (!details.isFile()) throw new Error(`not a regular file: ${path}`);
+    if (details.size > maxBytes) throw new Error(`file exceeds ${maxBytes} bytes: ${path}`);
+    const content = Buffer.alloc(details.size);
+    let offset = 0;
+    while (offset < content.length) {
+      const count = readSync(descriptor, content, offset, content.length - offset, offset);
+      if (count === 0) break;
+      offset += count;
+    }
+    return content.subarray(0, offset).toString("utf8");
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+/** Writes UTF-8 data privately within an existing canonical parent directory. */
+export function writePrivateUtf8File(path, body) {
+  const parent = realpathSync(dirname(path));
+  const destination = resolve(parent, basename(path));
+  const descriptor = openSync(
+    destination,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
+    0o600,
+  );
+  try {
+    writeSync(descriptor, body, 0, "utf8");
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+/** Resolves a source reference canonically and rejects paths outside the project root. */
+export function projectSourcePath(projectRoot, sourcePath) {
+  const canonicalRoot = realpathSync(projectRoot);
+  const canonicalSource = realpathSync(resolve(canonicalRoot, sourcePath));
+  const relation = relative(canonicalRoot, canonicalSource);
+  if (relation === ".." || relation.startsWith(`..${sep}`))
+    throw new Error(`graph source escapes the project root: ${sourcePath}`);
+  return canonicalSource;
 }
 
 export function readJson(path) {

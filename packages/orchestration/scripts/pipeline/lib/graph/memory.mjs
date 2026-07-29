@@ -126,7 +126,7 @@ export function recordRunMemory({ projectRoot, runId }) {
   const graph = loadGraph(projectRoot, runId);
   const paths = { ...memoryPaths(projectRoot), projectRoot };
   return withMemoryLock(paths, () => {
-    const existing = new Map(readJsonl(paths.facts).map((item) => [item.version_id, item]));
+    const existing = deduplicatedByVersion(readJsonl(paths.facts));
     const candidates = new Map(readJsonl(paths.candidates).map((item) => [item.version_id, item]));
     const decisions = readJsonl(paths.decisions);
     invalidateStaleFacts(paths, existing, decisions);
@@ -147,7 +147,7 @@ function validateCompletedMemoryRun(runDir) {
 }
 
 function invalidateStaleFacts(paths, existing, decisions) {
-  for (const prior of existing.values()) {
+  for (const prior of existing) {
     if (
       memorySourceCurrent(paths, prior) ||
       hasDecision(decisions, prior.version_id, "invalidated")
@@ -187,13 +187,25 @@ function memoryFact(node) {
 }
 
 function recordMemoryFact(storedNode, existing, decisions) {
-  for (const prior of existing.values()) {
+  for (const prior of existing) {
     if (prior.logical_id !== storedNode.logical_id || prior.version_id === storedNode.version_id)
       continue;
     if (!hasDecision(decisions, prior.version_id, "superseded"))
       decisions.push(supersededDecision(prior, storedNode));
   }
-  existing.set(storedNode.version_id, storedNode);
+  const index = existing.findIndex((item) => item.version_id === storedNode.version_id);
+  if (index === -1) existing.push(storedNode);
+  else existing[index] = storedNode;
+}
+
+function deduplicatedByVersion(records) {
+  const unique = [];
+  for (const record of records) {
+    const index = unique.findIndex((item) => item.version_id === record.version_id);
+    if (index === -1) unique.push(record);
+    else unique[index] = record;
+  }
+  return unique;
 }
 
 function hasDecision(decisions, candidateId, decision) {
@@ -221,7 +233,8 @@ function writeMemoryRecords(paths, existing, candidates, decisions) {
 }
 
 function sortedByVersion(records) {
-  return [...records.values()].sort((a, b) => a.version_id.localeCompare(b.version_id));
+  const items = Array.isArray(records) ? records : records.values();
+  return [...items].sort((a, b) => a.version_id.localeCompare(b.version_id));
 }
 
 function validatedDecisions(decisions) {

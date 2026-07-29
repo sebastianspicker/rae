@@ -1,22 +1,18 @@
 #!/usr/bin/env node
 /** Compares frozen flat, lexical, graph, and graph-memory repository context retrieval. */
 import { performance } from "node:perf_hooks";
-import {
-  closeSync,
-  constants,
-  fstatSync,
-  openSync,
-  readSync,
-  realpathSync,
-  writeSync,
-} from "node:fs";
-import { basename, dirname, relative, resolve, sep } from "node:path";
+import { resolve } from "node:path";
 import {
   loadGraph,
   projectGraph,
   queryGraph,
   retrieveMemoryContext,
 } from "../pipeline/lib/graph.mjs";
+import {
+  projectSourcePath,
+  readUtf8RegularFile,
+  writePrivateUtf8File,
+} from "../pipeline/lib/graph/core.mjs";
 
 function parse(argv) {
   const options = { dataset: undefined, json: false, output: undefined, projectRoot: undefined };
@@ -56,49 +52,6 @@ function assignValueOption(options, option, value) {
     default:
       throw new Error(`unexpected argument: ${option}`);
   }
-}
-
-function readUtf8RegularFile(path, maxBytes = 16 * 1024 * 1024) {
-  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
-  try {
-    const details = fstatSync(descriptor);
-    if (!details.isFile()) throw new Error(`not a regular file: ${path}`);
-    if (details.size > maxBytes) throw new Error(`file exceeds ${maxBytes} bytes: ${path}`);
-    const content = Buffer.alloc(details.size);
-    let offset = 0;
-    while (offset < content.length) {
-      const count = readSync(descriptor, content, offset, content.length - offset, offset);
-      if (count === 0) break;
-      offset += count;
-    }
-    return content.subarray(0, offset).toString("utf8");
-  } finally {
-    closeSync(descriptor);
-  }
-}
-
-function writePrivateUtf8File(path, body) {
-  const parent = realpathSync(dirname(path));
-  const destination = resolve(parent, basename(path));
-  const descriptor = openSync(
-    destination,
-    constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
-    0o600,
-  );
-  try {
-    writeSync(descriptor, body, 0, "utf8");
-  } finally {
-    closeSync(descriptor);
-  }
-}
-
-function projectSourcePath(projectRoot, sourcePath) {
-  const canonicalRoot = realpathSync(projectRoot);
-  const canonicalSource = realpathSync(resolve(canonicalRoot, sourcePath));
-  const relation = relative(canonicalRoot, canonicalSource);
-  if (relation === ".." || relation.startsWith(`..${sep}`))
-    throw new Error(`graph source escapes the project root: ${sourcePath}`);
-  return canonicalSource;
 }
 
 function tokens(value) {

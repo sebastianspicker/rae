@@ -14,35 +14,51 @@ import {
 } from "./core.mjs";
 
 export function trackedFiles(root, planOwned = []) {
-  const staged = runGit(root, ["ls-files", "-s", "-z"]);
-  const out = new Set();
-  for (const row of staged.split("\0").filter(Boolean)) {
-    const match = row.match(/^(\d+) [a-f0-9]+ \d+\t(.+)$/);
-    if (!match || match[1] === "160000") continue;
-    out.add(match[2]);
+  const paths = indexedPaths(root);
+  addPlanOwnedChanges(root, paths, planOwned);
+  return [...paths].sort().filter((path) => graphFileEligible(root, path));
+}
+
+function indexedPaths(root) {
+  const paths = new Set();
+  for (const row of runGit(root, ["ls-files", "-s", "-z"]).split("\0").filter(Boolean)) {
+    const path = indexedPath(row);
+    if (path) paths.add(path);
   }
-  const changed = runGit(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
-  for (const row of changed.split("\0").filter(Boolean)) {
-    const path = row.slice(3);
-    const candidate = path.includes(" -> ") ? path.split(" -> ").at(-1) : path;
-    if (
-      planOwned.some(
-        (owned) =>
-          owned === candidate ||
-          (owned.endsWith("/**") && candidate.startsWith(owned.slice(0, -2))),
-      )
-    )
-      out.add(candidate);
+  return paths;
+}
+
+function indexedPath(row) {
+  const match = row.match(/^(\d+) [a-f0-9]+ \d+\t(.+)$/);
+  return match && match[1] !== "160000" ? match[2] : null;
+}
+
+function addPlanOwnedChanges(root, paths, planOwned) {
+  const command = ["status", "--porcelain=v1", "-z", "--untracked-files=all"];
+  for (const row of runGit(root, command).split("\0").filter(Boolean)) {
+    const path = changedPath(row);
+    if (planOwnsPath(planOwned, path)) paths.add(path);
   }
-  return [...out].sort().filter((path) => {
-    if (credentialLike(path) || path.startsWith(".pipeline/")) return false;
-    const absolute = resolve(root, path);
-    if (!safeRegularFile(absolute, root)) return false;
-    const stat = lstatSync(absolute);
-    if (stat.size > GRAPH_LIMITS.maxFileBytes) return false;
-    const head = readFileSync(absolute).subarray(0, 8192);
-    return !head.includes(0);
-  });
+}
+
+function changedPath(row) {
+  const path = row.slice(3);
+  return path.includes(" -> ") ? path.split(" -> ").at(-1) : path;
+}
+
+function planOwnsPath(planOwned, candidate) {
+  return planOwned.some(
+    (owned) =>
+      owned === candidate || (owned.endsWith("/**") && candidate.startsWith(owned.slice(0, -2))),
+  );
+}
+
+function graphFileEligible(root, path) {
+  if (credentialLike(path) || path.startsWith(".pipeline/")) return false;
+  const absolute = resolve(root, path);
+  if (!safeRegularFile(absolute, root)) return false;
+  if (lstatSync(absolute).size > GRAPH_LIMITS.maxFileBytes) return false;
+  return !readFileSync(absolute).subarray(0, 8192).includes(0);
 }
 
 export function planOwnedPaths(runDir) {
@@ -170,75 +186,97 @@ function pythonModuleCandidates(path, module) {
 }
 
 export function projectRepository(graph, root, source, files, snapshotId) {
-  const repoNode = addNode(graph, {
-    ...source,
-    family: "repository",
-    trust: "authoritative",
-    kind: "Repository",
-    id: source.repositoryId,
-    attributes: { identity: source.repositoryId },
-  });
-  const snapshotNode = addNode(graph, {
-    ...source,
-    family: "repository",
-    trust: "authoritative",
-    kind: "ProjectSnapshot",
-    id: snapshotId,
-    attributes: { snapshot_id: snapshotId },
-  });
-  addEdge(graph, {
-    ...source,
-    family: "repository",
-    trust: "verified-derived",
-    kind: "CONTAINS",
-    from: repoNode,
-    to: snapshotNode,
-  });
+  const { repoNode, snapshotNode } = projectRepositoryNodes(graph, source, snapshotId);
   const fileSet = new Set(files);
   const pythonRefs = pythonImportReferences(
     root,
     files.filter((path) => extname(path) === ".py"),
     fileSet,
   );
-  for (const path of files) {
-    const hash = sourceDigest(root, path);
-    const fileSource = { ...source, sourceRef: path, sourceHash: hash };
-    const node = addNode(graph, {
-      ...fileSource,
-      family: "repository",
-      trust: "authoritative",
-      kind: "File",
-      id: path,
-      attributes: {
-        path,
-        bytes: lstatSync(resolve(root, path)).size,
-        language: extname(path).slice(1) || "unknown",
-      },
-    });
-    addEdge(graph, {
-      ...fileSource,
-      family: "repository",
-      trust: "verified-derived",
-      kind: "CONTAINS",
-      from: snapshotNode,
-      to: node,
-    });
-    const text = readFileSync(resolve(root, path), "utf8");
-    const refs = new Set([
-      ...literalReferences(path, text, fileSet),
-      ...(pythonRefs.get(path) ?? []),
-    ]);
-    for (const target of [...refs].sort()) {
-      addEdge(graph, {
-        ...fileSource,
-        family: "repository",
-        trust: "verified-derived",
-        kind: "REFERENCES",
-        from: node,
-        to: `File:${target}`,
-        attributes: { extractor: extname(path) === ".py" ? "literal-or-python-ast" : "literal" },
-      });
-    }
-  }
+  for (const path of files)
+    projectRepositoryFile(graph, root, source, snapshotNode, path, fileSet, pythonRefs);
   return { repoNode, snapshotNode };
+}
+
+function projectRepositoryNodes(graph, source, snapshotId) {
+  const repoNode = addNode(graph, repositoryNode(source));
+  const snapshotNode = addNode(graph, snapshotGraphNode(source, snapshotId));
+  addRepositoryContainment(graph, source, repoNode, snapshotNode);
+  return { repoNode, snapshotNode };
+}
+
+function repositoryNode(source) {
+  return {
+    ...source,
+    family: "repository",
+    trust: "authoritative",
+    kind: "Repository",
+    id: source.repositoryId,
+    attributes: { identity: source.repositoryId },
+  };
+}
+
+function snapshotGraphNode(source, snapshotId) {
+  return {
+    ...source,
+    family: "repository",
+    trust: "authoritative",
+    kind: "ProjectSnapshot",
+    id: snapshotId,
+    attributes: { snapshot_id: snapshotId },
+  };
+}
+
+function addRepositoryContainment(graph, source, from, to) {
+  addEdge(graph, {
+    ...source,
+    family: "repository",
+    trust: "verified-derived",
+    kind: "CONTAINS",
+    from,
+    to,
+  });
+}
+
+function projectRepositoryFile(graph, root, source, snapshotNode, path, fileSet, pythonRefs) {
+  const fileSource = { ...source, sourceRef: path, sourceHash: sourceDigest(root, path) };
+  const node = addNode(graph, fileGraphNode(root, path, fileSource));
+  addRepositoryContainment(graph, fileSource, snapshotNode, node);
+  addFileReferenceEdges(graph, root, path, fileSource, node, fileSet, pythonRefs);
+}
+
+function fileGraphNode(root, path, source) {
+  return {
+    ...source,
+    family: "repository",
+    trust: "authoritative",
+    kind: "File",
+    id: path,
+    attributes: {
+      path,
+      bytes: lstatSync(resolve(root, path)).size,
+      language: extname(path).slice(1) || "unknown",
+    },
+  };
+}
+
+function addFileReferenceEdges(graph, root, path, source, node, fileSet, pythonRefs) {
+  const text = readFileSync(resolve(root, path), "utf8");
+  const refs = new Set([
+    ...literalReferences(path, text, fileSet),
+    ...(pythonRefs.get(path) ?? []),
+  ]);
+  for (const target of [...refs].sort()) addReferenceEdge(graph, path, source, node, target);
+}
+
+function addReferenceEdge(graph, path, source, from, target) {
+  addEdge(graph, {
+    ...source,
+    family: "repository",
+    trust: "verified-derived",
+    kind: "REFERENCES",
+    from,
+    to: `File:${target}`,
+    attributes: { extractor: extname(path) === ".py" ? "literal-or-python-ast" : "literal" },
+  });
 }

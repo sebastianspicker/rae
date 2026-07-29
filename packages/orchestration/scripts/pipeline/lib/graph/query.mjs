@@ -100,23 +100,39 @@ function validateManifestRecordCounts(manifest, nodes, edges) {
 function discoverProjectionRun(root) {
   const runsRoot = resolve(root, ".pipeline", "runs");
   if (!existsSync(runsRoot)) return null;
-  const candidates = readdirSync(runsRoot, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isDirectory() && existsSync(resolve(runsRoot, entry.name, "graph", "manifest.json")),
-    )
-    .map((entry) => ({
-      id: entry.name,
-      manifest: readJson(resolve(runsRoot, entry.name, "graph", "manifest.json")),
-    }))
-    .sort(
-      (a, b) =>
-        String(b.manifest.transaction_time).localeCompare(String(a.manifest.transaction_time)) ||
-        a.id.localeCompare(b.id),
-    );
+  const candidates = projectionCandidates(runsRoot);
   const currentSnapshot = graphSnapshotIdentity(root).snapshotId;
+  return matchingProjectionRun(candidates, currentSnapshot);
+}
+
+function projectionCandidates(runsRoot) {
+  return readdirSync(runsRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && hasProjectionManifest(runsRoot, entry.name))
+    .map((entry) => projectionCandidate(runsRoot, entry.name))
+    .sort(compareProjectionCandidates);
+}
+
+function hasProjectionManifest(runsRoot, runId) {
+  return existsSync(resolve(runsRoot, runId, "graph", "manifest.json"));
+}
+
+function projectionCandidate(runsRoot, runId) {
+  return {
+    id: runId,
+    manifest: readJson(resolve(runsRoot, runId, "graph", "manifest.json")),
+  };
+}
+
+function compareProjectionCandidates(left, right) {
   return (
-    candidates.find((item) => item.manifest.snapshot_id === currentSnapshot)?.id ??
+    String(right.manifest.transaction_time).localeCompare(String(left.manifest.transaction_time)) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+function matchingProjectionRun(candidates, snapshotId) {
+  return (
+    candidates.find((item) => item.manifest.snapshot_id === snapshotId)?.id ??
     candidates[0]?.id ??
     null
   );
@@ -148,98 +164,166 @@ export function queryGraph({
   maxRecords = 200,
   includeModelProposed = false,
 }) {
+  validateGraphQuery(seed, maxDepth, maxRecords);
+  const graph = loadGraph(projectRoot, runId);
+  const allowed = queryTrustClasses(includeModelProposed);
+  const nodes = currentQueryNodes(graph, allowed);
+  const nodeSearchText = createNodeSearchText(graph);
+  const adjacency = graphAdjacency(graph.edges, nodes, allowed);
+  const seedTokens = tokens(seed);
+  const exactSeeds = querySeeds(nodes, nodeSearchText, seed, seedTokens);
+  const distances = graphDistances(exactSeeds, adjacency, maxDepth);
+  const ranked = rankedGraphNodes(nodes, nodeSearchText, seed, seedTokens, distances);
+  const records = ranked.slice(0, maxRecords).map((entry) => graphQueryRecord(graph, seed, entry));
+  const bundle = graphQueryBundle(graph, {
+    seed,
+    phase,
+    maxDepth,
+    maxRecords,
+    includeModelProposed,
+    records,
+  });
+  if (!graphContractValidators().context(bundle))
+    throw new Error("graph context does not satisfy its contract");
+  writeGraphQueryContext(graph.graphDir, phase, bundle);
+  return bundle;
+}
+
+function validateGraphQuery(seed, maxDepth, maxRecords) {
   if (!seed) throw new Error("graph query requires --seed <kind:id>");
   if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 4)
     throw new Error("graph query depth must be between 0 and 4");
   if (!Number.isInteger(maxRecords) || maxRecords < 1 || maxRecords > 200)
     throw new Error("graph query limit must be between 1 and 200");
-  const graph = loadGraph(projectRoot, runId);
-  const allowed = includeModelProposed
-    ? new Set(["authoritative", "verified-derived", "model-proposed"])
-    : new Set(["authoritative", "verified-derived"]);
+}
+
+function queryTrustClasses(includeModelProposed) {
+  return new Set(
+    includeModelProposed
+      ? ["authoritative", "verified-derived", "model-proposed"]
+      : ["authoritative", "verified-derived"],
+  );
+}
+
+function currentQueryNodes(graph, allowed) {
   const currentSnapshot =
     graphSnapshotIdentity(graph.root).snapshotId === graph.manifest.snapshot_id;
-  const isCurrent = (node) =>
-    node.graph_family === "repository" ? currentSnapshot : sourceCurrent(graph.root, node);
-  const nodes = new Map(
+  return new Map(
     graph.nodes
-      .filter((node) => allowed.has(node.trust_class) && isCurrent(node))
+      .filter(
+        (node) => allowed.has(node.trust_class) && queryNodeCurrent(graph, node, currentSnapshot),
+      )
       .map((node) => [node.logical_id, node]),
   );
+}
+
+function queryNodeCurrent(graph, node, currentSnapshot) {
+  return node.graph_family === "repository" ? currentSnapshot : sourceCurrent(graph.root, node);
+}
+
+function createNodeSearchText(graph) {
   const searchText = new Map();
-  const nodeSearchText = (node) => {
+  return (node) => {
     if (!searchText.has(node.logical_id))
-      searchText.set(
-        node.logical_id,
-        `${node.logical_id} ${canonicalJson(node.attributes)} ${node.kind === "File" ? sourceSnippet(graph.root, node) : ""}`,
-      );
+      searchText.set(node.logical_id, serializedNodeSearchText(graph, node));
     return searchText.get(node.logical_id);
   };
+}
+
+function serializedNodeSearchText(graph, node) {
+  const snippet = node.kind === "File" ? sourceSnippet(graph.root, node) : "";
+  return `${node.logical_id} ${canonicalJson(node.attributes)} ${snippet}`;
+}
+
+function graphAdjacency(edges, nodes, allowed) {
   const adjacency = new Map();
-  for (const edge of graph.edges.filter((item) => allowed.has(item.trust_class))) {
+  for (const edge of edges.filter((item) => allowed.has(item.trust_class))) {
     if (!nodes.has(edge.from) || !nodes.has(edge.to)) continue;
-    adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge.to]);
-    adjacency.set(edge.to, [...(adjacency.get(edge.to) ?? []), edge.from]);
+    addAdjacentNode(adjacency, edge.from, edge.to);
+    addAdjacentNode(adjacency, edge.to, edge.from);
   }
-  const seedTokens = tokens(seed);
-  const preliminary = [...nodes.values()]
-    .map((node) => {
-      const nodeTokens = tokens(nodeSearchText(node));
-      return {
-        id: node.logical_id,
-        overlap: [...seedTokens].filter((token) => nodeTokens.has(token)).length,
-      };
-    })
-    .filter((entry) => entry.overlap > 0)
-    .sort((a, b) => b.overlap - a.overlap || a.id.localeCompare(b.id));
+  return adjacency;
+}
+
+function addAdjacentNode(adjacency, from, to) {
+  adjacency.set(from, [...(adjacency.get(from) ?? []), to]);
+}
+
+function querySeeds(nodes, nodeSearchText, seed, seedTokens) {
   const exactSeeds = [...nodes.keys()].filter(
     (id) => id === seed || id.toLowerCase().includes(seed.toLowerCase()),
   );
-  if (!exactSeeds.length) exactSeeds.push(...preliminary.slice(0, 10).map((entry) => entry.id));
-  const distances = new Map(exactSeeds.map((id) => [id, 0]));
-  let frontier = exactSeeds;
+  if (!exactSeeds.length)
+    exactSeeds.push(...lexicalSeedCandidates(nodes, nodeSearchText, seedTokens));
+  return exactSeeds;
+}
+
+function lexicalSeedCandidates(nodes, nodeSearchText, seedTokens) {
+  return [...nodes.values()]
+    .map((node) => ({
+      id: node.logical_id,
+      overlap: tokenOverlap(seedTokens, tokens(nodeSearchText(node))),
+    }))
+    .filter((entry) => entry.overlap > 0)
+    .sort((left, right) => right.overlap - left.overlap || left.id.localeCompare(right.id))
+    .slice(0, 10)
+    .map((entry) => entry.id);
+}
+
+function graphDistances(seeds, adjacency, maxDepth) {
+  const distances = new Map(seeds.map((id) => [id, 0]));
+  let frontier = seeds;
   for (let depth = 1; depth <= maxDepth && frontier.length; depth++) {
-    const next = [];
-    for (const id of frontier)
-      for (const neighbor of adjacency.get(id) ?? [])
-        if (!distances.has(neighbor)) {
-          distances.set(neighbor, depth);
-          next.push(neighbor);
-        }
-    frontier = next;
+    frontier = nextGraphFrontier(frontier, adjacency, distances, depth);
   }
-  const ranked = [];
-  for (const node of nodes.values()) {
-    const idTokens = tokens(nodeSearchText(node));
-    const overlap = [...seedTokens].filter((token) => idTokens.has(token)).length;
-    const lexical = seedTokens.size ? overlap / seedTokens.size : 0;
-    const exact =
-      node.logical_id === seed
-        ? 1
-        : node.logical_id.toLowerCase().includes(seed.toLowerCase())
-          ? 0.75
-          : 0;
-    const distance = distances.has(node.logical_id) ? 1 / (1 + distances.get(node.logical_id)) : 0;
-    const total = exact * 100 + lexical * 10 + distance;
-    if (total <= 0) continue;
-    ranked.push({
-      node,
-      total,
-      exact,
-      lexical,
-      distance,
-      depth: distances.get(node.logical_id) ?? null,
-    });
-  }
-  ranked.sort((a, b) => b.total - a.total || a.node.logical_id.localeCompare(b.node.logical_id));
-  const records = ranked.slice(0, maxRecords).map((entry) => ({
+  return distances;
+}
+
+function nextGraphFrontier(frontier, adjacency, distances, depth) {
+  const next = [];
+  for (const id of frontier)
+    for (const neighbor of adjacency.get(id) ?? [])
+      if (!distances.has(neighbor)) {
+        distances.set(neighbor, depth);
+        next.push(neighbor);
+      }
+  return next;
+}
+
+function rankedGraphNodes(nodes, nodeSearchText, seed, seedTokens, distances) {
+  return [...nodes.values()]
+    .map((node) => graphNodeRank(node, nodeSearchText, seed, seedTokens, distances))
+    .filter((entry) => entry.total > 0)
+    .sort(
+      (left, right) =>
+        right.total - left.total || left.node.logical_id.localeCompare(right.node.logical_id),
+    );
+}
+
+function graphNodeRank(node, nodeSearchText, seed, seedTokens, distances) {
+  const lexical = seedTokens.size
+    ? tokenOverlap(seedTokens, tokens(nodeSearchText(node))) / seedTokens.size
+    : 0;
+  const exact =
+    node.logical_id === seed
+      ? 1
+      : node.logical_id.toLowerCase().includes(seed.toLowerCase())
+        ? 0.75
+        : 0;
+  const depth = distances.get(node.logical_id) ?? null;
+  const distance = depth === null ? 0 : 1 / (1 + depth);
+  return { node, total: exact * 100 + lexical * 10 + distance, exact, lexical, distance, depth };
+}
+
+function tokenOverlap(left, right) {
+  return [...left].filter((token) => right.has(token)).length;
+}
+
+function graphQueryRecord(graph, seed, entry) {
+  return {
     node_id: entry.node.logical_id,
     kind: entry.node.kind,
-    selection_reason: entry.exact
-      ? "exact path or identifier match"
-      : entry.depth !== null
-        ? "bounded graph traversal"
-        : "lexical match",
+    selection_reason: querySelectionReason(entry),
     traversal_path: entry.depth === null ? [] : [seed, entry.node.logical_id].slice(0, 5),
     trust_class: entry.node.trust_class,
     source_ref: entry.node.source_ref,
@@ -252,38 +336,39 @@ export function queryGraph({
       total: entry.total,
     },
     snippet: sourceSnippet(graph.root, entry.node),
-  }));
-  const queryId = sha256(
-    canonicalJson({
-      seed,
-      phase,
-      maxDepth,
-      maxRecords,
-      includeModelProposed,
-      snapshot: graph.manifest.snapshot_id,
-    }),
-  );
-  const bundle = {
+  };
+}
+
+function querySelectionReason(entry) {
+  if (entry.exact) return "exact path or identifier match";
+  return entry.depth !== null ? "bounded graph traversal" : "lexical match";
+}
+
+function graphQueryBundle(graph, options) {
+  const { seed, phase, maxDepth, maxRecords, records } = options;
+  return {
     schema_version: "1.0.0",
     repository_id: graph.manifest.repository_id,
     snapshot_id: graph.manifest.snapshot_id,
     run_id: graph.runId,
     phase,
-    query_id: queryId,
+    query_id: graphQueryId(graph.manifest.snapshot_id, options),
     seed,
     generated_at: graph.manifest.transaction_time,
     limits: { max_depth: maxDepth, max_records: maxRecords },
     records,
   };
-  if (!graphContractValidators().context(bundle))
-    throw new Error("graph context does not satisfy its contract");
-  const contextPath = resolve(
-    graph.graphDir,
-    "contexts",
-    `${phase.replace(/[^a-z0-9-]/gi, "-")}.json`,
+}
+
+function graphQueryId(snapshot, { seed, phase, maxDepth, maxRecords, includeModelProposed }) {
+  return sha256(
+    canonicalJson({ seed, phase, maxDepth, maxRecords, includeModelProposed, snapshot }),
   );
+}
+
+function writeGraphQueryContext(graphDir, phase, bundle) {
+  const contextPath = resolve(graphDir, "contexts", `${phase.replace(/[^a-z0-9-]/gi, "-")}.json`);
   atomicWrite(contextPath, `${JSON.stringify(bundle, null, 2)}\n`);
-  return bundle;
 }
 
 export function sourceCurrent(root, node) {
