@@ -11,37 +11,62 @@ import pytest
 from benchmark_contracts_helpers import (
     RESULTS_ROOT,
     ROOT,
-    load_module,
-    release_gate_run_card,
-    repo_rel,
-    run_release_gate,
-    write_json,
-    write_release_gate_fixture,
-)
-
-
-from benchmark_contracts_helpers import (
-    RESULTS_ROOT,
-    ROOT,
     calibration_payload,
     load_module,
     repo_rel,
     run_release_gate,
     write_json,
-    write_release_gate_fixture,
     write_passing_held_out_fixture,
+    write_release_gate_fixture,
 )
 
 
 def _write_foreign_command_log(path: pathlib.Path) -> None:
-    write_json(path, {"argv": ["foreign"], "cwd": ".", "returncode": 0, "stdout": "", "stderr": "", "duration_seconds": 0.1})
+    write_json(
+        path,
+        {
+            "argv": ["foreign"],
+            "cwd": ".",
+            "returncode": 0,
+            "stdout": "",
+            "stderr": "",
+            "duration_seconds": 0.1,
+        },
+    )
 
 
-def _write_outside_run_card(path: pathlib.Path, benchmark: dict, paths: tuple[pathlib.Path, ...]) -> None:
+def _write_outside_run_card(
+    path: pathlib.Path, benchmark: dict, paths: tuple[pathlib.Path, ...]
+) -> None:
     result, regression, ledger, calibration = paths
-    write_json(path, {
-        "run_id": "tool-selection-core-dev-outside-run-card", "evidence_type": "benchmark-run", "benchmark_id": benchmark["benchmark_id"], "benchmark_version": benchmark["version"], "date": "2026-04-15", "split": "dev", "system": {"model": "rule-based-router-v1", "runtime": "umbrella-benchmark-runner"}, "judge_version": "programmatic-router-judge-v1", "command": "python3 evals/scripts/run_benchmark.py", "result_path": repo_rel(result), "status": "pass", "task_spec_path": benchmark["task_specs_path"], "routed_runtime": "mixed", "trace_paths": [], "artifact_paths": [], "checkpoint_paths": [], "claim_links": benchmark["claim_links"], "ledger_path": repo_rel(ledger), "regression_report_path": repo_rel(regression), "judge_calibration_report_path": repo_rel(calibration), "cost_usd": 0.0, "latency_seconds": 0.1, "notes": "test fixture",
-    })
+    write_json(
+        path,
+        {
+            "run_id": "tool-selection-core-dev-outside-run-card",
+            "evidence_type": "benchmark-run",
+            "benchmark_id": benchmark["benchmark_id"],
+            "benchmark_version": benchmark["version"],
+            "date": "2026-04-15",
+            "split": "dev",
+            "system": {"model": "rule-based-router-v1", "runtime": "umbrella-benchmark-runner"},
+            "judge_version": "programmatic-router-judge-v1",
+            "command": "python3 evals/scripts/run_benchmark.py",
+            "result_path": repo_rel(result),
+            "status": "pass",
+            "task_spec_path": benchmark["task_specs_path"],
+            "routed_runtime": "mixed",
+            "trace_paths": [],
+            "artifact_paths": [],
+            "checkpoint_paths": [],
+            "claim_links": benchmark["claim_links"],
+            "ledger_path": repo_rel(ledger),
+            "regression_report_path": repo_rel(regression),
+            "judge_calibration_report_path": repo_rel(calibration),
+            "cost_usd": 0.0,
+            "latency_seconds": 0.1,
+            "notes": "test fixture",
+        },
+    )
 
 
 def test_release_gate_rejects_verification_evidence_outside_current_run_scope() -> None:
@@ -84,7 +109,9 @@ def test_release_gate_rejects_verification_evidence_outside_current_run_scope() 
         write_passing_held_out_fixture(output_dir, benchmark)
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-forged-evidence.json"
 
-        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
@@ -114,13 +141,19 @@ def test_release_gate_does_not_mutate_run_card_outside_results_root() -> None:
                 )
             )
             run_card_path = outside_dir / "run-card-tool-selection-core-dev-outside-run-card.json"
-            _write_outside_run_card(run_card_path, benchmark, (result_path, regression_path, ledger_path, calibration_path))
+            _write_outside_run_card(
+                run_card_path,
+                benchmark,
+                (result_path, regression_path, ledger_path, calibration_path),
+            )
             write_passing_held_out_fixture(output_dir, benchmark)
             gate_output_path = (
                 output_dir / "release-gate-tool-selection-core-dev-outside-run-card.json"
             )
 
-            completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+            completed = run_release_gate(
+                benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+            )
 
             assert completed.returncode != 0
             updated_run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
@@ -179,8 +212,11 @@ def test_run_command_preserves_nonzero_exit_and_rejects_malformed_output(monkeyp
 
     monkeypatch.setattr(
         common.subprocess,
-        "run",
-        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout=object(), stderr=""),
+        "Popen",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0,
+            communicate=lambda timeout=None: (object(), ""),
+        ),
     )
     with pytest.raises(RuntimeError, match="malformed non-text output"):
         common.run_command([sys.executable, "-c", "pass"], cwd=ROOT)

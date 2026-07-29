@@ -19,6 +19,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from common import ROOT, dump_json, is_within_directory, repo_relpath, run_command
+
 from lib.outcome_resources import measured_resource_total, trace_events, unavailable_resource_usage
 
 
@@ -254,7 +255,9 @@ def _sandbox_result(
     result["sandbox"] = {
         "backend": "macos-seatbelt",
         "enforced": not startup_failed,
-        "reason": "sandbox initialization failed" if startup_failed else "default-deny profile applied",
+        "reason": "sandbox initialization failed"
+        if startup_failed
+        else "default-deny profile applied",
         "network": "denied",
         "workspace_access": "read-only",
         "scratch_access": "read-write",
@@ -413,7 +416,9 @@ def _record_resource_usage(calls: list[dict[str, Any]]) -> dict[str, Any]:
             missing.append(output_field)
         else:
             usage[output_field] = value
-    usage["measurement_status"] = "complete" if not missing else ("partial" if calls else "unavailable")
+    usage["measurement_status"] = (
+        "complete" if not missing else ("partial" if calls else "unavailable")
+    )
     usage["missing_measurements"] = missing
     return usage
 
@@ -591,5 +596,6 @@ def task_matrix_digest(
     )
 
 
-from lib.outcome_comparison import compare_outcome_reports
-from lib.outcome_rae import run_rae_outcome_task
+# Compatibility exports are imported after this module's shared helpers to avoid cycles.
+from lib.outcome_comparison import compare_outcome_reports  # noqa: E402, F401
+from lib.outcome_rae import run_rae_outcome_task  # noqa: E402, F401

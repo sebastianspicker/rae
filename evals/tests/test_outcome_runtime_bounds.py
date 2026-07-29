@@ -13,14 +13,21 @@ from benchmark_contracts_helpers import RESULTS_ROOT, ROOT, load_module
 
 
 def _run_outcome_cli(args: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    return subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "evals/scripts/run_outcome_benchmark.py"), *args],
-        cwd=ROOT, text=True, capture_output=True, check=False,
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
     )
 
 
 def _write_over_budget_bundle(temp_dir: pathlib.Path, task: dict) -> pathlib.Path:
-    bundle = {"benchmark_id": "provider-budget-test", "status": "experimental", "tasks": [{**task, "task_id": f"provider-budget-{index}"} for index in range(5)]}
+    bundle = {
+        "benchmark_id": "provider-budget-test",
+        "status": "experimental",
+        "tasks": [{**task, "task_id": f"provider-budget-{index}"} for index in range(5)],
+    }
     bundle_path = temp_dir / "bundle.task-bundle.json"
     bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
     return bundle_path
@@ -43,7 +50,8 @@ def test_run_command_timeout_terminates_spawned_process_group() -> None:
         )
         parent_program = (
             "import pathlib,subprocess,sys,time; "
-            "child=subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2], sys.argv[4]]); "
+            "child=subprocess.Popen([sys.executable, '-c', sys.argv[1], sys.argv[2], "
+            "sys.argv[4]]); "
             "pathlib.Path(sys.argv[3]).write_text(str(child.pid), encoding='utf-8'); time.sleep(30)"
         )
         result_holder: dict[str, object] = {}

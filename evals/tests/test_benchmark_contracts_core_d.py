@@ -10,7 +10,6 @@ from benchmark_contracts_helpers import (
     RESULTS_ROOT,
     ROOT,
     calibration_payload,
-    repo_rel,
     run_release_gate,
     write_json,
     write_release_gate_fixture,
@@ -25,7 +24,7 @@ def test_validate_eval_metadata_rejects_absolute_benchmark_paths() -> None:
     temp_path = RESULTS_ROOT / ".tmp-absolute-scenario-path.benchmark-card.json"
     write_json(temp_path, benchmark)
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -46,7 +45,7 @@ def test_validate_eval_metadata_rejects_parent_traversal() -> None:
     temp_path = RESULTS_ROOT / ".tmp-parent-traversal.benchmark-card.json"
     write_json(temp_path, benchmark)
     try:
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -75,7 +74,7 @@ def test_validate_eval_metadata_rejects_absolute_run_result_path() -> None:
         run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
         run_card["result_path"] = str(result_path)
         write_json(run_card_path, run_card)
-        completed = subprocess.run(
+        completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
             text=True,
@@ -105,7 +104,9 @@ def test_release_gate_fails_when_calibration_report_is_missing() -> None:
         )
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-example.json"
 
-        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))

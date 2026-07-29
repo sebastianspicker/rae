@@ -69,7 +69,9 @@ def _matching_report_matrix(
 
 
 def _pair_changes(
-    repeat_index: int, baseline_repeat: list[dict[str, Any]], challenger_repeat: list[dict[str, Any]]
+    repeat_index: int,
+    baseline_repeat: list[dict[str, Any]],
+    challenger_repeat: list[dict[str, Any]],
 ) -> tuple[list[str], list[str]]:
     baseline_by_id = {result["task_id"]: result for result in baseline_repeat}
     challenger_by_id = {result["task_id"]: result for result in challenger_repeat}
@@ -125,9 +127,7 @@ def _verified_report_aggregate(
     return aggregate
 
 
-def _usage_efficiency(
-    baseline_usage: object, challenger_usage: object
-) -> tuple[float, list[str]]:
+def _usage_efficiency(baseline_usage: object, challenger_usage: object) -> tuple[float, list[str]]:
     if not _complete_usage_pair(baseline_usage, challenger_usage):
         return 0.0, []
     baseline = cast(dict[str, Any], baseline_usage)
@@ -160,7 +160,11 @@ def _efficiency_evidence(
     efficiency_gain, regressions = _usage_efficiency(
         baseline_aggregate.get("resource_usage"), challenger_usage
     )
-    return efficiency_gain, [*(f"paired-loss:{pair_id}" for pair_id in losses), *regressions], challenger_usage
+    return (
+        efficiency_gain,
+        [*(f"paired-loss:{pair_id}" for pair_id in losses), *regressions],
+        challenger_usage,
+    )
 
 
 def compare_outcome_reports(baseline: dict[str, Any], challenger: dict[str, Any]) -> dict[str, Any]:
@@ -199,7 +203,10 @@ def compare_outcome_reports(baseline: dict[str, Any], challenger: dict[str, Any]
         "efficiency_gain": efficiency_gain,
         "hard_failure_classes": challenger_aggregate.get("hard_failure_classes", []),
         "hard_metric_regressions": hard_metric_regressions,
-        "complete": bool(baseline_aggregate.get("complete")) and bool(challenger_aggregate.get("complete")),
+        "complete": bool(baseline_aggregate.get("complete"))
+        and bool(challenger_aggregate.get("complete")),
         "resource_usage": challenger_usage,
-        "status": "pass" if challenger_aggregate.get("status") == "pass" and not hard_metric_regressions else "fail",
+        "status": "pass"
+        if challenger_aggregate.get("status") == "pass" and not hard_metric_regressions
+        else "fail",
     }

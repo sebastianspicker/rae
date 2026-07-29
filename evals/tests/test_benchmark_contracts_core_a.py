@@ -14,8 +14,8 @@ from benchmark_contracts_helpers import (
     install_path_mirror,
     run_release_gate,
     write_json,
-    write_release_gate_fixture,
     write_passing_held_out_fixture,
+    write_release_gate_fixture,
 )
 
 
@@ -276,7 +276,9 @@ def test_release_gate_fails_when_required_split_evidence_is_missing() -> None:
             output_dir / "release-gate-tool-selection-core-held-out-required-splits.json"
         )
 
-        completed = run_release_gate(temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
@@ -303,7 +305,9 @@ def test_release_gate_fails_when_calibration_agreement_is_below_threshold() -> N
         write_passing_held_out_fixture(output_dir, benchmark)
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-low-calibration.json"
 
-        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))

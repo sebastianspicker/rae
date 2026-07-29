@@ -4,6 +4,7 @@
 import json
 import os
 import pathlib
+import shutil
 import signal
 import subprocess
 import sys
@@ -11,7 +12,7 @@ import time
 import uuid
 from contextlib import suppress
 from datetime import UTC, date, datetime
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 EVALS = ROOT / "evals"
@@ -27,7 +28,7 @@ def _resolve_trusted_executables() -> dict[str, pathlib.Path]:
         "python3": python,
         pathlib.Path(sys.executable).name: python,
     }
-    for name in ("node", "bash", "git"):
+    for name in ("node", "bash", "git", "sandbox-exec"):
         executable = shutil.which(name)
         if executable is not None:
             trusted[name] = pathlib.Path(executable).resolve()
@@ -36,9 +37,9 @@ def _resolve_trusted_executables() -> dict[str, pathlib.Path]:
 
 _TRUSTED_EXECUTABLES = _resolve_trusted_executables()
 
-type JsonScalar = None | bool | int | float | str
-type JsonValue = JsonScalar | list[JsonValue] | dict[str, JsonValue]
-type JsonObject = dict[str, JsonValue]
+JsonScalar: TypeAlias = None | bool | int | float | str
+JsonValue: TypeAlias = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
+JsonObject: TypeAlias = dict[str, JsonValue]
 
 
 def _nearest_existing_ancestor(path: pathlib.Path) -> pathlib.Path:
@@ -281,9 +282,7 @@ def _resolve_node_entrypoint(prepared: list[str], cwd: pathlib.Path) -> None:
     prepared[1] = str(entrypoint)
 
 
-def _prepare_command(
-    argv: list[str], cwd: pathlib.Path, env: dict[str, str] | None
-) -> list[str]:
+def _prepare_command(argv: list[str], cwd: pathlib.Path, env: dict[str, str] | None) -> list[str]:
     if not isinstance(argv, list) or not argv or not all(isinstance(arg, str) for arg in argv):
         raise ValueError("argv must be a non-empty list of strings")
     if any("\x00" in arg for arg in argv):
@@ -308,13 +307,12 @@ def run_command(
     command_cwd = (cwd or ROOT).resolve()
     prepared_argv = _prepare_command(argv, command_cwd, env)
     started = time.monotonic()
-    command_cwd = cwd or ROOT
     process: subprocess.Popen[str] | None = None
     try:
         # Commands come from repository-owned benchmark metadata and are
         # intentionally executed as argument vectors without a shell.
-        process = subprocess.Popen(  # noqa: S603
-            argv,
+        process = subprocess.Popen(  # nosec B603
+            prepared_argv,
             cwd=command_cwd,
             env=env,
             text=True,
@@ -332,7 +330,7 @@ def run_command(
         stdout = stdout or _text_output(exc.stdout)
         stderr = stderr or _text_output(exc.stderr)
         return _timeout_result(
-            argv,
+            requested_argv,
             command_cwd,
             stdout,
             stderr,
@@ -341,20 +339,15 @@ def run_command(
             termination,
         )
 
-
-def _timeout_transcript(
-    exc: subprocess.TimeoutExpired, argv: list[str], cwd: pathlib.Path,
-    timeout_seconds: float | None, started: float,
-) -> dict[str, Any]:
-    label = f"{timeout_seconds:g}" if isinstance(timeout_seconds, (int, float)) else "unknown"
-    message = f"command timed out after {label}s"
+    if process is None:
+        raise RuntimeError("command process was not created")
     return {
-        "argv": argv,
+        "argv": requested_argv,
         "cwd": repo_relpath(command_cwd),
         "returncode": process.returncode,
-        "stdout": stdout,
-        "stderr": stderr,
-        "duration_seconds": duration,
+        "stdout": _coerce_subprocess_output(stdout),
+        "stderr": _coerce_subprocess_output(stderr),
+        "duration_seconds": round(time.monotonic() - started, 4),
         "timed_out": False,
         "timeout_seconds": timeout_seconds,
     }

@@ -63,11 +63,13 @@ def test_evaluator_manifest_binds_fixture_content_under_stable_task_ids() -> Non
         evaluated_task = {**task(), "fixture_id": "stable-fixture"}
         bundle_path = root / "bundle.json"
         bundle_path.write_text(
-            json.dumps({
-                "benchmark_id": "stable-task-id",
-                "status": "experimental",
-                "tasks": [evaluated_task],
-            }),
+            json.dumps(
+                {
+                    "benchmark_id": "stable-task-id",
+                    "status": "experimental",
+                    "tasks": [evaluated_task],
+                }
+            ),
             encoding="utf-8",
         )
         before = build_evaluator_manifest(
@@ -91,9 +93,7 @@ def test_optimizer_requires_the_exact_campaign_manifest_without_extra_paths() ->
         **report["evaluator_manifest"],
         "does/not/exist.py": "a" * 64,
     }
-    report["evaluator_manifest_digest"] = evaluator_manifest_digest(
-        report["evaluator_manifest"]
-    )
+    report["evaluator_manifest_digest"] = evaluator_manifest_digest(report["evaluator_manifest"])
     report["task_matrix_digest"] = task_matrix_digest(
         report["repeats"], report["evaluator_manifest_digest"]
     )
@@ -115,9 +115,7 @@ def test_optimizer_requires_the_exact_campaign_manifest_without_extra_paths() ->
 
 def test_default_campaign_lists_the_complete_evaluator_manifest() -> None:
     campaign = json.loads(
-        (ROOT / "evals/campaigns/autonomous-policy.experimental.json").read_text(
-            encoding="utf-8"
-        )
+        (ROOT / "evals/campaigns/autonomous-policy.experimental.json").read_text(encoding="utf-8")
     )
     bundle_path = ROOT / "evals/datasets/autonomous-outcomes/core.task-bundle.json"
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))

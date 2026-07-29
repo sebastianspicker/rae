@@ -61,7 +61,9 @@ def _rae_worktree(
 ) -> tuple[pathlib.Path, bool]:
     expected_root = (workspace / ".git" / "rae-worktrees").resolve()
     worktree_value = payload.get("workspace_root") if payload else None
-    worktree = pathlib.Path(worktree_value).resolve() if isinstance(worktree_value, str) else workspace
+    worktree = (
+        pathlib.Path(worktree_value).resolve() if isinstance(worktree_value, str) else workspace
+    )
     return worktree, worktree.is_dir() and worktree.is_relative_to(expected_root)
 
 
@@ -102,7 +104,9 @@ def _rae_failures(
         task, worktree, worktree_is_trusted, before
     )
     failures.extend(workspace_failures)
-    verifier, verifier_failures = core._rae_verifier(worktree, task, worktree_is_trusted, unsafe_paths)
+    verifier, verifier_failures = core._rae_verifier(
+        worktree, task, worktree_is_trusted, unsafe_paths
+    )
     failures.extend(verifier_failures)
     if verifier["returncode"] != 0 and "verification_failed" not in failures:
         failures.append("verification_failed")
