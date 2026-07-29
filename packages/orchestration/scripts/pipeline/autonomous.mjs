@@ -37,6 +37,7 @@ Run options:
   --timeout-seconds <n>       Per-phase timeout (default: 1800)
   --policy <path>             Validated data-only autonomous policy JSON
   --checkpoint-policy <mode> Human pause mode: none, before-mutation, or before-mutation-and-ship
+  --graph-memory <mode>      Local graph mode: off, read, or read-write (default: off)
   --in-place                  Modify a clean target checkout directly
   --through <phase>           Stop after one named phase (default: release-readiness)
   --run-id <id>               Resume an existing run (resume command only)
