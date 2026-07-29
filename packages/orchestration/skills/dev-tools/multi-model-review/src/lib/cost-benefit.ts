@@ -68,44 +68,6 @@ export function recommendModerateRisk(cost: Cost): Rec {
   return isCheap(cost) ? "fix-before-ship" : "defer";
 }
 
-const RECOMMENDATIONS: Record<Risk, Record<Cost, Rec>> = {
-  catastrophic: {
-    trivial: "fix-now",
-    low: "fix-now",
-    medium: "fix-now",
-    high: "fix-now",
-    prohibitive: "fix-now",
-  },
-  high: {
-    trivial: "fix-now",
-    low: "fix-now",
-    medium: "fix-before-ship",
-    high: "fix-before-ship",
-    prohibitive: "fix-before-ship",
-  },
-  moderate: {
-    trivial: "fix-before-ship",
-    low: "fix-before-ship",
-    medium: "defer",
-    high: "defer",
-    prohibitive: "defer",
-  },
-  low: {
-    trivial: "accept",
-    low: "accept",
-    medium: "accept",
-    high: "wont-fix",
-    prohibitive: "wont-fix",
-  },
-  negligible: {
-    trivial: "accept",
-    low: "accept",
-    medium: "wont-fix",
-    high: "wont-fix",
-    prohibitive: "wont-fix",
-  },
-};
-
 export function analyzeCostBenefit(findings: Finding[]): CostBenefitEntry[] {
   return findings.map((f) => {
     const severity: Severity = f.severity;
