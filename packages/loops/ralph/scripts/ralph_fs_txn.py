@@ -582,17 +582,33 @@ def validate_journal_header(
     runtime: bytes,
     metadata_root: bytes,
 ) -> bool:
+    validate_journal_format(journal)
+    validate_pointer_binding(data, journal_path, journal)
+    validate_journal_root_binding(journal, root, runtime, metadata_root)
+    return terminal_marker_matches(data, journal["state"])
+
+
+def validate_journal_format(journal: dict[str, Any]) -> None:
     if journal.get("format") != FORMAT_VERSION or journal.get("state") not in JOURNAL_STATES:
         raise RuntimeError("unsupported transaction journal format or state")
+
+
+def validate_pointer_binding(
+    data: dict[str, Any] | None, journal_path: Path, journal: dict[str, Any]
+) -> None:
     if data is not None and (
         data.get("journal") != str(journal_path) or data.get("id") != journal.get("id")
     ):
         raise RuntimeError("transaction pointer does not match its journal")
+
+
+def validate_journal_root_binding(
+    journal: dict[str, Any], root: bytes, runtime: bytes, metadata_root: bytes
+) -> None:
     if journal.get("root") != os.fsdecode(root) or journal.get("runtime") != os.fsdecode(runtime):
         raise RuntimeError("transaction journal is bound to a different repository")
     if journal.get("metadata_root") != os.fsdecode(metadata_root):
         raise RuntimeError("transaction journal is bound to a different metadata root")
-    return terminal_marker_matches(data, journal["state"])
 
 
 def terminal_marker_matches(data: dict[str, Any] | None, state: str) -> bool:
@@ -610,12 +626,24 @@ def validate_journal_locations(
     metadata_root: bytes,
     terminal_cleanup: bool,
 ) -> bytes:
+    validate_quarantine_root(journal, runtime)
+    mirror = validate_mirror_location(journal, metadata_root, terminal_cleanup)
+    validate_baseline_store_location(journal, journal_path, terminal_cleanup)
+    return mirror
+
+
+def validate_quarantine_root(journal: dict[str, Any], runtime: bytes) -> None:
     quarantine_root = os.fsencode(journal.get("quarantine_root", ""))
     expected_quarantine = os.path.join(
         runtime, b".fixing-quarantine", os.fsencode(journal.get("id", ""))
     )
     if quarantine_root != expected_quarantine:
         raise RuntimeError("transaction quarantine root has an unexpected location")
+
+
+def validate_mirror_location(
+    journal: dict[str, Any], metadata_root: bytes, terminal_cleanup: bool
+) -> bytes:
     mirror = os.fsencode(journal.get("mirror", ""))
     provider = Path(os.fsdecode(mirror)).parent
     if (
@@ -629,6 +657,12 @@ def validate_journal_locations(
         raise RuntimeError("transaction mirror is outside the provider temp root")
     require_private_directory(provider, "transaction provider directory", terminal_cleanup)
     require_private_directory(Path(os.fsdecode(mirror)), "transaction mirror", terminal_cleanup)
+    return mirror
+
+
+def validate_baseline_store_location(
+    journal: dict[str, Any], journal_path: Path, terminal_cleanup: bool
+) -> None:
     baseline_store = os.fsencode(journal.get("baseline_store", ""))
     if (
         baseline_store != os.fsencode(journal_path.parent / "baseline")
@@ -638,7 +672,6 @@ def validate_journal_locations(
     require_private_directory(
         Path(os.fsdecode(baseline_store)), "transaction baseline store", terminal_cleanup
     )
-    return mirror
 
 
 def require_private_directory(
@@ -690,6 +723,17 @@ def validate_journal_identities(
 def validate_journal_contents(journal: dict[str, Any], root: bytes) -> None:
     if journal.get("prepared") is not None:
         validate_manifest(journal["prepared"], "prepared")
+    changed, promoted, active, evidence = journal_path_fields(journal)
+    validate_active_path_state(journal, active)
+    for item in evidence:
+        validate_evidence_item(item, journal, root)
+    validate_encoded_journal_paths(changed, promoted, active)
+    validate_prepared_path_bounds(journal, changed, promoted, active, evidence)
+
+
+def journal_path_fields(
+    journal: dict[str, Any],
+) -> tuple[list[str], list[str], str | None, list[dict[str, Any]]]:
     changed, promoted, active, evidence = (
         journal.get("changed", []),
         journal.get("promoted", []),
@@ -702,29 +746,49 @@ def validate_journal_contents(journal: dict[str, Any], root: bytes) -> None:
         or not isinstance(evidence, list)
     ):
         raise RuntimeError("transaction path journal is invalid")
+    return changed, promoted, active, evidence
+
+
+def validate_active_path_state(journal: dict[str, Any], active: str | None) -> None:
     if not isinstance(journal.get("active_started", False), bool) or (
         active is None and journal.get("active_started")
     ):
         raise RuntimeError("transaction active-path state is invalid")
-    for item in evidence:
-        validate_evidence_item(item, journal, root)
+
+
+def validate_encoded_journal_paths(
+    changed: list[str], promoted: list[str], active: str | None
+) -> None:
     for encoded in changed + promoted + ([active] if active is not None else []):
         decode_path(encoded)
-    validate_prepared_path_bounds(journal, changed, promoted, active, evidence)
 
 
 def validate_evidence_item(item: Any, journal: dict[str, Any], root: bytes) -> None:
     if not isinstance(item, dict):
         raise RuntimeError("transaction recovery evidence entry is invalid")
     evidence_rel = decode_path(item.get("path"))
+    validate_evidence_identity(item)
+    validate_evidence_metadata(item)
+    validate_evidence_state(item)
+    for field in ("quarantine", "staging"):
+        validate_evidence_location(item.get(field), field, journal, root, evidence_rel)
+
+
+def validate_evidence_identity(item: dict[str, Any]) -> None:
     if not isinstance(item.get("id"), str) or not item["id"]:
         raise RuntimeError("transaction recovery evidence id is invalid")
     if not isinstance(item.get("context"), str) or not item["context"]:
         raise RuntimeError("transaction recovery evidence context is invalid")
+
+
+def validate_evidence_metadata(item: dict[str, Any]) -> None:
     if item.get("phase") not in ("promotion", "recovery") or not isinstance(
         item.get("subtree", False), bool
     ):
         raise RuntimeError("transaction recovery evidence metadata is invalid")
+
+
+def validate_evidence_state(item: dict[str, Any]) -> None:
     if item.get("state") not in (
         "planned",
         "quarantined",
@@ -734,8 +798,6 @@ def validate_evidence_item(item: Any, journal: dict[str, Any], root: bytes) -> N
         "conflict",
     ):
         raise RuntimeError("transaction recovery evidence state is invalid")
-    for field in ("quarantine", "staging"):
-        validate_evidence_location(item.get(field), field, journal, root, evidence_rel)
 
 
 def validate_evidence_location(
@@ -748,15 +810,36 @@ def validate_evidence_location(
     encoded_value = os.fsencode(value)
     if not os.path.isabs(encoded_value) or os.path.normpath(encoded_value) != encoded_value:
         raise RuntimeError("transaction recovery evidence path is invalid")
+    if not evidence_location_is_allowed(encoded_value, field, journal, root, evidence_rel):
+        raise RuntimeError("transaction recovery evidence escapes quarantine root")
+
+
+def evidence_location_is_allowed(
+    encoded_value: bytes,
+    field: str,
+    journal: dict[str, Any],
+    root: bytes,
+    evidence_rel: bytes,
+) -> bool:
     central_location = os.path.dirname(encoded_value) == os.fsencode(journal["quarantine_root"])
+    return central_location or evidence_sibling_location(
+        encoded_value, field, journal, root, evidence_rel
+    )
+
+
+def evidence_sibling_location(
+    encoded_value: bytes,
+    field: str,
+    journal: dict[str, Any],
+    root: bytes,
+    evidence_rel: bytes,
+) -> bool:
     suffixes = (os.fsencode(f"-{field}"),) if field != "staging" else (b"-staging", b"-quarantine")
-    sibling_location = (
+    return (
         os.path.dirname(encoded_value) == os.path.dirname(os.path.join(root, evidence_rel))
         and os.path.basename(encoded_value).startswith(os.fsencode(f".ralph-fs-{journal['id']}-"))
         and os.path.basename(encoded_value).endswith(suffixes)
     )
-    if not central_location and not sibling_location:
-        raise RuntimeError("transaction recovery evidence escapes quarantine root")
 
 
 def validate_prepared_path_bounds(
@@ -771,14 +854,23 @@ def validate_prepared_path_bounds(
     if changed != changed_paths(journal["baseline"], journal["prepared"]):
         raise RuntimeError("transaction changed-path journal does not match its manifests")
     baseline, prepared = manifest_map(journal["baseline"]), manifest_map(journal["prepared"])
-    if any(not prepared_change_unit(item, changed, baseline, prepared) for item in promoted):
-        raise RuntimeError("transaction promoted-path journal escapes the prepared change set")
-    if active is not None and not prepared_change_unit(active, changed, baseline, prepared):
-        raise RuntimeError("transaction active path escapes the prepared change set")
-    if any(
-        not prepared_change_unit(item["path"], changed, baseline, prepared) for item in evidence
-    ):
-        raise RuntimeError("transaction recovery evidence escapes the prepared change set")
+    validate_prepared_journal_paths(promoted, changed, baseline, prepared, "promoted-path")
+    if active is not None:
+        validate_prepared_journal_paths([active], changed, baseline, prepared, "active path")
+    validate_prepared_journal_paths(
+        [item["path"] for item in evidence], changed, baseline, prepared, "recovery evidence"
+    )
+
+
+def validate_prepared_journal_paths(
+    entries: list[str],
+    changed: list[str],
+    baseline: dict[str, dict[str, Any]],
+    prepared: dict[str, dict[str, Any]],
+    label: str,
+) -> None:
+    if any(not prepared_change_unit(item, changed, baseline, prepared) for item in entries):
+        raise RuntimeError(f"transaction {label} journal escapes the prepared change set")
 
 
 def prepared_change_unit(
@@ -1464,12 +1556,21 @@ def promote_readonly_subtrees(
     prepared: dict[str, dict[str, Any]],
 ) -> list[str]:
     changed = journal["changed"]
+    replacements = readonly_subtree_replacements(baseline, prepared, changed)
+    for encoded in sorted(replacements, key=lambda item: (depth(item), item)):
+        promote_readonly_subtree(path, journal, root, mirror, baseline, prepared, encoded)
+    return changed_outside_subtrees(changed, replacements)
+
+
+def readonly_subtree_replacements(
+    baseline: dict[str, dict[str, Any]], prepared: dict[str, dict[str, Any]], changed: list[str]
+) -> list[str]:
     candidates = [
         key
         for key, before in baseline.items()
         if is_readonly_subtree(key, before, prepared, changed)
     ]
-    replacements = [
+    return [
         key
         for key in candidates
         if not any(
@@ -1477,38 +1578,51 @@ def promote_readonly_subtrees(
             for parent in candidates
         )
     ]
-    for encoded in sorted(replacements, key=lambda item: (depth(item), item)):
-        entry = prepared[encoded]
-        staged = stage_directory_subtree(
-            path,
-            journal,
-            root,
-            mirror,
-            journal["prepared"],
-            entry,
-            "promotion subtree staging",
-            "promotion",
-        )
-        quarantine_live_entry(
-            path,
-            journal,
-            root,
-            encoded,
-            baseline[encoded],
-            "promotion subtree replacement",
-            "promotion",
-            manifest_subtree(journal["baseline"], encoded),
-        )
-        install_staged_entry(
-            path,
-            journal,
-            root,
-            staged,
-            entry,
-            "promotion subtree replacement",
-            "promotion",
-            manifest_subtree(journal["prepared"], encoded),
-        )
+
+
+def promote_readonly_subtree(
+    path: Path,
+    journal: dict[str, Any],
+    root: bytes,
+    mirror: bytes,
+    baseline: dict[str, dict[str, Any]],
+    prepared: dict[str, dict[str, Any]],
+    encoded: str,
+) -> None:
+    entry = prepared[encoded]
+    staged = stage_directory_subtree(
+        path,
+        journal,
+        root,
+        mirror,
+        journal["prepared"],
+        entry,
+        "promotion subtree staging",
+        "promotion",
+    )
+    quarantine_live_entry(
+        path,
+        journal,
+        root,
+        encoded,
+        baseline[encoded],
+        "promotion subtree replacement",
+        "promotion",
+        manifest_subtree(journal["baseline"], encoded),
+    )
+    install_staged_entry(
+        path,
+        journal,
+        root,
+        staged,
+        entry,
+        "promotion subtree replacement",
+        "promotion",
+        manifest_subtree(journal["prepared"], encoded),
+    )
+
+
+def changed_outside_subtrees(changed: list[str], replacements: list[str]) -> list[str]:
     return [
         key
         for key in changed
@@ -1748,20 +1862,46 @@ def validate_recovery_entry(
     subtree_paths: set[str],
 ) -> tuple[dict[str, Any] | None, bool]:
     current = entry_at(root, encoded)
+    return current, recovery_entry_conflicts(
+        journal, root, encoded, current, baseline, prepared, affected, subtree_paths
+    )
+
+
+def recovery_entry_conflicts(
+    journal: dict[str, Any],
+    root: bytes,
+    encoded: str,
+    current: dict[str, Any] | None,
+    baseline: dict[str, dict[str, Any]],
+    prepared: dict[str, dict[str, Any]],
+    affected: set[bytes],
+    subtree_paths: set[str],
+) -> bool:
     if current not in recovery_allowed_entries(encoded, baseline, prepared):
-        return current, True
+        return True
     if (
         current is not None
         and encoded in subtree_paths
         and not recovery_subtree_matches(journal, root, encoded)
     ):
-        return current, True
-    if current is not None and current["kind"] == "dir" and baseline.get(encoded) is None:
-        return current, any(
-            decode_path(item["path"]) not in affected or prepared.get(item["path"]) != item
-            for item in subtree_manifest(root, encoded)[1:]
-        )
-    return current, False
+        return True
+    return unexpected_recovery_directory(current, root, encoded, baseline, prepared, affected)
+
+
+def unexpected_recovery_directory(
+    current: dict[str, Any] | None,
+    root: bytes,
+    encoded: str,
+    baseline: dict[str, dict[str, Any]],
+    prepared: dict[str, dict[str, Any]],
+    affected: set[bytes],
+) -> bool:
+    if current is None or current["kind"] != "dir" or baseline.get(encoded) is not None:
+        return False
+    return any(
+        decode_path(item["path"]) not in affected or prepared.get(item["path"]) != item
+        for item in subtree_manifest(root, encoded)[1:]
+    )
 
 
 def recovery_allowed_entries(
@@ -1928,10 +2068,14 @@ def record_validation_conflicts(path: Path, journal: dict[str, Any], conflicts: 
 def restore_removals(
     path: Path, journal: dict[str, Any], root: bytes, context: dict[str, Any]
 ) -> None:
-    baseline = context["baseline"]
-    observed = context["observed"]
-    conflicts = context["conflicts"]
-    removals = [
+    removals = recovery_removals(context)
+    for encoded in sorted(removals, key=lambda item: (depth(item), item), reverse=True):
+        restore_removal(path, journal, root, context, encoded)
+
+
+def recovery_removals(context: dict[str, Any]) -> list[str]:
+    baseline, observed = context["baseline"], context["observed"]
+    return [
         encoded
         for encoded in context["affected"]
         if observed[encoded] is not None
@@ -1939,18 +2083,23 @@ def restore_removals(
             baseline.get(encoded) is None or observed[encoded]["kind"] != baseline[encoded]["kind"]
         )
     ]
-    for encoded in sorted(removals, key=lambda item: (depth(item), item), reverse=True):
-        if path_blocked(encoded, conflicts):
-            continue
-        current = observed[encoded]
-        if current is None:
-            raise RuntimeError("recovery removal entry disappeared from observed state")
-        try:
-            quarantine_recovery_removal(path, journal, root, encoded, current)
-        except TransactionConflict:
-            conflicts.add(encoded)
-            continue
-        observed[encoded] = None
+
+
+def restore_removal(
+    path: Path, journal: dict[str, Any], root: bytes, context: dict[str, Any], encoded: str
+) -> None:
+    observed, conflicts = context["observed"], context["conflicts"]
+    if path_blocked(encoded, conflicts):
+        return
+    current = observed[encoded]
+    if current is None:
+        raise RuntimeError("recovery removal entry disappeared from observed state")
+    try:
+        quarantine_recovery_removal(path, journal, root, encoded, current)
+    except TransactionConflict:
+        conflicts.add(encoded)
+        return
+    observed[encoded] = None
 
 
 def quarantine_recovery_removal(
@@ -2105,35 +2254,43 @@ def restore_directory_mode(
 def restore_leaves(
     path: Path, journal: dict[str, Any], root: bytes, context: dict[str, Any]
 ) -> None:
+    leaves = recovery_leaves(context)
+    for entry in sorted(leaves, key=lambda item: (depth(item["path"]), item["path"])):
+        restore_leaf(path, journal, root, context, entry)
+
+
+def recovery_leaves(context: dict[str, Any]) -> list[dict[str, Any]]:
     baseline = context["baseline"]
-    prepared = context["prepared"]
-    conflicts = context["conflicts"]
-    leaves = [
+    return [
         baseline[encoded]
         for encoded in context["affected"]
         if encoded in baseline and baseline[encoded]["kind"] != "dir"
     ]
-    for entry in sorted(leaves, key=lambda item: (depth(item["path"]), item["path"])):
-        encoded = entry["path"]
-        if path_blocked(encoded, conflicts):
-            continue
-        current = entry_at(root, encoded)
-        if current == entry:
-            continue
-        if current not in (None, prepared.get(encoded)):
-            record_recovery_conflict(path, journal, encoded, "recovery replacement")
-            conflicts.add(encoded)
-            continue
-        try:
-            if current is not None:
-                quarantine_only(
-                    path, journal, root, encoded, current, "recovery replacement", "recovery"
-                )
-            restore_baseline_entry(
-                path, journal, root, context["baseline_store"], entry, "recovery replacement"
+
+
+def restore_leaf(
+    path: Path, journal: dict[str, Any], root: bytes, context: dict[str, Any], entry: dict[str, Any]
+) -> None:
+    encoded, prepared, conflicts = entry["path"], context["prepared"], context["conflicts"]
+    if path_blocked(encoded, conflicts):
+        return
+    current = entry_at(root, encoded)
+    if current == entry:
+        return
+    if current not in (None, prepared.get(encoded)):
+        record_recovery_conflict(path, journal, encoded, "recovery replacement")
+        conflicts.add(encoded)
+        return
+    try:
+        if current is not None:
+            quarantine_only(
+                path, journal, root, encoded, current, "recovery replacement", "recovery"
             )
-        except TransactionConflict:
-            conflicts.add(encoded)
+        restore_baseline_entry(
+            path, journal, root, context["baseline_store"], entry, "recovery replacement"
+        )
+    except TransactionConflict:
+        conflicts.add(encoded)
 
 
 def finish_recovery(path: Path, journal: dict[str, Any], conflicts: set[str]) -> None:

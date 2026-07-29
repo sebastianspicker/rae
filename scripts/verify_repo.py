@@ -202,9 +202,12 @@ def validate_required_files() -> None:
 
 
 def git_bytes(*args: str) -> bytes:
+    """Run Git with verifier-owned arguments and return its raw output."""
     git_bin = shutil.which("git")
     if git_bin is None:
         raise ValueError("git is required for public-candidate hygiene checks")
+    # Resolved local Git and verifier-owned arguments; never a shell command.
+    # nosemgrep: dangerous-subprocess-use-audit
     completed = subprocess.run(  # nosec B603
         [git_bin, *args],
         cwd=ROOT,
@@ -426,6 +429,8 @@ def validate_curated_screenshots() -> None:
     for relative in CURATED_SCREENSHOTS:
         path = ROOT / relative
         validate_svg_text(path.read_text(encoding="utf-8"), relative)
+    # Fixed repository script under the current interpreter; never a shell command.
+    # nosemgrep: dangerous-subprocess-use-audit
     subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "scripts/generate_docs_screenshots.py"), "--check"],
         cwd=ROOT,

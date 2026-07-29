@@ -311,6 +311,8 @@ def run_command(
     try:
         # Commands come from repository-owned benchmark metadata and are
         # intentionally executed as argument vectors without a shell.
+        # Executables are resolved through the fixed trusted allowlist above.
+        # nosemgrep: dangerous-subprocess-use-audit
         process = subprocess.Popen(  # nosec B603
             prepared_argv,
             cwd=command_cwd,

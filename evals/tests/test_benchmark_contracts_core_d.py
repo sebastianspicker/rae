@@ -24,6 +24,8 @@ def test_validate_eval_metadata_rejects_absolute_benchmark_paths() -> None:
     temp_path = RESULTS_ROOT / ".tmp-absolute-scenario-path.benchmark-card.json"
     write_json(temp_path, benchmark)
     try:
+        # Fixed repository validator under the current test interpreter.
+        # nosemgrep: dangerous-subprocess-use-audit
         completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,

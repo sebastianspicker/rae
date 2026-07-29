@@ -301,15 +301,28 @@ const MANIFEST_IDENTITY_KEYS = [
 
 function validManifestHeader(manifest) {
   return (
-    manifest?.schema_version === GUARD_SCHEMA &&
-    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(manifest.run_id ?? "") &&
-    Number.isSafeInteger(manifest.owner_pid) &&
+    validManifestOwner(manifest) &&
     validManifestTimestamp(manifest.created_at) &&
     validManifestIdentity(manifest.identity) &&
-    (manifest.phase === null || ["build", "post-build"].includes(manifest.phase)) &&
-    safeGuardRef(manifest.control_ref) &&
-    safeGuardRef(manifest.trace_ref)
+    validManifestPhase(manifest.phase) &&
+    validManifestRefs(manifest)
   );
+}
+
+function validManifestOwner(manifest) {
+  return (
+    manifest?.schema_version === GUARD_SCHEMA &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(manifest.run_id ?? "") &&
+    Number.isSafeInteger(manifest.owner_pid)
+  );
+}
+
+function validManifestPhase(phase) {
+  return phase === null || ["build", "post-build"].includes(phase);
+}
+
+function validManifestRefs(manifest) {
+  return safeGuardRef(manifest.control_ref) && safeGuardRef(manifest.trace_ref);
 }
 
 function validManifestTimestamp(value) {

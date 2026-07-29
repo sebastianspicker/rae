@@ -597,5 +597,8 @@ def task_matrix_digest(
 
 
 # Compatibility exports are imported after this module's shared helpers to avoid cycles.
-from lib.outcome_comparison import compare_outcome_reports  # noqa: E402, F401
-from lib.outcome_rae import run_rae_outcome_task  # noqa: E402, F401
+from lib.outcome_comparison import compare_outcome_reports as _compare_outcome_reports  # noqa: E402
+from lib.outcome_rae import run_rae_outcome_task as _run_rae_outcome_task  # noqa: E402
+
+compare_outcome_reports = _compare_outcome_reports
+run_rae_outcome_task = _run_rae_outcome_task

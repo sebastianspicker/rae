@@ -22,9 +22,23 @@ function node(tagName, { className, text, attrs = {}, dataset = {} } = {}, child
   if (className) element.className = className;
   if (text !== undefined) element.textContent = text;
   for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, value);
-  for (const [name, value] of Object.entries(dataset)) element.dataset[name] = value;
+  setDatasetAttributes(element, dataset);
   element.append(...children);
   return element;
+}
+
+const DATA_ATTRIBUTES = new Map([
+  ["checkpointId", "data-checkpoint-id"],
+  ["runId", "data-run-id"],
+  ["stage", "data-stage"],
+  ["tone", "data-tone"],
+]);
+
+function setDatasetAttributes(element, dataset) {
+  for (const [name, value] of Object.entries(dataset)) {
+    const attribute = DATA_ATTRIBUTES.get(name);
+    if (attribute) element.setAttribute(attribute, value);
+  }
 }
 
 function tableCell(content, options) {
@@ -106,35 +120,47 @@ function claimCell(rowState, hasPendingCheckpoint) {
   return rowState === "live" && hasPendingCheckpoint ? "unbound" : "local";
 }
 
-function phaseRow(run, phase, index, activeIndex, pending) {
+function phaseProgress(run, phase, index, activeIndex, pending) {
   const complete =
     run.completed_gates.includes(`${phase}-gate`) || (activeIndex >= 0 && index < activeIndex);
   const isLive = index === activeIndex || (pending && pending.phase === phase);
   const rowState = complete && !isLive ? "done" : isLive ? "live" : "wait";
+  return { complete, isLive, rowState };
+}
+
+function phaseGateInfo(run, phase, progress, pending) {
   const gate = run.gates?.find(
     (item) => item.phase === phase || String(item.gate_id || "").startsWith(phase),
   );
-  const gateInfo =
-    rowState === "wait"
-      ? { word: "—", cls: "g-wait" }
-      : isLive && pending
-        ? { word: "hold", cls: "g-hold" }
-        : gateWord(gate?.status ?? (complete ? "pass" : "pending"));
-  const claim = claimCell(rowState, Boolean(pending && isLive));
+  return progress.rowState === "wait"
+    ? { word: "—", cls: "g-wait" }
+    : progress.isLive && pending
+      ? { word: "hold", cls: "g-hold" }
+      : gateWord(gate?.status ?? (progress.complete ? "pass" : "pending"));
+}
+
+function phaseRowCells(run, phase, index, progress, gateInfo, pending) {
+  const claim = claimCell(progress.rowState, Boolean(pending && progress.isLive));
+  return [
+    tableCell(node("span", { className: "mono", text: String(index + 1).padStart(2, "0") })),
+    tableCell(phase),
+    tableCell(node("span", { className: "mono", text: artifactCell(run, phase) })),
+    tableCell(node("span", { className: `g ${gateInfo.cls}`, text: gateInfo.word })),
+    tableCell(claim, { className: `claim${claim === "unbound" ? " is-open" : ""}` }),
+  ];
+}
+
+function phaseRow(run, phase, index, activeIndex, pending) {
+  const progress = phaseProgress(run, phase, index, activeIndex, pending);
+  const gateInfo = phaseGateInfo(run, phase, progress, pending);
   return node(
     "tr",
     {
-      className: `is-${rowState}${isLive ? " is-selected" : ""}`,
-      attrs: isLive ? { "aria-current": "step" } : {},
+      className: `is-${progress.rowState}${progress.isLive ? " is-selected" : ""}`,
+      attrs: progress.isLive ? { "aria-current": "step" } : {},
       dataset: { stage: phase },
     },
-    [
-      tableCell(node("span", { className: "mono", text: String(index + 1).padStart(2, "0") })),
-      tableCell(phase),
-      tableCell(node("span", { className: "mono", text: artifactCell(run, phase) })),
-      tableCell(node("span", { className: `g ${gateInfo.cls}`, text: gateInfo.word })),
-      tableCell(claim, { className: `claim${claim === "unbound" ? " is-open" : ""}` }),
-    ],
+    phaseRowCells(run, phase, index, progress, gateInfo, pending),
   );
 }
 
@@ -228,10 +254,7 @@ function eventDetails(event, status) {
     .join(" · ");
 }
 
-function eventRow(event, index) {
-  const status = event.status ?? event.event;
-  const statusTone = tone(status);
-  const detailId = `event-extra-${index}`;
+function eventToggle(detailId, event, detail) {
   const toggle = node("button", {
     className: "evidence-toggle",
     attrs: {
@@ -242,24 +265,38 @@ function eventRow(event, index) {
     },
   });
   toggle.append(icon("arrow"));
-  const detail = node("tr", { className: "evidence-extra", attrs: { id: detailId, hidden: "" } }, [
-    tableCell(eventDetails(event, status), { attrs: { colspan: "5" } }),
-  ]);
   toggle.addEventListener("click", () => setEventExpanded(toggle, detail, true));
-  const reference =
-    event.artifact_ref ?? event.gate_id ?? event.event_id ?? `Sequence ${event.seq}`;
-  const result = node("span", { className: "result", dataset: { tone: statusTone } }, [
+  return toggle;
+}
+
+function eventResult(status, statusTone) {
+  return node("span", { className: "result", dataset: { tone: statusTone } }, [
     icon(statusTone === "error" ? "reject" : "check"),
     document.createTextNode(humanize(status)),
   ]);
-  const row = node("tr", {}, [
+}
+
+function eventTableRow(event, toggle, status, statusTone) {
+  const reference =
+    event.artifact_ref ?? event.gate_id ?? event.event_id ?? `Sequence ${event.seq}`;
+  return node("tr", {}, [
     tableCell([toggle, document.createTextNode(formatTime(event.ts))]),
     tableCell(node("span", { className: "category", text: phaseLabel(event.phase) })),
     tableCell(node("span", { className: "evidence-title", text: humanize(event.event) })),
     tableCell(node("span", { className: "evidence-reference", text: reference })),
-    tableCell(result),
+    tableCell(eventResult(status, statusTone)),
   ]);
-  return [row, detail];
+}
+
+function eventRow(event, index) {
+  const status = event.status ?? event.event;
+  const statusTone = tone(status);
+  const detailId = `event-extra-${index}`;
+  const detail = node("tr", { className: "evidence-extra", attrs: { id: detailId, hidden: "" } }, [
+    tableCell(eventDetails(event, status), { attrs: { colspan: "5" } }),
+  ]);
+  const toggle = eventToggle(detailId, event, detail);
+  return [eventTableRow(event, toggle, status, statusTone), detail];
 }
 
 function eventMessageRow({ category, title, reference, toneValue, iconName, result }) {

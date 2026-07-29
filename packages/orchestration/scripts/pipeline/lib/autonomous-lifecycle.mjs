@@ -126,19 +126,17 @@ function taskPathSegments(pathValue) {
   return segments;
 }
 
-function safeTaskPath(pathValue, projectRoot, io) {
-  const segments = taskPathSegments(pathValue);
-  const canonicalRoot = io.realpathSync(projectRoot);
-  const candidate = resolve(canonicalRoot, ...segments);
+function resolvesBelowRoot(canonicalRoot, candidate) {
   const withinRoot = relative(canonicalRoot, candidate);
-  if (
+  return !(
     !withinRoot ||
     withinRoot.startsWith(`..${sep}`) ||
     withinRoot === ".." ||
     isAbsolute(withinRoot)
-  ) {
-    throw new Error("--task-file must resolve below the project root");
-  }
+  );
+}
+
+function validateTaskCandidate(pathValue, candidate, io) {
   if (![".md", ".txt"].includes(extname(candidate).toLowerCase())) {
     throw new Error("--task-file must name a .md or .txt file");
   }
@@ -146,13 +144,24 @@ function safeTaskPath(pathValue, projectRoot, io) {
   if (suppliedStat.isSymbolicLink() || !suppliedStat.isFile()) {
     throw new Error("--task-file must be a regular, non-symlink file");
   }
+  if (suppliedStat.size > BigInt(MAX_TASK_BYTES)) {
+    throw new Error(`task file exceeds ${MAX_TASK_BYTES} bytes: ${pathValue}`);
+  }
+  return suppliedStat;
+}
+
+function safeTaskPath(pathValue, projectRoot, io) {
+  const segments = taskPathSegments(pathValue);
+  const canonicalRoot = io.realpathSync(projectRoot);
+  const candidate = resolve(canonicalRoot, ...segments);
+  if (!resolvesBelowRoot(canonicalRoot, candidate)) {
+    throw new Error("--task-file must resolve below the project root");
+  }
+  const suppliedStat = validateTaskCandidate(pathValue, candidate, io);
   const resolvedPath = io.realpathSync(candidate);
   if (resolvedPath !== candidate) throw new Error("--task-file path must not traverse a symlink");
   if (protectedTaskSegment(basename(resolvedPath).toLowerCase())) {
     throw new Error(`refusing to read a protected credential task file: ${pathValue}`);
-  }
-  if (suppliedStat.size > BigInt(MAX_TASK_BYTES)) {
-    throw new Error(`task file exceeds ${MAX_TASK_BYTES} bytes: ${pathValue}`);
   }
   return { candidate, resolvedPath, suppliedStat };
 }
