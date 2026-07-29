@@ -18,6 +18,7 @@ before dispatching to the package that owns each command.
 | `verify` | `scripts/verify.sh` | Run repository verification |
 | `doctor` | `scripts/rae.sh` | Check runtime versions, tools, and entrypoints |
 | `agent` | orchestration autonomous CLI | Run, inspect, stop, or resume an autonomous workflow |
+| `graph` | orchestration graph CLI | Build and query local projections or manage cross-run memory |
 | `operator serve` | orchestration operator console | Serve the loopback console for allowlisted repositories |
 | `task route` | evaluation router | Select a runtime for one task specification |
 | `checkpoint` | evaluation checkpoint CLI | Create or resolve an operator checkpoint |
@@ -39,6 +40,7 @@ Subcommand options are owned by the selected runtime:
 
 ```bash
 ./scripts/rae.sh agent --help
+./scripts/rae.sh graph --help
 ./scripts/rae.sh orchestrate --help
 ./scripts/rae.sh ralph --help
 ./scripts/rae.sh eval --help
@@ -93,6 +95,24 @@ Resume after correcting an environmental failure:
 
 RAE does not expose commit, push, publish, or deploy actions. Supported runs
 reject protected Git-state changes.
+
+Graph retrieval is disabled by default. Enable current, trusted local retrieval
+for one run with `--graph-memory read`, or admit verified outcomes and
+quarantine model-proposed candidates with `--graph-memory read-write`. The mode
+is immutable on resume.
+
+## Local graph and memory
+
+```bash
+./scripts/rae.sh graph build --project-root /path/to/target-repository
+./scripts/rae.sh graph status --project-root /path/to/target-repository
+./scripts/rae.sh graph query --project-root /path/to/target-repository \
+  --seed 'File:src/main.js'
+```
+
+The graph is local, rebuildable, and advisory. It cannot modify gates,
+checkpoints, policies, evaluators, Git state, publication state, or plan
+ownership. See the [graph and memory contract](../contracts/graph-memory.md).
 
 ## Operator console
 

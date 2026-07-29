@@ -66,6 +66,7 @@ nav:
           - Result Ledger: reference/contracts/result-ledger.md
           - Quality Gates: reference/contracts/quality-gates.md
           - Report Types: reference/contracts/report-types.md
+          - Local Graph and Memory: reference/contracts/graph-memory.md
       - CLI:
           - Umbrella CLI: reference/cli/umbrella.md
           - Orchestration CLI: reference/cli/orchestration.md

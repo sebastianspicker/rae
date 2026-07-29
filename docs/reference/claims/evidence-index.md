@@ -150,6 +150,16 @@ evidence_links: bibliography.md
 - External anchor: [Pineau reproducibility report](bibliography.md#src-pineau-reproducibility)
 - External anchor: [Smaldino bad science](bibliography.md#src-smaldino-bad-science)
 
+### CLM-022
+
+- Internal anchor: `docs/reference/contracts/graph-memory.md`
+- Internal anchor: `packages/orchestration/contracts/graph/`
+- Regression evidence: `packages/orchestration/scripts/pipeline/tests/graph.test.mjs`
+- External anchor: [GraphRAG-Bench](https://graphrag-bench.github.io/)
+- External anchor: [Does Memory Need Graphs?](https://aclanthology.org/2026.acl-long.1232/)
+- External anchor: [CodexGraph](https://aclanthology.org/2025.naacl-long.7/)
+- External anchor: [LongMemEval-V2](https://arxiv.org/abs/2605.12493)
+
 ### CLM-011
 
 - Dossier: [CLM-011 explicit routing](dossiers/clm-011-explicit-routing.md)

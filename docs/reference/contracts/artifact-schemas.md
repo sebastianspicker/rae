@@ -28,6 +28,7 @@ Current imported schema set includes:
 - quality report
 - release readiness
 - execution trace
+- graph manifest, node, edge, context bundle, and memory decision
 
 Umbrella eval/runtime schemas additionally include:
 
