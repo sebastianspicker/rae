@@ -11,7 +11,9 @@ restore_remotes_from_backup() {
     if [[ " $added_names " != *" $remote_name "* ]]; then
       git -C "$repo_path" remote add "$remote_name" "$url" 2>/dev/null || true
       added_names="$added_names $remote_name"
-      [[ "$kind" == "push" ]] && git -C "$repo_path" remote set-url --push "$remote_name" "$url" 2>/dev/null || true
+      if [[ "$kind" == "push" ]]; then
+        git -C "$repo_path" remote set-url --push "$remote_name" "$url" 2>/dev/null || true
+      fi
     elif [[ "$kind" == "fetch" ]]; then
       git -C "$repo_path" remote set-url --add "$remote_name" "$url" 2>/dev/null || true
     else

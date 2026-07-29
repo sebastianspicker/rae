@@ -8,7 +8,7 @@ evidence_links: reference/claims/evidence-index.md
 
 # Documentation index
 
-Use the root [README](../README.md) for purpose, requirements, installation,
+Use the root [README](https://github.com/sebastianspicker/rae/blob/main/README.md) for purpose, requirements, installation,
 common commands, repository structure, and current limitations.
 
 ## Start here
@@ -49,10 +49,10 @@ common commands, repository structure, and current limitations.
 
 Package-owned command details:
 
-- [Orchestration package](../packages/orchestration/README.md)
-- [Orchestration runbook](../packages/orchestration/docs/RUNBOOK.md)
-- [Ralph package](../packages/loops/ralph/README.md)
-- [Co-author trailer cleaner](../tools/repo-hygiene/coauthor-trailer-cleaner/README.md)
+- [Orchestration package](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/README.md)
+- [Orchestration runbook](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/RUNBOOK.md)
+- [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/loops/ralph/README.md)
+- [Co-author trailer cleaner](https://github.com/sebastianspicker/rae/blob/main/tools/repo-hygiene/coauthor-trailer-cleaner/README.md)
 
 ## Research and evidence
 
@@ -85,11 +85,11 @@ environment. They do not establish behavior on arbitrary repositories.
 
 Repository-level contribution, security, support, governance, and release
 procedures are in
-[CONTRIBUTING.md](../CONTRIBUTING.md),
-[SECURITY.md](../SECURITY.md),
-[SUPPORT.md](../SUPPORT.md),
-[GOVERNANCE.md](../GOVERNANCE.md), and
-[RELEASING.md](../RELEASING.md).
+[CONTRIBUTING.md](https://github.com/sebastianspicker/rae/blob/main/CONTRIBUTING.md),
+[SECURITY.md](https://github.com/sebastianspicker/rae/blob/main/SECURITY.md),
+[SUPPORT.md](https://github.com/sebastianspicker/rae/blob/main/SUPPORT.md),
+[GOVERNANCE.md](https://github.com/sebastianspicker/rae/blob/main/GOVERNANCE.md), and
+[RELEASING.md](https://github.com/sebastianspicker/rae/blob/main/RELEASING.md).
 
 ## Source note
 

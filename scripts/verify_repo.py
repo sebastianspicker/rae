@@ -207,7 +207,7 @@ def git_bytes(*args: str) -> bytes:
     if git_bin is None:
         raise ValueError("git is required for public-candidate hygiene checks")
     # Resolved local Git and verifier-owned arguments; never a shell command.
-    # nosemgrep: dangerous-subprocess-use-audit
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     completed = subprocess.run(  # nosec B603
         [git_bin, *args],
         cwd=ROOT,
@@ -430,7 +430,7 @@ def validate_curated_screenshots() -> None:
         path = ROOT / relative
         validate_svg_text(path.read_text(encoding="utf-8"), relative)
     # Fixed repository script under the current interpreter; never a shell command.
-    # nosemgrep: dangerous-subprocess-use-audit
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "scripts/generate_docs_screenshots.py"), "--check"],
         cwd=ROOT,
@@ -447,6 +447,8 @@ def validate_brand_assets() -> None:
 
 def validate_source_documentation() -> None:
     """Run the source-header contract as part of the public repository gate."""
+    # Fixed repository script under the current interpreter; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "scripts/check_source_documentation.py")],
         cwd=ROOT,
@@ -455,6 +457,8 @@ def validate_source_documentation() -> None:
 
 
 def validate_eval_metadata() -> None:
+    # Fixed repository script under the current interpreter; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
         cwd=ROOT,
@@ -468,6 +472,8 @@ def run_mkdocs_strict() -> None:
         raise ValueError("mkdocs is required for the strict documentation build")
     mkdocs_env = os.environ.copy()
     mkdocs_env["NO_MKDOCS_2_WARNING"] = "true"
+    # Resolved local MkDocs executable with verifier-owned arguments; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
     subprocess.run(  # nosec B603
         [mkdocs_bin, "build", "--strict"],
         cwd=ROOT,

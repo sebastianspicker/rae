@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Unit tests for coauthor-trailer-cleaner.sh
-# shellcheck disable=SC2034,SC2329 # Directly sourced module globals and test doubles.
+# shellcheck disable=SC2034,SC2317,SC2329 # Directly sourced module globals and test doubles.
 
 # ── URL Parsing Tests ───────────────────────────────────────────
 

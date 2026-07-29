@@ -312,7 +312,7 @@ def run_command(
         # Commands come from repository-owned benchmark metadata and are
         # intentionally executed as argument vectors without a shell.
         # Executables are resolved through the fixed trusted allowlist above.
-        # nosemgrep: dangerous-subprocess-use-audit
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         process = subprocess.Popen(  # nosec B603
             prepared_argv,
             cwd=command_cwd,

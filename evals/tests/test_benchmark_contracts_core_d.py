@@ -25,7 +25,7 @@ def test_validate_eval_metadata_rejects_absolute_benchmark_paths() -> None:
     write_json(temp_path, benchmark)
     try:
         # Fixed repository validator under the current test interpreter.
-        # nosemgrep: dangerous-subprocess-use-audit
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
@@ -47,6 +47,8 @@ def test_validate_eval_metadata_rejects_parent_traversal() -> None:
     temp_path = RESULTS_ROOT / ".tmp-parent-traversal.benchmark-card.json"
     write_json(temp_path, benchmark)
     try:
+        # Fixed repository validator under the current test interpreter.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,
@@ -76,6 +78,8 @@ def test_validate_eval_metadata_rejects_absolute_run_result_path() -> None:
         run_card = json.loads(run_card_path.read_text(encoding="utf-8"))
         run_card["result_path"] = str(result_path)
         write_json(run_card_path, run_card)
+        # Fixed repository validator under the current test interpreter.
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
         completed = subprocess.run(  # nosec B603
             [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
             cwd=ROOT,

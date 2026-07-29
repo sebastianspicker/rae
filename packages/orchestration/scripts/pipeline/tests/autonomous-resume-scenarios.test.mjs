@@ -498,7 +498,20 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
     const output = JSON.parse(planned.stdout);
     const head = run("git", ["rev-parse", "HEAD"], root).stdout.trim();
     const tree = run("git", ["rev-parse", "HEAD^{tree}"], root).stdout.trim();
-    const replacement = run("git", ["commit-tree", tree, "-m", "replacement"], root).stdout.trim();
+    const replacement = run(
+      "git",
+      [
+        "-c",
+        "user.name=RAE Test",
+        "-c",
+        "user.email=rae-test@example.invalid",
+        "commit-tree",
+        tree,
+        "-m",
+        "replacement",
+      ],
+      root,
+    ).stdout.trim();
     run("git", ["update-ref", `refs/replace/${head}`, replacement], root);
 
     const resumed = run(
