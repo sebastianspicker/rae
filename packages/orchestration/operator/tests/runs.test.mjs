@@ -68,6 +68,15 @@ test("durable discovery projects run state without exposing raw trace metadata",
   assert.equal(runs[0].task, "Verify projected events");
   assert.equal(runs[0].current_phase, "quality-tests");
   assert.equal(publicRun(runs[0]).workspaceRoot, undefined);
+  assert.deepEqual(runs[0].graph_health, {
+    available: false,
+    valid: false,
+    node_count: 0,
+    edge_count: 0,
+    stale_sources: 0,
+    stale_memory: 0,
+    unresolved_conflicts: 0,
+  });
   const page = paginatedEvents(runs[0], { after: 0, limit: 10 });
   assert.equal(page.events.length, 1);
   assert.equal(page.events[0].event, "agent_call");

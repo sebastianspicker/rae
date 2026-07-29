@@ -12,6 +12,7 @@ import {
   inspectRuntimeStateGuard,
 } from "../../scripts/pipeline/lib/runtime-state-guard.mjs";
 import { validateRunId } from "./security.mjs";
+import { graphStatus, memoryStatus } from "../../scripts/pipeline/lib/graph.mjs";
 
 const PHASES = [
   "arm",
@@ -225,8 +226,41 @@ function summarizeRun(project, run) {
     evidence: { present: projectedArtifacts.length },
     resources: runResources(progress, events),
     checkpoints: checkpointRows,
+    graph_health: publicGraphHealth(run.workspaceRoot, run.id),
     workspaceRoot: run.workspaceRoot,
   };
+}
+
+function publicGraphHealth(workspaceRoot, runId) {
+  const status = graphStatus({ projectRoot: workspaceRoot, runId });
+  const memory = graphMemoryHealth(workspaceRoot);
+  return {
+    ...publicGraphStatus(status),
+    stale_memory: memory.stale_facts ?? 0,
+    unresolved_conflicts: graphConflicts(status, memory),
+  };
+}
+
+function graphMemoryHealth(workspaceRoot) {
+  try {
+    return memoryStatus(workspaceRoot);
+  } catch {
+    return { stale_facts: 0, unresolved_conflicts: 1 };
+  }
+}
+
+function publicGraphStatus(status) {
+  return {
+    available: status.available,
+    valid: status.valid,
+    node_count: status.node_count ?? 0,
+    edge_count: status.edge_count ?? 0,
+    stale_sources: status.stale_sources ?? 0,
+  };
+}
+
+function graphConflicts(status, memory) {
+  return (status.unresolved_conflicts ?? 0) + (memory.unresolved_conflicts ?? 0);
 }
 
 function runIdentity(request, control, events, run) {

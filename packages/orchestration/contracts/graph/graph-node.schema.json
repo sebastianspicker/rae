@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/graph/graph-node.schema.json",
+  "title": "RAE graph node",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_type", "graph_family", "repository_id", "run_id", "kind", "logical_id", "version_id", "source_ref", "source_digest", "projector", "transaction_time", "trust_class", "attributes"],
+  "properties": {
+    "record_type": { "const": "node" },
+    "graph_family": { "enum": ["evidence", "workflow", "repository", "memory"] },
+    "repository_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": ["string", "null"] },
+    "kind": { "enum": ["Repository", "ProjectSnapshot", "Run", "PhaseAttempt", "Requirement", "Constraint", "PlanTask", "TestCase", "File", "ArtifactVersion", "CommandExecution", "GateDecision", "CheckpointDecision", "Finding", "Claim", "SourceDocument"] },
+    "logical_id": { "type": "string", "minLength": 1 },
+    "version_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "source_ref": { "type": "string", "minLength": 1 },
+    "source_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "projector": { "type": "string", "minLength": 1 },
+    "transaction_time": { "type": "string", "format": "date-time" },
+    "valid_from": { "type": ["string", "null"], "format": "date-time" },
+    "valid_to": { "type": ["string", "null"], "format": "date-time" },
+    "trust_class": { "enum": ["authoritative", "verified-derived", "model-proposed", "untrusted"] },
+    "attributes": { "type": "object" }
+  }
+}

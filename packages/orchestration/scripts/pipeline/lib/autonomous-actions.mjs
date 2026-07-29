@@ -27,6 +27,7 @@ import {
   setRunStatus,
 } from "./operator-control.mjs";
 import { ensureRuntimeStateReadable } from "./runtime-state-guard.mjs";
+import { projectGraph, recordRunMemory } from "./graph.mjs";
 
 const DEFAULT_TIMEOUT_SECONDS = 1800;
 
@@ -83,6 +84,9 @@ function validateOptions(options) {
   validateCheckpointOption(options);
   validateThroughOption(options);
   validateProviderOptions(options);
+  if (!["off", "read", "read-write"].includes(options["graph-memory"] ?? "off")) {
+    throw new Error("--graph-memory must be off, read, or read-write");
+  }
 }
 
 function validateCheckpointOption(options) {
@@ -465,6 +469,12 @@ export function runWorkflow(command, options) {
         { event: "run_completed", phase: through, status: "completed" },
         context.workspaceRoot,
       );
+      if ((runOptions["graph-memory"] ?? "off") !== "off") {
+        projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
+      }
+      if (runOptions["graph-memory"] === "read-write") {
+        recordRunMemory({ projectRoot: context.workspaceRoot, runId: context.runId });
+      }
       const report = writeRunReport(context, { provider });
       printFinal(context, report, runOptions);
     } catch (error) {

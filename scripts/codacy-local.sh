@@ -171,8 +171,8 @@ jq -e --argjson expected_tools "$(printf '%s\n' "${EXPECTED_TOOLS[@]}" | jq -R .
 
 require_inspected_version Lizard 1.21.2
 require_inspected_version Hadolint 2.14.0
-require_inspected_version Trivy 0.69.3
-require_inspected_version Semgrep 1.22.0
+require_inspected_version Trivy 0.72.0
+require_inspected_version Semgrep 1.25.0
 
 set +e
 run_codacy analyze --config-file "$SUPPORTED_TOOLS_CONFIG_FILE" --fail-if-missing --output-format json \

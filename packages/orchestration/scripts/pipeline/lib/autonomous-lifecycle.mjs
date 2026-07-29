@@ -270,6 +270,7 @@ export function savedAgentOptions(request) {
     ...(saved.reasoning_effort ? { "reasoning-effort": saved.reasoning_effort } : {}),
     ...(saved.timeout_seconds ? { "timeout-seconds": String(saved.timeout_seconds) } : {}),
     "checkpoint-policy": request.checkpoint_policy ?? "none",
+    "graph-memory": request.graph_memory ?? "off",
   };
 }
 
@@ -292,6 +293,8 @@ export function mergeResumeOptions(saved, supplied) {
 export function assertResumeCheckpointPolicy(saved, supplied) {
   if (supplied["checkpoint-policy"] && supplied["checkpoint-policy"] !== saved["checkpoint-policy"])
     throw new Error("checkpoint policy is immutable for an existing autonomous run");
+  if (supplied["graph-memory"] && supplied["graph-memory"] !== saved["graph-memory"])
+    throw new Error("graph memory mode is immutable for an existing autonomous run");
 }
 
 function resetProviderOptions(saved) {
@@ -434,6 +437,7 @@ function newRunRequest(task, projectRoot, initialized, options, resolvedPolicy) 
     workspace_mode: options["in-place"] ? "main-repo" : "git-worktree",
     mutation_policy: "workspace-only-no-commit-no-push",
     checkpoint_policy: checkpointPolicy(options["checkpoint-policy"]),
+    graph_memory: options["graph-memory"] ?? "off",
     policy: requestedPolicy(resolvedPolicy),
   };
 }

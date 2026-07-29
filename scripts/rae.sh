@@ -13,6 +13,7 @@ RALPH_DIR="$ROOT_DIR/packages/loops/ralph"
 COAUTHOR_SCRIPT="$ROOT_DIR/tools/repo-hygiene/coauthor-trailer-cleaner/coauthor-trailer-cleaner.sh"
 EVAL_HARNESS="$ROOT_DIR/evals/harness/run-local.sh"
 AGENT_RUNNER="$ORCH_DIR/scripts/pipeline/autonomous.mjs"
+GRAPH_RUNNER="$ORCH_DIR/scripts/pipeline/graph-cli.mjs"
 OPERATOR_SERVER="$ORCH_DIR/operator/server.mjs"
 
 usage() {
@@ -26,6 +27,7 @@ Commands:
                                        Run umbrella verification
   doctor                               Check runtime prerequisites and entrypoints
   agent <subcommand> [args]            Run the autonomous coding-agent orchestrator
+  graph <subcommand> [args]            Build and query local graph projections and memory
   operator serve [args]                Serve the authenticated loopback operator console
   task route [args]                    Route a task spec and emit a planned run card
   checkpoint <subcommand> [args]       Create or resolve human checkpoint cards
@@ -42,6 +44,7 @@ Examples:
   ./scripts/rae.sh doctor
   ./scripts/rae.sh agent doctor
   ./scripts/rae.sh agent run --task "Add a tested health endpoint and document it"
+  ./scripts/rae.sh graph build --project-root /absolute/path/to/repository
   ./scripts/rae.sh operator serve --project /absolute/path/to/repository
   ./scripts/rae.sh task route --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json --task-id tool-selection-dev-orchestration --output evals/results/planned.json
   ./scripts/rae.sh orchestrate init
@@ -236,6 +239,7 @@ run_doctor() {
   check_file "eval-harness" "$EVAL_HARNESS" || failed=1
   check_file "orchestrate" "$ORCH_DIR/scripts/pipeline-init.sh" || failed=1
   check_file "agent-runner" "$AGENT_RUNNER" || failed=1
+  check_file "graph-runner" "$GRAPH_RUNNER" || failed=1
   check_file "operator-console" "$OPERATOR_SERVER" || failed=1
   check_file "ralph" "$RALPH_DIR/ralph.sh" || failed=1
   check_file "hygiene" "$COAUTHOR_SCRIPT" || failed=1
@@ -293,6 +297,12 @@ run_agent() {
   require_command git
   require_node_runtime
   "$NODE_BIN" "$AGENT_RUNNER" "$@"
+}
+
+run_graph() {
+  require_command git
+  require_node_runtime
+  "$NODE_BIN" "$GRAPH_RUNNER" "$@"
 }
 
 run_operator() {
@@ -573,6 +583,9 @@ main() {
     ;;
   agent | autonomous)
     run_agent "$@"
+    ;;
+  graph)
+    run_graph "$@"
     ;;
   operator | console)
     run_operator "$@"

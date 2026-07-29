@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/graph/graph-edge.schema.json",
+  "title": "RAE graph edge",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["record_type", "graph_family", "repository_id", "run_id", "kind", "logical_id", "version_id", "from", "to", "source_ref", "source_digest", "projector", "transaction_time", "trust_class", "attributes"],
+  "properties": {
+    "record_type": { "const": "edge" },
+    "graph_family": { "enum": ["evidence", "workflow", "repository", "memory"] },
+    "repository_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": ["string", "null"] },
+    "kind": { "enum": ["CONTAINS", "DEPENDS_ON", "REFERENCES", "READS", "WRITES", "DERIVED_FROM", "COVERS", "VERIFIES", "EVALUATES", "AUTHORIZED_BY", "SUPPORTS_CLAIM", "SUPERSEDES", "INVALIDATES"] },
+    "logical_id": { "type": "string", "minLength": 1 },
+    "version_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "from": { "type": "string", "minLength": 1 },
+    "to": { "type": "string", "minLength": 1 },
+    "source_ref": { "type": "string", "minLength": 1 },
+    "source_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "projector": { "type": "string", "minLength": 1 },
+    "transaction_time": { "type": "string", "format": "date-time" },
+    "valid_from": { "type": ["string", "null"], "format": "date-time" },
+    "valid_to": { "type": ["string", "null"], "format": "date-time" },
+    "trust_class": { "enum": ["authoritative", "verified-derived", "model-proposed", "untrusted"] },
+    "attributes": { "type": "object" }
+  }
+}

@@ -59,6 +59,11 @@ overrides, raw trace access, forced cleanup, commit, push, or publish controls.
 Cleanup delegates to the pipeline's ownership- and dirty-state-validating
 worktree cleanup operation.
 
+Run projections include bounded graph health counts when a projection exists:
+availability, validation state, node and edge counts, stale-source count, and
+stale-memory and unresolved-conflict counts. The API does not expose raw graph records, absolute
+paths, prompts, provider metadata, or untrusted memory text.
+
 Only one process started by a server instance may be active at once. Interrupt
 signals that owned process group, records `interrupted` after it exits, and
 removes an autonomous lock only when its recorded PID matches the owned child.

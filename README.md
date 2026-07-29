@@ -30,6 +30,7 @@ RAE currently provides:
 - a loopback-only operator console for run status, checkpoints, resume, and stop
 - Ralph audit, linting, and story-scoped fixing modes
 - benchmark validation, execution, comparison, calibration, and release gates
+- opt-in local repository, workflow, evidence, and temporal-memory graph projections
 - a transactional Git co-author trailer cleaner
 - sanitized environment-profile templates and installers
 
@@ -97,6 +98,8 @@ The umbrella command forwards arguments to the runtime that owns them:
 Use `--policy <path>` to select a validated orchestration policy. Use
 `--checkpoint-policy before-mutation` or
 `before-mutation-and-ship` to require operator approval at those boundaries.
+Use `--graph-memory read` or `read-write` only when local graph retrieval is
+required. Graph memory is `off` by default.
 Ralph accepts command flags and `RALPH_*` environment variables documented in
 its package README.
 

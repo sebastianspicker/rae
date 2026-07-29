@@ -15,6 +15,7 @@
   },
   "scripts": {
     "agent": "node scripts/pipeline/autonomous.mjs",
+    "benchmark:graph-context": "node scripts/eval/graph-context-benchmark.mjs",
     "build": "npm run build --workspaces --if-present",
     "test:operator": "node --test operator/tests/*.test.mjs",
     "test:runner": "cd scripts/pipeline && ../../node_modules/.bin/vitest run",

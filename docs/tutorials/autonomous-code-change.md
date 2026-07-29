@@ -38,6 +38,7 @@ deterministic tools and benchmarks can run without one.
 ./scripts/rae.sh agent run \
   --project-root /path/to/target-repo \
   --checkpoint-policy before-mutation-and-ship \
+  --graph-memory off \
   --task "Add a tested health endpoint and document its response contract"
 ```
 
@@ -70,6 +71,12 @@ that does not change blocks the build gate. RAE exposes no commit, push,
 publish, or deploy action, and supported Codex runs reject protected Git-state
 changes after every phase. A completed run therefore ends in
 `implemented-awaiting-human-release-review`.
+
+Graph retrieval is explicitly optional. `--graph-memory read` adds bounded,
+source-backed repository and admitted memory context. `read-write` also records
+verified completed-run outcomes and quarantines model-proposed candidates. The
+default `off` mode performs no graph read or memory write. Graph context cannot
+broaden the plan's owned paths or change a gate or checkpoint.
 
 ![Deterministic output from `rae.sh agent --help` showing the isolated-worktree
 default, sandbox modes, prohibited actions, and command-provider opt-in.](../assets/screenshots/rae-agent-safety.svg)

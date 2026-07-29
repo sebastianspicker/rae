@@ -89,6 +89,8 @@ Useful options:
 - `--in-place` uses an explicitly clean target checkout instead of an isolated
   worktree
 - `--json` emits machine-readable command output
+- `--graph-memory off|read|read-write` controls opt-in local graph retrieval;
+  the default is `off` and the selected mode is immutable on resume
 
 Run `npm run agent -- --help` for the complete option reference.
 
@@ -124,6 +126,23 @@ fail-closed cleanup controls. It does not expose in-place execution, arbitrary
 commands, environment overrides, Git publication, or deployment.
 
 See [`operator/README.md`](operator/README.md) for the HTTP and event contract.
+
+## Local graph projections
+
+Use the umbrella `graph` command to build, inspect, query, explain, or manage
+local graph memory:
+
+```bash
+./scripts/rae.sh graph build --project-root /path/to/target-repository
+./scripts/rae.sh graph query --project-root /path/to/target-repository \
+  --seed 'File:src/main.js'
+```
+
+Run projections remain under `.pipeline/runs/<run-id>/graph/`. Cross-run
+memory remains owner-only under the target repository's Git common directory
+at `rae-memory/v1/`. The graph augments context and explanation only. Raw
+artifacts, traces, gates, checkpoints, policies, Git state, and human release
+decisions remain authoritative.
 
 ## Low-level pipeline API
 

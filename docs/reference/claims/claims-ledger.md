@@ -46,6 +46,7 @@ evidence_links: evidence-index.md
 | CLM-019 | Reliability and benchmark claims require explicit threats-to-validity, contamination, and uncertainty analysis before publication-strength interpretation. | governance_rule | adopted | [Evidence Index](evidence-index.md#clm-019) | [Dossier](dossiers/clm-019-validity-doctrine.md) |
 | CLM-020 | Failure analysis is more diagnostic when representation, inference, coordination, and governance failures are separated instead of collapsed into one label. | engineering_heuristic | adopted | [Evidence Index](evidence-index.md#clm-020) | [Dossier](dossiers/clm-020-layered-failure-model.md) |
 | CLM-021 | Negative results should be preserved as first-class evidence when they constrain interpretation, calibration, or future design. | governance_rule | adopted | [Evidence Index](evidence-index.md#clm-021) | [Dossier](dossiers/clm-021-negative-results.md) |
+| CLM-022 | Graph-informed repository context should remain experimental until it improves localization or reduces context under frozen held-out evaluation without reducing task passes or crossing repository and protected-path boundaries. | governance_rule | adopted | [Evidence Index](evidence-index.md#clm-022) | [Graph Contract](../contracts/graph-memory.md#experimental-status) |
 
 ## Status meanings
 
