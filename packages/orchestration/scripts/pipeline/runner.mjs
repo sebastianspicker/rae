@@ -23,8 +23,6 @@ import {
   runSummarizeProgress,
   runSummarizeRun,
 } from "./lib/commands.mjs";
-import { badInput } from "./lib/errors.mjs";
-import { emitRetryEventIfNeeded, gateStatusFromPhaseAndProfile } from "./lib/gates.mjs";
 import {
   appendTaskSessionEvent,
   ensureStateForRun,
@@ -106,9 +104,9 @@ function assertPhaseReady(state, phase) {
 function stageOptions(options) {
   const runId = requireOption(options, "run-id");
   const phase = requireOption(options, "phase");
-  const { configId, root, state } = prepareStage(runId, phase, options);
-  const stageContext = prepareStageContext({ runId, phase, configId, root, state, options });
-  const { taskContext, taskSession, activityProfile, stageProfile, cognitiveTier } = stageContext;
+  if (!PHASES.includes(phase)) {
+    throw badInput(`unsupported phase: ${phase}. Valid phases: ${PHASES.join(", ")}`);
+  }
 
   const configId = options["config-id"] || DEFAULT_CONFIG_ID;
   if (!CONFIG_IDS.has(configId)) {
@@ -121,29 +119,60 @@ function stageOptions(options) {
 
 function recordTasksetRead(runId, phase, taskContext, root) {
   if (!taskContext?.taskset_path) return;
-  appendTraceEvent(runId, { event: "artifact_read", phase, artifact_ref: taskContext.taskset_path, status: "ok" }, root);
+  appendTraceEvent(
+    runId,
+    { event: "artifact_read", phase, artifact_ref: taskContext.taskset_path, status: "ok" },
+    root,
+  );
 }
 
-function stageTaskContext({ runId, phase, configId, options, state, root }) {
+function stageTaskContext({ phase, configId, options, state }) {
   const taskContext = loadTasksetTask(options.taskset, options["task-id"]);
   const taskSession = resolveTaskSession(phase, taskContext, options);
   const activityProfile = resolveActivityProfile(phase, state, taskSession);
   if (taskSession) taskSession.activity_profile = activityProfile;
-  return { taskContext, taskSession, activityProfile, stageProfile: stageProfileFromTask({ task: taskContext?.task, configId, phase }) };
+  return {
+    taskContext,
+    taskSession,
+    activityProfile,
+    stageProfile: stageProfileFromTask({ task: taskContext?.task, configId, phase }),
+  };
 }
 
 function recordStageStart({ runId, phase, state, taskSession, activityProfile, root }) {
   const cognitiveTier = activityProfile.tier ?? resolveCognitiveTier(phase, state);
-  appendTraceEvent(runId, phaseStartEvent(phase, cognitiveTier, taskSession, activityProfile), root);
+  appendTraceEvent(
+    runId,
+    phaseStartEvent(phase, cognitiveTier, taskSession, activityProfile),
+    root,
+  );
   appendTaskSessionEvent(runId, phase, "task_session_start", "ok", taskSession, root);
   return cognitiveTier;
 }
 
 function phaseStartEvent(phase, cognitiveTier, taskSession, activityProfile) {
-  const metadata = { activity_id: activityProfile.activity_id, runtime_name: activityProfile.runtime_name, runtime_version: activityProfile.runtime_version };
+  const metadata = {
+    activity_id: activityProfile.activity_id,
+    runtime_name: activityProfile.runtime_name,
+    runtime_version: activityProfile.runtime_version,
+  };
   if (cognitiveTier) metadata.cognitive_tier = cognitiveTier;
-  if (taskSession) Object.assign(metadata, { task_session_id: taskSession.session.session_id, task_session_kind: taskSession.session.session_kind });
-  return { event: "phase_start", phase, status: "ok", tier: cognitiveTier ?? undefined, model_hint: activityProfile.model_hint ?? undefined, activity_id: activityProfile.activity_id, runtime_name: activityProfile.runtime_name, runtime_version: activityProfile.runtime_version, metadata };
+  if (taskSession)
+    Object.assign(metadata, {
+      task_session_id: taskSession.session.session_id,
+      task_session_kind: taskSession.session.session_kind,
+    });
+  return {
+    event: "phase_start",
+    phase,
+    status: "ok",
+    tier: cognitiveTier ?? undefined,
+    model_hint: activityProfile.model_hint ?? undefined,
+    activity_id: activityProfile.activity_id,
+    runtime_name: activityProfile.runtime_name,
+    runtime_version: activityProfile.runtime_version,
+    metadata,
+  };
 }
 
 function executeStageLocked(state, { runId, phase, configId, options, root }) {
@@ -153,37 +182,80 @@ function executeStageLocked(state, { runId, phase, configId, options, root }) {
   const context = stageTaskContext({ runId, phase, configId, options, state, root });
   recordTasksetRead(runId, phase, context.taskContext, root);
   emitRetryEventIfNeeded(runId, phase, root);
-  const cognitiveTier = recordStageStart({ runId, phase, state, taskSession: context.taskSession, activityProfile: context.activityProfile, root });
-  const { artifact, artifactRef, schemaRef } = resolveAndWriteArtifact({ runId, phase, configId, options, taskContext: context.taskContext, stageProfile: context.stageProfile, state, root });
-  const { gateStatuses, extraGates } = evaluateAuxiliaryGates({ runId, phase, artifact, artifactRef, schemaRef, state, root });
-  const desiredStatus = options["gate-status"] || gateStatusFromPhaseAndProfile(phase, context.stageProfile);
-  const primaryGate = emitPrimaryGate({ runId, phase, artifact, artifactRef, schemaRef, configId, cognitiveTier, activityProfile: context.activityProfile, desiredStatus, gateStatuses, root });
+  const cognitiveTier = recordStageStart({
+    runId,
+    phase,
+    state,
+    taskSession: context.taskSession,
+    activityProfile: context.activityProfile,
+    root,
+  });
+  const { artifact, artifactRef, schemaRef } = resolveAndWriteArtifact({
+    runId,
+    phase,
+    configId,
+    options,
+    taskContext: context.taskContext,
+    stageProfile: context.stageProfile,
+    state,
+    root,
+  });
+  const { gateStatuses, extraGates } = evaluateAuxiliaryGates({
+    runId,
+    phase,
+    artifact,
+    artifactRef,
+    schemaRef,
+    state,
+    root,
+  });
+  const desiredStatus =
+    options["gate-status"] || gateStatusFromPhaseAndProfile(phase, context.stageProfile);
+  const primaryGate = emitPrimaryGate({
+    runId,
+    phase,
+    artifact,
+    artifactRef,
+    schemaRef,
+    configId,
+    cognitiveTier,
+    activityProfile: context.activityProfile,
+    desiredStatus,
+    gateStatuses,
+    root,
+  });
   ensureStateForRun(state, runId);
-  appendTaskSessionEvent(runId, phase, "task_session_end", primaryGate.status === "fail" ? "error" : "ok", context.taskSession, root);
+  appendTaskSessionEvent(
+    runId,
+    phase,
+    "task_session_end",
+    primaryGate.status === "fail" ? "error" : "ok",
+    context.taskSession,
+    root,
+  );
   recordPhaseCompletion({ runId, phase, state, primaryGate, root });
-  return { success: primaryGate.status !== "fail", run_id: runId, phase, config_id: configId, gate: primaryGate, auxiliary_gates: extraGates, artifact_ref: artifactRef, schema_ref: schemaRef, task_session: context.taskSession?.session ?? null, activity_profile: context.activityProfile };
+  return {
+    success: primaryGate.status !== "fail",
+    run_id: runId,
+    phase,
+    config_id: configId,
+    gate: primaryGate,
+    auxiliary_gates: extraGates,
+    artifact_ref: artifactRef,
+    schema_ref: schemaRef,
+    task_session: context.taskSession?.session ?? null,
+    activity_profile: context.activityProfile,
+  };
 }
 
 function runStage(options) {
   const { runId, phase, configId } = stageOptions(options);
   const root = resolveWorkspaceRootForRun(runId);
   ensureRunDirs(runId, root);
-  const result = withLockedState(root, (state) => executeStageLocked(state, { runId, phase, configId, options, root }));
-
-function prepareStage(runId, phase, options) {
-  if (!PHASES.includes(phase))
-    throw badInput(`unsupported phase: ${phase}. Valid phases: ${PHASES.join(", ")}`);
-  const configId = options["config-id"] || DEFAULT_CONFIG_ID;
-  if (!CONFIG_IDS.has(configId))
-    throw badInput(
-      `unsupported config-id: ${configId}. Valid config IDs: ${[...CONFIG_IDS].join(", ")}`,
-    );
-  const root = resolveWorkspaceRootForRun(runId);
-  ensureRunDirs(runId, root);
-  const state = loadPipelineState(root);
-  ensureStateForRun(state, runId);
-  appendRunStartIfMissing(runId, state, root);
-  return { configId, root, state };
+  const result = withLockedState(root, (state) =>
+    executeStageLocked(state, { runId, phase, configId, options, root }),
+  );
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
 
 // Shared context passed to command functions
@@ -195,23 +267,26 @@ const ctx = {
   appendRunEndIfMissing,
 };
 
-const COMMANDS = {
-  "start-phase": (opts) => runStartPhase(opts, ctx),
-  "end-phase": (opts) => runEndPhase(opts, ctx),
-  "record-artifact": (opts) => runRecordArtifact(opts, ctx),
-  "record-gate": (opts) => runRecordGate(opts, ctx),
-  "record-review-state": (opts) => runRecordReviewState(opts, ctx),
-  "summarize-run": (opts) => runSummarizeRun(opts, ctx),
-  "summarize-progress": (opts) => runSummarizeProgress(opts, ctx),
-  doctor: () => {
-    const sandbox = sandboxEnforcementReport();
-    process.stdout.write(`${JSON.stringify({ success: sandbox.enforced, sandbox }, null, 2)}\n`);
-    if (!sandbox.enforced) {
-      throw badInput(`sandbox enforcement unavailable: ${sandbox.reason}`);
-    }
-  },
-  "run-stage": runStage,
-};
+const COMMANDS = new Map([
+  ["start-phase", (opts) => runStartPhase(opts, ctx)],
+  ["end-phase", (opts) => runEndPhase(opts, ctx)],
+  ["record-artifact", (opts) => runRecordArtifact(opts, ctx)],
+  ["record-gate", (opts) => runRecordGate(opts, ctx)],
+  ["record-review-state", (opts) => runRecordReviewState(opts, ctx)],
+  ["summarize-run", (opts) => runSummarizeRun(opts, ctx)],
+  ["summarize-progress", (opts) => runSummarizeProgress(opts, ctx)],
+  [
+    "doctor",
+    () => {
+      const sandbox = sandboxEnforcementReport();
+      process.stdout.write(`${JSON.stringify({ success: sandbox.enforced, sandbox }, null, 2)}\n`);
+      if (!sandbox.enforced) {
+        throw badInput(`sandbox enforcement unavailable: ${sandbox.reason}`);
+      }
+    },
+  ],
+  ["run-stage", runStage],
+]);
 
 function main() {
   const [command, ...rest] = process.argv.slice(2);
@@ -225,7 +300,8 @@ function main() {
     activateWorkspaceRoot(options["project-root"]);
   }
 
-  const handler = COMMANDS[command];
+  assertSafeKey(command, "command");
+  const handler = COMMANDS.get(command);
   if (!handler) {
     throw badInput(
       `unknown command: ${command}. Available commands: ${[...COMMANDS.keys()].join(", ")}`,

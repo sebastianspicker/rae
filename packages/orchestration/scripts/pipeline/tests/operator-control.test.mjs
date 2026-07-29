@@ -1,9 +1,9 @@
 /** Verifies durable stop and checkpoint records remain atomic and attributable. */
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import Ajv2020 from "ajv/dist/2020.js";
 import {
   checkpointPolicy,
   createCheckpoint,
@@ -17,17 +17,12 @@ import {
 
 const roots = [];
 const packageRoot = resolve(import.meta.dirname, "../../..");
-const require = createRequire(import.meta.url);
 
 function controlSchemaValidator() {
-  const ajvPath = require.resolve("ajv/dist/2020", {
-    paths: [resolve(packageRoot, "skills/dev-tools/multi-model-review")],
-  });
-  const Ajv2020 = require(ajvPath).default;
   const schema = JSON.parse(
     readFileSync(resolve(packageRoot, "contracts/artifacts/operator-control.schema.json"), "utf8"),
   );
-  return new Ajv2020({ allErrors: true, strict: false, validateFormats: false }).compile(schema);
+  return new Ajv2020({ allErrors: false, strict: false, validateFormats: false }).compile(schema);
 }
 
 function root() {

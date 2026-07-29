@@ -13,11 +13,18 @@ import {
   resolveWithinRepo,
   toWorkspaceRelative,
 } from "../pipeline/lib/state.mjs";
-import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
-import { CONFIG_IDS } from "../lib/constants.mjs";
 import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
 
 assertSupportedNodeRuntime();
+
+const UNSAFE_AGGREGATION_KEYS = new Set(["__proto__", "prototype", "constructor", "toString"]);
+
+function assertSafeAggregationKey(key, label) {
+  if (typeof key !== "string" || UNSAFE_AGGREGATION_KEYS.has(key)) {
+    throw new Error(`${label} contains an unsafe key`);
+  }
+  return key;
+}
 
 function parseArgs(argv) {
   const args = parseCliArgs(

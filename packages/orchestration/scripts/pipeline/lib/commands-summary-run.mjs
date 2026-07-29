@@ -1,3 +1,4 @@
+/** Builds the completed-run summary returned by the pipeline CLI. */
 export function runSummaryView(runId, summary, phases) {
   const durations = summary.phase_durations_ms ?? {};
   return {

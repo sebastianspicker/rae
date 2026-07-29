@@ -30,4 +30,3 @@ export function printFinal(context, report, options, error = null) {
     ].join("\n"),
   );
 }
-

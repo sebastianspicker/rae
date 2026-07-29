@@ -306,35 +306,6 @@ export function buildRequirementCoverageLedger({ brief, plan }) {
   };
 }
 
-function coverageEntry(requirementId, taskMap, testMap, acceptanceMap) {
-  const plannedTaskIds = requirementCoverageValues(taskMap, requirementId);
-  const plannedTestCases = requirementCoverageValues(testMap, requirementId);
-  const status = coverageStatus(plannedTaskIds, plannedTestCases);
-  return {
-    requirement_id: requirementId,
-    planned_task_ids: plannedTaskIds,
-    planned_test_cases: plannedTestCases,
-    acceptance_criteria: requirementCoverageValues(acceptanceMap, requirementId),
-    missing_task_ids: missingCoverageValues(plannedTaskIds, "unplanned-task-coverage"),
-    missing_test_cases: missingCoverageValues(plannedTestCases, "unplanned-test-coverage"),
-    status,
-  };
-}
-
-function requirementCoverageValues(coverageMap, requirementId) {
-  return uniqueSortedStrings(coverageMap.get(requirementId) ?? []);
-}
-
-function missingCoverageValues(values, missingValue) {
-  return values.length ? [] : [missingValue];
-}
-
-function coverageStatus(tasks, tests) {
-  if (tasks.length && tests.length) return "covered";
-  if (tasks.length || tests.length) return "partial";
-  return "missing";
-}
-
 export function evaluateMustTraceability({
   phase,
   enforce,

@@ -3,6 +3,7 @@
  * These tests spawn runner.mjs as a subprocess to exercise the real entrypoint.
  */
 
+import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PHASE_ORDER } from "../../lib/constants.mjs";

@@ -49,11 +49,7 @@ function repositoryIdentity(workspaceRoot) {
     gitOutput(workspace, ["rev-parse", "--absolute-git-dir"]).trim(),
   );
   const gitCommonDirectory = realpathSync(
-    gitOutput(workspace, [
-      "rev-parse",
-      "--path-format=absolute",
-      "--git-common-dir",
-    ]).trim(),
+    gitOutput(workspace, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim(),
   );
   return {
     workspace,
@@ -156,10 +152,10 @@ function guardEvidence(paths) {
 }
 
 function guardClaimError() {
-  return Object.assign(
-    new Error("pipeline state guard is already claimed by a recovery process"),
-    { code: "E_PIPELINE_GUARD_CLAIMED", status: 409 },
-  );
+  return Object.assign(new Error("pipeline state guard is already claimed by a recovery process"), {
+    code: "E_PIPELINE_GUARD_CLAIMED",
+    status: 409,
+  });
 }
 
 function claimantPath(paths) {
@@ -270,60 +266,96 @@ function safeGuardRef(ref, allowRoot = false) {
   return !ref.split("/").some((part) => !part || part === "." || part === "..");
 }
 
-function validEntry(entry) {
-  if (!entry || typeof entry !== "object" || !safeGuardRef(entry.ref, true)) return false;
-  if (!Number.isInteger(entry.mode) || entry.mode < 0 || entry.mode > 0o7777) return false;
-  if (entry.kind === "directory") return true;
-  if (entry.kind === "symlink") return typeof entry.target === "string";
+function validFileEntry(entry) {
   return (
-    entry.kind === "file" &&
-    Number.isSafeInteger(entry.size) &&
-    entry.size >= 0 &&
-    /^[a-f0-9]{64}$/.test(entry.sha256 ?? "")
+    Number.isSafeInteger(entry.size) && entry.size >= 0 && /^[a-f0-9]{64}$/.test(entry.sha256 ?? "")
   );
 }
 
-function validateManifest(manifest) {
-  const identityKeys = [
-    "workspace",
-    "workspace_dev",
-    "workspace_ino",
-    "top_level",
-    "git_directory",
-    "git_common_directory",
-  ];
-  if (
-    manifest?.schema_version !== GUARD_SCHEMA ||
-    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(manifest?.run_id ?? "") ||
-    !Number.isSafeInteger(manifest?.owner_pid) ||
-    typeof manifest?.created_at !== "string" ||
-    !Number.isFinite(Date.parse(manifest.created_at)) ||
-    !manifest.identity ||
-    identityKeys.some((key) => typeof manifest.identity[key] !== "string") ||
-    (manifest.phase !== null && !["build", "post-build"].includes(manifest.phase)) ||
-    !safeGuardRef(manifest.control_ref) ||
-    !safeGuardRef(manifest.trace_ref) ||
-    !Array.isArray(manifest.entries) ||
-    manifest.entries.some((entry) => !validEntry(entry))
-  ) {
-    throw new Error("pipeline state guard manifest is invalid");
+function validEntryKind(entry) {
+  if (entry.kind === "directory") return true;
+  if (entry.kind === "symlink") return typeof entry.target === "string";
+  return entry.kind === "file" && validFileEntry(entry);
+}
+
+function validEntry(entry) {
+  return (
+    entry &&
+    typeof entry === "object" &&
+    safeGuardRef(entry.ref, true) &&
+    Number.isInteger(entry.mode) &&
+    entry.mode >= 0 &&
+    entry.mode <= 0o7777 &&
+    validEntryKind(entry)
+  );
+}
+
+const MANIFEST_IDENTITY_KEYS = [
+  "workspace",
+  "workspace_dev",
+  "workspace_ino",
+  "top_level",
+  "git_directory",
+  "git_common_directory",
+];
+
+function validManifestHeader(manifest) {
+  return (
+    manifest?.schema_version === GUARD_SCHEMA &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(manifest.run_id ?? "") &&
+    Number.isSafeInteger(manifest.owner_pid) &&
+    validManifestTimestamp(manifest.created_at) &&
+    validManifestIdentity(manifest.identity) &&
+    (manifest.phase === null || ["build", "post-build"].includes(manifest.phase)) &&
+    safeGuardRef(manifest.control_ref) &&
+    safeGuardRef(manifest.trace_ref)
+  );
+}
+
+function validManifestTimestamp(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function validManifestIdentity(identity) {
+  return (
+    Boolean(identity) && MANIFEST_IDENTITY_KEYS.every((key) => typeof identity[key] === "string")
+  );
+}
+
+function manifestEntryMap(manifest) {
+  if (!Array.isArray(manifest.entries) || manifest.entries.some((entry) => !validEntry(entry))) {
+    return null;
   }
   const byRef = new Map(manifest.entries.map((entry) => [entry.ref, entry]));
+  return byRef.size === manifest.entries.length ? byRef : null;
+}
+
+function validManifestStructure(manifest, byRef) {
   if (
-    byRef.size !== manifest.entries.length ||
     byRef.get("")?.kind !== "directory" ||
     byRef.get(manifest.control_ref)?.kind !== "file" ||
     byRef.get(manifest.trace_ref)?.kind !== "file"
   ) {
-    throw new Error("pipeline state guard manifest structure is invalid");
+    return false;
   }
-  for (const entry of manifest.entries.filter((item) => item.ref)) {
-    const parent = entry.ref.includes("/")
-      ? entry.ref.slice(0, entry.ref.lastIndexOf("/"))
-      : "";
-    if (byRef.get(parent)?.kind !== "directory") {
-      throw new Error(`pipeline state guard entry has no guarded parent: ${entry.ref}`);
-    }
+  return manifest.entries
+    .filter((entry) => entry.ref)
+    .every((entry) => {
+      const parent = entry.ref.includes("/") ? entry.ref.slice(0, entry.ref.lastIndexOf("/")) : "";
+      return byRef.get(parent)?.kind === "directory";
+    });
+}
+
+function validateManifest(manifest) {
+  if (!validManifestHeader(manifest)) {
+    throw new Error("pipeline state guard manifest is invalid");
+  }
+  const byRef = manifestEntryMap(manifest);
+  if (!byRef) {
+    throw new Error("pipeline state guard manifest is invalid");
+  }
+  if (!validManifestStructure(manifest, byRef)) {
+    throw new Error("pipeline state guard manifest structure is invalid");
   }
 }
 
@@ -401,7 +433,7 @@ function safeRuntimeFile(pipelineRoot, ref) {
 
 function snapshotFile(activePath, manifest, ref) {
   const entry = manifest.entries.find((item) => item.ref === ref);
-  if (!entry || entry.kind !== "file") return null;
+  if (entry?.kind !== "file") return null;
   const pathValue = resolve(activePath, "payload", ref);
   const payloadRoot = resolve(activePath, "payload");
   let current = payloadRoot;
@@ -590,112 +622,132 @@ export function ensureRuntimeStateReadable(workspaceRoot, { expectedRunId = null
 }
 
 /** Restores tampered state, preserves only validated stop transitions, and verifies the result. */
-export function reconcileRuntimeStateGuard(
-  workspaceRoot,
-  {
-    allowedRefs = [],
-    recovery = false,
-    expectedRunId = null,
-    afterClaim = null,
-    afterPipelineRemoval = null,
-  } = {},
-) {
+function assertReconcileSeams({ afterClaim, afterPipelineRemoval }) {
   if (afterClaim !== null && typeof afterClaim !== "function") {
     throw new Error("pipeline state guard afterClaim seam must be a function");
   }
   if (afterPipelineRemoval !== null && typeof afterPipelineRemoval !== "function") {
     throw new Error("pipeline state guard afterPipelineRemoval seam must be a function");
   }
+}
+
+function claimedManifest(paths, claim, expectedRunId, recovery, afterClaim) {
+  afterClaim?.({ claimPath: claim.path });
+  const manifest = readManifest(claim.path);
+  assertRepositoryIdentity(manifest.identity, paths.identity);
+  if (expectedRunId && manifest.run_id !== expectedRunId) {
+    throw new Error("pipeline state guard run identity does not match the active run");
+  }
+  if (recovery && processAlive(manifest.owner_pid)) {
+    releaseClaimForRetry(paths, claim.path);
+    throw new Error("pipeline state guard belongs to a process that may still be active");
+  }
+  return manifest;
+}
+
+function guardedRuntimeState(claimPath, manifest, pipelineRoot, allowedRefs) {
+  let transition = null;
+  let transitionError = null;
+  try {
+    transition = concurrentTransition(claimPath, manifest, pipelineRoot);
+  } catch (error) {
+    transitionError = error;
+  }
+  const ignored = new Set([...allowedRefs, manifest.control_ref, manifest.trace_ref]);
+  let changed = [];
+  let currentError = null;
+  try {
+    const entries = currentEntries(pipelineRoot);
+    changed = changedEntries(manifest.entries, entries, ignored);
+    const current = entryMap(entries);
+    for (const ref of allowedRefs) {
+      const entry = current.get(ref);
+      if (entry && !entry.startsWith("file:")) changed.push(ref);
+    }
+  } catch (error) {
+    currentError = error;
+  }
+  return { changed, currentError, transition, transitionError };
+}
+
+function restoreRuntimeTransition(pipelineRoot, manifest, transition) {
+  if (!transition?.changed) return new Set();
+  replaceRuntimeFile(pipelineRoot, manifest.control_ref, transition.control);
+  replaceRuntimeFile(pipelineRoot, manifest.trace_ref, transition.trace);
+  return new Set([manifest.control_ref, manifest.trace_ref]);
+}
+
+function removeRecoveryLock(pipelineRoot, manifest, verificationIgnored, recovery) {
+  if (!recovery) return;
+  const lockRef = staleLockRef(manifest);
+  const lockPath = resolve(pipelineRoot, lockRef);
+  if (existsSync(lockPath)) unlinkSync(lockPath);
+  verificationIgnored.add(lockRef);
+}
+
+function restoredGuardResult(manifest, recovery, state) {
+  if (recovery) return { found: true, restored: true, tampered: false, runId: manifest.run_id };
+  return {
+    found: true,
+    restored: true,
+    tampered: true,
+    changed: [...new Set(state.changed)].sort(),
+    detail: state.transitionError?.message ?? state.currentError?.message ?? null,
+  };
+}
+
+function restoreGuardedRuntime(claim, manifest, pipelineRoot, state, options) {
+  restoreSnapshot(claim.path, manifest, pipelineRoot, options.afterPipelineRemoval);
+  const verificationIgnored = restoreRuntimeTransition(pipelineRoot, manifest, state.transition);
+  removeRecoveryLock(pipelineRoot, manifest, verificationIgnored, options.recovery);
+  const residual = changedEntries(
+    manifest.entries,
+    currentEntries(pipelineRoot),
+    verificationIgnored,
+  );
+  if (residual.length > 0) {
+    throw new Error(
+      `pipeline state restoration could not be verified: ${residual.slice(0, 8).join(", ")}`,
+    );
+  }
+  rmSync(claim.path, { recursive: true, force: true });
+  return restoredGuardResult(manifest, options.recovery, state);
+}
+
+export function reconcileRuntimeStateGuard(workspaceRoot, options = {}) {
+  const {
+    allowedRefs = [],
+    recovery = false,
+    expectedRunId = null,
+    afterClaim = null,
+    afterPipelineRemoval = null,
+  } = options;
+  assertReconcileSeams({ afterClaim, afterPipelineRemoval });
   const paths = guardPaths(workspaceRoot);
-  const { identity } = paths;
   const claim = acquireGuardClaim(paths);
   if (!claim.found) return { found: false, restored: false, tampered: false };
   try {
-    afterClaim?.({ claimPath: claim.path });
-    const manifest = readManifest(claim.path);
-    assertRepositoryIdentity(manifest.identity, identity);
-    if (expectedRunId && manifest.run_id !== expectedRunId) {
-      throw new Error("pipeline state guard run identity does not match the active run");
-    }
-    if (recovery && processAlive(manifest.owner_pid)) {
-      releaseClaimForRetry(paths, claim.path);
-      throw new Error("pipeline state guard belongs to a process that may still be active");
-    }
-
-    const pipelineRoot = resolve(identity.workspace, ".pipeline");
-    let transition = null;
-    let transitionError = null;
-    try {
-      transition = concurrentTransition(claim.path, manifest, pipelineRoot);
-    } catch (error) {
-      transitionError = error;
-    }
-
-    const ignored = new Set([
-      ...allowedRefs,
-      manifest.control_ref,
-      manifest.trace_ref,
-    ]);
-    let changed = [];
-    let currentError = null;
-    try {
-      changed = changedEntries(manifest.entries, currentEntries(pipelineRoot), ignored);
-      for (const ref of allowedRefs) {
-        const entry = entryMap(currentEntries(pipelineRoot)).get(ref);
-        if (entry && !entry.startsWith("file:")) changed.push(ref);
-      }
-    } catch (error) {
-      currentError = error;
-    }
+    const manifest = claimedManifest(paths, claim, expectedRunId, recovery, afterClaim);
+    const pipelineRoot = resolve(paths.identity.workspace, ".pipeline");
+    const runtimeState = guardedRuntimeState(claim.path, manifest, pipelineRoot, allowedRefs);
     const tampered =
-      recovery || Boolean(transitionError) || Boolean(currentError) || changed.length > 0;
+      recovery ||
+      Boolean(runtimeState.transitionError) ||
+      Boolean(runtimeState.currentError) ||
+      runtimeState.changed.length > 0;
     if (!tampered) {
       rmSync(claim.path, { recursive: true, force: true });
       return {
         found: true,
         restored: false,
         tampered: false,
-        concurrentStop: transition?.changed,
+        concurrentStop: runtimeState.transition?.changed,
       };
     }
-
-    restoreSnapshot(claim.path, manifest, pipelineRoot, afterPipelineRemoval);
-    if (transition && transition.changed) {
-      replaceRuntimeFile(pipelineRoot, manifest.control_ref, transition.control);
-      replaceRuntimeFile(pipelineRoot, manifest.trace_ref, transition.trace);
-    }
-    const verificationIgnored = new Set();
-    if (transition?.changed) {
-      verificationIgnored.add(manifest.control_ref);
-      verificationIgnored.add(manifest.trace_ref);
-    }
-    if (recovery) {
-      const lockRef = staleLockRef(manifest);
-      const lockPath = resolve(pipelineRoot, lockRef);
-      if (existsSync(lockPath)) unlinkSync(lockPath);
-      verificationIgnored.add(lockRef);
-    }
-    const residual = changedEntries(
-      manifest.entries,
-      currentEntries(pipelineRoot),
-      verificationIgnored,
-    );
-    if (residual.length > 0) {
-      throw new Error(
-        `pipeline state restoration could not be verified: ${residual.slice(0, 8).join(", ")}`,
-      );
-    }
-    rmSync(claim.path, { recursive: true, force: true });
-    if (recovery) {
-      return { found: true, restored: true, tampered: false, runId: manifest.run_id };
-    }
-    return {
-      found: true,
-      restored: true,
-      tampered: true,
-      changed: [...new Set(changed)].sort(),
-      detail: transitionError?.message ?? currentError?.message ?? null,
-    };
+    return restoreGuardedRuntime(claim, manifest, pipelineRoot, runtimeState, {
+      afterPipelineRemoval,
+      recovery,
+    });
   } catch (error) {
     try {
       releaseClaimForRetry(paths, claim.path);

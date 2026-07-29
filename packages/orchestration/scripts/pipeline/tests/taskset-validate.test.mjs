@@ -1,3 +1,4 @@
+/** Verifies taskset validation accepts only schema-conforming input. */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

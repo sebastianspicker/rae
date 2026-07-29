@@ -11,6 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { resolveWorkspaceRootForRun } from "../lib/state.mjs";
@@ -169,8 +170,6 @@ describe("pipeline-init worktree isolation", () => {
       run("bash", [PIPELINE_INIT, "--cleanup-worktree", workspaceRoot], REPO_ROOT).status,
     ).toBe(0);
   });
-});
-
   it("refuses cleanup for an unowned or dirty worktree", () => {
     const repoRoot = makeGitRepo();
     const unowned = join(repoRoot, "unowned");

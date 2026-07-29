@@ -1,3 +1,4 @@
+/** Verifies command-line parsing rejects unsafe object keys. */
 import { describe, expect, it } from "vitest";
 import { parseArgs } from "../../lib/argv.mjs";
 

@@ -135,9 +135,7 @@ describe("runtime pipeline-state guard", () => {
     expect(() => ensureRuntimeStateReadable(root, { expectedRunId: RUN_ID })).toThrow(
       /phase build is guarded and may still be active/,
     );
-    expect(readFileSync(join(root, ".pipeline", "pipeline-state.json"), "utf8")).toBe(
-      "poisoned\n",
-    );
+    expect(readFileSync(join(root, ".pipeline", "pipeline-state.json"), "utf8")).toBe("poisoned\n");
   });
 
   it("restores bytes, modes, deletions, additions, symlinks, and the pipeline root", () => {
@@ -189,9 +187,10 @@ describe("runtime pipeline-state guard", () => {
     const result = reconcileRuntimeStateGuard(root, { expectedRunId: RUN_ID });
 
     expect(result).toMatchObject({ tampered: false, concurrentStop: true });
-    expect(
-      JSON.parse(readFileSync(join(runDir, "operator-control.json"), "utf8")),
-    ).toMatchObject({ status: "stop-requested", stop_requested: true });
+    expect(JSON.parse(readFileSync(join(runDir, "operator-control.json"), "utf8"))).toMatchObject({
+      status: "stop-requested",
+      stop_requested: true,
+    });
     expect(readFileSync(join(runDir, "trace.jsonl"), "utf8")).toContain(
       '"event":"run_stop_requested"',
     );
@@ -209,9 +208,7 @@ describe("runtime pipeline-state guard", () => {
     const result = ensureRuntimeStateReadable(root, { expectedRunId: RUN_ID });
 
     expect(result).toMatchObject({ found: true, restored: true, tampered: false });
-    expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe(
-      '{"task":"original"}\n',
-    );
+    expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe('{"task":"original"}\n');
     expect(existsSync(join(runDir, "autonomous.lock"))).toBe(false);
     expect(existsSync(guardPath)).toBe(false);
   });
@@ -241,9 +238,7 @@ describe("runtime pipeline-state guard", () => {
     expect(
       reconcileRuntimeStateGuard(root, { recovery: true, expectedRunId: RUN_ID }),
     ).toMatchObject({ found: true, restored: true, tampered: false });
-    expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe(
-      '{"task":"original"}\n',
-    );
+    expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe('{"task":"original"}\n');
   });
 
   it("fails closed while the recorded guard owner may still be active", () => {
@@ -267,21 +262,16 @@ describe("runtime pipeline-state guard", () => {
     );
     try {
       await waitForFile(ready);
-      const second = spawnSync(
-        process.execPath,
-        [RECOVERY_FIXTURE, "recover", root, RUN_ID],
-        { encoding: "utf8", timeout: 5_000 },
-      );
+      const second = spawnSync(process.execPath, [RECOVERY_FIXTURE, "recover", root, RUN_ID], {
+        encoding: "utf8",
+        timeout: 5_000,
+      });
       expect(second.status).toBe(2);
       expect(second.stderr).toContain("E_PIPELINE_GUARD_CLAIMED");
-      expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe(
-        '{"task":"poisoned"}\n',
-      );
+      expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe('{"task":"poisoned"}\n');
       writeFileSync(release, "release\n");
       expect(await childExit(first)).toMatchObject({ code: 0, signal: null });
-      expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe(
-        '{"task":"original"}\n',
-      );
+      expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe('{"task":"original"}\n');
     } finally {
       if (!existsSync(release)) writeFileSync(release, "release\n");
       if (first.exitCode === null && first.signalCode === null) first.kill("SIGKILL");
@@ -303,15 +293,12 @@ describe("runtime pipeline-state guard", () => {
     expect((await childExit(interrupted)).signal).toBe("SIGKILL");
     expect(inspectRuntimeStateGuard(root)).toMatchObject({ found: true, ownerActive: false });
 
-    const recovery = spawnSync(
-      process.execPath,
-      [RECOVERY_FIXTURE, "recover", root, RUN_ID],
-      { encoding: "utf8", timeout: 5_000 },
-    );
+    const recovery = spawnSync(process.execPath, [RECOVERY_FIXTURE, "recover", root, RUN_ID], {
+      encoding: "utf8",
+      timeout: 5_000,
+    });
     expect(recovery.status).toBe(0);
-    expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe(
-      '{"task":"original"}\n',
-    );
+    expect(readFileSync(join(runDir, "request.json"), "utf8")).toBe('{"task":"original"}\n');
     expect(inspectRuntimeStateGuard(root)).toMatchObject({ found: false });
   });
 });

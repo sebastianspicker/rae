@@ -8,16 +8,26 @@ import {
   openSync,
   readSync,
   realpathSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
-import { loadAutonomousPolicy, policyDigest, validateAutonomousPolicy } from "..\/..\/lib\/autonomous-policy.mjs";
+import {
+  loadAutonomousPolicy,
+  policyDigest,
+  validateAutonomousPolicy,
+} from "..\/..\/lib\/autonomous-policy.mjs";
 import { getRunDir, readJsonStrict, writeJson } from "./state.mjs";
 import { checkpointPolicy } from "./operator-control.mjs";
-import { assertGitRepository, changedPaths, gitOutput, gitStateSnapshot, requireDirectory, runProcess } from "./autonomous-git.mjs";
+import {
+  assertGitRepository,
+  changedPaths,
+  gitOutput,
+  gitStateSnapshot,
+  requireDirectory,
+  runProcess,
+} from "./autonomous-git.mjs";
 import { reconcileRuntimeStateGuard } from "./runtime-state-guard.mjs";
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const PIPELINE_INIT = resolve(PACKAGE_ROOT, "scripts/pipeline-init.sh");
@@ -38,9 +48,10 @@ function assertCleanForInPlace(root) {
 }
 
 function parseInitField(output, field) {
-  const match = output.match(new RegExp(`^\\s*${field}:\\s*(.+)$`, "m"));
-  if (!match) throw new Error(`pipeline initialization did not report ${field}`);
-  return match[1].trim();
+  const prefix = `${field}:`;
+  const line = output.split("\n").find((item) => item.trimStart().startsWith(prefix));
+  if (!line) throw new Error(`pipeline initialization did not report ${field}`);
+  return line.trimStart().slice(prefix.length).trim();
 }
 
 function initializeRun(projectRoot, inPlace) {
@@ -101,24 +112,31 @@ function readBoundedTask(descriptor, io) {
   return buffer.subarray(0, offset);
 }
 
-/** Accepts a descriptor-bound, bounded repository-local Markdown or text task file. */
-export function safeTaskFile(pathValue, projectRoot, fsSeam = {}) {
-  const io = { ...TASK_FILE_IO, ...fsSeam };
+function taskPathSegments(pathValue) {
   if (typeof pathValue !== "string" || pathValue.length === 0 || isAbsolute(pathValue)) {
     throw new Error("--task-file must be a relative path under the project root");
   }
-  const normalized = pathValue.replaceAll("\\", "/");
-  const segments = normalized.split("/");
+  const segments = pathValue.replaceAll("\\", "/").split("/");
   if (segments.some((segment) => !segment || segment === "." || segment === "..")) {
     throw new Error("--task-file must not contain empty or traversal path segments");
   }
   if (segments.some(protectedTaskSegment)) {
     throw new Error(`refusing to read a protected credential task path: ${pathValue}`);
   }
+  return segments;
+}
+
+function safeTaskPath(pathValue, projectRoot, io) {
+  const segments = taskPathSegments(pathValue);
   const canonicalRoot = io.realpathSync(projectRoot);
   const candidate = resolve(canonicalRoot, ...segments);
   const withinRoot = relative(canonicalRoot, candidate);
-  if (!withinRoot || withinRoot.startsWith(`..${sep}`) || withinRoot === ".." || isAbsolute(withinRoot)) {
+  if (
+    !withinRoot ||
+    withinRoot.startsWith(`..${sep}`) ||
+    withinRoot === ".." ||
+    isAbsolute(withinRoot)
+  ) {
     throw new Error("--task-file must resolve below the project root");
   }
   if (![".md", ".txt"].includes(extname(candidate).toLowerCase())) {
@@ -129,49 +147,60 @@ export function safeTaskFile(pathValue, projectRoot, fsSeam = {}) {
     throw new Error("--task-file must be a regular, non-symlink file");
   }
   const resolvedPath = io.realpathSync(candidate);
-  if (resolvedPath !== candidate) {
-    throw new Error("--task-file path must not traverse a symlink");
-  }
+  if (resolvedPath !== candidate) throw new Error("--task-file path must not traverse a symlink");
   if (protectedTaskSegment(basename(resolvedPath).toLowerCase())) {
     throw new Error(`refusing to read a protected credential task file: ${pathValue}`);
   }
   if (suppliedStat.size > BigInt(MAX_TASK_BYTES)) {
     throw new Error(`task file exceeds ${MAX_TASK_BYTES} bytes: ${pathValue}`);
   }
+  return { candidate, resolvedPath, suppliedStat };
+}
+
+function assertStableTaskPath(candidate, resolvedPath, expected, io) {
+  const current = io.lstatSync(candidate, { bigint: true });
+  if (
+    current.isSymbolicLink() ||
+    !current.isFile() ||
+    current.dev !== expected.dev ||
+    current.ino !== expected.ino ||
+    io.realpathSync(candidate) !== resolvedPath
+  ) {
+    throw new Error("--task-file path changed while it was being read");
+  }
+}
+
+function readStableTask(pathValue, taskPath, io) {
   const noFollow = fsConstants.O_NOFOLLOW ?? 0;
   let descriptor;
-  let bytes;
   try {
-    descriptor = io.openSync(resolvedPath, fsConstants.O_RDONLY | noFollow);
+    descriptor = io.openSync(taskPath.resolvedPath, fsConstants.O_RDONLY | noFollow);
     const before = io.fstatSync(descriptor, { bigint: true });
-    if (!before.isFile()) {
-      throw new Error("--task-file must be a regular, non-symlink file");
-    }
+    if (!before.isFile()) throw new Error("--task-file must be a regular, non-symlink file");
     if (before.size > BigInt(MAX_TASK_BYTES)) {
       throw new Error(`task file exceeds ${MAX_TASK_BYTES} bytes: ${pathValue}`);
     }
-    if (!sameTaskIdentity(suppliedStat, before)) {
+    if (!sameTaskIdentity(taskPath.suppliedStat, before)) {
       throw new Error("--task-file changed before its descriptor was opened");
     }
-    io.afterOpen?.({ candidate, descriptor });
-    bytes = readBoundedTask(descriptor, io);
+    io.afterOpen?.({ candidate: taskPath.candidate, descriptor });
+    const bytes = readBoundedTask(descriptor, io);
     const after = io.fstatSync(descriptor, { bigint: true });
     if (!sameTaskIdentity(before, after) || after.size !== BigInt(bytes.length)) {
       throw new Error("--task-file changed while it was being read");
     }
-    const currentPathStat = io.lstatSync(candidate, { bigint: true });
-    if (
-      currentPathStat.isSymbolicLink() ||
-      !currentPathStat.isFile() ||
-      currentPathStat.dev !== after.dev ||
-      currentPathStat.ino !== after.ino ||
-      io.realpathSync(candidate) !== resolvedPath
-    ) {
-      throw new Error("--task-file path changed while it was being read");
-    }
+    assertStableTaskPath(taskPath.candidate, taskPath.resolvedPath, after, io);
+    return bytes;
   } finally {
     if (descriptor !== undefined) io.closeSync(descriptor);
   }
+}
+
+/** Accepts a descriptor-bound, bounded repository-local Markdown or text task file. */
+export function safeTaskFile(pathValue, projectRoot, fsSeam = {}) {
+  const io = { ...TASK_FILE_IO, ...fsSeam };
+  const taskPath = safeTaskPath(pathValue, projectRoot, io);
+  const bytes = readStableTask(pathValue, taskPath, io);
   let task;
   try {
     task = new TextDecoder("utf-8", { fatal: true }).decode(bytes).trim();
@@ -184,14 +213,31 @@ export function safeTaskFile(pathValue, projectRoot, fsSeam = {}) {
 
 function protectedTaskSegment(segment) {
   const name = segment.toLowerCase();
-  return name === ".env" || name.startsWith(".env.") || /\.(?:key|pem|p12|pfx)$/.test(name) || ["auth.json", ".git-credentials", ".netrc", ".npmrc", ".pypirc", "id_rsa", "id_rsa.pub", "id_ed25519", "id_ed25519.pub"].includes(name) || [".git", ".ssh", ".aws", ".azure", ".docker", ".gnupg", ".kube"].includes(name);
+  return (
+    name === ".env" ||
+    name.startsWith(".env.") ||
+    /\.(?:key|pem|p12|pfx)$/.test(name) ||
+    [
+      "auth.json",
+      ".git-credentials",
+      ".netrc",
+      ".npmrc",
+      ".pypirc",
+      "id_rsa",
+      "id_rsa.pub",
+      "id_ed25519",
+      "id_ed25519.pub",
+    ].includes(name) ||
+    [".git", ".ssh", ".aws", ".azure", ".docker", ".gnupg", ".kube"].includes(name)
+  );
 }
 
 function resolveTask(options, projectRoot) {
   if (options.task && options["task-file"]) {
     throw new Error("use exactly one of --task or --task-file");
   }
-  const task = options.task ?? (options["task-file"] ? safeTaskFile(options["task-file"], projectRoot) : "");
+  const task =
+    options.task ?? (options["task-file"] ? safeTaskFile(options["task-file"], projectRoot) : "");
   if (!task.trim()) throw new Error("run requires --task <text> or --task-file <path>");
   if (Buffer.byteLength(task, "utf8") > MAX_TASK_BYTES) {
     throw new Error(`task exceeds ${MAX_TASK_BYTES} bytes`);
@@ -235,11 +281,17 @@ export function mergeResumeOptions(saved, supplied) {
 }
 
 export function assertResumeCheckpointPolicy(saved, supplied) {
-  if (supplied["checkpoint-policy"] && supplied["checkpoint-policy"] !== saved["checkpoint-policy"]) throw new Error("checkpoint policy is immutable for an existing autonomous run");
+  if (supplied["checkpoint-policy"] && supplied["checkpoint-policy"] !== saved["checkpoint-policy"])
+    throw new Error("checkpoint policy is immutable for an existing autonomous run");
 }
 
 function resetProviderOptions(saved) {
-  return { ...saved, "agent-command": undefined, agentArgs: [], "allow-unsafe-command-provider": false };
+  return {
+    ...saved,
+    "agent-command": undefined,
+    agentArgs: [],
+    "allow-unsafe-command-provider": false,
+  };
 }
 
 /**
@@ -300,7 +352,10 @@ function resumeContext(projectRoot, options) {
   if (state.run_id !== options["run-id"]) {
     throw new Error(`run-id mismatch: workspace has ${state.run_id}`);
   }
-  const initialGitStatePath = resolve(getRunDir(state.run_id, projectRoot), "initial-git-state.json");
+  const initialGitStatePath = resolve(
+    getRunDir(state.run_id, projectRoot),
+    "initial-git-state.json",
+  );
   if (!existsSync(initialGitStatePath)) {
     throw new Error(
       `resume requires the initial Git-state snapshot at ${initialGitStatePath}; start a new run instead`,
@@ -341,7 +396,10 @@ function newRunContext(projectRoot, options) {
   const resolvedPolicy = loadAutonomousPolicy(options.policy);
   const initialized = initializeRun(projectRoot, options["in-place"] === true);
   const runDir = resolve(initialized.workspaceRoot, ".pipeline", "runs", initialized.runId);
-  writeJson(resolve(runDir, "request.json"), newRunRequest(task, projectRoot, initialized, options, resolvedPolicy));
+  writeJson(
+    resolve(runDir, "request.json"),
+    newRunRequest(task, projectRoot, initialized, options, resolvedPolicy),
+  );
   const gitStatePath = resolve(runDir, "initial-git-state.json");
   writeJson(gitStatePath, gitStateSnapshot(initialized.workspaceRoot));
   return {
@@ -381,7 +439,9 @@ function requestedAgent(options) {
   };
 }
 
-function agentCommand(options) { return { command: options["agent-command"] ?? null }; }
+function agentCommand(options) {
+  return { command: options["agent-command"] ?? null };
+}
 function agentTuning(options) {
   return {
     model: options.model ?? null,

@@ -54,46 +54,46 @@ const successfulEvents = [
 ];
 
 const rejectedEvents = [
-    [
-      "irrelevant",
-      {
-        command: "pwd",
-        working_directory: ".",
-        phase: "quality-tests",
-        exit_code: 0,
-        successful: true,
-      },
-    ],
-    [
-      "failed",
-      {
-        command: "npm test",
-        working_directory: ".",
-        phase: "quality-tests",
-        exit_code: 1,
-        successful: false,
-      },
-    ],
-    [
-      "wrong-directory",
-      {
-        command: "npm test",
-        working_directory: "packages/other",
-        phase: "quality-tests",
-        exit_code: 0,
-        successful: true,
-      },
-    ],
-    [
-      "wrong-phase",
-      {
-        command: "npm test",
-        working_directory: ".",
-        phase: "quality-static",
-        exit_code: 0,
-        successful: true,
-      },
-    ],
+  [
+    "irrelevant",
+    {
+      command: "pwd",
+      working_directory: ".",
+      phase: "quality-tests",
+      exit_code: 0,
+      successful: true,
+    },
+  ],
+  [
+    "failed",
+    {
+      command: "npm test",
+      working_directory: ".",
+      phase: "quality-tests",
+      exit_code: 1,
+      successful: false,
+    },
+  ],
+  [
+    "wrong-directory",
+    {
+      command: "npm test",
+      working_directory: "packages/other",
+      phase: "quality-tests",
+      exit_code: 0,
+      successful: true,
+    },
+  ],
+  [
+    "wrong-phase",
+    {
+      command: "npm test",
+      working_directory: ".",
+      phase: "quality-static",
+      exit_code: 0,
+      successful: true,
+    },
+  ],
 ];
 
 function acceptsExactPlannedCommands() {
@@ -219,7 +219,10 @@ describe("Codex command evidence", () => {
     acceptsExactPlannedCommands,
   );
   it.each(rejectedEvents)("rejects %s command evidence", rejectsCommandEvidence);
-  it("requires every test-role command rather than accepting one of many", requiresEveryTestCommand);
+  it(
+    "requires every test-role command rather than accepting one of many",
+    requiresEveryTestCommand,
+  );
   it("does not treat a static-only command as quality-test evidence", rejectsStaticOnlyCommand);
   it("preserves whitespace inside quoted command arguments", preservesQuotedWhitespace);
 });
