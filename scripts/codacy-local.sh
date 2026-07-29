@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Runs the pinned local Codacy policy and adapter suite.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

@@ -11,7 +11,9 @@ restore_remotes_from_backup() {
     if [[ " $added_names " != *" $remote_name "* ]]; then
       git -C "$repo_path" remote add "$remote_name" "$url" 2>/dev/null || true
       added_names="$added_names $remote_name"
-      [[ "$kind" == "push" ]] && git -C "$repo_path" remote set-url --push "$remote_name" "$url" 2>/dev/null || true
+      if [[ "$kind" == "push" ]]; then
+        git -C "$repo_path" remote set-url --push "$remote_name" "$url" 2>/dev/null || true
+      fi
     elif [[ "$kind" == "fetch" ]]; then
       git -C "$repo_path" remote set-url --add "$remote_name" "$url" 2>/dev/null || true
     else
@@ -317,9 +319,12 @@ push_rewritten_branch() {
 
 check_target_trailers() {
   local repo_path="$1"
-  local branch="${2:-${CURRENT_BRANCH:-}}"
+  local branch="${2:-}"
   local scan_rc=0
   local messages_file
+  if [[ -z "$branch" ]]; then
+    branch="${CURRENT_BRANCH:-}"
+  fi
   if [[ -z "$branch" ]]; then
     branch="$(git -C "$repo_path" symbolic-ref --quiet --short HEAD)" || return 1
   fi
@@ -329,17 +334,19 @@ check_target_trailers() {
     log_warn "Could not scan rewritten branch: $branch"
     return 1
   fi
-  if "$PYTHON_BIN" - "$TARGETS_JSON" "$messages_file" <<'PY'
+  if "$PYTHON_BIN" -c '
 import json
 import re
 import sys
 
 text = open(sys.argv[2], "rb").read().decode("utf-8", errors="ignore")
 for target in json.loads(sys.argv[1]):
-    pattern = rf'(?im)^Co-authored-by:\s*{re.escape(target["name"])}\s*<{re.escape(target["email"])}>\s*$'
+    name = re.escape(target["name"])
+    email = re.escape(target["email"])
+    pattern = rf"(?im)^Co-authored-by:\s*{name}\s*<{email}>\s*$"
     if re.search(pattern, text):
         raise SystemExit(1)
-PY
+' "$TARGETS_JSON" "$messages_file"
   then
     scan_rc=0
   else

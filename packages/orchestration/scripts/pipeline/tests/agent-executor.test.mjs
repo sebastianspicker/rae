@@ -44,7 +44,7 @@ function fakeCodexRuntime(events = []) {
       'const fs = require("node:fs");',
       "const args = process.argv.slice(2);",
       'const prompt = fs.readFileSync(0, "utf8");',
-      'if (process.env.RAE_TEST_UNKNOWN_SECRET) process.exit(23);',
+      "if (process.env.RAE_TEST_UNKNOWN_SECRET) process.exit(23);",
       'if (prompt.includes("ENV_PROBE") && process.env.OPENAI_API_KEY !== "allowed-auth") process.exit(24);',
       'if (prompt.includes("ENV_PROBE") && process.env.CODEX_INTERNAL_ORIGINATOR_OVERRIDE !== "codex_cli_rs") process.exit(25);',
       'const outputIndex = args.indexOf("--output-last-message");',

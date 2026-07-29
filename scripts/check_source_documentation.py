@@ -29,7 +29,7 @@ def git_candidate_paths() -> list[pathlib.Path]:
     git_bin = shutil.which("git")
     if git_bin is None:
         raise ValueError("git is required for source-documentation checks")
-    completed = subprocess.run(  # noqa: S603
+    completed = subprocess.run(  # nosec B603
         [git_bin, "ls-files", "-co", "--exclude-standard", "-z"],
         cwd=ROOT,
         check=True,

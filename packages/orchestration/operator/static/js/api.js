@@ -17,15 +17,15 @@ export async function api(path, options = {}) {
   const text = await response.text();
   const payload = text ? JSON.parse(text) : null;
   if (!response.ok) {
-    throw Object.assign(new Error(payload?.error?.message || `Request failed (${response.status})`), {
-      status: response.status,
-    });
+    const error = new Error(payload?.error?.message || `Request failed (${response.status})`);
+    error.status = response.status;
+    throw error;
   }
   return payload;
 }
 
 export function showToast(message, toneValue = "error") {
-  const toast = elements["toast"];
+  const toast = elements.toast;
   toast.hidden = false;
   toast.dataset.tone = toneValue;
   toast.textContent = message;
@@ -40,9 +40,16 @@ export function showError(error) {
 }
 
 export function setConnection(stateValue, label, detail = "Local session") {
-  elements["connection-status"].dataset.state = stateValue;
-  elements["connection-status"].innerHTML = `
-    <span class="session-state__dot" aria-hidden="true"></span>
-    <span><strong>${label}</strong><small>${detail}</small></span>
-  `;
+  const status = elements["connection-status"];
+  const dot = document.createElement("span");
+  const copy = document.createElement("span");
+  const title = document.createElement("strong");
+  const description = document.createElement("small");
+  status.dataset.state = stateValue;
+  dot.className = "session-state__dot";
+  dot.setAttribute("aria-hidden", "true");
+  title.textContent = label;
+  description.textContent = detail;
+  copy.append(title, description);
+  status.replaceChildren(dot, copy);
 }

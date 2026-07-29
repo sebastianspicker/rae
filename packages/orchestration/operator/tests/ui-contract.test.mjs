@@ -45,7 +45,7 @@ test("operator UI implements the Evidence Dossier shell and complete control sur
     "Escalate",
     "Start a bounded run",
   ]) {
-    assert.match(html, new RegExp(copy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.ok(html.includes(copy));
   }
   for (const id of [
     "project-select",
@@ -72,8 +72,8 @@ test("operator UI implements the Evidence Dossier shell and complete control sur
     "toggle-search",
     "cycle-filter",
   ]) {
-    assert.match(html, new RegExp(`id="${id}"`));
-    assert.match(app, new RegExp(`"${id}"`));
+    assert.ok(html.includes(`id="${id}"`));
+    assert.ok(app.includes(`"${id}"`));
   }
   assert.doesNotMatch(html, /\sstyle=|\sonclick=|<script(?![^>]*src=)/);
   assert.match(html, /class="runboard"/);
@@ -98,8 +98,14 @@ test("every named element binding exists in the document and registry", () => {
   const referencedIds = new Set(
     [...app.matchAll(/elements\["([^"]+)"\]/g)].map((match) => match[1]),
   );
-  assert.deepEqual([...referencedIds].filter((id) => !htmlIds.has(id)), []);
-  assert.deepEqual([...referencedIds].filter((id) => !registryIds.has(id)), []);
+  assert.deepEqual(
+    [...referencedIds].filter((id) => !htmlIds.has(id)),
+    [],
+  );
+  assert.deepEqual(
+    [...referencedIds].filter((id) => !registryIds.has(id)),
+    [],
+  );
 });
 
 test("operator UI maps Evidence Dossier metrics and evidence to projected API data", () => {

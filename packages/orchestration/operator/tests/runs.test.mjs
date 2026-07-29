@@ -60,7 +60,7 @@ function createDiscoverableRun() {
 }
 
 test("durable discovery projects run state without exposing raw trace metadata", () => {
-  const { root, runId } = createDiscoverableRun();
+  const { root } = createDiscoverableRun();
 
   const project = { id: "project_12345678", root, label: root };
   const runs = discoverRuns(project);

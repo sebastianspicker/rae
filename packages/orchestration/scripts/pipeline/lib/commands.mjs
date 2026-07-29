@@ -5,13 +5,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 import { badInput } from "./errors.mjs";
-import { renderRunSummary, runSummaryView } from "./commands-summary-run.mjs";
-import {
-  buildProgressArtifact,
-  progressPhases,
-  progressView,
-  renderProgressSummary,
-} from "./commands-summary-progress.mjs";
 import { assertReviewTransition, defaultReviewLoop, reviewLoopPath } from "./commands-review.mjs";
 import { printUsage as printUsageImpl } from "./commands-usage.mjs";
 import {
@@ -266,7 +259,10 @@ function renderRunSummaryText(view) {
     `cost_usd: ${valueOr(summary.total_cost_usd, 0)}`,
     `tokens: in=${valueOr(summary.total_tokens_in, 0)} out=${valueOr(summary.total_tokens_out, 0)}`,
     issues.length > 0 ? `issues (${issues.length}):` : "issues: none",
-    ...optionalLines(issues.length > 0, issues.map((issue) => `  - ${issue}`)),
+    ...optionalLines(
+      issues.length > 0,
+      issues.map((issue) => `  - ${issue}`),
+    ),
     phaseLines.length > 0 ? "phase_durations_ms:" : "phase_durations_ms: none",
     ...phaseLines,
     "",
@@ -378,7 +374,10 @@ function renderProgressText(runId, artifact) {
     `gates: pass=${gateTotals.pass} warn=${gateTotals.warn} fail=${gateTotals.fail} pending=${gateTotals.pending}`,
     `next_action: ${artifact.next_action}`,
     blockers.length > 0 ? `blockers (${blockers.length}):` : "blockers: none",
-    ...optionalLines(blockers.length > 0, blockers.map((blocker) => `  - ${blocker}`)),
+    ...optionalLines(
+      blockers.length > 0,
+      blockers.map((blocker) => `  - ${blocker}`),
+    ),
     "phase_status:",
     ...artifact.phase_status.map(
       (entry) => `  - ${entry.phase}: ${entry.status} (gate=${entry.gate_status})`,
@@ -439,10 +438,24 @@ function emitProgressSummary({ format, outputRef, root, runId, jsonPayload, text
     const outputAbs = resolveWithinRepo(outputRef, root);
     mkdirSync(dirname(outputAbs), { recursive: true });
     const rendered =
-      format === "json" ? `${JSON.stringify(jsonPayload, null, 2)}\n` : format === "text" ? text : markdown;
+      format === "json"
+        ? `${JSON.stringify(jsonPayload, null, 2)}\n`
+        : format === "text"
+          ? text
+          : markdown;
     writeFileSync(outputAbs, rendered, "utf8");
     process.stdout.write(
-      format === "json" ? `${JSON.stringify(jsonPayload, null, 2)}\n` : rendered,
+      `${JSON.stringify(
+        {
+          success: true,
+          run_id: runId,
+          progress_ref: "progress.summary.json",
+          format,
+          output_ref: toWorkspaceRelative(outputAbs, root),
+        },
+        null,
+        2,
+      )}\n`,
     );
     return;
   }

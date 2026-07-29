@@ -1,3 +1,4 @@
+/** Verifies aggregate evaluation rejects unsafe object keys and paths. */
 import { describe, expect, it } from "vitest";
 import { aggregateMetrics, gatePassRate } from "../../eval/aggregate.mjs";
 

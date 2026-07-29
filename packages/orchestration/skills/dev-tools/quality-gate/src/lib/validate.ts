@@ -52,7 +52,10 @@ export function compileSchema(
 }
 
 export function formatValidationResult(
-  validateFn: { (artifact: Record<string, unknown>): boolean; errors?: Array<{ instancePath?: string; message?: string }> | null },
+  validateFn: {
+    (artifact: Record<string, unknown>): boolean;
+    errors?: Array<{ instancePath?: string; message?: string }> | null;
+  },
   artifact: Record<string, unknown>,
 ): SchemaValidationResult {
   const valid = validateFn(artifact);

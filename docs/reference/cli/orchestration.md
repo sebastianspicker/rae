@@ -71,10 +71,10 @@ state.
 
 ## Package references
 
-- [Package README](../../../packages/orchestration/README.md)
-- [Runbook](../../../packages/orchestration/docs/RUNBOOK.md)
-- [Platform support](../../../packages/orchestration/docs/PLATFORMS.md)
-- [Repository map](../../../packages/orchestration/docs/REPO_MAP.md)
+- [Package README](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/README.md)
+- [Runbook](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/RUNBOOK.md)
+- [Platform support](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/PLATFORMS.md)
+- [Repository map](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/REPO_MAP.md)
 
 ## Source note
 

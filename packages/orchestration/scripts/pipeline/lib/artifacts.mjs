@@ -6,7 +6,11 @@
  * --input-artifact and then validated by the same gate path.
  */
 import { badInput } from "./errors.mjs";
-import { buildQualityArtifact, buildReleaseReadinessArtifact } from "./artifact-quality-builders.mjs";
+import { buildDesignArtifact } from "./artifact-design.mjs";
+import {
+  buildQualityArtifact,
+  buildReleaseReadinessArtifact,
+} from "./artifact-quality-builders.mjs";
 import { nowIso } from "./trace.mjs";
 import { toNumber } from "./utils.mjs";
 
@@ -41,19 +45,6 @@ export function phaseArtifactDefaults(phase) {
   const schemaPhase = phase === "post-build" ? "quality-tests" : phase;
   return { artifactRef, schemaRef: DEFAULT_SCHEMA_BY_PHASE[schemaPhase] };
 }
-
-const ARTIFACT_REF_BY_PHASE = {
-  arm: "brief.json",
-  design: "design.json",
-  "adversarial-review": "review.json",
-  plan: "plan.json",
-  pmatch: "drift-reports/pmatch.json",
-  build: "build.json",
-  "quality-static": "quality-reports/static.json",
-  "quality-tests": "quality-reports/tests.json",
-  "post-build": null,
-  "release-readiness": "release-readiness.json",
-};
 
 export function buildContextManifest({ phase, stageProfile, budget }) {
   if (stageProfile.context_manifest_present === false) {
@@ -410,18 +401,18 @@ function buildBuildArtifact({ requirements }) {
   };
 }
 
-const PHASE_BUILDERS = {
-  arm: (ctx) => buildArmArtifact(ctx),
-  design: (ctx) => buildDesignArtifact(ctx),
-  "adversarial-review": (ctx) => buildAdversarialReviewArtifact(ctx),
-  plan: (ctx) => buildPlanArtifact(ctx),
-  pmatch: (ctx) => buildPmatchArtifact(ctx),
-  build: (ctx) => buildBuildArtifact(ctx),
-  "quality-static": () => buildQualityArtifact("static"),
-  "quality-tests": () => buildQualityArtifact("tests"),
-  "post-build": () => buildQualityArtifact("security"),
-  "release-readiness": (ctx) => buildReleaseReadinessArtifact(ctx),
-};
+const PHASE_BUILDERS = new Map([
+  ["arm", (ctx) => buildArmArtifact(ctx)],
+  ["design", (ctx) => buildDesignArtifact(ctx)],
+  ["adversarial-review", (ctx) => buildAdversarialReviewArtifact(ctx)],
+  ["plan", (ctx) => buildPlanArtifact(ctx)],
+  ["pmatch", (ctx) => buildPmatchArtifact(ctx)],
+  ["build", (ctx) => buildBuildArtifact(ctx)],
+  ["quality-static", () => buildQualityArtifact("static")],
+  ["quality-tests", () => buildQualityArtifact("tests")],
+  ["post-build", () => buildQualityArtifact("security")],
+  ["release-readiness", (ctx) => buildReleaseReadinessArtifact(ctx)],
+]);
 
 export function buildArtifactForPhase({ phase, runId, configId, task, stageProfile, budget }) {
   const builder = PHASE_BUILDERS.get(phase);

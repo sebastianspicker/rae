@@ -13,8 +13,8 @@ from benchmark_contracts_helpers import (
     repo_rel,
     run_release_gate,
     write_json,
-    write_release_gate_fixture,
     write_passing_held_out_fixture,
+    write_release_gate_fixture,
 )
 
 
@@ -79,7 +79,9 @@ def test_release_gate_accepts_valid_benchmark_run_contract() -> None:
         write_passing_held_out_fixture(output_dir, benchmark)
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-example.json"
 
-        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode == 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
@@ -141,7 +143,9 @@ def test_release_gate_ignores_stale_passing_run_cards_for_required_split() -> No
         gate_output_path = (
             output_dir / "release-gate-tool-selection-core-held-out-stale-required-split.json"
         )
-        completed = run_release_gate(temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            temp_benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         _assert_missing_required_dev_split(gate_output_path)
@@ -189,7 +193,9 @@ def test_release_gate_fails_when_required_verification_evidence_is_missing() -> 
         write_passing_held_out_fixture(output_dir, benchmark)
         gate_output_path = output_dir / "release-gate-tool-selection-core-dev-missing-evidence.json"
 
-        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
@@ -231,7 +237,9 @@ def test_release_gate_rejects_checkpoint_outside_current_run_scope() -> None:
             output_dir / "release-gate-tool-selection-core-dev-forged-checkpoint.json"
         )
 
-        completed = run_release_gate(benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path)
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
 
         assert completed.returncode != 0
         gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))

@@ -144,9 +144,7 @@ def _validate_local_target(
     allowed_root: Path,
     strict: bool,
 ) -> str | None:
-    destination, anchor, error = _resolve_destination(
-        source_file, target, root, allowed_root
-    )
+    destination, anchor, error = _resolve_destination(source_file, target, root, allowed_root)
     if error:
         return error
     if destination is None:
@@ -213,9 +211,7 @@ def _reference_link_errors(
     return errors
 
 
-def _check_file(
-    path: Path, root: Path, allowed_root: Path, strict: bool
-) -> list[str]:
+def _check_file(path: Path, root: Path, allowed_root: Path, strict: bool) -> list[str]:
     text = _strip_code_fences(_read_text(path))
     definitions = _reference_definitions(text)
     return _inline_link_errors(path, text, root, allowed_root, strict) + _reference_link_errors(

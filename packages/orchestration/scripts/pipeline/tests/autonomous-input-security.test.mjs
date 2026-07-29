@@ -171,7 +171,7 @@ describe("autonomous input security", () => {
       policy: null,
     });
 
-    expect(prompt).toContain('local="tasks/My File.md"');
+    expect(prompt).toContain('local=\\"tasks/My File.md\\"');
     expect(prompt).toContain("boundary=><absolute-path-omitted>");
     expect(prompt).toContain("web=https://example.test/public/path omega");
     for (const secret of [

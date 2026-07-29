@@ -3,7 +3,6 @@
  */
 import { readFileSync } from "node:fs";
 import { createAjvInstance, resolveWithinWorkspace } from "@coding-agents-space/shared";
-import type { AjvValidateFunction } from "@coding-agents-space/shared";
 import type { Input, TraceEvent, TraceResult, TraceSummary } from "../types.js";
 
 interface TraceOptions {
@@ -178,7 +177,9 @@ export async function collectTrace(
   const events = loadTraceEvents(input, workspaceRoot, logs);
   const validate = (await createAjvInstance()).compile(schema);
   const issues: string[] = [];
-  events.forEach((event, index) => validateTraceEvent(event, index, input.run_id, validate, issues));
+  events.forEach((event, index) => {
+    validateTraceEvent(event, index, input.run_id, validate, issues);
+  });
 
   const summary = buildSummary(events, issues);
   return {
@@ -190,7 +191,9 @@ export async function collectTrace(
 }
 
 export function loadTraceSchema(schemaRoot: string, schemaRef: string): Record<string, unknown> {
-  const schemaPath = resolveWithinWorkspace(schemaRoot, schemaRef, "Path", { rootLabel: "schema root" });
+  const schemaPath = resolveWithinWorkspace(schemaRoot, schemaRef, "Path", {
+    rootLabel: "schema root",
+  });
   return JSON.parse(readFileSync(schemaPath, "utf8")) as Record<string, unknown>;
 }
 
@@ -200,7 +203,9 @@ export function loadTraceEvents(input: Input, workspaceRoot: string, logs: strin
     logs.push(`Loaded inline trace events: ${events.length}`);
     return events;
   }
-  const tracePath = resolveWithinWorkspace(workspaceRoot, input.trace_path, "Path", { rootLabel: "workspace root" });
+  const tracePath = resolveWithinWorkspace(workspaceRoot, input.trace_path, "Path", {
+    rootLabel: "workspace root",
+  });
   logs.push(`Loaded trace events from ${tracePath}`);
   return readJsonlEvents(tracePath);
 }
@@ -209,13 +214,22 @@ export function validateTraceEvent(
   event: TraceEvent,
   index: number,
   runId: string,
-  validate: { (value: unknown): boolean; errors?: Array<{ instancePath?: string; message?: string }> | null },
+  validate: {
+    (value: unknown): boolean;
+    errors?: Array<{ instancePath?: string; message?: string }> | null;
+  },
   issues: string[],
 ): void {
-  if (!validate(event)) issues.push(`event[${index}] schema violation: ${formatSchemaErrors(validate.errors)}`);
-  if (event.run_id !== runId) issues.push(`event[${index}] run_id mismatch: expected ${runId}, got ${event.run_id}`);
+  if (!validate(event))
+    issues.push(`event[${index}] schema violation: ${formatSchemaErrors(validate.errors)}`);
+  if (event.run_id !== runId)
+    issues.push(`event[${index}] run_id mismatch: expected ${runId}, got ${event.run_id}`);
 }
 
-export function formatSchemaErrors(errors: Array<{ instancePath?: string; message?: string }> | null | undefined): string {
-  return (errors ?? []).map((error) => `${error.instancePath || "/"} ${error.message ?? "invalid"}`).join("; ");
+export function formatSchemaErrors(
+  errors: Array<{ instancePath?: string; message?: string }> | null | undefined,
+): string {
+  return (errors ?? [])
+    .map((error) => `${error.instancePath || "/"} ${error.message ?? "invalid"}`)
+    .join("; ");
 }

@@ -1,3 +1,4 @@
+/** Verifies the shared development-tool harness contract. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runTool } from "../../src/harness.js";
 

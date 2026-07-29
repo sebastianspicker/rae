@@ -277,7 +277,7 @@ def test_validate_brand_svg_requires_accessible_metadata_and_viewbox() -> None:
     module = load_verify_repo_module()
     valid = (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-        "<title>RAE mark</title><desc>Evidence trace</desc><path d=\"M0 0h1\"/></svg>"
+        '<title>RAE mark</title><desc>Evidence trace</desc><path d="M0 0h1"/></svg>'
     )
 
     module.validate_brand_svg(valid, "docs/assets/brand/example.svg")
@@ -358,11 +358,7 @@ def test_validate_social_preview_png_enforces_size_and_dimensions() -> None:
     else:
         raise AssertionError("truncated social preview PNGs must be rejected")
 
-    duplicate_end = (
-        valid[:33]
-        + build_png_chunk(b"IEND", b"")
-        + valid[33:]
-    )
+    duplicate_end = valid[:33] + build_png_chunk(b"IEND", b"") + valid[33:]
     try:
         module.validate_social_preview_png(
             duplicate_end,

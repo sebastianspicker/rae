@@ -11,18 +11,6 @@ import type {
   ExtractorClaimSet,
 } from "../types.js";
 import { tokenSimilarity } from "./dedup.js";
-import {
-  buildFindingsFromClaims,
-  claimMatchScore,
-  classifyClaimType,
-  extractAssertions,
-  findingSeverity,
-  normalize,
-  parseSections,
-  toDriftScore,
-  toVerificationStatus,
-} from "./drift-sections.js";
-import { extractNormalizedHeadings } from "./drift-headings.js";
 
 export interface DriftDetectionResult {
   claims: DriftClaim[];
@@ -33,6 +21,12 @@ export interface DriftDetectionResult {
 interface CorrelationPair {
   first: ExtractorClaimInput;
   second?: ExtractorClaimInput;
+}
+
+interface Section {
+  heading: string;
+  body: string;
+  synthetic?: boolean;
 }
 
 const TAXONOMY: DriftClaimType[] = ["interface", "invariant", "security", "performance", "docs"];
@@ -243,7 +237,7 @@ export function mergeConfidence(first?: number, second?: number): number | undef
   if (hasFirst) return first;
   if (hasSecond) return second;
   return undefined;
-};
+}
 
 export function adjudicatePair(
   firstStatus: DriftVerificationStatus,
@@ -254,9 +248,10 @@ export function adjudicatePair(
   return adjudicateStatuses(statuses);
 }
 
-export function adjudicateStatuses(
-  statuses: Set<DriftVerificationStatus>,
-): { status: DriftVerificationStatus; conflict: boolean } {
+export function adjudicateStatuses(statuses: Set<DriftVerificationStatus>): {
+  status: DriftVerificationStatus;
+  conflict: boolean;
+} {
   if (statuses.has("verified")) {
     return statuses.has("violated")
       ? { status: "partial", conflict: true }
@@ -267,7 +262,6 @@ export function adjudicateStatuses(
     ? { status: "partial", conflict: false }
     : { status: "unverifiable", conflict: false };
 }
-
 
 export function detectDrift(sourceText: string, targetText: string): DriftDetectionResult {
   const sourceSections = parseSections(sourceText);
@@ -408,10 +402,15 @@ export function detectDriftFromExtractorClaims(
 ): DriftDetectionResult {
   const [first, second] = extractorClaimSets;
   validateExtractorClaimSets(extractorClaimSets, first, second);
-  const { pairs, unmatchedSecond } = correlateClaims(first!, second!);
-  const correlated = buildCorrelatedClaims(pairs, first!, second!);
-  const claims = [...correlated.claims, ...buildUnmatchedClaims(unmatchedSecond, first!, second!, correlated.claims.length)];
-  return buildDualExtractorResult(claims, first!, second!, correlated.conflictsResolved);
+  if (!first || !second)
+    throw new Error("dual-extractor mode requires exactly 2 extractor_claim_sets");
+  const { pairs, unmatchedSecond } = correlateClaims(first, second);
+  const correlated = buildCorrelatedClaims(pairs, first, second);
+  const claims = [
+    ...correlated.claims,
+    ...buildUnmatchedClaims(unmatchedSecond, first, second, correlated.claims.length),
+  ];
+  return buildDualExtractorResult(claims, first, second, correlated.conflictsResolved);
 }
 
 function validateExtractorClaimSets(
@@ -433,12 +432,9 @@ function buildCorrelatedClaims(
   const claims: DriftClaim[] = [];
   let conflictsResolved = 0;
   for (const pair of pairs) {
-    const result = appendAdjudicatedClaim(
-      claims,
-      pair,
-      first.extractor,
-      second.extractor,
-      claimIdx,
+    const adjudicated = adjudicatePair(
+      pair.first.verification_status,
+      pair.second?.verification_status,
     );
     if (adjudicated.conflict) {
       conflictsResolved++;
@@ -456,7 +452,10 @@ function buildCorrelatedClaim(
   second: ExtractorClaimSet,
   index: number,
 ): DriftClaim {
-  const claimText = !pair.second || pair.first.claim.length >= pair.second.claim.length ? pair.first.claim : pair.second.claim;
+  const claimText =
+    !pair.second || pair.first.claim.length >= pair.second.claim.length
+      ? pair.first.claim
+      : pair.second.claim;
   return {
     id: `drift-${index}`,
     claim: claimText,
@@ -472,22 +471,28 @@ function buildCorrelatedClaim(
 }
 
 function buildUnmatchedClaims(
-  unmatched: ExtractorClaimInput[], first: ExtractorClaimSet, second: ExtractorClaimSet, start: number,
+  unmatched: ExtractorClaimInput[],
+  first: ExtractorClaimSet,
+  second: ExtractorClaimSet,
+  start: number,
 ): DriftClaim[] {
   return unmatched.map((claim, offset) => ({
-      id: `drift-${start + offset + 1}`,
-      claim: claim.claim,
-      claim_type: claim.claim_type ?? classifyClaimType(claim.claim),
-      verification_status: "unverifiable",
-      evidence: `${second.extractor}: ${claim.verification_status} (${claim.evidence}); no corresponding claim from ${first.extractor}`,
-      extractor: `dual-adjudicator:${first.extractor}+${second.extractor}`,
-      drift_score: toDriftScore("unverifiable"),
-      confidence: claim.confidence,
-    }));
+    id: `drift-${start + offset + 1}`,
+    claim: claim.claim,
+    claim_type: claim.claim_type ?? classifyClaimType(claim.claim),
+    verification_status: "unverifiable",
+    evidence: `${second.extractor}: ${claim.verification_status} (${claim.evidence}); no corresponding claim from ${first.extractor}`,
+    extractor: `dual-adjudicator:${first.extractor}+${second.extractor}`,
+    drift_score: toDriftScore("unverifiable"),
+    confidence: claim.confidence,
+  }));
 }
 
 function buildDualExtractorResult(
-  claims: DriftClaim[], first: ExtractorClaimSet, second: ExtractorClaimSet, conflictsResolved: number,
+  claims: DriftClaim[],
+  first: ExtractorClaimSet,
+  second: ExtractorClaimSet,
+  conflictsResolved: number,
 ): DriftDetectionResult {
   return {
     claims,
@@ -500,36 +505,6 @@ function buildDualExtractorResult(
         "both verified => verified; any violated without verified => violated; verified+violated => partial; missing counterpart => unverifiable",
     },
   };
-}
-
-function appendAdjudicatedClaim(
-  claims: DriftClaim[],
-  pair: CorrelationPair,
-  firstExtractor: string,
-  secondExtractor: string,
-  claimIdx: number,
-): { claimIdx: number; conflict: number } {
-  const adjudicated = adjudicatePair(
-    pair.first.verification_status,
-    pair.second?.verification_status,
-  );
-  const claimText =
-    pair.second && pair.second.claim.length > pair.first.claim.length
-      ? pair.second.claim
-      : pair.first.claim;
-  claims.push({
-    id: `drift-${claimIdx + 1}`,
-    claim: claimText,
-    claim_type: pair.first.claim_type ?? pair.second?.claim_type ?? classifyClaimType(claimText),
-    verification_status: adjudicated.status,
-    evidence: pair.second
-      ? `${firstExtractor}: ${pair.first.verification_status} (${pair.first.evidence}) | ${secondExtractor}: ${pair.second.verification_status} (${pair.second.evidence})`
-      : `${firstExtractor}: ${pair.first.verification_status} (${pair.first.evidence}); no corresponding claim from ${secondExtractor}`,
-    extractor: `dual-adjudicator:${firstExtractor}+${secondExtractor}`,
-    drift_score: toDriftScore(adjudicated.status),
-    confidence: mergeConfidence(pair.first.confidence, pair.second?.confidence),
-  });
-  return { claimIdx: claimIdx + 1, conflict: Number(adjudicated.conflict) };
 }
 
 export interface DriftQualityClassMetrics {

@@ -1,0 +1,5 @@
+--only-binary :all:
+
+ruff==0.15.20
+bandit==1.9.4
+checkov==3.3.7

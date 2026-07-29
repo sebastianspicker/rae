@@ -14,7 +14,6 @@ import {
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { delimiter } from "node:path";
 import { join, resolve } from "node:path";
 
 const PACKAGE_ROOT = resolve(import.meta.dirname, "../../..");
@@ -36,7 +35,7 @@ function run(command, args, cwd, allowFailure = false, env = process.env) {
   return proc;
 }
 
-function createFakeCodexBin() {
+function _createFakeCodexBin() {
   const root = mkdtempSync(join(tmpdir(), "rae fake codex "));
   tempRoots.push(root);
   const executable = join(root, "codex");
@@ -99,7 +98,7 @@ function createRepository() {
   return root;
 }
 
-function runAutonomous(root, task, allowFailure = false) {
+function _runAutonomous(root, task, allowFailure = false) {
   return run(
     process.execPath,
     [
@@ -125,7 +124,7 @@ function runAutonomous(root, task, allowFailure = false) {
   );
 }
 
-function pauseBeforeBuild(root) {
+function _pauseBeforeBuild(root) {
   const paused = run(
     process.execPath,
     [
@@ -168,7 +167,7 @@ afterEach(() => {
   }
 });
 
-function assertSuccessfulWorkspace(output, root) {
+function _assertSuccessfulWorkspace(output, root) {
   expect(output.success).toBe(true);
   expect(output.status).toBe("implemented-awaiting-human-release-review");
   expect(output.workspace_root).not.toBe(root);
@@ -178,11 +177,15 @@ function assertSuccessfulWorkspace(output, root) {
   expect(run("git", ["status", "--short"], root).stdout).toBe("");
   expect(readFileSync(join(root, "src/value.txt"), "utf8")).toBe("original\n");
   expect(readFileSync(join(output.workspace_root, "src/value.txt"), "utf8")).toBe("implemented\n");
-  expect(readFileSync(join(output.workspace_root, "README.md"), "utf8")).toContain("Implemented value");
+  expect(readFileSync(join(output.workspace_root, "README.md"), "utf8")).toContain(
+    "Implemented value",
+  );
 }
 
-function assertSuccessfulArtifacts(output) {
-  const state = JSON.parse(readFileSync(join(output.workspace_root, ".pipeline/pipeline-state.json"), "utf8"));
+function _assertSuccessfulArtifacts(output) {
+  const state = JSON.parse(
+    readFileSync(join(output.workspace_root, ".pipeline/pipeline-state.json"), "utf8"),
+  );
   expect(state.completed_gates).toHaveLength(10);
   expect(state.completed_gates).toContain("post-build-gate");
   const runDir = join(output.workspace_root, ".pipeline/runs", output.run_id);
@@ -190,7 +193,10 @@ function assertSuccessfulArtifacts(output) {
   expect(request.policy.policy_id).toBe("default");
   expect(request.policy.digest).toMatch(/^[a-f0-9]{64}$/);
   expect(request.policy.snapshot.phase_inputs.build).toContain("plan.json");
-  expect(JSON.parse(readFileSync(join(runDir, "build.json"), "utf8")).outputs).toEqual(["README.md", "src/value.txt"]);
+  expect(JSON.parse(readFileSync(join(runDir, "build.json"), "utf8")).outputs).toEqual([
+    "README.md",
+    "src/value.txt",
+  ]);
   assertQualityArtifacts(runDir);
 }
 
@@ -208,7 +214,7 @@ function assertQualityArtifacts(runDir) {
   expect(docs.changed_files).toContain("README.md");
 }
 
-function assertPendingMutation(output, runDir, checkpoint) {
+function _assertPendingMutation(output, runDir, checkpoint) {
   const control = JSON.parse(readFileSync(join(runDir, "operator-control.json"), "utf8"));
   expect(control.status).toBe("waiting");
   expect(checkpoint.checkpoint_id).toMatch(/^checkpoint-[a-f0-9]{24}$/);
@@ -216,11 +222,33 @@ function assertPendingMutation(output, runDir, checkpoint) {
   expect(readFileSync(join(runDir, "trace.jsonl"), "utf8")).toContain('"run_waiting"');
 }
 
-function approveCheckpoint(output, checkpoint) {
-  run(process.execPath, [AUTONOMOUS, "resolve-checkpoint", "--project-root", output.workspace_root, "--run-id", output.run_id, "--checkpoint-id", checkpoint.checkpoint_id, "--decision", "approved", "--decision-id", "decision_approved_1", "--actor", "test-operator", "--rationale", "The owned mutation and verification plan were reviewed.", "--json"], PACKAGE_ROOT);
+function _approveCheckpoint(output, checkpoint) {
+  run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "resolve-checkpoint",
+      "--project-root",
+      output.workspace_root,
+      "--run-id",
+      output.run_id,
+      "--checkpoint-id",
+      checkpoint.checkpoint_id,
+      "--decision",
+      "approved",
+      "--decision-id",
+      "decision_approved_1",
+      "--actor",
+      "test-operator",
+      "--rationale",
+      "The owned mutation and verification plan were reviewed.",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+  );
 }
 
-function assertApprovedResume(output, runDir) {
+function _assertApprovedResume(output, runDir) {
   const resumed = resumeBuild(output);
   expect(JSON.parse(resumed.stdout).success).toBe(true);
   expect(readFileSync(join(output.workspace_root, "src/value.txt"), "utf8")).toBe("implemented\n");
@@ -229,13 +257,67 @@ function assertApprovedResume(output, runDir) {
   expect(trace).toContain('"run_resumed"');
 }
 
-function rejectCheckpoint(output, checkpoint) {
-  run(process.execPath, [AUTONOMOUS, "resolve-checkpoint", "--project-root", output.workspace_root, "--run-id", output.run_id, "--checkpoint-id", checkpoint.checkpoint_id, "--decision", "rejected", "--decision-id", "decision_rejected_1", "--actor", "test-operator", "--rationale", "The mutation was rejected.", "--json"], PACKAGE_ROOT);
+function _rejectCheckpoint(output, checkpoint) {
+  run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "resolve-checkpoint",
+      "--project-root",
+      output.workspace_root,
+      "--run-id",
+      output.run_id,
+      "--checkpoint-id",
+      checkpoint.checkpoint_id,
+      "--decision",
+      "rejected",
+      "--decision-id",
+      "decision_rejected_1",
+      "--actor",
+      "test-operator",
+      "--rationale",
+      "The mutation was rejected.",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+  );
 }
 
-function assertRejectedCheckpointCannotResume(output) {
-  const override = run(process.execPath, [AUTONOMOUS, "resume", "--project-root", output.workspace_root, "--run-id", output.run_id, "--checkpoint-policy", "none", "--through", "build", "--json"], PACKAGE_ROOT, true);
-  const ordinary = run(process.execPath, [AUTONOMOUS, "resume", "--project-root", output.workspace_root, "--run-id", output.run_id, "--through", "build", "--json"], PACKAGE_ROOT, true);
+function _assertRejectedCheckpointCannotResume(output) {
+  const override = run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "resume",
+      "--project-root",
+      output.workspace_root,
+      "--run-id",
+      output.run_id,
+      "--checkpoint-policy",
+      "none",
+      "--through",
+      "build",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+    true,
+  );
+  const ordinary = run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "resume",
+      "--project-root",
+      output.workspace_root,
+      "--run-id",
+      output.run_id,
+      "--through",
+      "build",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+    true,
+  );
   expect(override.status).toBe(1);
   expect(override.stderr).toContain("checkpoint policy is immutable");
   expect(ordinary.status).toBe(1);
@@ -244,12 +326,55 @@ function assertRejectedCheckpointCannotResume(output) {
 }
 
 function plannedFixture(root) {
-  const planned = run(process.execPath, [AUTONOMOUS, "run", "--project-root", root, "--task", "Implement the fixture value and document it.", "--through", "plan", "--provider", "command", "--agent-command", process.execPath, "--agent-arg", FAKE_AGENT, "--allow-unsafe-command-provider", "--json"], PACKAGE_ROOT);
+  const planned = run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "run",
+      "--project-root",
+      root,
+      "--task",
+      "Implement the fixture value and document it.",
+      "--through",
+      "plan",
+      "--provider",
+      "command",
+      "--agent-command",
+      process.execPath,
+      "--agent-arg",
+      FAKE_AGENT,
+      "--allow-unsafe-command-provider",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+  );
   return JSON.parse(planned.stdout);
 }
 
 function resumeBuild(output, allowFailure = false) {
-  return run(process.execPath, [AUTONOMOUS, "resume", "--project-root", output.workspace_root, "--run-id", output.run_id, "--through", "build", "--provider", "command", "--agent-command", process.execPath, "--agent-arg", FAKE_AGENT, "--allow-unsafe-command-provider", "--json"], PACKAGE_ROOT, allowFailure);
+  return run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "resume",
+      "--project-root",
+      output.workspace_root,
+      "--run-id",
+      output.run_id,
+      "--through",
+      "build",
+      "--provider",
+      "command",
+      "--agent-command",
+      process.execPath,
+      "--agent-arg",
+      FAKE_AGENT,
+      "--allow-unsafe-command-provider",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+    allowFailure,
+  );
 }
 
 function assertResumeLockBlocks(output, lockPath) {
@@ -261,7 +386,12 @@ function assertResumeLockBlocks(output, lockPath) {
 
 function assertRestoredAgentConfiguration(output, lockPath) {
   expect(readFileSync(join(output.workspace_root, "src/value.txt"), "utf8")).toBe("implemented\n");
-  const request = JSON.parse(readFileSync(join(output.workspace_root, ".pipeline/runs", output.run_id, "request.json"), "utf8"));
+  const request = JSON.parse(
+    readFileSync(
+      join(output.workspace_root, ".pipeline/runs", output.run_id, "request.json"),
+      "utf8",
+    ),
+  );
   expect(request.agent.command).toBe(process.execPath);
   expect(request.agent.command_args).toEqual([FAKE_AGENT]);
   expect(existsSync(lockPath)).toBe(false);
@@ -270,7 +400,19 @@ function assertRestoredAgentConfiguration(output, lockPath) {
 function commitPreflightDrift(workspaceRoot) {
   writeFileSync(join(workspaceRoot, "preflight-drift.txt"), "drift\n", "utf8");
   run("git", ["add", "preflight-drift.txt"], workspaceRoot);
-  run("git", ["-c", "user.name=RAE Test", "-c", "user.email=rae-test@example.invalid", "commit", "-m", "preflight drift"], workspaceRoot);
+  run(
+    "git",
+    [
+      "-c",
+      "user.name=RAE Test",
+      "-c",
+      "user.email=rae-test@example.invalid",
+      "commit",
+      "-m",
+      "preflight drift",
+    ],
+    workspaceRoot,
+  );
 }
 
 // The file exercises many independent ten-phase subprocess runs. Keep the suite
@@ -279,15 +421,50 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
   it("requires and accepts fresh command-provider authorization when resuming", () => {
     const root = createRepository();
     const planOutput = plannedFixture(root);
-    const lockPath = join(planOutput.workspace_root, ".pipeline/runs", planOutput.run_id, "autonomous.lock");
+    const lockPath = join(
+      planOutput.workspace_root,
+      ".pipeline/runs",
+      planOutput.run_id,
+      "autonomous.lock",
+    );
     assertResumeLockBlocks(planOutput, lockPath);
     unlinkSync(lockPath);
     run("git", ["branch", "unrelated-progress"], root);
     run("git", ["update-ref", "refs/remotes/origin/unrelated-progress", "HEAD"], root);
-    const requestPath = join(planOutput.workspace_root, ".pipeline/runs", planOutput.run_id, "request.json");
+    const requestPath = join(
+      planOutput.workspace_root,
+      ".pipeline/runs",
+      planOutput.run_id,
+      "request.json",
+    );
     const request = JSON.parse(readFileSync(requestPath, "utf8"));
-    writeFileSync(requestPath, `${JSON.stringify({ ...request, agent: { ...request.agent, command: "/poison/provider", command_args: ["poison.mjs"], allow_unsafe_command_provider: true } })}\n`, "utf8");
-    const missingFreshOptIn = run(process.execPath, [AUTONOMOUS, "resume", "--project-root", planOutput.workspace_root, "--run-id", planOutput.run_id, "--through", "build", "--provider", "command", "--agent-command", process.execPath, "--agent-arg", FAKE_AGENT, "--json"], PACKAGE_ROOT, true);
+    writeFileSync(
+      requestPath,
+      `${JSON.stringify({ ...request, agent: { ...request.agent, command: "/poison/provider", command_args: ["poison.mjs"], allow_unsafe_command_provider: true } })}\n`,
+      "utf8",
+    );
+    const missingFreshOptIn = run(
+      process.execPath,
+      [
+        AUTONOMOUS,
+        "resume",
+        "--project-root",
+        planOutput.workspace_root,
+        "--run-id",
+        planOutput.run_id,
+        "--through",
+        "build",
+        "--provider",
+        "command",
+        "--agent-command",
+        process.execPath,
+        "--agent-arg",
+        FAKE_AGENT,
+        "--json",
+      ],
+      PACKAGE_ROOT,
+      true,
+    );
     expect(missingFreshOptIn.status).toBe(1);
     expect(missingFreshOptIn.stderr).toContain("requires --allow-unsafe-command-provider");
     const resumedOutput = JSON.parse(resumeBuild(planOutput).stdout);
@@ -321,7 +498,20 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
     const output = JSON.parse(planned.stdout);
     const head = run("git", ["rev-parse", "HEAD"], root).stdout.trim();
     const tree = run("git", ["rev-parse", "HEAD^{tree}"], root).stdout.trim();
-    const replacement = run("git", ["commit-tree", tree, "-m", "replacement"], root).stdout.trim();
+    const replacement = run(
+      "git",
+      [
+        "-c",
+        "user.name=RAE Test",
+        "-c",
+        "user.email=rae-test@example.invalid",
+        "commit-tree",
+        tree,
+        "-m",
+        "replacement",
+      ],
+      root,
+    ).stdout.trim();
     run("git", ["update-ref", `refs/replace/${head}`, replacement], root);
 
     const resumed = run(
@@ -353,7 +543,9 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
     const output = JSON.parse(resumed.stdout);
     expect(resumed.status).toBe(1);
     expect(output.error).toContain("prohibited Git-state change after resume preflight");
-    expect(readFileSync(join(planOutput.workspace_root, "src/value.txt"), "utf8")).toBe("original\n");
+    expect(readFileSync(join(planOutput.workspace_root, "src/value.txt"), "utf8")).toBe(
+      "original\n",
+    );
   });
 
   it("rejects the command provider without its explicit unsafe opt-in", () => {

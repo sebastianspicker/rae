@@ -72,9 +72,7 @@ def evaluation(
     split: str = "dev",
     evidence_type: str = OUTCOME_COMPARISON_TYPE,
 ) -> dict[str, Any]:
-    context, usage, manifest_digest = _evaluation_context(
-        evaluated_policy, split, evidence_type
-    )
+    context, usage, manifest_digest = _evaluation_context(evaluated_policy, split, evidence_type)
     if evidence_type == OUTCOME_REPORT_TYPE:
         return _report_evaluation(context, usage, manifest_digest, score, split)
     return _comparison_evaluation(context, usage, score, paired_wins, status)
@@ -134,9 +132,7 @@ def _report_evaluation(
     }
 
 
-def _task_result(
-    prefix: str, index: int, passed: int, usage: dict[str, Any]
-) -> dict[str, Any]:
+def _task_result(prefix: str, index: int, passed: int, usage: dict[str, Any]) -> dict[str, Any]:
     succeeded = index < passed
     return {
         "task_id": f"{prefix}-task-{index}",
@@ -210,18 +206,20 @@ def _baseline_report(usage: dict[str, Any]) -> dict[str, Any]:
             "resource_usage": usage,
             "status": "fail",
         },
-        "repeats": [[{
-            "task_id": "task-a",
-            "verdict": "fail",
-            "failure_classes": ["verification_failed"],
-            "resource_usage": usage,
-        }]],
+        "repeats": [
+            [
+                {
+                    "task_id": "task-a",
+                    "verdict": "fail",
+                    "failure_classes": ["verification_failed"],
+                    "resource_usage": usage,
+                }
+            ]
+        ],
     }
 
 
-def _challenger_report(
-    baseline: dict[str, Any], usage: dict[str, Any]
-) -> dict[str, Any]:
+def _challenger_report(baseline: dict[str, Any], usage: dict[str, Any]) -> dict[str, Any]:
     return {
         **baseline,
         "policy_id": "candidate",
@@ -232,10 +230,14 @@ def _challenger_report(
             "hard_failure_classes": [],
             "status": "pass",
         },
-        "repeats": [[{
-            "task_id": "task-a",
-            "verdict": "pass",
-            "failure_classes": [],
-            "resource_usage": usage,
-        }]],
+        "repeats": [
+            [
+                {
+                    "task_id": "task-a",
+                    "verdict": "pass",
+                    "failure_classes": [],
+                    "resource_usage": usage,
+                }
+            ]
+        ],
     }

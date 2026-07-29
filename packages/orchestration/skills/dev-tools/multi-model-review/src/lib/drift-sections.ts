@@ -1,3 +1,4 @@
+/** Parses structured review sections for deterministic drift analysis. */
 export interface Section {
   heading: string;
   body: string;

@@ -25,12 +25,15 @@ function parseBoolean(raw, flagName) {
 function optionToken(token, optionSpec) {
   const equalsIndex = token.indexOf("=");
   const rawKey = token.slice(2, equalsIndex === -1 ? undefined : equalsIndex);
+  assertSafeKey(rawKey, "option name");
+  if (!Object.hasOwn(optionSpec, rawKey)) throw badInput(`Unknown argument: --${rawKey}`);
   const entry = optionSpec[rawKey];
-  if (!entry) throw badInput(`Unknown argument: --${rawKey}`);
+  const outputKey = entry.key ?? rawKey;
+  assertSafeKey(outputKey, "option output key");
   return {
     rawKey,
     entry,
-    outputKey: entry.key ?? rawKey,
+    outputKey,
     type: entry.type ?? "string",
     inlineValue: equalsIndex === -1 ? undefined : token.slice(equalsIndex + 1),
   };
@@ -71,7 +74,9 @@ function parsedOptionValue(option, rawValue) {
 function validateRequiredOptions(optionSpec, values) {
   for (const [flag, entry] of Object.entries(optionSpec)) {
     if (!entry.required) continue;
-    const value = values[entry.key ?? flag];
+    const outputKey = entry.key ?? flag;
+    assertSafeKey(outputKey, "required option key");
+    const value = values[outputKey];
     if (value === undefined || value === null || value === "") {
       throw badInput(`Missing required argument: --${flag}`);
     }
@@ -108,7 +113,7 @@ function consumeArguments(argv, optionSpec, allowPositionals, values, positional
 
 export function parseArgs(spec, argv) {
   const normalized = normalizedArgumentSpec(spec);
-  const out = { ...normalized.defaults };
+  const out = Object.assign(Object.create(null), normalized.defaults);
   const positionals = [];
   consumeArguments(argv, normalized.options, normalized.allowPositionals, out, positionals);
   validateRequiredOptions(normalized.options, out);

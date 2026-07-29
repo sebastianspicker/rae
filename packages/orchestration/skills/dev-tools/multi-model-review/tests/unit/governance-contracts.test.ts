@@ -33,9 +33,44 @@ const completeSecurityReport = {
   violations: [],
   summary: { pass: 0, warn: 0, fail: 0, open: 0, fixed: 0, accepted_risk: 0 },
   security_audit: {
-    categories_covered: ["access-control", "xss", "csrf", "secrets", "security-headers", "cookies-session", "production-exposure", "dependencies", "ssrf", "file-upload", "injection", "path-traversal", "open-redirect", "jwt-auth"],
-    checks: { access_control: true, xss: true, csrf: true, secrets: true, security_headers: true, cookies_session: true, production_exposure: true, dependencies: true, ssrf: true, file_upload: true, injection: true, path_traversal: true, open_redirect: true, jwt_auth: true },
-    fix_loop: { rounds: 1, critical_high_before: 2, critical_high_after: 0, rescan_completed: true },
+    categories_covered: [
+      "access-control",
+      "xss",
+      "csrf",
+      "secrets",
+      "security-headers",
+      "cookies-session",
+      "production-exposure",
+      "dependencies",
+      "ssrf",
+      "file-upload",
+      "injection",
+      "path-traversal",
+      "open-redirect",
+      "jwt-auth",
+    ],
+    checks: {
+      access_control: true,
+      xss: true,
+      csrf: true,
+      secrets: true,
+      security_headers: true,
+      cookies_session: true,
+      production_exposure: true,
+      dependencies: true,
+      ssrf: true,
+      file_upload: true,
+      injection: true,
+      path_traversal: true,
+      open_redirect: true,
+      jwt_auth: true,
+    },
+    fix_loop: {
+      rounds: 1,
+      critical_high_before: 2,
+      critical_high_after: 0,
+      rescan_completed: true,
+    },
     tools: ["manual"],
     risk_signoff_required: false,
   },
@@ -85,23 +120,17 @@ describe("governance contract hardening", () => {
         tools: ["manual"],
         risk_signoff_required: false,
       },
-      fix_loop: {
-        rounds: 1,
-        critical_high_before: 2,
-        critical_high_after: 1,
-        rescan_completed: false,
-      },
-      tools: ["manual"],
-      risk_signoff_required: false,
-    },
-  };
+    };
 
     const result = validateAgainst("contracts/artifacts/quality-report.schema.json", report);
     expect(result.valid).toBe(false);
   });
 
   it("accepts security quality reports only when mandatory checklist and fix-loop are closed", () => {
-    const result = validateAgainst("contracts/artifacts/quality-report.schema.json", completeSecurityReport);
+    const result = validateAgainst(
+      "contracts/artifacts/quality-report.schema.json",
+      completeSecurityReport,
+    );
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
   });

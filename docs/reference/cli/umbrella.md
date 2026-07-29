@@ -153,8 +153,8 @@ closed.
 - [Orchestration CLI](orchestration.md)
 - [Ralph CLI](ralph.md)
 - [Repository hygiene CLI](repo-hygiene.md)
-- [Orchestration package](../../../packages/orchestration/README.md)
-- [Ralph package](../../../packages/loops/ralph/README.md)
+- [Orchestration package](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/README.md)
+- [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/loops/ralph/README.md)
 
 ## Source note
 

@@ -10,6 +10,7 @@ import pathlib
 from typing import Any
 
 from common import append_jsonl, dump_json, iso_timestamp
+
 from lib.policy_optimizer_evidence import (
     _accept,
     _budget_exceeded,
@@ -269,7 +270,14 @@ def optimize_campaign(
         baseline_policy, evaluator, trusted_paths, output_dir, max_iterations
     )
     _run_iterations(
-        state, lineage_path, proposer, evaluator, resource_budget, output_dir, max_iterations, trusted_paths
+        state,
+        lineage_path,
+        proposer,
+        evaluator,
+        resource_budget,
+        output_dir,
+        max_iterations,
+        trusted_paths,
     )
     return _finish_campaign(baseline_policy, state, trusted_paths, output_dir, sealed_evaluator)
 
@@ -316,7 +324,11 @@ def _run_iterations(
             _record_event(
                 state["lineage"],
                 lineage_path,
-                {"iteration": iteration, "decision": "blocked", "reason": "evaluator-integrity-drift"},
+                {
+                    "iteration": iteration,
+                    "decision": "blocked",
+                    "reason": "evaluator-integrity-drift",
+                },
             )
             break
         candidate, candidate_id = _candidate_or_rejection(
@@ -332,13 +344,26 @@ def _run_iterations(
             _record_event(
                 state["lineage"],
                 lineage_path,
-                {"iteration": iteration, "candidate_id": candidate_id, "decision": "blocked", "reason": "budget-exceeded-or-incomplete-measurement"},
+                {
+                    "iteration": iteration,
+                    "candidate_id": candidate_id,
+                    "decision": "blocked",
+                    "reason": "budget-exceeded-or-incomplete-measurement",
+                },
             )
             dump_json(output_dir / "evaluations" / f"{candidate_id}.json", evaluation)
             break
-        assert decision is not None
+        if decision is None:
+            raise RuntimeError("policy search did not produce a decision")
         _record_iteration(
-            state, lineage_path, iteration, candidate_id, candidate, evaluation, decision, output_dir
+            state,
+            lineage_path,
+            iteration,
+            candidate_id,
+            candidate,
+            evaluation,
+            decision,
+            output_dir,
         )
 
 

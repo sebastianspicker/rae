@@ -15,8 +15,10 @@ import shutil
 import struct
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
 import zlib
+from typing import Any
+
+from defusedxml import ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
@@ -200,10 +202,13 @@ def validate_required_files() -> None:
 
 
 def git_bytes(*args: str) -> bytes:
+    """Run Git with verifier-owned arguments and return its raw output."""
     git_bin = shutil.which("git")
     if git_bin is None:
         raise ValueError("git is required for public-candidate hygiene checks")
-    completed = subprocess.run(  # noqa: S603
+    # Resolved local Git and verifier-owned arguments; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    completed = subprocess.run(  # nosec B603
         [git_bin, *args],
         cwd=ROOT,
         check=True,
@@ -265,9 +270,9 @@ def validate_no_obsolete_public_artifacts(paths: list[pathlib.Path] | None = Non
         raise ValueError(f"obsolete public artifacts remain: {', '.join(sorted(set(obsolete)))}")
 
 
-def parse_svg_root(text: str, relative: str) -> ET.Element:
+def parse_svg_root(text: str, relative: str) -> Any:
     try:
-        return ET.fromstring(text)  # noqa: S314 - bounded, declaration-free local asset
+        return ET.fromstring(text)
     except ET.ParseError as exc:
         raise ValueError(f"{relative} is not valid SVG XML: {exc}") from exc
 
@@ -283,8 +288,10 @@ def contains_external_svg_style(value: str) -> bool:
     if len(matches) != len(SVG_URL_START_RE.findall(value)):
         return True
     targets = [match.group(1).strip().strip("\"'").strip() for match in matches]
-    return "@import" in value or "javascript:" in value or any(
-        not target.startswith("#") for target in targets
+    return (
+        "@import" in value
+        or "javascript:" in value
+        or any(not target.startswith("#") for target in targets)
     )
 
 
@@ -299,7 +306,7 @@ def validate_svg_attribute(attribute: str, value: str, relative: str) -> None:
         raise ValueError(f"{relative} contains an external SVG style reference")
 
 
-def validate_svg_element(element: ET.Element, relative: str) -> None:
+def validate_svg_element(element: Any, relative: str) -> None:
     """Reject active content and external references from one SVG element."""
     if xml_local_name(element.tag) in FORBIDDEN_SVG_ELEMENTS:
         raise ValueError(f"{relative} contains active or embedded SVG content")
@@ -309,7 +316,7 @@ def validate_svg_element(element: ET.Element, relative: str) -> None:
         validate_svg_attribute(attribute, value, relative)
 
 
-def validate_safe_svg(text: str, relative: str) -> ET.Element:
+def validate_safe_svg(text: str, relative: str) -> Any:
     """Parse a bounded SVG and reject active content or external resources."""
     upper_text = text.upper()
     if len(text) > MAX_CURATED_SVG_BYTES:
@@ -366,17 +373,13 @@ def parse_png_chunks(data: bytes, relative: str) -> list[tuple[bytes, bytes]]:
     return chunks
 
 
-def validate_png_chunk_sequence(
-    chunks: list[tuple[bytes, bytes]], relative: str
-) -> None:
+def validate_png_chunk_sequence(chunks: list[tuple[bytes, bytes]], relative: str) -> None:
     """Require one leading IHDR, image data, and one terminal IEND chunk."""
     validate_png_header_chunk(chunks, relative)
     validate_png_data_and_end_chunks(chunks, relative)
 
 
-def validate_png_header_chunk(
-    chunks: list[tuple[bytes, bytes]], relative: str
-) -> None:
+def validate_png_header_chunk(chunks: list[tuple[bytes, bytes]], relative: str) -> None:
     """Require one well-sized leading PNG header chunk."""
     if not chunks:
         raise ValueError(f"{relative} is missing a valid PNG IHDR chunk")
@@ -386,9 +389,7 @@ def validate_png_header_chunk(
         raise ValueError(f"{relative} contains duplicate PNG IHDR chunks")
 
 
-def validate_png_data_and_end_chunks(
-    chunks: list[tuple[bytes, bytes]], relative: str
-) -> None:
+def validate_png_data_and_end_chunks(chunks: list[tuple[bytes, bytes]], relative: str) -> None:
     """Require image data followed by the terminal zero-length chunk."""
     compressed = b"".join(payload for chunk_type, payload in chunks if chunk_type == b"IDAT")
     if not compressed:
@@ -428,7 +429,9 @@ def validate_curated_screenshots() -> None:
     for relative in CURATED_SCREENSHOTS:
         path = ROOT / relative
         validate_svg_text(path.read_text(encoding="utf-8"), relative)
-    subprocess.run(  # noqa: S603
+    # Fixed repository script under the current interpreter; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "scripts/generate_docs_screenshots.py"), "--check"],
         cwd=ROOT,
         check=True,
@@ -444,7 +447,9 @@ def validate_brand_assets() -> None:
 
 def validate_source_documentation() -> None:
     """Run the source-header contract as part of the public repository gate."""
-    subprocess.run(  # noqa: S603
+    # Fixed repository script under the current interpreter; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "scripts/check_source_documentation.py")],
         cwd=ROOT,
         check=True,
@@ -452,7 +457,9 @@ def validate_source_documentation() -> None:
 
 
 def validate_eval_metadata() -> None:
-    subprocess.run(  # noqa: S603
+    # Fixed repository script under the current interpreter; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    subprocess.run(  # nosec B603
         [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
         cwd=ROOT,
         check=True,
@@ -465,7 +472,9 @@ def run_mkdocs_strict() -> None:
         raise ValueError("mkdocs is required for the strict documentation build")
     mkdocs_env = os.environ.copy()
     mkdocs_env["NO_MKDOCS_2_WARNING"] = "true"
-    subprocess.run(  # noqa: S603
+    # Resolved local MkDocs executable with verifier-owned arguments; never a shell command.
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
+    subprocess.run(  # nosec B603
         [mkdocs_bin, "build", "--strict"],
         cwd=ROOT,
         check=True,

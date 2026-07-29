@@ -50,12 +50,10 @@ def resolve_repo_child_path(path_str: Any, base: pathlib.Path, label: str) -> pa
 
 def _validate_benchmark_identity(benchmark: dict[str, Any]) -> None:
     try:
-        validate_artifact_id(value, label)
+        validate_artifact_id(benchmark.get("benchmark_id", ""), "benchmark_id")
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-
-def validate_required_benchmark_fields(benchmark: dict[str, Any]) -> None:
     for label in ("version", "judge_version", "judge_path", "task_specs_path"):
         if not isinstance(benchmark.get(label), str) or not benchmark[label]:
             raise SystemExit(f"benchmark {label} must be a non-empty string")
@@ -68,17 +66,10 @@ def _validate_task_entries(task_bundle: dict[str, Any]) -> None:
     for task in tasks:
         if not isinstance(task, dict):
             raise SystemExit("task bundle tasks must be objects")
-        validate_artifact_id_or_exit(task.get("task_id", ""), "task_id")
-
-
-def validate_benchmark_inputs(benchmark: dict[str, Any], task_bundle: dict[str, Any]) -> None:
-    validate_artifact_id_or_exit(benchmark.get("benchmark_id", ""), "benchmark_id")
-    validate_required_benchmark_fields(benchmark)
-    resolve_repo_child_path(
-        benchmark["task_specs_path"], ROOT / "evals/datasets", "task_specs_path"
-    )
-    resolve_repo_child_path(benchmark["judge_path"], ROOT, "judge_path")
-    validate_task_bundle(task_bundle)
+        try:
+            validate_artifact_id(task.get("task_id", ""), "task_id")
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
 
 
 def validate_benchmark_inputs(benchmark: dict[str, Any], task_bundle: dict[str, Any]) -> None:

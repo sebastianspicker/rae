@@ -1,7 +1,6 @@
 /**
  * Enforces workspace-relative path containment before development tools read repository files.
  */
-import { realpathSync } from "node:fs";
 import path from "node:path";
 import { badInput } from "./errors.js";
 import {
@@ -15,10 +14,8 @@ import {
  * Rejects traversal, absolute paths, and empty references before a tool resolves a repository path.
  */
 export function assertRepoRelativePath(ref: string, label: string): void {
-  const normalizedInput = requireNonEmptyString(ref, label);
-  if (isOutsideRelativePath(normalizedInput)) {
-    throw badInput(`${label} must be repository-relative`);
-  }
+  const normalizedInput = validateNonEmpty(ref, label);
+  assertSafeRelative(ref, path.normalize(normalizedInput), `${label} must be repository-relative`);
 }
 
 export function requireNonEmptyString(value: string, label: string): string {
@@ -51,13 +48,11 @@ export function resolveWithinWorkspace(
 ): string {
   const rootLabel = opts.rootLabel ?? "workspaceRoot";
   const outOfRootMessage = `${label} must resolve within ${rootLabel}`;
-  const rootRef = requireNonEmptyString(workspaceRoot, rootLabel);
-  const normalizedRef = requireNonEmptyString(relativeRef, label);
-  if (isOutsideRelativePath(normalizedRef)) {
-    throw badInput(outOfRootMessage);
-  }
+  validateNonEmpty(workspaceRoot, rootLabel);
+  const normalizedRef = validateNonEmpty(relativeRef, label);
+  assertSafeRelative(relativeRef, path.normalize(normalizedRef), outOfRootMessage);
 
-  const root = resolveExistingRoot(rootRef, rootLabel);
+  const root = resolveRoot(workspaceRoot, rootLabel);
   const resolved = path.resolve(root, path.normalize(normalizedRef));
   const relative = path.relative(root, resolved);
 
@@ -70,24 +65,18 @@ export function resolveWithinWorkspace(
 }
 
 export function resolveExistingRoot(workspaceRoot: string, rootLabel: string): string {
-  try {
-    return realpathSync(path.resolve(workspaceRoot));
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code === "ENOENT") throw badInput(`${rootLabel} does not exist`);
-    throw err;
-  }
+  return resolveRoot(workspaceRoot, rootLabel);
 }
 
 export function isOutsideResolvedRoot(relative: string): boolean {
   return relative.startsWith("..") || path.isAbsolute(relative);
 }
 
-export function assertRealPathStaysWithinRoot(root: string, resolved: string, message: string): void {
-  try {
-    if (isOutsideResolvedRoot(path.relative(root, realpathSync(resolved)))) throw badInput(message);
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code !== "ENOENT") throw err;
-  }
+export function assertRealPathStaysWithinRoot(
+  root: string,
+  resolved: string,
+  message: string,
+): void {
+  const existingAncestor = resolveExistingAncestor(resolved);
+  if (isOutsideResolvedRoot(path.relative(root, existingAncestor))) throw badInput(message);
 }
