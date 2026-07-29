@@ -90,8 +90,9 @@ export function discoverRuns(project) {
       if (!found.has(run.id)) found.set(run.id, run);
     }
   }
-  return [...found.values()]
-    .sort((left, right) => String(right.started_at).localeCompare(String(left.started_at)));
+  return [...found.values()].sort((left, right) =>
+    String(right.started_at).localeCompare(String(left.started_at)),
+  );
 }
 
 function workspaceRuns(project, workspaceRoot, projectRoot) {
@@ -179,8 +180,18 @@ function projectedEvents(run, runDir) {
 }
 
 function runTiming(request, events, runDir) {
-  const startedAt = request.requested_at ?? events[0]?.ts ?? readJson(join(runDir, "operator-control.json"))?.updated_at ?? null;
-  return { startedAt, updatedAt: readOperatorControl(basename(runDir), resolve(runDir, "../../..")).updated_at ?? events.at(-1)?.ts ?? startedAt };
+  const startedAt =
+    request.requested_at ??
+    events[0]?.ts ??
+    readJson(join(runDir, "operator-control.json"))?.updated_at ??
+    null;
+  return {
+    startedAt,
+    updatedAt:
+      readOperatorControl(basename(runDir), resolve(runDir, "../../..")).updated_at ??
+      events.at(-1)?.ts ??
+      startedAt,
+  };
 }
 
 function runResources(progress, events) {
@@ -219,13 +230,34 @@ function summarizeRun(project, run) {
 }
 
 function runIdentity(request, control, events, run) {
-  return { task: runTask(request, run.id), status: control.status, stop_requested: control.stop_requested === true, current_phase: runPhase(run, events), phase_order: runPhaseOrder(run), completed_gates: runCompletedGates(run) };
+  return {
+    task: runTask(request, run.id),
+    status: control.status,
+    stop_requested: control.stop_requested === true,
+    current_phase: runPhase(run, events),
+    phase_order: runPhaseOrder(run),
+    completed_gates: runCompletedGates(run),
+  };
 }
-function runTask(request, runId) { return typeof request.task === "string" ? request.task.split("\n")[0].slice(0, 240) : runId; }
-function runPhase(run, events) { return run.state.run_id === run.id ? run.state.current_phase : (events.at(-1)?.phase ?? "arm"); }
-function runPhaseOrder(run) { return Array.isArray(run.state.phase_order) ? run.state.phase_order : PHASES; }
-function runCompletedGates(run) { return Array.isArray(run.state.completed_gates) ? run.state.completed_gates : []; }
-function runWorkspace(run) { return { branch: run.state.workspace?.branch ?? "", workspace_mode: run.state.workspace?.mode ?? "main-repo", workspace_label: basename(run.workspaceRoot) }; }
+function runTask(request, runId) {
+  return typeof request.task === "string" ? request.task.split("\n")[0].slice(0, 240) : runId;
+}
+function runPhase(run, events) {
+  return run.state.run_id === run.id ? run.state.current_phase : (events.at(-1)?.phase ?? "arm");
+}
+function runPhaseOrder(run) {
+  return Array.isArray(run.state.phase_order) ? run.state.phase_order : PHASES;
+}
+function runCompletedGates(run) {
+  return Array.isArray(run.state.completed_gates) ? run.state.completed_gates : [];
+}
+function runWorkspace(run) {
+  return {
+    branch: run.state.workspace?.branch ?? "",
+    workspace_mode: run.state.workspace?.mode ?? "main-repo",
+    workspace_label: basename(run.workspaceRoot),
+  };
+}
 
 export function publicRun(run, ownedRunId = null) {
   const { workspaceRoot: _private, ...value } = run;
@@ -247,8 +279,7 @@ export function publicRun(run, ownedRunId = null) {
           (run.status === "completed" &&
             run.phase_order.some((phase) => !run.completed_gates.includes(`${phase}-gate`)))),
       cleanup:
-        !run.guarded &&
-        ["stopped", "blocked", "interrupted", "completed"].includes(run.status),
+        !run.guarded && ["stopped", "blocked", "interrupted", "completed"].includes(run.status),
     },
   };
 }

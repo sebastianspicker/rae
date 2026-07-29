@@ -1,8 +1,7 @@
 /** DOM renderers for runs, docket ledger, checkpoint, and evidence. */
 
-import { elements, state, currentRun } from "./state.js";
+import { currentRun, elements, state } from "./state.js";
 import {
-  escapeHtml,
   formatCost,
   formatDateTime,
   formatNumber,
@@ -18,6 +17,20 @@ import {
   tone,
 } from "./format.js";
 
+function node(tagName, { className, text, attrs = {}, dataset = {} } = {}, children = []) {
+  const element = document.createElement(tagName);
+  if (className) element.className = className;
+  if (text !== undefined) element.textContent = text;
+  for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, value);
+  for (const [name, value] of Object.entries(dataset)) element.dataset[name] = value;
+  element.append(...children);
+  return element;
+}
+
+function tableCell(content, options) {
+  return node("td", options, Array.isArray(content) ? content : [content]);
+}
+
 export function visibleRuns() {
   const query = state.runQuery.trim().toLowerCase();
   return state.runs.filter((run) => {
@@ -28,6 +41,27 @@ export function visibleRuns() {
   });
 }
 
+function runRow(run) {
+  const stateWord = runStateWord(run);
+  const top = node("span", { className: "run-row__top" }, [
+    node("span", { className: "run-row__id mono", text: shortId(run.id) }),
+    node("span", { className: `run-row__state state-${stateWord}`, text: stateWord }),
+  ]);
+  const meta = node("span", { className: "run-row__meta" }, [
+    node("span", { text: phaseLabel(run.current_phase) }),
+    node("span", { className: "mono", text: relativeTime(run.updated_at || run.started_at) }),
+  ]);
+  return node(
+    "button",
+    {
+      className: "run-row",
+      attrs: { type: "button", role: "option", "aria-selected": String(run.id === state.runId) },
+      dataset: { runId: run.id, tone: runTone(run) },
+    },
+    [top, node("span", { className: "run-row__task", text: run.task || run.id }), meta],
+  );
+}
+
 export function renderRuns() {
   elements["runs-loading"].hidden = true;
   const visible = visibleRuns();
@@ -35,38 +69,12 @@ export function renderRuns() {
   if (!visible.length) {
     const heading = elements["runs-empty"].querySelector("strong");
     const copy = elements["runs-empty"].querySelector("span");
-    if (state.runs.length) {
-      heading.textContent = "No matching runs";
-      copy.textContent = "Clear the search or change the state filter.";
-    } else {
-      heading.textContent = "No runs yet";
-      copy.textContent = "Start a bounded run for this project.";
-    }
+    heading.textContent = state.runs.length ? "No matching runs" : "No runs yet";
+    copy.textContent = state.runs.length
+      ? "Clear the search or change the state filter."
+      : "Start a bounded run for this project.";
   }
-  elements["runs-list"].replaceChildren(
-    ...visible.map((run) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "run-row";
-      button.dataset.runId = run.id;
-      button.dataset.tone = runTone(run);
-      button.setAttribute("role", "option");
-      button.setAttribute("aria-selected", String(run.id === state.runId));
-      const stateWord = runStateWord(run);
-      button.innerHTML = `
-        <span class="run-row__top">
-          <span class="run-row__id mono">${escapeHtml(shortId(run.id))}</span>
-          <span class="run-row__state state-${escapeHtml(stateWord)}">${escapeHtml(stateWord)}</span>
-        </span>
-        <span class="run-row__task">${escapeHtml(run.task || run.id)}</span>
-        <span class="run-row__meta">
-          <span>${escapeHtml(phaseLabel(run.current_phase))}</span>
-          <span class="mono">${escapeHtml(relativeTime(run.updated_at || run.started_at))}</span>
-        </span>
-      `;
-      return button;
-    }),
-  );
+  elements["runs-list"].replaceChildren(...visible.map(runRow));
 }
 
 export function renderRunControls(run) {
@@ -90,46 +98,53 @@ function gateWord(status) {
 
 function artifactCell(run, phase) {
   const gate = run.gates?.find((item) => item.phase === phase || item.gate_id === `${phase}-gate`);
-  if (gate?.artifact_ref) return shortRef(gate.artifact_ref);
-  return "—";
+  return gate?.artifact_ref ? shortRef(gate.artifact_ref) : "—";
 }
 
 function claimCell(rowState, hasPendingCheckpoint) {
   if (rowState === "wait") return "—";
-  if (rowState === "live" && hasPendingCheckpoint) return "unbound";
-  return "local";
+  return rowState === "live" && hasPendingCheckpoint ? "unbound" : "local";
+}
+
+function phaseRow(run, phase, index, activeIndex, pending) {
+  const complete =
+    run.completed_gates.includes(`${phase}-gate`) || (activeIndex >= 0 && index < activeIndex);
+  const isLive = index === activeIndex || (pending && pending.phase === phase);
+  const rowState = complete && !isLive ? "done" : isLive ? "live" : "wait";
+  const gate = run.gates?.find(
+    (item) => item.phase === phase || String(item.gate_id || "").startsWith(phase),
+  );
+  const gateInfo =
+    rowState === "wait"
+      ? { word: "—", cls: "g-wait" }
+      : isLive && pending
+        ? { word: "hold", cls: "g-hold" }
+        : gateWord(gate?.status ?? (complete ? "pass" : "pending"));
+  const claim = claimCell(rowState, Boolean(pending && isLive));
+  return node(
+    "tr",
+    {
+      className: `is-${rowState}${isLive ? " is-selected" : ""}`,
+      attrs: isLive ? { "aria-current": "step" } : {},
+      dataset: { stage: phase },
+    },
+    [
+      tableCell(node("span", { className: "mono", text: String(index + 1).padStart(2, "0") })),
+      tableCell(phase),
+      tableCell(node("span", { className: "mono", text: artifactCell(run, phase) })),
+      tableCell(node("span", { className: `g ${gateInfo.cls}`, text: gateInfo.word })),
+      tableCell(claim, { className: `claim${claim === "unbound" ? " is-open" : ""}` }),
+    ],
+  );
 }
 
 export function renderRunPhases(run) {
   const phases = run.phase_order ?? [];
   const activeIndex = phases.indexOf(run.current_phase);
   const pending = run.checkpoints?.find((item) => item.status === "pending") ?? null;
-  elements["phase-list"].innerHTML = phases
-    .map((phase, index) => {
-      const complete =
-        run.completed_gates.includes(`${phase}-gate`) || (activeIndex >= 0 && index < activeIndex);
-      const isLive = index === activeIndex || (pending && pending.phase === phase);
-      const rowState = complete && !isLive ? "done" : isLive ? "live" : "wait";
-      const gate = run.gates?.find((item) => item.phase === phase || String(item.gate_id || "").startsWith(phase));
-      const gateInfo =
-        rowState === "wait"
-          ? { word: "—", cls: "g-wait" }
-          : isLive && pending
-            ? { word: "hold", cls: "g-hold" }
-            : gateWord(gate?.status ?? (complete ? "pass" : "pending"));
-      const claim = claimCell(rowState, Boolean(pending && isLive));
-      const selected = isLive ? " is-selected" : "";
-      return `
-        <tr class="is-${rowState}${selected}" data-stage="${escapeHtml(phase)}" ${isLive ? 'aria-current="step"' : ""}>
-          <td class="mono">${String(index + 1).padStart(2, "0")}</td>
-          <td>${escapeHtml(phase)}</td>
-          <td class="mono">${escapeHtml(artifactCell(run, phase))}</td>
-          <td><span class="g ${gateInfo.cls}">${escapeHtml(gateInfo.word)}</span></td>
-          <td class="claim${claim === "unbound" ? " is-open" : ""}">${escapeHtml(claim)}</td>
-        </tr>
-      `;
-    })
-    .join("");
+  elements["phase-list"].replaceChildren(
+    ...phases.map((phase, index) => phaseRow(run, phase, index, activeIndex, pending)),
+  );
 }
 
 export function renderRunSummary(run) {
@@ -188,10 +203,9 @@ export function renderCheckpoint(run) {
     return;
   }
   elements["checkpoint-title"].textContent =
-    checkpoint.purpose === "ship" ? "Release checkpoint" : "Continue into quality stages?";
-  if (checkpoint.purpose !== "ship") {
-    elements["checkpoint-title"].textContent = `${phaseLabel(checkpoint.phase)} may continue?`;
-  }
+    checkpoint.purpose === "ship"
+      ? "Release checkpoint"
+      : `${phaseLabel(checkpoint.phase)} may continue?`;
   elements["checkpoint-message"].textContent = checkpoint.message;
   elements["checkpoint-rationale"].value = "";
   elements["rationale-count"].textContent = "0 / 4096";
@@ -203,80 +217,105 @@ export function renderCheckpoint(run) {
     "Does not commit, push, publish, deploy, replace policy, expose the custom provider, or force-clean a dirty worktree.";
 }
 
+function eventDetails(event, status) {
+  return [
+    `Sequence ${event.seq ?? "unavailable"}`,
+    event.tier ? `Tier ${event.tier}` : null,
+    event.gate_id ? `Gate ${event.gate_id}` : null,
+    `Projected status ${status}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function eventRow(event, index) {
+  const status = event.status ?? event.event;
+  const statusTone = tone(status);
+  const detailId = `event-extra-${index}`;
+  const toggle = node("button", {
+    className: "evidence-toggle",
+    attrs: {
+      type: "button",
+      "aria-expanded": "false",
+      "aria-controls": detailId,
+      "aria-label": `Show details for ${humanize(event.event)}`,
+    },
+  });
+  toggle.append(icon("arrow"));
+  const detail = node("tr", { className: "evidence-extra", attrs: { id: detailId, hidden: "" } }, [
+    tableCell(eventDetails(event, status), { attrs: { colspan: "5" } }),
+  ]);
+  toggle.addEventListener("click", () => setEventExpanded(toggle, detail, true));
+  const reference =
+    event.artifact_ref ?? event.gate_id ?? event.event_id ?? `Sequence ${event.seq}`;
+  const result = node("span", { className: "result", dataset: { tone: statusTone } }, [
+    icon(statusTone === "error" ? "reject" : "check"),
+    document.createTextNode(humanize(status)),
+  ]);
+  const row = node("tr", {}, [
+    tableCell([toggle, document.createTextNode(formatTime(event.ts))]),
+    tableCell(node("span", { className: "category", text: phaseLabel(event.phase) })),
+    tableCell(node("span", { className: "evidence-title", text: humanize(event.event) })),
+    tableCell(node("span", { className: "evidence-reference", text: reference })),
+    tableCell(result),
+  ]);
+  return [row, detail];
+}
+
+function eventMessageRow({ category, title, reference, toneValue, iconName, result }) {
+  const resultNode = node("span", { className: "result", dataset: { tone: toneValue } }, [
+    icon(iconName),
+    document.createTextNode(result),
+  ]);
+  return node("tr", {}, [
+    tableCell("Unavailable"),
+    tableCell(node("span", { className: "category", text: category })),
+    tableCell(node("span", { className: "evidence-title", text: title })),
+    tableCell(reference),
+    tableCell(resultNode),
+  ]);
+}
+
+function setEventExpanded(toggle, detail, expanded) {
+  toggle.setAttribute("aria-expanded", String(expanded));
+  detail.hidden = !expanded;
+}
+
 export function renderEvents() {
   if (state.eventError) {
     elements["event-count"].textContent = "Unavailable";
-    elements["event-list"].innerHTML = `
-      <tr>
-        <td>Unavailable</td>
-        <td><span class="category">Runtime</span></td>
-        <td><span class="evidence-title">Evidence unavailable</span></td>
-        <td>${escapeHtml(state.eventError)}</td>
-        <td><span class="result" data-tone="error">${icon("reject")}Error</span></td>
-      </tr>
-    `;
+    elements["event-list"].replaceChildren(
+      eventMessageRow({
+        category: "Runtime",
+        title: "Evidence unavailable",
+        reference: state.eventError,
+        toneValue: "error",
+        iconName: "reject",
+        result: "Error",
+      }),
+    );
     return;
   }
   elements["event-count"].textContent =
     `${state.events.length} projected ${state.events.length === 1 ? "event" : "events"}`;
-  elements["event-list"].innerHTML = state.events.length
-    ? state.events
-        .map((event, index) => {
-          const status = event.status ?? event.event;
-          const statusTone = tone(status);
-          const reference =
-            event.artifact_ref ?? event.gate_id ?? event.event_id ?? `Sequence ${event.seq}`;
-          const details = [
-            `Sequence ${event.seq ?? "unavailable"}`,
-            event.tier ? `Tier ${event.tier}` : null,
-            event.gate_id ? `Gate ${event.gate_id}` : null,
-            `Projected status ${status}`,
-          ]
-            .filter(Boolean)
-            .join(" · ");
-          return `
-            <tr>
-              <td>
-                <button
-                  class="evidence-toggle"
-                  type="button"
-                  aria-expanded="false"
-                  aria-controls="event-extra-${index}"
-                  aria-label="Show details for ${escapeHtml(humanize(event.event))}"
-                >${icon("arrow")}</button>${escapeHtml(formatTime(event.ts))}
-              </td>
-              <td><span class="category">${escapeHtml(phaseLabel(event.phase))}</span></td>
-              <td><span class="evidence-title">${escapeHtml(humanize(event.event))}</span></td>
-              <td><span class="evidence-reference">${escapeHtml(reference)}</span></td>
-              <td><span class="result" data-tone="${statusTone}">${icon(statusTone === "error" ? "reject" : "check")}${escapeHtml(humanize(status))}</span></td>
-            </tr>
-            <tr class="evidence-extra" id="event-extra-${index}" hidden>
-              <td colspan="5">${escapeHtml(details)}</td>
-            </tr>
-          `;
-        })
-        .join("")
-    : `
-      <tr>
-        <td>Not available</td>
-        <td><span class="category">Run</span></td>
-        <td><span class="evidence-title">No projected events yet</span></td>
-        <td>The sanitized stream is empty for this run.</td>
-        <td><span class="result" data-tone="muted">${icon("info")}Empty</span></td>
-      </tr>
-    `;
-  for (const toggle of document.querySelectorAll(".evidence-toggle")) {
-    toggle.addEventListener("click", () => {
-      const expanded = toggle.getAttribute("aria-expanded") !== "true";
-      toggle.setAttribute("aria-expanded", String(expanded));
-      document.getElementById(toggle.getAttribute("aria-controls")).hidden = !expanded;
-    });
-  }
+  const rows = state.events.length
+    ? state.events.flatMap(eventRow)
+    : [
+        eventMessageRow({
+          category: "Run",
+          title: "No projected events yet",
+          reference: "The sanitized stream is empty for this run.",
+          toneValue: "muted",
+          iconName: "info",
+          result: "Empty",
+        }),
+      ];
+  elements["event-list"].replaceChildren(...rows);
 }
 
 export function setEvidenceExpanded(expanded) {
   for (const toggle of document.querySelectorAll(".evidence-toggle")) {
-    toggle.setAttribute("aria-expanded", String(expanded));
-    document.getElementById(toggle.getAttribute("aria-controls")).hidden = !expanded;
+    const detail = document.getElementById(toggle.getAttribute("aria-controls"));
+    if (detail) setEventExpanded(toggle, detail, expanded);
   }
 }

@@ -50,7 +50,10 @@ function startCheckpointPolicy(value) {
 
 export function validateStartInput(body) {
   assertAllowedStartFields(body);
-  return { task: normalizedStartTask(body.task), checkpointPolicy: startCheckpointPolicy(body.checkpoint_policy) };
+  return {
+    task: normalizedStartTask(body.task),
+    checkpointPolicy: startCheckpointPolicy(body.checkpoint_policy),
+  };
 }
 
 export function requireTypedConfirmation(body, runId) {
