@@ -1,3 +1,4 @@
+# Removes workstation-specific paths and unstable metadata from CodeQL reports.
 [
   .[].runs[]
   | .results[]?

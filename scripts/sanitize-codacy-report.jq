@@ -1,3 +1,4 @@
+# Removes workstation-specific paths and unstable metadata from Codacy reports.
 {
   schemaVersion: 1,
   metadata: {

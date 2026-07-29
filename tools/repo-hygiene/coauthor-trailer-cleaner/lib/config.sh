@@ -103,23 +103,20 @@ PY
 
 load_repos_from_file() {
   local repos_file="$1"
-  local first_char line url path
-  first_char="$("$PYTHON_BIN" - "$repos_file" <<'PY'
-import sys
-with open(sys.argv[1], encoding="utf-8") as handle:
-    for line in handle:
-        stripped = line.lstrip()
-        if stripped:
-            print(stripped[0])
-            break
-PY
-)"
-  if "$PYTHON_BIN" - "$repos_file" >/dev/null 2>&1 <<'PY'
+  local first_char="" line stripped url path
+  while IFS= read -r line; do
+    stripped="${line#"${line%%[![:space:]]*}"}"
+    if [[ -n "$stripped" ]]; then
+      first_char="$(printf '%.1s' "$stripped")"
+      break
+    fi
+  done <"$repos_file"
+  if "$PYTHON_BIN" -c '
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     raise SystemExit(0 if isinstance(json.load(handle), list) else 1)
-PY
+' "$repos_file" >/dev/null 2>&1
   then
     load_repos_from_json_file "$repos_file" root
   elif [[ "$first_char" == "{" || "$first_char" == "[" ]]; then

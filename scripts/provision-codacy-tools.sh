@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Provisions the pinned Linux analyzer binaries used by the Codacy gate.
 set -euo pipefail
 
 CODACY_HOME="${HOME}/.codacy"

@@ -41,7 +41,7 @@ CAPTURES = (
 def capture_output(capture: Capture) -> str:
     env = os.environ.copy()
     env.update({"LANG": "C", "LC_ALL": "C", "NO_COLOR": "1"})
-    completed = subprocess.run(  # noqa: S603
+    completed = subprocess.run(  # nosec B603
         capture.argv,
         cwd=ROOT,
         env=env,
@@ -67,10 +67,13 @@ def render_svg(capture: Capture, output: str) -> str:
         f'width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
         'role="img" aria-labelledby="title description">\n'
         f'  <title id="title">{html.escape(capture.title)}</title>\n'
-        '  <desc id="description">Deterministic terminal capture generated from the live RAE CLI.</desc>\n'
+        '  <desc id="description">Deterministic terminal capture generated from the '
+        "live RAE CLI.</desc>\n"
         "  <style>\n"
-        "    .line { fill: #e6edf3; font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n"
-        "    .chrome { fill: #8b949e; font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }\n"
+        "    .line { fill: #e6edf3; font: 14px ui-monospace, SFMono-Regular, "
+        "Menlo, Consolas, monospace; }\n"
+        "    .chrome { fill: #8b949e; font: 13px ui-monospace, SFMono-Regular, "
+        "Menlo, Consolas, monospace; }\n"
         "  </style>\n"
         f'  <rect width="{width}" height="{height}" rx="14" fill="#0d1117"/>\n'
         f'  <rect width="{width}" height="44" rx="14" fill="#161b22"/>\n'

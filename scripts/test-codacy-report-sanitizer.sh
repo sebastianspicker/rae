@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Verifies Codacy report sanitization removes local and unstable data.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

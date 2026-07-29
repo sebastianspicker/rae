@@ -53,13 +53,7 @@ def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[Ski
     text = _read_text(skill_md)
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        return None, [SkillError(skill_md, "Missing YAML frontmatter (must start with ---).")]
-    try:
-        end_idx = next(i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---")
-    except StopIteration:
-        return None, [SkillError(skill_md, "Unterminated YAML frontmatter (missing closing ---).")]
-    return "\n".join(lines[1:end_idx]), []
-
+        return None, None, [SkillError(skill_md, "Missing YAML frontmatter (must start with ---).")]
     end_idx = _frontmatter_end(lines)
     if end_idx is None:
         return (
@@ -74,15 +68,6 @@ def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[Ski
         errors.append(SkillError(skill_md, "Frontmatter missing required field: name"))
     if description is None:
         errors.append(SkillError(skill_md, "Frontmatter missing required field: description"))
-    return errors
-
-
-def _parse_frontmatter(skill_md: Path) -> tuple[str | None, str | None, list[SkillError]]:
-    front, read_errors = _read_frontmatter(skill_md)
-    if front is None:
-        return None, None, read_errors
-    name, description = _parse_frontmatter_fields(front)
-    errors = _required_field_errors(skill_md, name, description)
     return name, description, errors
 
 
