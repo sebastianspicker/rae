@@ -30,14 +30,17 @@ import { runGraphContextBenchmark } from "../../eval/graph-context-benchmark.mjs
 const roots = [];
 
 function canonicalJson(value) {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value && typeof value === "object") {
-    return `{${Object.keys(value)
+  return JSON.stringify(canonicalValue(value));
+}
+
+function canonicalValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value)
       .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
-      .join(",")}}`;
-  }
-  return JSON.stringify(value);
+      .map((key) => [key, canonicalValue(value[key])]),
+  );
 }
 
 function withCanonicalDigest(manifest) {
@@ -83,6 +86,67 @@ function fixture() {
   git(root, "update-index", "--add", "--cacheinfo", `160000,${head},vendor/module`);
   git(root, "commit", "-qm", "add gitlink fixture");
   return root;
+}
+
+function invalidGraphRecords(graph) {
+  const [left, right] = graph.nodes.filter((node) => node.kind === "File");
+  const temporal = {
+    ...left,
+    logical_id: "File:temporal-invalid",
+    version_id: sha256("temporal-invalid"),
+    valid_from: "2026-07-29T00:00:00.000Z",
+    valid_to: "2026-07-28T00:00:00.000Z",
+  };
+  const crossRepository = {
+    ...right,
+    logical_id: "File:cross-repository",
+    version_id: sha256("cross-repository"),
+    repository_id: sha256("another-repository"),
+  };
+  const cycle = [
+    {
+      ...graph.edges[0],
+      kind: "DEPENDS_ON",
+      logical_id: `DEPENDS_ON:${left.logical_id}->${right.logical_id}`,
+      version_id: sha256("cycle-left"),
+      from: left.logical_id,
+      to: right.logical_id,
+    },
+    {
+      ...graph.edges[0],
+      kind: "DEPENDS_ON",
+      logical_id: `DEPENDS_ON:${right.logical_id}->${left.logical_id}`,
+      version_id: sha256("cycle-right"),
+      from: right.logical_id,
+      to: left.logical_id,
+    },
+  ];
+  return { crossRepository, cycle, temporal };
+}
+
+function prepareMemoryRun(root) {
+  const runDir = resolve(root, ".pipeline", "runs", "run-memory");
+  mkdirSync(resolve(runDir, "gates"), { recursive: true });
+  const records = [
+    [
+      "request.json",
+      { task: "Remember verified behavior", requested_at: "2026-07-29T12:00:00.000Z" },
+    ],
+    [
+      "brief.json",
+      { requirements: [{ id: "REQ-MEMORY", priority: "must", statement: "Keep evidence" }] },
+    ],
+    ["gates/arm-gate.json", { gate_id: "arm-gate", status: "pass" }],
+    ["operator-control.json", { status: "completed" }],
+  ];
+  for (const [path, record] of records) {
+    writeFileSync(resolve(runDir, path), `${JSON.stringify(record)}\n`);
+  }
+  writeFileSync(
+    resolve(runDir, "trace.jsonl"),
+    `${JSON.stringify({ event: "run_completed", phase: "arm", run_id: "run-memory", ts: "2026-07-29T12:01:00.000Z" })}\n`,
+  );
+  projectGraph({ projectRoot: root, runId: "run-memory" });
 }
 
 describe("local graph projection", () => {
@@ -205,38 +269,7 @@ describe("local graph projection", () => {
     ).toEqual([]);
     writeFileSync(resolve(root, "README.md"), "# fixture\n\nSee [source](src/main.js).\n");
     const graph = loadGraph(root, manifest.run_id);
-    const [left, right] = graph.nodes.filter((node) => node.kind === "File");
-    const temporal = {
-      ...left,
-      logical_id: "File:temporal-invalid",
-      version_id: sha256("temporal-invalid"),
-      valid_from: "2026-07-29T00:00:00.000Z",
-      valid_to: "2026-07-28T00:00:00.000Z",
-    };
-    const crossRepository = {
-      ...right,
-      logical_id: "File:cross-repository",
-      version_id: sha256("cross-repository"),
-      repository_id: sha256("another-repository"),
-    };
-    const cycle = [
-      {
-        ...graph.edges[0],
-        kind: "DEPENDS_ON",
-        logical_id: `DEPENDS_ON:${left.logical_id}->${right.logical_id}`,
-        version_id: sha256("cycle-left"),
-        from: left.logical_id,
-        to: right.logical_id,
-      },
-      {
-        ...graph.edges[0],
-        kind: "DEPENDS_ON",
-        logical_id: `DEPENDS_ON:${right.logical_id}->${left.logical_id}`,
-        version_id: sha256("cycle-right"),
-        from: right.logical_id,
-        to: left.logical_id,
-      },
-    ];
+    const { crossRepository, cycle, temporal } = invalidGraphRecords(graph);
     const validation = validateGraph(
       [...graph.nodes, graph.nodes[0], temporal, crossRepository],
       [...graph.edges, ...cycle],
@@ -285,29 +318,7 @@ describe("local graph projection", () => {
 
   it("quarantines model proposals and preserves attributable promotion decisions", () => {
     const root = fixture();
-    const runDir = resolve(root, ".pipeline", "runs", "run-memory");
-    mkdirSync(resolve(runDir, "gates"), { recursive: true });
-    writeFileSync(
-      resolve(runDir, "request.json"),
-      `${JSON.stringify({ task: "Remember verified behavior", requested_at: "2026-07-29T12:00:00.000Z" })}\n`,
-    );
-    writeFileSync(
-      resolve(runDir, "brief.json"),
-      `${JSON.stringify({ requirements: [{ id: "REQ-MEMORY", priority: "must", statement: "Keep evidence" }] })}\n`,
-    );
-    writeFileSync(
-      resolve(runDir, "gates", "arm-gate.json"),
-      `${JSON.stringify({ gate_id: "arm-gate", status: "pass" })}\n`,
-    );
-    writeFileSync(
-      resolve(runDir, "operator-control.json"),
-      `${JSON.stringify({ status: "completed" })}\n`,
-    );
-    writeFileSync(
-      resolve(runDir, "trace.jsonl"),
-      `${JSON.stringify({ event: "run_completed", phase: "arm", run_id: "run-memory", ts: "2026-07-29T12:01:00.000Z" })}\n`,
-    );
-    projectGraph({ projectRoot: root, runId: "run-memory" });
+    prepareMemoryRun(root);
     const memoryRoot = resolve(root, ".git", "rae-memory", "v1");
     mkdirSync(memoryRoot, { recursive: true });
     writeFileSync(resolve(memoryRoot, "memory.lock"), `${process.pid}\n`);
