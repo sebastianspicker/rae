@@ -88,14 +88,21 @@ function main() {
   const options = parseOptions(rest);
   if (isHelpCommand(command, options)) return usage();
   if (command === "doctor") return runDoctor(options);
-  if (["status", "stop", "resolve-checkpoint", "events"].includes(command)) return runControlCommand(command, options);
+  if (["status", "stop", "resolve-checkpoint", "events"].includes(command))
+    return runControlCommand(command, options);
   if (["run", "resume"].includes(command)) return runWorkflow(command, options);
   throw new Error(`unknown autonomous command: ${command}`);
 }
 
-function isHelpCommand(command, options) { return command === "help" || command === "--help" || command === "-h" || options.help; }
+function isHelpCommand(command, options) {
+  return command === "help" || command === "--help" || command === "-h" || options.help;
+}
 function runDoctor(options) {
-  const result = agentDoctor({ provider: options.provider ?? "auto", command: options["agent-command"], allowUnsafeCommand: options["allow-unsafe-command-provider"] === true });
+  const result = agentDoctor({
+    provider: options.provider ?? "auto",
+    command: options["agent-command"],
+    allowUnsafeCommand: options["allow-unsafe-command-provider"] === true,
+  });
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   if (!result.success) process.exitCode = 1;
 }

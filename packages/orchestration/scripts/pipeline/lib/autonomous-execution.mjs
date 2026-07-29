@@ -25,7 +25,17 @@ export function completeReviewLoop(workspaceRoot, runId) {
   for (const [state, status, note] of reviewTransitions()) {
     const latest = existsSync(reviewPath) ? readJsonStrict(reviewPath) : null;
     if (latest?.states?.[state]?.status === status) continue;
-    invokeRunner(workspaceRoot, ["record-review-state", "--run-id", runId, "--state", state, "--status", status, "--note", note]);
+    invokeRunner(workspaceRoot, [
+      "record-review-state",
+      "--run-id",
+      runId,
+      "--state",
+      state,
+      "--status",
+      status,
+      "--note",
+      note,
+    ]);
   }
 }
 
@@ -38,4 +48,3 @@ function reviewTransitions() {
 }
 
 export { runOnePhase } from "./phase-executor.mjs";
-

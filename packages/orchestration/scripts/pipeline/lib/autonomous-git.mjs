@@ -1,8 +1,15 @@
 /** Git and runtime-namespace invariants for autonomous workflow execution. */
-import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, readdirSync, statSync } from "node:fs";
+import {
+  lstatSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { relative, resolve } from "node:path";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 
 export function requireDirectory(pathValue, label) {
@@ -27,7 +34,8 @@ export function runProcess(command, args, options = {}) {
 }
 
 export function assertProcessStarted(proc, command, options) {
-  if (proc.error) throw new Error(`${options.label ?? command} failed to start: ${proc.error.message}`);
+  if (proc.error)
+    throw new Error(`${options.label ?? command} failed to start: ${proc.error.message}`);
 }
 
 export function assertProcessSucceeded(proc, command, options) {
@@ -162,7 +170,10 @@ export function gitStateSnapshot(root) {
 export function gitStateDifferences(baseline, current) {
   return [
     ["top_level", "Git top-level identity changed; repository ownership is no longer trustworthy"],
-    ["git_directory", "Git directory identity changed; repository ownership is no longer trustworthy"],
+    [
+      "git_directory",
+      "Git directory identity changed; repository ownership is no longer trustworthy",
+    ],
     ["head_commit", `HEAD commit changed from ${baseline.head_commit} to ${current.head_commit}`],
     ["head_reflog", "worktree HEAD reflog changed; a checkout, commit, or reset occurred"],
     ["branch_reflog", "current branch reflog changed; the run branch moved"],
@@ -170,7 +181,9 @@ export function gitStateDifferences(baseline, current) {
     ["refs", "Git refs changed outside the run-owned HEAD transition"],
     ["repository_config", "Git local or worktree configuration changed"],
     ["private_info", "Git private exclude or attributes state changed"],
-  ].flatMap(([key, message]) => JSON.stringify(baseline[key]) === JSON.stringify(current[key]) ? [] : [message]);
+  ].flatMap(([key, message]) =>
+    JSON.stringify(baseline[key]) === JSON.stringify(current[key]) ? [] : [message],
+  );
 }
 
 export function changedGitState(baseline, current) {
@@ -317,30 +330,59 @@ export function validateConcurrentOperatorChanges({
   if (!afterTrace.startsWith(beforeTrace)) {
     throw new Error("provider or concurrent process rewrote protected trace history");
   }
-  afterTrace.slice(beforeTrace.length).split("\n").map((line) => line.trim()).filter(Boolean)
-    .forEach((line) => validateConcurrentTraceEvent(line, runId, expectedPhase));
+  for (const line of afterTrace
+    .slice(beforeTrace.length)
+    .split("\n")
+    .map((value) => value.trim())
+    .filter(Boolean)) {
+    validateConcurrentTraceEvent(line, runId, expectedPhase);
+  }
 }
 
 export function validateConcurrentControl(beforeControl, afterControl, runId) {
   if (sameJson(beforeControl, afterControl)) return;
   const mutable = new Set(["status", "stop_requested", "stop_requested_at", "updated_at"]);
-  const unexpected = Object.keys(afterControl).some((key) => !Object.hasOwn(beforeControl, key) && !mutable.has(key));
-  const stableChanged = Object.keys(beforeControl).some((key) => !mutable.has(key) && !sameJson(beforeControl[key], afterControl[key]));
+  const unexpected = Object.keys(afterControl).some(
+    (key) => !Object.hasOwn(beforeControl, key) && !mutable.has(key),
+  );
+  const stableChanged = Object.keys(beforeControl).some(
+    (key) => !mutable.has(key) && !sameJson(beforeControl[key], afterControl[key]),
+  );
   const invalidTimestamp =
     typeof afterControl.stop_requested_at !== "string" ||
     !Number.isFinite(Date.parse(afterControl.stop_requested_at)) ||
     typeof afterControl.updated_at !== "string" ||
     !Number.isFinite(Date.parse(afterControl.updated_at));
-  if (afterControl.run_id !== runId || afterControl.status !== "stop-requested" || afterControl.stop_requested !== true || invalidTimestamp || unexpected || stableChanged) {
+  if (
+    afterControl.run_id !== runId ||
+    afterControl.status !== "stop-requested" ||
+    afterControl.stop_requested !== true ||
+    invalidTimestamp ||
+    unexpected ||
+    stableChanged
+  ) {
     throw new Error("provider or concurrent process made an invalid operator-control transition");
   }
 }
 
 export function validateConcurrentTraceEvent(line, runId, expectedPhase = null) {
   let event;
-  try { event = JSON.parse(line); } catch { throw new Error("provider or concurrent process appended invalid trace JSON"); }
+  try {
+    event = JSON.parse(line);
+  } catch {
+    throw new Error("provider or concurrent process appended invalid trace JSON");
+  }
   const expectedKeys = ["event", "phase", "run_id", "status", "ts"];
-  if (JSON.stringify(Object.keys(event).sort()) !== JSON.stringify(expectedKeys) || event.event !== "run_stop_requested" || event.run_id !== runId || event.status !== "ok" || !PHASE_ORDER.includes(event.phase) || (expectedPhase && event.phase !== expectedPhase) || typeof event.ts !== "string" || !Number.isFinite(Date.parse(event.ts))) {
+  if (
+    JSON.stringify(Object.keys(event).sort()) !== JSON.stringify(expectedKeys) ||
+    event.event !== "run_stop_requested" ||
+    event.run_id !== runId ||
+    event.status !== "ok" ||
+    !PHASE_ORDER.includes(event.phase) ||
+    (expectedPhase && event.phase !== expectedPhase) ||
+    typeof event.ts !== "string" ||
+    !Number.isFinite(Date.parse(event.ts))
+  ) {
     throw new Error("provider or concurrent process appended a non-stop operator trace event");
   }
 }

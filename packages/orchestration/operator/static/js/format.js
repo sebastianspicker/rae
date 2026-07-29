@@ -51,16 +51,12 @@ export function runStateWord(run) {
 }
 
 export function icon(name) {
-  return `<svg aria-hidden="true"><use href="#icon-${name}"></use></svg>`;
-}
-
-export function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  svg.setAttribute("aria-hidden", "true");
+  use.setAttribute("href", `#icon-${name}`);
+  svg.append(use);
+  return svg;
 }
 
 export function formatNumber(value, unavailable = "—") {

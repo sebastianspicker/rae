@@ -158,7 +158,7 @@ def parent_is_attached(root_fd: int, relative: str, parent_fd: int) -> bool:
     """Confirm a retained directory descriptor still names the expected live parent."""
     try:
         current_fd, _ = open_parent(root_fd, relative)
-    except FileNotFoundError, ProfileError:
+    except (FileNotFoundError, ProfileError):
         return False
     try:
         current = os.fstat(current_fd)

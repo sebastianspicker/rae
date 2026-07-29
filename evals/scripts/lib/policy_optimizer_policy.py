@@ -196,7 +196,11 @@ def _is_campaign_id(value: Any) -> bool:
 
 
 def _is_valid_iteration_count(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= MAX_CAMPAIGN_ITERATIONS
+    return (
+        isinstance(value, int)
+        and not isinstance(value, bool)
+        and 1 <= value <= MAX_CAMPAIGN_ITERATIONS
+    )
 
 
 def _validate_campaign_paths(campaign: dict[str, Any]) -> None:
@@ -233,7 +237,10 @@ def _is_valid_resource_budget(budget: Any) -> bool:
         return False
     if not _is_positive_duration(budget.get("max_agent_duration_seconds", 1)):
         return False
-    return all(_is_positive_integer(budget.get(field, 1)) for field in ("max_total_tokens", "max_agent_calls"))
+    return all(
+        _is_positive_integer(budget.get(field, 1))
+        for field in ("max_total_tokens", "max_agent_calls")
+    )
 
 
 def _is_positive_duration(value: Any) -> bool:

@@ -1,3 +1,4 @@
+/** Builds the operator-facing pipeline progress summary. */
 export function progressView(state, summary, phases, readGate) {
   const completed = new Set(Array.isArray(state.completed_gates) ? state.completed_gates : []);
   const phaseStatus = phases.map((phase) => progressPhase(phase, state, completed, readGate));

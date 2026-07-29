@@ -69,7 +69,9 @@ export function deduplicateCategory(
   tokenCache: Map<string, Set<string>>,
 ): DedupFinding[] {
   const merged: DedupFinding[] = [];
-  findings.forEach((finding) => mergeOrAppend(merged, finding, tokenCache));
+  findings.forEach((finding) => {
+    mergeOrAppend(merged, finding, tokenCache);
+  });
   return merged;
 }
 
@@ -88,7 +90,12 @@ export function isSimilar(
   finding: TaggedFinding,
   tokenCache: Map<string, Set<string>>,
 ): boolean {
-  return tokenSimilarity(cachedTokenize(candidate.description, tokenCache), cachedTokenize(finding.description, tokenCache)) >= SIMILARITY_THRESHOLD;
+  return (
+    tokenSimilarity(
+      cachedTokenize(candidate.description, tokenCache),
+      cachedTokenize(finding.description, tokenCache),
+    ) >= SIMILARITY_THRESHOLD
+  );
 }
 
 export function cachedTokenize(text: string, cache: Map<string, Set<string>>): Set<string> {
@@ -113,7 +120,8 @@ export function addSourceModel(existing: DedupFinding, source: string): void {
 }
 
 export function promoteSeverity(existing: DedupFinding, incoming: TaggedFinding): void {
-  if (severityRank(incoming.severity) > severityRank(existing.severity)) existing.severity = incoming.severity;
+  if (severityRank(incoming.severity) > severityRank(existing.severity))
+    existing.severity = incoming.severity;
 }
 
 export function copyMissingEvidence(existing: DedupFinding, incoming: TaggedFinding): void {
@@ -130,15 +138,24 @@ export function copyMissingTraceId(existing: DedupFinding, incoming: TaggedFindi
 
 export function mergeRequirementIds(existing: DedupFinding, incoming?: string[]): void {
   if (!incoming?.length) return;
-  existing.covers_requirement_ids = [...new Set([...(existing.covers_requirement_ids ?? []), ...incoming])];
+  existing.covers_requirement_ids = [
+    ...new Set([...(existing.covers_requirement_ids ?? []), ...incoming]),
+  ];
 }
 
 export function toDedupFinding(finding: TaggedFinding): DedupFinding {
   return {
-    id: finding.id, category: finding.category, description: finding.description, severity: finding.severity,
-    evidence: finding.evidence, suggestion: finding.suggestion, source_models: [finding._source],
+    id: finding.id,
+    category: finding.category,
+    description: finding.description,
+    severity: finding.severity,
+    evidence: finding.evidence,
+    suggestion: finding.suggestion,
+    source_models: [finding._source],
     ...(finding.trace_id ? { trace_id: finding.trace_id } : {}),
-    ...(finding.covers_requirement_ids?.length ? { covers_requirement_ids: [...finding.covers_requirement_ids] } : {}),
+    ...(finding.covers_requirement_ids?.length
+      ? { covers_requirement_ids: [...finding.covers_requirement_ids] }
+      : {}),
   };
 }
 

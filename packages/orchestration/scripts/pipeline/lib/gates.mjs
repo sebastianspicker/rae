@@ -196,6 +196,14 @@ export function stageGateInput({ phase, artifact, artifactRef, schemaRef }) {
       value: 1,
     });
   }
+  if (phase === "quality-tests") {
+    criteria.push({
+      name: "must-requirements-covered",
+      type: "number-max",
+      path: "coverage_ledger.summary.missing_requirements",
+      value: 0,
+    });
+  }
   return {
     artifact,
     artifact_ref: artifactRef,

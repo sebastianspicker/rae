@@ -1,3 +1,4 @@
+/** Builds the design-phase artifact from validated requirements. */
 export function buildDesignArtifact({ requirements, now }) {
   return {
     analysis: {

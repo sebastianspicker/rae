@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """Release gate CLI and core checks."""
 
-import argparse
 import json
 import pathlib
 from typing import Any, cast
 
 from common import (
     RESULTS_ROOT,
-    dump_json,
     iso_timestamp,
     load_json,
     load_json_object,
@@ -179,7 +177,7 @@ def discover_release_gated_evidence(
     for path in RESULTS_ROOT.rglob("run-card-*.json"):
         try:
             candidate = _load_object(path)
-        except json.JSONDecodeError, ValueError:
+        except (json.JSONDecodeError, ValueError):
             continue
         if not _candidate_matches(candidate, benchmark_id, benchmark_version, required_split):
             continue
@@ -436,10 +434,10 @@ def _provided_evidence_issues(
             continue
         entry_type = entry.get("type")
         if isinstance(entry_type, str) and entry_type:
-            types.add(entry_type)
+            validated_types.add(entry_type)
         issues.extend(
             validate_verification_evidence_entry(
-                entry, index=index, run_card=card, run_card_path=path
+                entry, index=index, run_card=run_card, run_card_path=run_card_path
             )
         )
     return issues, validated_types

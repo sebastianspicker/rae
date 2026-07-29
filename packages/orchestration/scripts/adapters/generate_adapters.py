@@ -114,12 +114,6 @@ def parse_args() -> argparse.Namespace:
         "--runner", action="append", help="Limit generation/check to one or more runner IDs."
     )
     parser.add_argument(
-        "--check", action="store_true", help="Check mode: do not write files, fail on drift."
-    )
-    parser.add_argument(
-        "--runner", action="append", help="Limit generation/check to one or more runner IDs."
-    )
-    parser.add_argument(
         "--manifest",
         default="adapters/spec/adapter-manifest.json",
         help="Adapter manifest path (default: adapters/spec/adapter-manifest.json).",

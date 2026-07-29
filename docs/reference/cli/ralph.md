@@ -35,7 +35,7 @@ Use `packages/loops/ralph/prd.json.example` as the public template.
 
 The complete command, environment, runtime-file, recovery, and security
 reference is the
-[Ralph package README](../../../packages/loops/ralph/README.md).
+[Ralph package README](https://github.com/sebastianspicker/rae/blob/main/packages/loops/ralph/README.md).
 
 ## Source note
 

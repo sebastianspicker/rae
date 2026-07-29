@@ -116,7 +116,10 @@ def _validate_report_evidence(evaluation: dict[str, Any]) -> None:
 
 
 def _has_bounded_repeats(repeats: list[Any]) -> bool:
-    return all(isinstance(repeat, list) and repeat and len(repeat) <= MAX_TASKS_PER_REPEAT for repeat in repeats)
+    return all(
+        isinstance(repeat, list) and repeat and len(repeat) <= MAX_TASKS_PER_REPEAT
+        for repeat in repeats
+    )
 
 
 def _validate_report_summary(evaluation: dict[str, Any], aggregate: dict[str, Any]) -> None:

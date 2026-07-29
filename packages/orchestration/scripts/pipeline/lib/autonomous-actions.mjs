@@ -2,14 +2,33 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
-import { acquireWorkflowLock, assertResumeCheckpointPolicy, initializeOrResume, mergeResumeOptions } from "./autonomous-lifecycle.mjs";
-import { assertGitRepository, assertGitStateInvariant, refreshResumeRefBaseline, requireDirectory } from "./autonomous-git.mjs";
+import {
+  acquireWorkflowLock,
+  initializeOrResume,
+  mergeResumeOptions,
+} from "./autonomous-lifecycle.mjs";
+import {
+  assertGitRepository,
+  assertGitStateInvariant,
+  refreshResumeRefBaseline,
+  requireDirectory,
+} from "./autonomous-git.mjs";
 import { completeReviewLoop, invokeRunner, runOnePhase } from "./autonomous-execution.mjs";
 import { printFinal, writeRunReport } from "./autonomous-report.mjs";
 import { appendTraceEvent, projectOperatorEvents } from "./trace.mjs";
-import { getRunDir, readJsonStrict } from "./state.mjs";
-import { checkpointPolicy, createCheckpoint, listCheckpoints, readOperatorControl, requestStop, resolveCheckpointById, setRunStatus } from "./operator-control.mjs";
+import { getRunDir, readJsonStrict, writeJson } from "./state.mjs";
+import {
+  checkpointPolicy,
+  createCheckpoint,
+  listCheckpoints,
+  readOperatorControl,
+  requestStop,
+  resolveCheckpointById,
+  setRunStatus,
+} from "./operator-control.mjs";
 import { ensureRuntimeStateReadable } from "./runtime-state-guard.mjs";
+
+const DEFAULT_TIMEOUT_SECONDS = 1800;
 
 function checkpointPause(context, phase, purpose) {
   const checkpoint = createCheckpoint(
@@ -104,9 +123,12 @@ function validateProviderOptions(options) {
 
 function validateCommandProvider(options) {
   if (options["allow-unsafe-command-provider"] !== true) {
-    throw new Error("--provider command is an unsandboxed test-integration surface and requires --allow-unsafe-command-provider");
+    throw new Error(
+      "--provider command is an unsandboxed test-integration surface and requires --allow-unsafe-command-provider",
+    );
   }
-  if (!options["agent-command"]) throw new Error("--provider command requires --agent-command <executable>");
+  if (!options["agent-command"])
+    throw new Error("--provider command requires --agent-command <executable>");
 }
 
 function validateFreshCommandResume(options) {
@@ -117,9 +139,42 @@ function validateFreshCommandResume(options) {
     !options.agentArgs?.length
   ) {
     throw new Error(
-      "command-provider resume requires fresh --provider command, --agent-command, at least one --agent-arg, and --allow-unsafe-command-provider",
+      "command-provider resume requires --allow-unsafe-command-provider and fresh --provider command, --agent-command, and at least one --agent-arg",
     );
   }
+}
+
+/**
+ * Preserve Git-state enforcement even when a phase gate rejects its artifact.
+ * A provider must not be able to make a forbidden Git mutation and hide it
+ * behind a lower-priority gate failure.
+ */
+function runPhaseWithGitInvariant(context, phase, options) {
+  let result;
+  try {
+    result = runOnePhase(context, phase, options);
+  } catch (error) {
+    assertGitStateInvariant(context.workspaceRoot, context.initialGitState, phase);
+    throw error;
+  }
+  assertGitStateInvariant(context.workspaceRoot, context.initialGitState, phase);
+  return result;
+}
+
+function recordFreshCommandResume(context, command, options) {
+  if (command !== "resume" || options.provider !== "command") return;
+  const requestPath = resolve(getRunDir(context.runId, context.workspaceRoot), "request.json");
+  const request = readJsonStrict(requestPath);
+  writeJson(requestPath, {
+    ...request,
+    agent: {
+      ...request.agent,
+      provider: "command",
+      command: options["agent-command"],
+      command_args: options.agentArgs,
+      allow_unsafe_command_provider: true,
+    },
+  });
 }
 
 function controlCommandContext(options) {
@@ -284,6 +339,7 @@ export function runWorkflow(command, options) {
 
   try {
     try {
+      recordFreshCommandResume(context, command, runOptions);
       const previousControl = readOperatorControl(context.runId, context.workspaceRoot);
       const allPhasesCompleted = PHASE_ORDER.every((phase) => completed.has(`${phase}-gate`));
       if (command === "resume" && previousControl.status === "completed" && allPhasesCompleted) {
@@ -364,7 +420,7 @@ export function runWorkflow(command, options) {
           }
         }
         if (phase === "release-readiness") completeReviewLoop(context.workspaceRoot, context.runId);
-        const result = runOnePhase(context, phase, runOptions);
+        const result = runPhaseWithGitInvariant(context, phase, runOptions);
         provider = result.agent_provider;
         process.stderr.write(`RAE phase ${phase}: ${result.gate.status}\n`);
       }

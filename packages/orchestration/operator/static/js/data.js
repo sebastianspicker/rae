@@ -98,9 +98,7 @@ async function loadEventPage(projectId, runId, controller) {
 
 export function isCurrentEventSelection(generation, projectId, runId) {
   return (
-    generation === state.streamGeneration &&
-    projectId === state.projectId &&
-    runId === state.runId
+    generation === state.streamGeneration && projectId === state.projectId && runId === state.runId
   );
 }
 

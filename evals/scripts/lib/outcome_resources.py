@@ -19,7 +19,9 @@ def unavailable_resource_usage() -> dict[str, Any]:
 
 def trace_events(trace_path: pathlib.Path) -> list[dict[str, Any]] | None:
     try:
-        events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines() if line]
+        events = [
+            json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines() if line
+        ]
     except (OSError, json.JSONDecodeError):
         return None
     return events if all(isinstance(event, dict) for event in events) else None

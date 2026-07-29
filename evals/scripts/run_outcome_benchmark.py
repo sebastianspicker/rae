@@ -82,8 +82,10 @@ def _valid_bundle_header(bundle: object) -> bool:
         return False
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", bundle["benchmark_id"]):
         return False
-    return bundle.get("status") == "experimental" and isinstance(bundle.get("tasks"), list) and bool(
-        bundle["tasks"]
+    return (
+        bundle.get("status") == "experimental"
+        and isinstance(bundle.get("tasks"), list)
+        and bool(bundle["tasks"])
     )
 
 

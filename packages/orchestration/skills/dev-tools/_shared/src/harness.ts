@@ -1,7 +1,6 @@
 /**
  * Hosts the JSON-lines tool harness that normalizes timing, errors, and machine-readable output.
  */
-import { performance } from "node:perf_hooks";
 import { readFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
 import type { RunResult } from "./types.js";

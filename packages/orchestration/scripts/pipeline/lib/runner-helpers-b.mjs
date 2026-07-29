@@ -274,27 +274,6 @@ function emitPlainPrimaryGate(options) {
   const { runId, phase, artifactRef, desiredStatus, gateStatuses, root } = options;
   const stageStatus = worstStatus(desiredStatus, ...gateStatuses);
   return emitGate({
-    ...baseGate(context, status),
-    artifactRef: context.artifactRef || gate.artifact_ref,
-    criteria: gate.criteria,
-    blockingFailures: status === "fail" ? gate.blocking_failures : [],
-    schemaValidation: gate.schema_validation,
-  });
-}
-
-function emitStatusGate(context) {
-  const status = worstStatus(context.desiredStatus, ...context.gateStatuses);
-  return emitGate({
-    ...baseGate(context, status),
-    artifactRef: context.artifactRef || "n/a",
-    criteria: [],
-    blockingFailures: status === "fail" ? ["phase-status"] : [],
-  });
-}
-
-function baseGate(context, status) {
-  const { runId, phase, root } = context;
-  return {
     runId,
     phase,
     gateId: `${phase}-gate`,
@@ -305,31 +284,7 @@ function baseGate(context, status) {
     metadata: primaryGateMetadata(options),
     gateFileOverride: gateFileNameForPhase(phase),
     root,
-  };
-}
-
-function gateMetadata({ schemaRef, configId, cognitiveTier, activityProfile }) {
-  return {
-    gate_type: "phase",
-    schema_ref: schemaRef,
-    config_id: configId,
-    cognitive_tier: cognitiveTier,
-    ...activityMetadata(activityProfile),
-  };
-}
-
-function activityMetadata(activityProfile) {
-  const profile = activityProfile || {};
-  return {
-    activity_id: valueOrNull(profile.activity_id),
-    runtime_name: valueOrNull(profile.runtime_name),
-    runtime_version: valueOrNull(profile.runtime_version),
-    model_hint: valueOrNull(profile.model_hint),
-  };
-}
-
-function valueOrNull(value) {
-  return value ?? null;
+  });
 }
 
 export function emitPrimaryGate(options) {

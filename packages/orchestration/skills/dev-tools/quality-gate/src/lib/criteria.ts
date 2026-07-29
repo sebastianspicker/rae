@@ -5,9 +5,13 @@ import type { Criterion, CriterionResult } from "../types.js";
 
 const MAX_REGEX_PATTERN_LENGTH = 256;
 const MAX_REGEX_TARGET_LENGTH = 4096;
-const BACKSLASH = String.fromCharCode(92);
 
-export function hasUnescapedChar(pattern: string, target: string, index = 0, escaped = false): boolean {
+export function hasUnescapedChar(
+  pattern: string,
+  target: string,
+  index = 0,
+  escaped = false,
+): boolean {
   const ch = pattern[index];
   if (ch === undefined) return false;
   if (escaped) return hasUnescapedChar(pattern, target, index + 1, false);
@@ -20,12 +24,14 @@ export function isPotentiallyUnsafeRegex(pattern: string): boolean {
 }
 
 export function hasUnsafeRegexStructure(pattern: string): boolean {
-  return hasRegexBackreference(pattern)
-    || hasRegexGrouping(pattern)
-    || hasRegexLookaround(pattern)
-    || hasRegexGreedyWildcard(pattern)
-    || hasRegexRepeatedQuantifier(pattern)
-    || hasRegexUnboundedRange(pattern);
+  return (
+    hasRegexBackreference(pattern) ||
+    hasRegexGrouping(pattern) ||
+    hasRegexLookaround(pattern) ||
+    hasRegexGreedyWildcard(pattern) ||
+    hasRegexRepeatedQuantifier(pattern) ||
+    hasRegexUnboundedRange(pattern)
+  );
 }
 
 export function hasRegexBackreference(pattern: string): boolean {
@@ -33,7 +39,11 @@ export function hasRegexBackreference(pattern: string): boolean {
 }
 
 export function hasRegexGrouping(pattern: string): boolean {
-  return hasUnescapedChar(pattern, "(") || hasUnescapedChar(pattern, ")") || hasUnescapedChar(pattern, "|");
+  return (
+    hasUnescapedChar(pattern, "(") ||
+    hasUnescapedChar(pattern, ")") ||
+    hasUnescapedChar(pattern, "|")
+  );
 }
 
 export function hasRegexLookaround(pattern: string): boolean {
@@ -69,7 +79,7 @@ export function resolvePath(obj: Record<string, unknown>, path: string): unknown
     current = Reflect.get(current, seg);
   }
   return current;
-};
+}
 
 export function collectStringValues(value: unknown): string[] {
   if (typeof value === "string") {
@@ -84,7 +94,7 @@ export function collectStringValues(value: unknown): string[] {
     );
   }
   return [];
-};
+}
 
 export function extractTraceId(value: unknown): string | undefined {
   if (typeof value === "string") return nonEmptyString(value);
@@ -100,7 +110,11 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function recordTraceId(record: Record<string, unknown>): string | undefined {
-  return typeof record.trace_id === "string" ? nonEmptyString(record.trace_id) : typeof record.id === "string" ? nonEmptyString(record.id) : undefined;
+  return typeof record.trace_id === "string"
+    ? nonEmptyString(record.trace_id)
+    : typeof record.id === "string"
+      ? nonEmptyString(record.id)
+      : undefined;
 }
 
 export function checkFieldExists(artifact: Record<string, unknown>, path: string): CriterionResult {
@@ -113,7 +127,7 @@ export function checkFieldExists(artifact: Record<string, unknown>, path: string
       ? `Field "${path}" exists with type ${typeof val}`
       : `Field "${path}" is missing or null`,
   };
-};
+}
 
 export function checkFieldEmpty(artifact: Record<string, unknown>, path: string): CriterionResult {
   const val = resolvePath(artifact, path);
@@ -132,13 +146,13 @@ export function checkFieldEmpty(artifact: Record<string, unknown>, path: string)
       ? `Field "${path}" is an empty array`
       : `Field "${path}" has ${val.length} item(s), expected 0`,
   };
-};
+}
 
 export function checkCountMin(
   artifact: Record<string, unknown>,
   path: string,
   minValue: unknown,
-): CriterionResult => {
+): CriterionResult {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -166,13 +180,13 @@ export function checkCountMin(
     passed,
     evidence: `Field "${path}" has ${val.length} item(s), minimum required: ${min}`,
   };
-};
+}
 
 export function checkCountMax(
   artifact: Record<string, unknown>,
   path: string,
   maxValue: unknown,
-): CriterionResult => {
+): CriterionResult {
   const val = resolvePath(artifact, path);
   if (!Array.isArray(val)) {
     return {
@@ -200,13 +214,13 @@ export function checkCountMax(
     passed,
     evidence: `Field "${path}" has ${val.length} item(s), maximum allowed: ${max}`,
   };
-};
+}
 
 export function checkNumberMax(
   artifact: Record<string, unknown>,
   path: string,
   maxValue: unknown,
-): CriterionResult => {
+): CriterionResult {
   const val = resolvePath(artifact, path);
   if (typeof val !== "number" || !Number.isFinite(val)) {
     return {
@@ -228,7 +242,7 @@ export function checkNumberMax(
     passed,
     evidence: `Field "${path}" value is ${val}, maximum allowed: ${maxValue}`,
   };
-};
+}
 
 export function checkCoverageMin(
   artifact: Record<string, unknown>,
@@ -236,20 +250,33 @@ export function checkCoverageMin(
 ): CriterionResult {
   const invalid = invalidCoverageCriterion(criterion);
   if (invalid) return invalid;
-  const source = resolvePath(artifact, criterion.source_path!);
-  if (!Array.isArray(source)) return failedCriterion(`Field "${criterion.source_path}" is not an array`);
+  const sourcePath = criterion.source_path;
+  const targetPaths = criterion.target_paths;
+  if (!sourcePath || !targetPaths) return failedCriterion("coverage-min requires paths");
+  const source = resolvePath(artifact, sourcePath);
+  if (!Array.isArray(source))
+    return failedCriterion(`Field "${criterion.source_path}" is not an array`);
   const sourceIds = coverageSourceIds(source, criterion);
 
   if (sourceIds.length === 0) {
-    return passedCriterion("coverage-min source set is empty after filtering; treated as satisfied");
+    return passedCriterion(
+      "coverage-min source set is empty after filtering; treated as satisfied",
+    );
   }
-  return coverageResult(sourceIds, coveredTraceIds(artifact, criterion.target_paths!), criterion.value as number);
+  return coverageResult(
+    sourceIds,
+    coveredTraceIds(artifact, targetPaths),
+    criterion.value as number,
+  );
 }
 
 export function invalidCoverageCriterion(criterion: Criterion): CriterionResult | undefined {
-  if (!isCoverageThreshold(criterion.value)) return failedCriterion("coverage-min value must be a number between 0 and 1");
-  if (hasMissingCoverageSource(criterion)) return failedCriterion("coverage-min requires source_path");
-  if (hasMissingCoverageTargets(criterion)) return failedCriterion("coverage-min requires non-empty target_paths");
+  if (!isCoverageThreshold(criterion.value))
+    return failedCriterion("coverage-min value must be a number between 0 and 1");
+  if (hasMissingCoverageSource(criterion))
+    return failedCriterion("coverage-min requires source_path");
+  if (hasMissingCoverageTargets(criterion))
+    return failedCriterion("coverage-min requires non-empty target_paths");
   return undefined;
 }
 
@@ -266,18 +293,34 @@ export function hasMissingCoverageTargets(criterion: Criterion): boolean {
 }
 
 export function coverageSourceIds(source: unknown[], criterion: Criterion): string[] {
-  return source.filter((entry) => !criterion.source_filter_path || (isRecord(entry) && resolvePath(entry, criterion.source_filter_path) === criterion.source_filter_value)).map(extractTraceId).filter((id): id is string => typeof id === "string");
+  return source
+    .filter(
+      (entry) =>
+        !criterion.source_filter_path ||
+        (isRecord(entry) &&
+          resolvePath(entry, criterion.source_filter_path) === criterion.source_filter_value),
+    )
+    .map(extractTraceId)
+    .filter((id): id is string => typeof id === "string");
 }
 
 export function coveredTraceIds(artifact: Record<string, unknown>, paths: string[]): Set<string> {
   return new Set(paths.flatMap((path) => collectStringValues(resolvePath(artifact, path))));
 }
 
-export function coverageResult(sourceIds: string[], covered: Set<string>, threshold: number): CriterionResult {
+export function coverageResult(
+  sourceIds: string[],
+  covered: Set<string>,
+  threshold: number,
+): CriterionResult {
   const matched = sourceIds.filter((id) => covered.has(id));
   const missing = sourceIds.filter((id) => !covered.has(id));
   const ratio = matched.length / sourceIds.length;
-  return { name: "", passed: ratio >= threshold, evidence: `coverage=${ratio.toFixed(4)} threshold=${threshold.toFixed(4)} matched=${matched.length}/${sourceIds.length} missing=${missing.join(", ") || "none"}` };
+  return {
+    name: "",
+    passed: ratio >= threshold,
+    evidence: `coverage=${ratio.toFixed(4)} threshold=${threshold.toFixed(4)} matched=${matched.length}/${sourceIds.length} missing=${missing.join(", ") || "none"}`,
+  };
 }
 
 export function failedCriterion(evidence: string): CriterionResult {
@@ -292,15 +335,15 @@ export function checkRegexMatch(
   artifact: Record<string, unknown>,
   path: string,
   pattern: unknown,
-): CriterionResult => {
+): CriterionResult {
   const val = resolvePath(artifact, path);
   const invalid = invalidRegexInput(val, path, pattern);
   if (invalid) return invalid;
   const regexValue = val as string;
   const regexPattern = pattern as string;
-  let re: RegExp;
+  let matched: boolean;
   try {
-    re = new RegExp(regexPattern);
+    matched = regexValue.match(regexPattern) !== null;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return {
@@ -309,7 +352,6 @@ export function checkRegexMatch(
       evidence: `Invalid regex pattern /${regexPattern}/: ${msg}`,
     };
   }
-  const matched = re.test(regexValue);
   return {
     name: "",
     passed: matched,
@@ -317,28 +359,13 @@ export function checkRegexMatch(
       ? `Field "${path}" matches pattern /${regexPattern}/`
       : `Field "${path}" value "${regexValue}" does not match /${regexPattern}/`,
   };
-};
+}
 
-type RegexInputValidation = CriterionResult | { pattern: string; value: string };
-
-const validateRegexInput = (
+export function invalidRegexInput(
   value: unknown,
   path: string,
   pattern: unknown,
-): RegexInputValidation => {
-  if (typeof value !== "string") return coverageFailure(`Field "${path}" is not a string`);
-  if (typeof pattern !== "string")
-    return coverageFailure(`Regex pattern must be a string, got ${typeof pattern}`);
-  if (value.length > MAX_REGEX_TARGET_LENGTH)
-    return coverageFailure(
-      `Field "${path}" is too large for regex evaluation (${value.length} > ${MAX_REGEX_TARGET_LENGTH})`,
-    );
-  if (isPotentiallyUnsafeRegex(pattern))
-    return coverageFailure(`Regex pattern /${pattern}/ rejected as potentially unsafe`);
-  return { pattern, value };
-};
-
-export function invalidRegexInput(value: unknown, path: string, pattern: unknown): CriterionResult | undefined {
+): CriterionResult | undefined {
   const valueError = invalidRegexTarget(value, path);
   if (valueError) return valueError;
   const patternError = invalidRegexPattern(pattern);
@@ -348,12 +375,19 @@ export function invalidRegexInput(value: unknown, path: string, pattern: unknown
 
 export function invalidRegexTarget(value: unknown, path: string): CriterionResult | undefined {
   if (typeof value !== "string") return failedCriterion(`Field "${path}" is not a string`);
-  return value.length > MAX_REGEX_TARGET_LENGTH ? failedCriterion(`Field "${path}" is too large for regex evaluation (${value.length} > ${MAX_REGEX_TARGET_LENGTH})`) : undefined;
+  return value.length > MAX_REGEX_TARGET_LENGTH
+    ? failedCriterion(
+        `Field "${path}" is too large for regex evaluation (${value.length} > ${MAX_REGEX_TARGET_LENGTH})`,
+      )
+    : undefined;
 }
 
 export function invalidRegexPattern(pattern: unknown): CriterionResult | undefined {
-  if (typeof pattern !== "string") return failedCriterion(`Regex pattern must be a string, got ${typeof pattern}`);
-  return isPotentiallyUnsafeRegex(pattern) ? failedCriterion(`Regex pattern /${pattern}/ rejected as potentially unsafe`) : undefined;
+  if (typeof pattern !== "string")
+    return failedCriterion(`Regex pattern must be a string, got ${typeof pattern}`);
+  return isPotentiallyUnsafeRegex(pattern)
+    ? failedCriterion(`Regex pattern /${pattern}/ rejected as potentially unsafe`)
+    : undefined;
 }
 
 type CriterionEvaluator = (

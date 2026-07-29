@@ -1,10 +1,12 @@
+/** Provides shared canonical-path validation helpers for development tools. */
 import { realpathSync } from "node:fs";
 import path from "node:path";
 import { badInput } from "./errors.js";
 
-export function validateNonEmpty(value: string, label: string): void {
+export function validateNonEmpty(value: string, label: string): string {
   if (typeof value !== "string" || value.trim().length === 0)
     throw badInput(`${label} must be a non-empty string`);
+  return value.trim();
 }
 
 export function assertSafeRelative(ref: string, normalized: string, message: string): void {

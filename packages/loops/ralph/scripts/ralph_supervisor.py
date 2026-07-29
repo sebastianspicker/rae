@@ -57,7 +57,16 @@ class MonitorState:
 
 
 def spawn_child(command: list[str]) -> ChildProcess:
-    """Start the command in its own process group while collecting one bounded output stream."""
+    """Start Ralph's trusted argv in its own process group and collect bounded output.
+
+    The production caller builds this vector in ``runner_tool.sh`` from a
+    verified absolute Codex executable and fixed Ralph options. This helper
+    intentionally accepts an argv vector so tests and the local supervisor CLI
+    can exercise process-group and output-limit behavior. It never invokes a
+    shell or parses a command string.
+    """
+    if not command or not command[0] or any("\0" in argument for argument in command):
+        raise ValueError("command must be a non-empty argv vector without NUL bytes")
     read_fd, write_fd = os.pipe()
     file_actions = [
         (os.POSIX_SPAWN_DUP2, write_fd, 1),
@@ -66,6 +75,7 @@ def spawn_child(command: list[str]) -> ChildProcess:
         (os.POSIX_SPAWN_CLOSE, write_fd),
     ]
     try:
+        # nosemgrep: dangerous-spawn-process-audit
         pid = os.posix_spawnp(
             command[0],
             command,

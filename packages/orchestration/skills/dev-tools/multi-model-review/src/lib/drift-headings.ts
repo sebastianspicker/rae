@@ -1,3 +1,4 @@
+/** Normalizes and compares review-section headings for drift analysis. */
 const normalize = (text: string): string =>
   text
     .toLowerCase()
