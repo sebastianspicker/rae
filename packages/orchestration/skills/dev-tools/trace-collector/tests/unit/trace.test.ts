@@ -14,15 +14,51 @@ function removeWorkspace(workspaceRoot: string): void {
 
 function writeValidTrace(traceDir: string): void {
   const trace = [
-    { ts: "2026-02-22T12:00:00Z", run_id: "run-1", event: "phase_start", phase: "design", activity_id: "design_synthesis", tier: "balanced", model_hint: "design-synthesizer", runtime_name: "default", runtime_version: "v1" },
-    { ts: "2026-02-22T12:00:02Z", run_id: "run-1", event: "gate_result", phase: "design", status: "pass" },
-    { ts: "2026-02-22T12:00:05Z", run_id: "run-1", event: "phase_end", phase: "design", tokens_in: 100, tokens_out: 50, cost_usd: 0.25 },
+    {
+      ts: "2026-02-22T12:00:00Z",
+      run_id: "run-1",
+      event: "phase_start",
+      phase: "design",
+      activity_id: "design_synthesis",
+      tier: "balanced",
+      model_hint: "design-synthesizer",
+      runtime_name: "default",
+      runtime_version: "v1",
+    },
+    {
+      ts: "2026-02-22T12:00:02Z",
+      run_id: "run-1",
+      event: "gate_result",
+      phase: "design",
+      status: "pass",
+    },
+    {
+      ts: "2026-02-22T12:00:05Z",
+      run_id: "run-1",
+      event: "phase_end",
+      phase: "design",
+      tokens_in: 100,
+      tokens_out: 50,
+      cost_usd: 0.25,
+    },
   ];
-  writeFileSync(join(traceDir, "trace.jsonl"), trace.map((event) => JSON.stringify(event)).join("\n"), "utf8");
+  writeFileSync(
+    join(traceDir, "trace.jsonl"),
+    trace.map((event) => JSON.stringify(event)).join("\n"),
+    "utf8",
+  );
 }
 
 async function collectValidTrace(workspaceRoot: string) {
-  return collectTrace({ run_id: "run-1", trace_path: ".pipeline/runs/run-1/trace.jsonl", schema_ref: "contracts/artifacts/execution-trace.schema.json" }, [], { workspaceRoot });
+  return collectTrace(
+    {
+      run_id: "run-1",
+      trace_path: ".pipeline/runs/run-1/trace.jsonl",
+      schema_ref: "contracts/artifacts/execution-trace.schema.json",
+    },
+    [],
+    { workspaceRoot },
+  );
 }
 
 function expectValidTraceSummary(result: Awaited<ReturnType<typeof collectTrace>>): void {
@@ -35,12 +71,30 @@ function expectValidTraceSummary(result: Awaited<ReturnType<typeof collectTrace>
   expect(result.summary.phase_durations_ms.design).toBe(5000);
   expect(result.summary.total_duration_s).toBe(5);
   expect(result.summary.summed_phase_duration_s).toBe(result.summary.total_duration_s);
-  expect(result.summary.activity_resolutions).toEqual([{ activity_id: "design_synthesis", count: 1, tier: "balanced", model_hint: "design-synthesizer", runtime_name: "default", runtime_version: "v1" }]);
+  expect(result.summary.activity_resolutions).toEqual([
+    {
+      activity_id: "design_synthesis",
+      count: 1,
+      tier: "balanced",
+      model_hint: "design-synthesizer",
+      runtime_name: "default",
+      runtime_version: "v1",
+    },
+  ]);
 }
 
 function writeSingleTraceEvent(traceDir: string, runId: string): void {
   mkdirSync(traceDir, { recursive: true });
-  writeFileSync(join(traceDir, "trace.jsonl"), JSON.stringify({ ts: "2026-02-22T12:00:00Z", run_id: runId, event: "phase_start", phase: "arm" }), "utf8");
+  writeFileSync(
+    join(traceDir, "trace.jsonl"),
+    JSON.stringify({
+      ts: "2026-02-22T12:00:00Z",
+      run_id: runId,
+      event: "phase_start",
+      phase: "arm",
+    }),
+    "utf8",
+  );
 }
 
 function createSymlinkOrSkip(source: string, target: string, roots: string[]): boolean {
@@ -62,8 +116,24 @@ async function expectSchemaSymlinkRejected(workspaceRoot: string): Promise<void>
   writeFileSync(outsideSchema, JSON.stringify({ type: "object" }), "utf8");
   const contractsDir = join(workspaceRoot, "contracts", "artifacts");
   mkdirSync(contractsDir, { recursive: true });
-  if (!createSymlinkOrSkip(outsideSchema, join(contractsDir, "execution-trace.schema.json"), [workspaceRoot, outsideRoot])) return;
-  await expect(collectTrace({ run_id: "run-4", trace_path: ".pipeline/runs/run-4/trace.jsonl", schema_ref: "contracts/artifacts/execution-trace.schema.json" }, [], { workspaceRoot })).rejects.toThrow("Path must resolve within schema root");
+  if (
+    !createSymlinkOrSkip(outsideSchema, join(contractsDir, "execution-trace.schema.json"), [
+      workspaceRoot,
+      outsideRoot,
+    ])
+  )
+    return;
+  await expect(
+    collectTrace(
+      {
+        run_id: "run-4",
+        trace_path: ".pipeline/runs/run-4/trace.jsonl",
+        schema_ref: "contracts/artifacts/execution-trace.schema.json",
+      },
+      [],
+      { workspaceRoot },
+    ),
+  ).rejects.toThrow("Path must resolve within schema root");
   removeWorkspace(workspaceRoot);
   removeWorkspace(outsideRoot);
 }
@@ -209,10 +279,9 @@ describe("collectTrace", () => {
     await expect(
       collectTrace(
         {
-          ts: "2026-02-22T12:00:00Z",
-          run_id: "run-2",
-          event: "phase_start",
-          phase: "plan",
+          run_id: "run-3",
+          trace_path: "trace-link.jsonl",
+          schema_ref: "contracts/artifacts/execution-trace.schema.json",
         },
         [],
         { workspaceRoot },

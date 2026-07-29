@@ -1,3 +1,4 @@
+/** Verifies shared development tools retain their sandbox boundaries. */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";

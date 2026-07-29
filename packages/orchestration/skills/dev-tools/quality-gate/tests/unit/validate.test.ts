@@ -1,10 +1,10 @@
 /**
  * Verifies artifact schema validation stays contained to trusted workspace paths.
  */
-import { describe, it, expect } from "vitest";
-import { writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { expect, it } from "vitest";
 import { validateArtifact } from "../../src/lib/validate.js";
 
 function setup(): string {

@@ -15,7 +15,8 @@ export function validateInput(input: Input): void {
 }
 
 export function assertInputObject(input: Input): void {
-  if (!input || typeof input !== "object" || Array.isArray(input)) throw badInput("input must be an object");
+  if (!input || typeof input !== "object" || Array.isArray(input))
+    throw badInput("input must be an object");
 }
 
 export function assertRunId(input: Input): void {
@@ -23,11 +24,15 @@ export function assertRunId(input: Input): void {
 }
 
 export function assertOptionalStrings(input: Input): void {
-  if (input.trace_path !== undefined && typeof input.trace_path !== "string") throw badInput("trace_path must be a string when provided");
-  if (input.schema_ref !== undefined && typeof input.schema_ref !== "string") throw badInput("schema_ref must be a string when provided");
+  if (input.trace_path !== undefined && typeof input.trace_path !== "string")
+    throw badInput("trace_path must be a string when provided");
+  if (input.schema_ref !== undefined && typeof input.schema_ref !== "string")
+    throw badInput("schema_ref must be a string when provided");
 }
 
 export function assertEventsOrTrace(input: Input): void {
-  if (!input.trace_path && (!Array.isArray(input.events) || input.events.length === 0)) throw badInput("Provide either trace_path or non-empty events array");
-  if (input.events !== undefined && !Array.isArray(input.events)) throw badInput("events must be an array when provided");
+  if (!input.trace_path && (!Array.isArray(input.events) || input.events.length === 0))
+    throw badInput("Provide either trace_path or non-empty events array");
+  if (input.events !== undefined && !Array.isArray(input.events))
+    throw badInput("events must be an array when provided");
 }
