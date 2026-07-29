@@ -157,7 +157,7 @@ prepare_story_transaction() {
 # Report changed-path drift before promotion. Promotion repeats this CAS internally.
 verify_story_transaction() {
   local story_id="$1"
-  local helper drift
+  local helper drift drift_fallback
   local -a TRANSACTION_IDENTITY_ARGS
 
   [[ "$MODE" == "fixing" ]] || return 0
@@ -168,16 +168,17 @@ verify_story_transaction() {
       "${TRANSACTION_IDENTITY_ARGS[@]}" \
       --journal "$ACTIVE_TXN_JOURNAL" 2>&1
   )"; then
+    drift_fallback="The isolated workspace was discarded; live files were preserved"
     discard_story_transaction "$story_id"
     fail "${RALPH_EXIT_SCOPE:-3}" "Live repository drift detected before promoting story $story_id" \
-      "${drift:-The isolated workspace was discarded; live files were preserved}"
+      "${drift:-$drift_fallback}"
   fi
 }
 
 # Apply only changed paths after compare-and-swap, then remove external metadata.
 promote_story_transaction() {
   local story_id="$1"
-  local helper output rc
+  local helper output output_fallback rc
   local -a TRANSACTION_IDENTITY_ARGS
 
   [[ "$MODE" == "fixing" ]] || return 0
@@ -191,8 +192,9 @@ promote_story_transaction() {
       --journal "$ACTIVE_TXN_JOURNAL" 2>&1
   )" || rc=$?
   if [[ "$rc" -ne 0 ]]; then
+    output_fallback="Promotion failed; transaction metadata was retained for safe recovery"
     fail "${RALPH_EXIT_SCOPE:-3}" "Could not promote isolated changes for story $story_id" \
-      "${output:-Promotion failed; transaction metadata was retained for safe recovery}"
+      "${output:-$output_fallback}"
   fi
   ACTIVE_TXN_JOURNAL=""
   # shellcheck disable=SC2034 # Shared runner state is consumed after this module is sourced.
