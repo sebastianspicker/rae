@@ -35,24 +35,113 @@ change gates, alter Git state, or broaden plan ownership.
 }
 
 function parse(argv) {
-  const output = { _: [] };
-  const booleans = new Set(["json", "help", "include-model-proposed"]);
-  for (let index = 0; index < argv.length; index++) {
-    const token = argv[index];
+  const output = {
+    positionals: [],
+    actor: undefined,
+    candidateId: undefined,
+    depth: undefined,
+    help: false,
+    includeModelProposed: false,
+    json: false,
+    limit: undefined,
+    node: undefined,
+    phase: undefined,
+    projectRoot: undefined,
+    rationale: undefined,
+    runId: undefined,
+    seed: undefined,
+    sourceRef: undefined,
+    status: undefined,
+  };
+  const remaining = [...argv];
+  while (remaining.length > 0) {
+    const token = remaining.shift();
     if (!token.startsWith("--")) {
-      output._.push(token);
+      output.positionals.push(token);
       continue;
     }
-    const key = token.slice(2);
-    if (booleans.has(key)) {
-      output[key] = true;
-      continue;
-    }
-    const value = argv[++index];
-    if (!value || value.startsWith("--")) throw new Error(`missing value for --${key}`);
-    output[key] = value;
+    if (!assignBooleanOption(output, token))
+      assignOption(output, token, optionValue(remaining, token));
   }
   return output;
+}
+
+function assignBooleanOption(output, option) {
+  switch (option) {
+    case "--json":
+      output.json = true;
+      return true;
+    case "--help":
+      output.help = true;
+      return true;
+    case "--include-model-proposed":
+      output.includeModelProposed = true;
+      return true;
+    default:
+      return false;
+  }
+}
+
+function optionValue(remaining, option) {
+  const value = remaining.shift();
+  if (!value || value.startsWith("--")) throw new Error(`missing value for ${option}`);
+  return value;
+}
+
+function assignOption(output, option, value) {
+  if (assignPrimaryOption(output, option, value)) return;
+  if (assignSecondaryOption(output, option, value)) return;
+  throw new Error(`unknown graph option: ${option}`);
+}
+
+function assignPrimaryOption(output, option, value) {
+  switch (option) {
+    case "--actor":
+      output.actor = value;
+      return true;
+    case "--candidate-id":
+      output.candidateId = value;
+      return true;
+    case "--depth":
+      output.depth = value;
+      return true;
+    case "--limit":
+      output.limit = value;
+      return true;
+    case "--node":
+      output.node = value;
+      return true;
+    case "--phase":
+      output.phase = value;
+      return true;
+    default:
+      return false;
+  }
+}
+
+function assignSecondaryOption(output, option, value) {
+  switch (option) {
+    case "--project-root":
+      output.projectRoot = value;
+      return true;
+    case "--rationale":
+      output.rationale = value;
+      return true;
+    case "--run-id":
+      output.runId = value;
+      return true;
+    case "--seed":
+      output.seed = value;
+      return true;
+    case "--source-ref":
+      output.sourceRef = value;
+      return true;
+    case "--status":
+      output.status = value;
+      return true;
+    default:
+      return false;
+  }
 }
 
 function emit(value, options) {
@@ -65,7 +154,7 @@ function emit(value, options) {
 }
 
 function projectRoot(options) {
-  return resolve(options["project-root"] ?? process.cwd());
+  return resolve(options.projectRoot ?? process.cwd());
 }
 
 function memoryCommand(action, options) {
@@ -87,7 +176,7 @@ function memoryCommand(action, options) {
 
 function rebuildGraphMemory(options) {
   const project = projectRoot(options);
-  const runId = options["run-id"];
+  const runId = options.runId;
   const result = rebuildMemory({ projectRoot: project, runId });
   if (!runId) return result;
   return { ...result, imported: recordRunMemory({ projectRoot: project, runId }) };
@@ -96,20 +185,20 @@ function rebuildGraphMemory(options) {
 function decideGraphMemory(decision, options) {
   return decideMemory({
     projectRoot: projectRoot(options),
-    candidateId: options["candidate-id"],
+    candidateId: options.candidateId,
     decision,
     actor: options.actor,
     rationale: options.rationale,
-    sourceRef: options["source-ref"],
+    sourceRef: options.sourceRef,
   });
 }
 
 function graphCommand(command, options, action) {
   switch (command) {
     case "build":
-      return projectGraph({ projectRoot: projectRoot(options), runId: options["run-id"] });
+      return projectGraph({ projectRoot: projectRoot(options), runId: options.runId });
     case "status":
-      return graphStatus({ projectRoot: projectRoot(options), runId: options["run-id"] });
+      return graphStatus({ projectRoot: projectRoot(options), runId: options.runId });
     case "query":
       return graphQuery(options);
     case "explain":
@@ -124,12 +213,12 @@ function graphCommand(command, options, action) {
 function graphQuery(options) {
   return queryGraph({
     projectRoot: projectRoot(options),
-    runId: options["run-id"],
+    runId: options.runId,
     seed: options.seed,
     phase: options.phase ?? "query",
     maxDepth: Number(options.depth ?? 4),
     maxRecords: Number(options.limit ?? 200),
-    includeModelProposed: options["include-model-proposed"] === true,
+    includeModelProposed: options.includeModelProposed,
   });
 }
 
@@ -137,14 +226,14 @@ function explainGraph(options) {
   if (!options.node) throw new Error("graph explain requires --node <id>");
   return explainGraphNode({
     projectRoot: projectRoot(options),
-    runId: options["run-id"],
+    runId: options.runId,
     nodeId: options.node,
   });
 }
 
 function main() {
   const options = parse(process.argv.slice(2));
-  const [command = "help", action] = options._;
+  const [command = "help", action] = options.positionals;
   if (["help", "--help", "-h"].includes(command) || options.help) return usage();
   emit(graphCommand(command, options, action), options);
 }

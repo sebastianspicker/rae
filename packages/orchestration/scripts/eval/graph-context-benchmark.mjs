@@ -1,8 +1,16 @@
 #!/usr/bin/env node
 /** Compares frozen flat, lexical, graph, and graph-memory repository context retrieval. */
 import { performance } from "node:perf_hooks";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+  writeSync,
+} from "node:fs";
+import { basename, dirname, relative, resolve, sep } from "node:path";
 import {
   loadGraph,
   projectGraph,
@@ -11,20 +19,86 @@ import {
 } from "../pipeline/lib/graph.mjs";
 
 function parse(argv) {
-  const options = {};
-  const booleanOptions = new Set(["--json"]);
-  for (let index = 0; index < argv.length; index++) {
-    const token = argv[index];
-    if (booleanOptions.has(token)) {
-      options.json = true;
-      continue;
-    }
+  const options = { dataset: undefined, json: false, output: undefined, projectRoot: undefined };
+  const remaining = [...argv];
+  while (remaining.length > 0) {
+    const token = remaining.shift();
+    if (assignBooleanOption(options, token)) continue;
     if (!token.startsWith("--")) throw new Error(`unexpected argument: ${token}`);
-    const value = argv[++index];
+    const value = remaining.shift();
     if (!value || value.startsWith("--")) throw new Error(`missing value for ${token}`);
-    options[token.slice(2)] = value;
+    assignValueOption(options, token, value);
   }
   return options;
+}
+
+function assignBooleanOption(options, option) {
+  switch (option) {
+    case "--json":
+      options.json = true;
+      return true;
+    default:
+      return false;
+  }
+}
+
+function assignValueOption(options, option, value) {
+  switch (option) {
+    case "--dataset":
+      options.dataset = value;
+      return;
+    case "--output":
+      options.output = value;
+      return;
+    case "--project-root":
+      options.projectRoot = value;
+      return;
+    default:
+      throw new Error(`unexpected argument: ${option}`);
+  }
+}
+
+function readUtf8RegularFile(path, maxBytes = 16 * 1024 * 1024) {
+  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const details = fstatSync(descriptor);
+    if (!details.isFile()) throw new Error(`not a regular file: ${path}`);
+    if (details.size > maxBytes) throw new Error(`file exceeds ${maxBytes} bytes: ${path}`);
+    const content = Buffer.alloc(details.size);
+    let offset = 0;
+    while (offset < content.length) {
+      const count = readSync(descriptor, content, offset, content.length - offset, offset);
+      if (count === 0) break;
+      offset += count;
+    }
+    return content.subarray(0, offset).toString("utf8");
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function writePrivateUtf8File(path, body) {
+  const parent = realpathSync(dirname(path));
+  const destination = resolve(parent, basename(path));
+  const descriptor = openSync(
+    destination,
+    constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
+    0o600,
+  );
+  try {
+    writeSync(descriptor, body, 0, "utf8");
+  } finally {
+    closeSync(descriptor);
+  }
+}
+
+function projectSourcePath(projectRoot, sourcePath) {
+  const canonicalRoot = realpathSync(projectRoot);
+  const canonicalSource = realpathSync(resolve(canonicalRoot, sourcePath));
+  const relation = relative(canonicalRoot, canonicalSource);
+  if (relation === ".." || relation.startsWith(`..${sep}`))
+    throw new Error(`graph source escapes the project root: ${sourcePath}`);
+  return canonicalSource;
 }
 
 function tokens(value) {
@@ -112,7 +186,7 @@ function evaluateMode(mode, tasks, retrieve) {
 }
 
 export function runGraphContextBenchmark({ projectRoot, datasetPath }) {
-  const dataset = JSON.parse(readFileSync(datasetPath, "utf8"));
+  const dataset = JSON.parse(readUtf8RegularFile(datasetPath));
   if (
     dataset.split !== "held-out" ||
     dataset.tasks?.length < 50 ||
@@ -127,7 +201,10 @@ export function runGraphContextBenchmark({ projectRoot, datasetPath }) {
     .filter((node) => node.kind === "File")
     .map((node) => ({
       ...node,
-      snippet: readFileSync(resolve(projectRoot, node.attributes.path), "utf8").slice(0, 2000),
+      snippet: readUtf8RegularFile(
+        projectSourcePath(projectRoot, node.attributes.path),
+        1_048_576,
+      ).slice(0, 2000),
     }));
   const modes = [
     evaluateMode("current-context", dataset.tasks, (task) => flatRank(files, task.query, false)),
@@ -170,16 +247,14 @@ export function runGraphContextBenchmark({ projectRoot, datasetPath }) {
 
 function main() {
   const options = parse(process.argv.slice(2));
-  const projectRoot = resolve(options["project-root"] ?? process.cwd());
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
   const datasetPath = resolve(
     options.dataset ??
       resolve(projectRoot, "evals/datasets/graph-context/graph-context-held-out.json"),
   );
-  if (!existsSync(datasetPath)) throw new Error(`dataset not found: ${datasetPath}`);
   const result = runGraphContextBenchmark({ projectRoot, datasetPath });
   const body = `${JSON.stringify(result, null, 2)}\n`;
-  if (options.output)
-    writeFileSync(resolve(options.output), body, { encoding: "utf8", mode: 0o600 });
+  if (options.output) writePrivateUtf8File(resolve(options.output), body);
   process.stdout.write(body);
 }
 
