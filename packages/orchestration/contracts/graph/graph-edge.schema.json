@@ -10,7 +10,7 @@
     "graph_family": { "enum": ["evidence", "workflow", "repository", "memory"] },
     "repository_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "run_id": { "type": ["string", "null"] },
-    "kind": { "enum": ["CONTAINS", "DEPENDS_ON", "REFERENCES", "READS", "WRITES", "DERIVED_FROM", "COVERS", "VERIFIES", "EVALUATES", "AUTHORIZED_BY", "SUPPORTS_CLAIM", "SUPERSEDES", "INVALIDATES"] },
+    "kind": { "enum": ["CONTAINS", "DEPENDS_ON", "REFERENCES", "READS", "WRITES", "DERIVED_FROM", "COVERS", "VERIFIES", "EVALUATES", "AUTHORIZED_BY", "SUPPORTS_CLAIM", "SUPERSEDES", "INVALIDATES", "INSTANCE_OF", "NEXT", "SELECTS", "RECOMMENDS"] },
     "logical_id": { "type": "string", "minLength": 1 },
     "version_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "from": { "type": "string", "minLength": 1 },

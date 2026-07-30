@@ -14,6 +14,9 @@ import {
   rebuildMemory,
   recordRunMemory,
 } from "./lib/graph.mjs";
+import { loadWorkflow } from "./lib/workflow-contract.mjs";
+import { createWorkflowRegistry } from "./lib/workflow-registry.mjs";
+import { proposeWorkflow } from "./lib/workflow-proposal.mjs";
 
 assertSupportedNodeRuntime();
 
@@ -28,6 +31,12 @@ Usage:
   ./scripts/rae.sh graph memory list --project-root <path> [--status all|facts|candidates] [--json]
   ./scripts/rae.sh graph memory promote|reject --project-root <path> --candidate-id <id> --actor <actor> --rationale <text> --source-ref <path> [--json]
   ./scripts/rae.sh graph memory rebuild --project-root <path> [--run-id <id>] [--json]
+  ./scripts/rae.sh graph workflow list --project-root <path> [--json]
+  ./scripts/rae.sh graph workflow show --project-root <path> --workflow <id> [--json]
+  ./scripts/rae.sh graph workflow validate --project-root <path> (--workflow-file <path> | --workflow <id> --revision <n>) [--json]
+  ./scripts/rae.sh graph workflow diff --project-root <path> --workflow <id> --from <n> --to <n> [--json]
+  ./scripts/rae.sh graph workflow activate --project-root <path> --workflow <id> --revision <n> --digest <sha256> --actor <label> --rationale <text> [--json]
+  ./scripts/rae.sh graph workflow propose --project-root <path> (--task <text> | --task-file <path>) --base-workflow <id|file> --actor <label> --rationale <text> [--json]
 
 Graph execution is opt-in. Projections augment raw evidence and never authorize mutation,
 change gates, alter Git state, or broaden plan ownership.
@@ -52,6 +61,15 @@ function parse(argv) {
     seed: undefined,
     sourceRef: undefined,
     status: undefined,
+    workflow: undefined,
+    workflowFile: undefined,
+    revision: undefined,
+    digest: undefined,
+    from: undefined,
+    to: undefined,
+    task: undefined,
+    taskFile: undefined,
+    baseWorkflow: undefined,
   };
   const remaining = [...argv];
   while (remaining.length > 0) {
@@ -95,29 +113,26 @@ function assignOption(output, option, value) {
 }
 
 function assignPrimaryOption(output, option, value) {
-  switch (option) {
-    case "--actor":
-      output.actor = value;
-      return true;
-    case "--candidate-id":
-      output.candidateId = value;
-      return true;
-    case "--depth":
-      output.depth = value;
-      return true;
-    case "--limit":
-      output.limit = value;
-      return true;
-    case "--node":
-      output.node = value;
-      return true;
-    case "--phase":
-      output.phase = value;
-      return true;
-    default:
-      return false;
-  }
+  const field = PRIMARY_OPTION_FIELDS[option];
+  if (!field) return false;
+  output[field] = value;
+  return true;
 }
+
+const PRIMARY_OPTION_FIELDS = {
+  "--actor": "actor",
+  "--candidate-id": "candidateId",
+  "--depth": "depth",
+  "--limit": "limit",
+  "--node": "node",
+  "--phase": "phase",
+  "--workflow": "workflow",
+  "--workflow-file": "workflowFile",
+  "--task": "task",
+  "--task-file": "taskFile",
+  "--base-workflow": "baseWorkflow",
+  "--revision": "revision",
+};
 
 function assignSecondaryOption(output, option, value) {
   switch (option) {
@@ -138,6 +153,15 @@ function assignSecondaryOption(output, option, value) {
       return true;
     case "--status":
       output.status = value;
+      return true;
+    case "--digest":
+      output.digest = value;
+      return true;
+    case "--from":
+      output.from = value;
+      return true;
+    case "--to":
+      output.to = value;
       return true;
     default:
       return false;
@@ -205,9 +229,42 @@ function graphCommand(command, options, action) {
       return explainGraph(options);
     case "memory":
       return memoryCommand(action ?? "list", options);
+    case "workflow":
+      return workflowCommand(action ?? "list", options);
     default:
       throw new Error(`unknown graph command: ${command}`);
   }
+}
+
+function workflowCommand(action, options) {
+  const registry = createWorkflowRegistry(projectRoot(options));
+  if (action === "list") return registry.list();
+  if (action === "show") return registry.show(options.workflow);
+  if (action === "validate") {
+    if (options.workflowFile) {
+      const snapshot = loadWorkflow(resolve(options.workflowFile));
+      return {
+        valid: true,
+        workflow_id: snapshot.workflow.workflow_id,
+        revision: snapshot.workflow.revision,
+        digest: snapshot.digest,
+      };
+    }
+    return registry.validate(options.workflow, options.revision);
+  }
+  if (action === "diff")
+    return registry.diff(options.workflow, { from: options.from, to: options.to });
+  if (action === "activate") {
+    return registry.activate(options.workflow, options.revision, {
+      digest: options.digest,
+      actor: options.actor,
+      rationale: options.rationale,
+    });
+  }
+  if (action === "propose") {
+    return proposeWorkflow(options);
+  }
+  throw new Error(`unknown graph workflow command: ${action}`);
 }
 
 function graphQuery(options) {

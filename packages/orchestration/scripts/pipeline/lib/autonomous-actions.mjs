@@ -28,6 +28,7 @@ import {
 } from "./operator-control.mjs";
 import { ensureRuntimeStateReadable } from "./runtime-state-guard.mjs";
 import { projectGraph, recordRunMemory } from "./graph.mjs";
+import { runGraphWorkflow } from "./workflow-runtime.mjs";
 
 const DEFAULT_TIMEOUT_SECONDS = 1800;
 
@@ -84,8 +85,30 @@ function validateOptions(options) {
   validateCheckpointOption(options);
   validateThroughOption(options);
   validateProviderOptions(options);
+  validateExecutionProfileOptions(options);
+  validateGraphMemoryOption(options);
+  validateBoundedOption(options, "max-concurrency", 4, 4);
+  validateBoundedOption(options, "max-repair-rounds", 5, 5);
+}
+
+function validateExecutionProfileOptions(options) {
+  if (options["execution-profile"] && (options.model || options["reasoning-effort"])) {
+    throw new Error(
+      "--execution-profile is mutually exclusive with --model and --reasoning-effort",
+    );
+  }
+}
+
+function validateGraphMemoryOption(options) {
   if (!["off", "read", "read-write"].includes(options["graph-memory"] ?? "off")) {
     throw new Error("--graph-memory must be off, read, or read-write");
+  }
+}
+
+function validateBoundedOption(options, name, fallback, maximum) {
+  const value = Number(options[name] ?? fallback);
+  if (!Number.isInteger(value) || value < 1 || value > maximum) {
+    throw new Error(`--${name} must be an integer between 1 and ${maximum}`);
   }
 }
 
@@ -105,6 +128,14 @@ function validateCheckpointOption(options) {
 
 function validateThroughOption(options) {
   const through = options.through ?? "release-readiness";
+  if (
+    options["legacy-linear"] !== true &&
+    (options.provider !== "command" || Boolean(options.workflow))
+  ) {
+    if (!/^[a-z][a-z0-9._-]{0,63}$/.test(through))
+      throw new Error("--through must be a valid workflow node id");
+    return;
+  }
   if (!PHASE_ORDER.includes(through)) {
     throw new Error(`--through must be one of: ${PHASE_ORDER.join(", ")}`);
   }
@@ -322,7 +353,7 @@ export function runControlCommand(command, options) {
   throw new Error(`unsupported control command: ${command}`);
 }
 
-export function runWorkflow(command, options) {
+export async function runWorkflow(command, options) {
   if (command === "run") validateOptions(options);
   if (command === "resume") validateFreshCommandResume(options);
   const context = initializeOrResume(command, options);
@@ -330,6 +361,12 @@ export function runWorkflow(command, options) {
     ? mergeResumeOptions(context.savedAgentOptions, options)
     : options;
   validateOptions(runOptions);
+  if (context.workflowMode === "graph-native") {
+    if (runOptions.through && !context.workflow.nodes.some(({ id }) => id === runOptions.through)) {
+      throw new Error(`--through names unknown workflow node: ${runOptions.through}`);
+    }
+    return runGraphWorkflowCommand(command, context, runOptions);
+  }
   const through = runOptions.through ?? "release-readiness";
   const controlPolicy = checkpointPolicy(runOptions["checkpoint-policy"]);
   const throughIndex = PHASE_ORDER.indexOf(through);
@@ -513,6 +550,76 @@ export function runWorkflow(command, options) {
       printFinal(context, report, runOptions, error);
       process.exitCode = 1;
     }
+  } finally {
+    releaseLock();
+  }
+}
+
+async function runGraphWorkflowCommand(command, context, runOptions) {
+  const releaseLock = acquireWorkflowLock(context.workspaceRoot, context.runId);
+  const provider = runOptions.provider ?? "auto";
+  try {
+    const previousControl = readOperatorControl(context.runId, context.workspaceRoot);
+    if (command === "resume" && previousControl.status === "completed") {
+      const error = new Error("cannot resume terminal run status: completed");
+      error.preserveControl = true;
+      throw error;
+    }
+    setRunStatus(context.runId, "running", context.workspaceRoot, { stop_requested: false });
+    if (command === "resume") {
+      refreshResumeRefBaseline(context.workspaceRoot, context.initialGitState);
+      appendTraceEvent(
+        context.runId,
+        { event: "run_resumed", phase: context.workflow.entry_node, status: "ok" },
+        context.workspaceRoot,
+      );
+    } else {
+      assertGitStateInvariant(context.workspaceRoot, context.initialGitState, "run preflight");
+    }
+    const result = await runGraphWorkflow(context, runOptions);
+    if (result.status === "stopped") {
+      publishStoppedRun(context, provider, context.workflow.terminal_node, runOptions);
+      return;
+    }
+    if (result.status === "repair-exhausted") {
+      throw new Error(`repair loop stopped: ${result.reason}`);
+    }
+    if (result.status === "through") {
+      setRunStatus(context.runId, "stopped", context.workspaceRoot, { stop_requested: false });
+      const report = writeRunReport(context, { provider, status: "stopped" });
+      printFinal(context, report, runOptions);
+      return;
+    }
+    setRunStatus(context.runId, "completed", context.workspaceRoot, { stop_requested: false });
+    if ((runOptions["graph-memory"] ?? "off") !== "off") {
+      projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
+    }
+    if (runOptions["graph-memory"] === "read-write") {
+      recordRunMemory({ projectRoot: context.workspaceRoot, runId: context.runId });
+    }
+    const report = writeRunReport(context, { provider });
+    printFinal(context, report, runOptions);
+  } catch (error) {
+    if (error.preserveControl === true) throw error;
+    if (error.workflowWaiting === true) {
+      const report = writeRunReport(context, { provider, status: "waiting" });
+      printFinal(context, report, runOptions);
+      return;
+    }
+    setRunStatus(context.runId, "blocked", context.workspaceRoot, { stop_requested: false });
+    appendTraceEvent(
+      context.runId,
+      {
+        event: "run_blocked",
+        phase: context.workflow.entry_node,
+        status: "blocked",
+        message: error.message,
+      },
+      context.workspaceRoot,
+    );
+    const report = writeRunReport(context, { provider, error: error.message });
+    printFinal(context, report, runOptions, error);
+    process.exitCode = 1;
   } finally {
     releaseLock();
   }

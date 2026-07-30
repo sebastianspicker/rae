@@ -34,12 +34,17 @@ Run options:
   --provider <name>           auto or codex (command is test-integration only)
   --model <id>                Optional Codex model override
   --reasoning-effort <level>  low, medium, high, or xhigh
+  --execution-profile <file> Operator-owned logical tier to Codex mapping
   --timeout-seconds <n>       Per-phase timeout (default: 1800)
   --policy <path>             Validated data-only autonomous policy JSON
+  --workflow <path>           Explicit graph-native workflow JSON for a new run
+  --legacy-linear             Start a temporary v1 ten-phase run
   --checkpoint-policy <mode> Human pause mode: none, before-mutation, or before-mutation-and-ship
   --graph-memory <mode>      Local graph mode: off, read, or read-write (default: off)
   --in-place                  Modify a clean target checkout directly
-  --through <phase>           Stop after one named phase (default: release-readiness)
+  --through <node-id>         Stop after one workflow node
+  --max-concurrency <n>       Concurrent readers, from 1 to 4 (default: 4)
+  --max-repair-rounds <n>     Repair iterations, from 1 to 5 (default: 5)
   --run-id <id>               Resume an existing run (resume command only)
   --json                      Emit the final result as JSON
 
@@ -59,7 +64,13 @@ Safety defaults:
 
 function parseOptions(argv) {
   const options = { _: [], agentArgs: [] };
-  const booleanFlags = new Set(["in-place", "json", "help", "allow-unsafe-command-provider"]);
+  const booleanFlags = new Set([
+    "in-place",
+    "json",
+    "help",
+    "legacy-linear",
+    "allow-unsafe-command-provider",
+  ]);
   for (let index = 0; index < argv.length; index++) {
     const token = argv[index];
     if (!token.startsWith("--")) {
@@ -84,14 +95,14 @@ function parseOptions(argv) {
   }
   return options;
 }
-function main() {
+async function main() {
   const [command = "help", ...rest] = process.argv.slice(2);
   const options = parseOptions(rest);
   if (isHelpCommand(command, options)) return usage();
   if (command === "doctor") return runDoctor(options);
   if (["status", "stop", "resolve-checkpoint", "events"].includes(command))
     return runControlCommand(command, options);
-  if (["run", "resume"].includes(command)) return runWorkflow(command, options);
+  if (["run", "resume"].includes(command)) return await runWorkflow(command, options);
   throw new Error(`unknown autonomous command: ${command}`);
 }
 
@@ -110,7 +121,7 @@ function runDoctor(options) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    main();
+    await main();
   } catch (error) {
     process.stderr.write(`ERROR: ${error.message}\n`);
     process.exitCode = 1;

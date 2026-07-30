@@ -28,8 +28,9 @@
       "uniqueItems": true
     },
     "event": {
-      "type": "string",
-      "enum": [
+      "anyOf": [
+        { "type": "string", "pattern": "^workflow_[a-z][a-z0-9_]{1,95}$" },
+        { "type": "string", "enum": [
         "run_start",
         "phase_start",
         "phase_end",
@@ -52,27 +53,12 @@
         "run_interrupted",
         "run_blocked",
         "run_completed"
+        ] }
       ]
     },
     "phase": {
       "type": "string",
-      "enum": [
-        "arm",
-        "design",
-        "adversarial-review",
-        "plan",
-        "pmatch",
-        "build",
-        "quality-static",
-        "quality-tests",
-        "denoise",
-        "quality-frontend",
-        "quality-backend",
-        "quality-docs",
-        "security-review",
-        "release-readiness",
-        "post-build"
-      ]
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
     },
     "status": {
       "type": "string",
