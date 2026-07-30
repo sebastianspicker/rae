@@ -61,7 +61,10 @@ test("Pages demo is base-path safe and labels its evidence and actions as simula
 test("Pages fixtures contain no local path, credential, provider, or raw prompt data", (t) => {
   const output = buildDemo(t);
   const mock = readFileSync(resolve(output, "demo/mock-api.js"), "utf8");
-  assert.doesNotMatch(mock, /\/Users\/|\/home\/|Bearer |api[_-]?key|private-provider|must-not-leak/i);
+  assert.doesNotMatch(
+    mock,
+    /\/Users\/|\/home\/|Bearer |api[_-]?key|private-provider|must-not-leak/i,
+  );
   assert.match(mock, /sebastianspicker\/rae · fixture/);
   assert.match(mock, /\.git\/rae-worktrees\//);
 });
