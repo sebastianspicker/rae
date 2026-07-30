@@ -136,6 +136,7 @@ def _run_campaign(
         output_dir=output_dir,
         max_iterations=int(campaign["max_iterations"]),
         resource_budget=campaign.get("resource_budget"),
+        candidate_change_allowlist=campaign.get("candidate_change_allowlist"),
     )
 
 

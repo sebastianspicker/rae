@@ -334,10 +334,160 @@ export function projectRunEvidence(graph, root, runDir, runId, source, repoNode)
     from: runNode,
     to: requestNode,
   });
-  let previous = null;
-  for (const phase of PHASES)
-    previous = projectPhaseEvidence(graph, root, runDir, runId, phase, previous, runNode, source);
+  const request = readJson(resolve(root, requestRel));
+  if (request.workflow?.mode === "graph-native") {
+    projectWorkflowRun(graph, root, runDir, runId, source, runNode, request.workflow);
+  } else {
+    let previous = null;
+    for (const phase of PHASES)
+      previous = projectPhaseEvidence(graph, root, runDir, runId, phase, previous, runNode, source);
+  }
   projectCheckpointDecisions(graph, root, runDir, runId, source);
+}
+
+function projectWorkflowRun(graph, root, runDir, runId, source, runNode, workflowRecord) {
+  const snapshotRel = relative(root, resolve(runDir, "workflow", "snapshot.json"));
+  if (!safeRegularFile(resolve(root, snapshotRel), root)) return;
+  const snapshotSource = {
+    ...source,
+    sourceRef: snapshotRel,
+    sourceHash: sourceDigest(root, snapshotRel),
+  };
+  const revision = projectWorkflowRevision(graph, snapshotSource, runNode, workflowRecord);
+  const nodeIds = projectWorkflowNodes(
+    graph,
+    root,
+    runDir,
+    runId,
+    source,
+    revision,
+    snapshotSource,
+    workflowRecord,
+  );
+  projectWorkflowEdges(graph, nodeIds, snapshotSource, workflowRecord);
+}
+
+function projectWorkflowRevision(graph, snapshotSource, runNode, workflowRecord) {
+  const revision = addNode(graph, {
+    ...snapshotSource,
+    family: "workflow",
+    trust: "authoritative",
+    kind: "WorkflowRevision",
+    id: `${workflowRecord.workflow_id}:${workflowRecord.revision}:${workflowRecord.digest}`,
+    attributes: {
+      workflow_id: workflowRecord.workflow_id,
+      revision: workflowRecord.revision,
+      digest: workflowRecord.digest,
+    },
+  });
+  addEdge(graph, {
+    ...snapshotSource,
+    family: "workflow",
+    trust: "verified-derived",
+    kind: "INSTANCE_OF",
+    from: runNode,
+    to: revision,
+  });
+  return revision;
+}
+
+function projectWorkflowNodes(
+  graph,
+  root,
+  runDir,
+  runId,
+  source,
+  revision,
+  snapshotSource,
+  workflowRecord,
+) {
+  const nodeIds = new Map();
+  for (const node of workflowRecord.snapshot.nodes ?? []) {
+    const kind =
+      node.kind === "join" ? "Join" : node.kind === "loop" ? "LoopIteration" : "AgentNode";
+    const graphNode = addNode(graph, {
+      ...snapshotSource,
+      family: "workflow",
+      trust: "authoritative",
+      kind,
+      id: `${runId}:${node.id}`,
+      attributes: {
+        node_id: node.id,
+        kind: node.kind,
+        access: node.access,
+        role: node.role ?? null,
+      },
+    });
+    nodeIds.set(node.id, graphNode);
+    addEdge(graph, {
+      ...snapshotSource,
+      family: "workflow",
+      trust: "verified-derived",
+      kind: "CONTAINS",
+      from: revision,
+      to: graphNode,
+    });
+    projectNodeAttempts(graph, root, runDir, runId, node.id, graphNode, source);
+  }
+  return nodeIds;
+}
+
+function projectWorkflowEdges(graph, nodeIds, snapshotSource, workflowRecord) {
+  for (const edge of workflowRecord.snapshot.edges ?? []) {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
+    projectWorkflowEdge(graph, nodeIds, snapshotSource, edge);
+  }
+}
+
+function projectWorkflowEdge(graph, nodeIds, snapshotSource, edge) {
+  const attributes = { edge_type: edge.type };
+  attributes.condition = edge.condition ?? null;
+  attributes.artifact = edge.artifact ?? null;
+  addEdge(graph, {
+    ...snapshotSource,
+    family: "workflow",
+    trust: "verified-derived",
+    kind: edge.type === "loop-back" ? "NEXT" : "DEPENDS_ON",
+    from: nodeIds.get(edge.to),
+    to: nodeIds.get(edge.from),
+    attributes,
+  });
+}
+
+function projectNodeAttempts(graph, root, runDir, runId, nodeId, nodeGraphId, source) {
+  const directory = resolve(runDir, "workflow", "attempts", nodeId);
+  if (!existsSync(directory)) return;
+  for (const entry of readdirSync(directory)
+    .filter((name) => name.endsWith(".json"))
+    .sort()) {
+    const rel = relative(root, resolve(directory, entry));
+    if (!safeRegularFile(resolve(root, rel), root)) continue;
+    const envelope = readJson(resolve(root, rel));
+    const attemptSource = { ...source, sourceRef: rel, sourceHash: sourceDigest(root, rel) };
+    const attempt = addNode(graph, {
+      ...attemptSource,
+      family: "workflow",
+      trust: "authoritative",
+      kind: "NodeAttempt",
+      id: `${runId}:${nodeId}:${envelope.loop_iteration ?? 1}:${envelope.attempt}`,
+      attributes: {
+        node_id: nodeId,
+        attempt: envelope.attempt,
+        loop_iteration: envelope.loop_iteration ?? 1,
+        status: envelope.status,
+        input_digest: envelope.input_digest,
+        output_digest: envelope.output_digest,
+      },
+    });
+    addEdge(graph, {
+      ...attemptSource,
+      family: "workflow",
+      trust: "verified-derived",
+      kind: "INSTANCE_OF",
+      from: attempt,
+      to: nodeGraphId,
+    });
+  }
 }
 
 export function projectCheckpointDecisions(graph, root, runDir, runId, source) {

@@ -120,7 +120,7 @@ function waitBounded(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
-function signalProcessGroup(pid, signal) {
+export function signalProcessGroup(pid, signal) {
   if (process.platform === "win32" || !Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(-pid, signal);

@@ -5,6 +5,7 @@ import { closeConfirmation, openConfirmation, postAction, submitConfirmation } f
 import { loadRuns, selectRun, waitForNewRun } from "./data.js";
 import { humanize } from "./format.js";
 import { renderRuns, setEvidenceExpanded } from "./render.js";
+import { loadWorkflows } from "./workflows.js";
 import { currentRun, elements, state } from "./state.js";
 
 export function bindHandlers() {
@@ -14,6 +15,7 @@ export function bindHandlers() {
     state.runQuery = "";
     elements["run-search-input"].value = "";
     await loadRuns(false).catch(showError);
+    await loadWorkflows().catch(showError);
   });
 
   elements["toggle-search"].addEventListener("click", () => {

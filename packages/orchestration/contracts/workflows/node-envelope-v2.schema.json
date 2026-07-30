@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/workflows/node-envelope-v2.schema.json",
+  "title": "Immutable workflow node result envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "workflow_digest", "node_id", "attempt", "status", "payload", "findings", "evidence_refs", "ownership", "changed_paths", "command_evidence", "resource_usage", "input_digest", "output_digest"],
+  "properties": {
+    "schema_version": { "const": "2.0.0" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "workflow_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "node_id": { "type": "string", "minLength": 1 },
+    "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "loop_iteration": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "status": { "enum": ["passed", "failed", "blocked", "stopped", "skipped"] },
+    "payload": {},
+    "findings": { "type": "array", "maxItems": 1024, "items": { "type": "object" } },
+    "evidence_refs": { "type": "array", "maxItems": 1024, "items": { "type": "string" } },
+    "ownership": { "type": "object" },
+    "changed_paths": { "type": "array", "maxItems": 4096, "uniqueItems": true, "items": { "type": "string" } },
+    "command_evidence": { "type": "array", "maxItems": 1024, "items": { "type": "object" } },
+    "resource_usage": { "type": "object" },
+    "input_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "output_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

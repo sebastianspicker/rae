@@ -420,7 +420,7 @@ run_eval() {
   help | -h | --help)
     "$EVAL_HARNESS" --help
     ;;
-  validate | doctor | route | run | outcome | compare-outcomes | optimize | calibrate | release-gate)
+  validate | doctor | route | run | outcome | compare-outcomes | optimize | improve | calibrate | release-gate)
     "$EVAL_HARNESS" "$subcommand" "$@"
     ;;
   *)

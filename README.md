@@ -28,7 +28,7 @@ It uses sanitized fixture data, runs no command, and stores no state.
 
 RAE currently provides:
 
-- a ten-stage orchestration runtime with typed artifacts and pass/fail gates
+- a graph-native orchestration runtime with typed nodes, joins, bounded repair loops, and immutable evidence envelopes
 - isolated Git worktrees for autonomous repository changes
 - a loopback-only operator console for run status, checkpoints, resume, and stop
 - Ralph audit, linting, and story-scoped fixing modes
@@ -133,6 +133,22 @@ Run a task in an isolated worktree:
   --task "Add a tested health endpoint and document its behavior"
 ```
 
+New runs use the committed graph-native workflow by default. Select a validated
+workflow with `--workflow`, stop at a node with `--through`, or temporarily
+start the v1 engine with `--legacy-linear`. Existing v1 requests always resume
+through the linear engine.
+
+Inspect future workflow revisions with `graph workflow list|validate|show|diff`
+and activate a reviewed revision with `graph workflow activate`. Activation
+requires an attributed rationale and exact digest confirmation, and affects
+future runs only.
+
+Workflow schema 2.1 supports bounded data-driven fan-out, item streams,
+deterministic transforms, threshold joins, until-dry discovery, and logical
+execution tiers. Use `--execution-profile <file>` to supply the operator-owned
+Codex model mapping. Use `graph workflow propose` for a read-only, draft-only
+Codex topology proposal; it never activates or executes the candidate.
+
 Use `--through plan` to stop before repository mutation. The default worktree
 is stored under the target repository's Git metadata at
 `.git/rae-worktrees/<run-id>`. The final output identifies the worktree and
@@ -171,6 +187,18 @@ Run one benchmark split:
   --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json \
   --split dev \
   --output-dir evals/results/local-dev
+```
+
+Evaluate a sealed workflow-improvement campaign without activation:
+
+```bash
+./scripts/rae.sh eval improve \
+  --campaign evals/campaigns/autonomous-policy-improvement.v2.json \
+  --baseline-evaluation evals/results/local/baseline-development.json \
+  --candidate-policy evals/results/local/candidate-policy.json \
+  --candidate-evaluation evals/results/local/candidate-development.json \
+  --sealed-evaluation evals/results/local/candidate-held-out.json \
+  --output-dir evals/results/local/improvement-campaign
 ```
 
 Local outputs under `evals/results/local*`, `.pipeline/`, and package runtime

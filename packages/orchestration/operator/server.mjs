@@ -16,6 +16,7 @@ import {
   validateRunId,
 } from "./lib/security.mjs";
 import { discoverRuns, locateRun, paginatedEvents, publicRun } from "./lib/runs.mjs";
+import { assertRegistryMethod, workflowRegistryFor } from "./lib/workflows.mjs";
 import { assertSupportedNodeRuntime } from "../scripts/lib/node-runtime.mjs";
 
 assertSupportedNodeRuntime();
@@ -178,6 +179,10 @@ async function routeApi(req, res, url, context) {
     throw Object.assign(new Error("not found"), { status: 404 });
   const project = findProject(projects, parts[3]);
   if (!project) throw Object.assign(new Error("project not found"), { status: 404 });
+  if (parts[4] === "workflows") {
+    await routeWorkflows(req, res, url, context, project, parts.slice(5));
+    return;
+  }
   if (parts[4] !== "runs") throw Object.assign(new Error("not found"), { status: 404 });
 
   if (parts.length === 5) {
@@ -238,6 +243,87 @@ async function routeApi(req, res, url, context) {
   } else {
     throw Object.assign(new Error("not found"), { status: 404 });
   }
+}
+
+function projectHasActiveRun(project) {
+  try {
+    return discoverRuns(project).some(
+      (run) => run.runtime_active || ["running", "waiting", "stop-requested"].includes(run.status),
+    );
+  } catch {
+    // A missing or unreadable runtime directory is not an active execution.
+    return false;
+  }
+}
+
+function workflowMutationAllowed(project, controller) {
+  controller.refreshOwnership();
+  if (controller.ownedRunId || projectHasActiveRun(project)) {
+    throw Object.assign(new Error("workflow revisions are immutable while a run is active"), {
+      status: 409,
+    });
+  }
+}
+
+async function routeWorkflows(req, res, url, context, project, tail) {
+  const registry = context.workflowRegistry ?? (await workflowRegistryFor(project));
+  if (tail.length === 0) {
+    requireMethod(req, "GET");
+    sendJson(res, 200, { workflows: await assertRegistryMethod(registry, "list")() });
+    return;
+  }
+  const workflowId = tail[0];
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(workflowId)) {
+    throw Object.assign(new Error("invalid workflow id"), { status: 400 });
+  }
+  if (tail.length === 1) {
+    requireMethod(req, "GET");
+    sendJson(res, 200, { workflow: await assertRegistryMethod(registry, "show")(workflowId) });
+    return;
+  }
+  if (tail[1] === "drafts" && tail.length === 2) {
+    requireMethod(req, "POST");
+    workflowMutationAllowed(project, context.controller);
+    sendJson(res, 201, {
+      revision: await assertRegistryMethod(registry, "draft")(workflowId, await readJsonBody(req)),
+    });
+    return;
+  }
+  if (tail[1] === "diff" && tail.length === 2) {
+    requireMethod(req, "GET");
+    sendJson(res, 200, {
+      diff: await assertRegistryMethod(registry, "diff")(
+        workflowId,
+        Object.fromEntries(url.searchParams),
+      ),
+    });
+    return;
+  }
+  if (tail[1] === "revisions" && tail[3] === "validate" && tail.length === 4) {
+    requireMethod(req, "POST");
+    workflowMutationAllowed(project, context.controller);
+    sendJson(res, 200, {
+      validation: await assertRegistryMethod(registry, "validate")(
+        workflowId,
+        tail[2],
+        await readJsonBody(req),
+      ),
+    });
+    return;
+  }
+  if (tail[1] === "revisions" && tail[3] === "activate" && tail.length === 4) {
+    requireMethod(req, "POST");
+    workflowMutationAllowed(project, context.controller);
+    sendJson(res, 200, {
+      activation: await assertRegistryMethod(registry, "activate")(
+        workflowId,
+        tail[2],
+        await readJsonBody(req),
+      ),
+    });
+    return;
+  }
+  throw Object.assign(new Error("not found"), { status: 404 });
 }
 
 export async function handleOperatorRequest(req, res, context) {

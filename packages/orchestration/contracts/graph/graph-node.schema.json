@@ -10,7 +10,7 @@
     "graph_family": { "enum": ["evidence", "workflow", "repository", "memory"] },
     "repository_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "run_id": { "type": ["string", "null"] },
-    "kind": { "enum": ["Repository", "ProjectSnapshot", "Run", "PhaseAttempt", "Requirement", "Constraint", "PlanTask", "TestCase", "File", "ArtifactVersion", "CommandExecution", "GateDecision", "CheckpointDecision", "Finding", "Claim", "SourceDocument"] },
+    "kind": { "enum": ["Repository", "ProjectSnapshot", "Run", "PhaseAttempt", "WorkflowRevision", "AgentNode", "NodeAttempt", "Join", "LoopIteration", "Candidate", "Evaluation", "Recommendation", "ActivationDecision", "Requirement", "Constraint", "PlanTask", "TestCase", "File", "ArtifactVersion", "CommandExecution", "GateDecision", "CheckpointDecision", "Finding", "Claim", "SourceDocument"] },
     "logical_id": { "type": "string", "minLength": 1 },
     "version_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "source_ref": { "type": "string", "minLength": 1 },

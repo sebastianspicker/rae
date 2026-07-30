@@ -1,10 +1,27 @@
 # Phased orchestration
 
-This package implements RAE's staged repository workflow, autonomous executor,
+This package implements RAE's graph-native repository workflow, autonomous executor,
 operator console, artifact contracts, policy validation, and deterministic
 gates.
 
 ## Execution model
+
+New autonomous runs resolve a workflow in this order: explicit `--workflow`,
+the locally activated workflow, then the committed
+`workflows/graph-native-default.workflow.json`. The resolved workflow, node
+guidance, payload contracts, and canonical digest are copied into the run and
+remain immutable on resume.
+
+The default graph includes requirements and design agents, four parallel design
+critics, deterministic collection and adjudication, planning, two alignment
+extractors, one exclusive build writer, and a five-round repair loop. Read-only
+nodes run up to four-wide. Shared command resources serialize, and a writer
+drains readers before running alone. Every attempt uses a fresh provider session
+and an immutable result envelope.
+
+The ten ordered stages below are the v1 compatibility engine. Use
+`--legacy-linear` only for a temporary new v1 run. Existing v1 request files
+select it automatically on resume.
 
 The runtime uses ten ordered stages:
 
@@ -78,8 +95,14 @@ and verification evidence.
 
 Useful options:
 
-- `--through <phase>` stops after the selected stage; `--through plan` avoids
-  repository mutation
+- `--workflow <path>` selects a validated graph-native workflow for a new run
+- `--execution-profile <path>` snapshots an operator-owned mapping from logical
+  economy, standard, and judgment tiers to Codex model settings; it is mutually
+  exclusive with global model and reasoning overrides
+- `--through <node-id>` stops after the selected workflow node
+- `--max-concurrency <1..4>` caps concurrent read-only nodes
+- `--max-repair-rounds <1..5>` tightens the workflow repair bound
+- `--legacy-linear` starts the v1 ten-stage engine
 - `--checkpoint-policy before-mutation` pauses before the first writable stage
 - `--checkpoint-policy before-mutation-and-ship` also pauses before the final
   release decision
@@ -143,6 +166,32 @@ memory remains owner-only under the target repository's Git common directory
 at `rae-memory/v1/`. The graph augments context and explanation only. Raw
 artifacts, traces, gates, checkpoints, policies, Git state, and human release
 decisions remain authoritative.
+
+Workflow drafts and activation records live under the target Git common
+directory at `rae-workflows/v2/`. The owner-only registry uses atomic writes,
+an exclusive lock, optimistic revisions, canonical digests, and attributed
+activation decisions. The operator editor uses the same registry and rejects
+changes while a run is active.
+
+Workflow schema 2.1 adds bounded map and stream instances, deterministic
+transforms, first-success and quorum joins, typed failure collection,
+until-dry convergence, and logical execution tiers. Stored 2.0 runs and active
+2.0 registry revisions keep their original executor. RAE does not migrate a
+private registry automatically.
+
+Create a draft-only Codex proposal with:
+
+```bash
+./scripts/rae.sh graph workflow propose \
+  --project-root /path/to/target-repository \
+  --task "Design a bounded topology" \
+  --base-workflow graph-native-default \
+  --actor "operator-name" \
+  --rationale "Draft for review"
+```
+
+The proposal uses a read-only ephemeral session, validates locally, permits one
+correction, and never activates or executes its output.
 
 ## Low-level pipeline API
 
@@ -259,6 +308,16 @@ For changed packages only:
 ```bash
 ./scripts/verify.sh --changed-only
 ```
+
+Run the deterministic workflow-topology fixture separately when scheduler
+ordering changes:
+
+```bash
+npm run benchmark:workflow-topology
+```
+
+It reports fixture event order, critical path, and barrier idle time. It makes
+no model-quality or universal speed claim.
 
 The package verifier checks adapters, schemas, stale references, Markdown
 links, repository hygiene, TypeScript builds, Biome, and Vitest suites. The

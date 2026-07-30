@@ -53,14 +53,14 @@ const host = "127.0.0.1:4173";
 const origin = `http://${host}`;
 const project = { id: "project_12345678", root: "/tmp", label: "/tmp" };
 
-function requestContext(controller) {
-  return { token, host, origin, projects: [project], controller };
+function requestContext(controller, workflowRegistry) {
+  return { token, host, origin, projects: [project], controller, workflowRegistry };
 }
 
-async function dispatch(options, controller) {
+async function dispatch(options, controller, workflowRegistry) {
   const req = new MockRequest(options);
   const res = new MockResponse();
-  await handleOperatorRequest(req, res, requestContext(controller));
+  await handleOperatorRequest(req, res, requestContext(controller, workflowRegistry));
   return res;
 }
 
@@ -158,4 +158,60 @@ test("API rejects bodies declared above 64KiB before control dispatch", async ()
   );
   assert.equal(res.statusCode, 413);
   assert.equal(called, false);
+});
+
+test("workflow editor API keeps registry mutations authenticated and rejects active-run edits", async () => {
+  const calls = [];
+  const registry = {
+    list: () => [{ id: "release", active_revision: "3" }],
+    show: (id) => ({ id, revisions: ["2", "3"] }),
+    draft: (id, body) => {
+      calls.push(["draft", id, body]);
+      return { id: "4", status: "draft" };
+    },
+    validate: (id, revision) => ({ id, revision, valid: true }),
+    diff: (id, query) => ({ id, ...query, changes: [] }),
+    activate: (id, revision) => ({ id, revision, activated: true }),
+  };
+  const controller = { ownedRunId: null, refreshOwnership: () => null };
+  const list = await dispatch(
+    {
+      path: `/api/v1/projects/${project.id}/workflows`,
+      headers: { host, authorization: `Bearer ${token}` },
+    },
+    controller,
+    registry,
+  );
+  assert.equal(list.statusCode, 200);
+  assert.equal(JSON.parse(list.body).workflows[0].id, "release");
+  const body = JSON.stringify({ base_revision: "3", definition: { stages: [] } });
+  const draft = await dispatch(
+    {
+      path: `/api/v1/projects/${project.id}/workflows/release/drafts`,
+      method: "POST",
+      body,
+      headers: {
+        host,
+        origin,
+        authorization: `Bearer ${token}`,
+        "content-length": Buffer.byteLength(body),
+      },
+    },
+    controller,
+    registry,
+  );
+  assert.equal(draft.statusCode, 201);
+  assert.deepEqual(calls[0][2], JSON.parse(body));
+  controller.ownedRunId = "run_12345678";
+  const blocked = await dispatch(
+    {
+      path: `/api/v1/projects/${project.id}/workflows/release/revisions/4/activate`,
+      method: "POST",
+      body: "{}",
+      headers: { host, origin, authorization: `Bearer ${token}`, "content-length": "2" },
+    },
+    controller,
+    registry,
+  );
+  assert.equal(blocked.statusCode, 409);
 });

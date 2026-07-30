@@ -168,3 +168,17 @@ test("static styles and scripts are modularized under static/css and static/js",
   assert.match(appEntry, /from "\.\/js\/handlers\.js"/);
   assert.match(appEntry, /from "\.\/js\/data\.js"/);
 });
+
+test("workflow map provides topology, typed edges, budgets, and accessible instance state", () => {
+  assert.match(app, /function topology\(definition\)/);
+  assert.match(app, /workflow-edge--\$\{edgeRecord\.type\}/);
+  assert.match(app, /fanout:/);
+  assert.match(app, /Live and completed node instances/);
+  assert.match(app, /execution_tier/);
+  assert.match(app, /quorum/);
+  assert.match(app, /max_dynamic_instances/);
+  assert.match(app, /Registry is read-only while a run is active/);
+  assert.match(css, /\.workflow-edge--stream/);
+  assert.match(css, /\.workflow-edge--loop-back/);
+  assert.match(html, /complete equivalent structure and live instance state/);
+});

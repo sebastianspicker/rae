@@ -213,6 +213,7 @@ function summarizeRun(project, run) {
   const { startedAt, updatedAt } = runTiming(request, events, runDir);
   const projectedArtifacts = events.filter((event) => event.event === "artifact_write");
   const checkpointRows = checkpoints(runDir);
+  const workflow = workflowProjection(request, runDir);
   return {
     id: run.id,
     project_id: project.id,
@@ -226,9 +227,75 @@ function summarizeRun(project, run) {
     evidence: { present: projectedArtifacts.length },
     resources: runResources(progress, events),
     checkpoints: checkpointRows,
+    workflow,
     graph_health: publicGraphHealth(run.workspaceRoot, run.id),
     workspaceRoot: run.workspaceRoot,
   };
+}
+
+function workflowProjection(request, runDir) {
+  if (request.workflow?.mode !== "graph-native") return null;
+  return {
+    workflow_id: request.workflow.workflow_id,
+    schema_version: request.workflow.snapshot?.schema_version ?? request.schema_version,
+    digest: request.workflow.digest,
+    revision: request.workflow.revision,
+    budgets: request.workflow.snapshot?.budgets ?? {},
+    instances: workflowInstances(runDir),
+  };
+}
+
+function workflowInstances(runDir) {
+  const root = join(runDir, "workflow", "attempts");
+  if (!existsSync(root)) return [];
+  const latest = new Map();
+  for (const nodeEntry of readdirSync(root, { withFileTypes: true })) {
+    if (!nodeEntry.isDirectory()) continue;
+    collectLatestInstances(latest, join(root, nodeEntry.name));
+  }
+  return [...latest.values()].sort(compareInstances);
+}
+
+function collectLatestInstances(latest, directory) {
+  for (const name of readdirSync(directory).filter((entry) => entry.endsWith(".json"))) {
+    addLatestInstance(latest, readJson(join(directory, name)));
+  }
+}
+
+function addLatestInstance(latest, envelope) {
+  if (!envelope || envelope.workflow_digest === undefined) return;
+  const instanceId = envelope.instance_id ?? envelope.node_id;
+  const prior = latest.get(instanceId);
+  if (!prior || envelope.attempt >= prior.attempt)
+    latest.set(instanceId, publicInstance(envelope, instanceId));
+}
+
+function publicInstance(envelope, instanceId) {
+  return {
+    instance_id: instanceId,
+    node_id: envelope.node_id,
+    parent_node: nullableProperty(envelope, "parent_node"),
+    item_key: nullableProperty(envelope, "item_key"),
+    item_digest: nullableProperty(envelope, "item_digest"),
+    status: envelope.status,
+    attempt: envelope.attempt,
+    execution_tier: propertyOr(envelope, "execution_tier", "runtime"),
+    selection: nullableProperty(envelope, "selection"),
+    quorum: nullableProperty(envelope, "quorum"),
+    convergence: nullableProperty(envelope, "convergence"),
+  };
+}
+
+function nullableProperty(record, key) {
+  return propertyOr(record, key, null);
+}
+
+function propertyOr(record, key, fallback) {
+  return record[key] ?? fallback;
+}
+
+function compareInstances(left, right) {
+  return left.instance_id.localeCompare(right.instance_id);
 }
 
 function publicGraphHealth(workspaceRoot, runId) {

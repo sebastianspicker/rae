@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "at-rule-property-required-list": null,
+    "declaration-no-important": null,
+    "declaration-property-value-disallowed-list": null,
+    "function-disallowed-list": null,
+    "function-url-scheme-allowed-list": null,
+    "function-url-scheme-disallowed-list": null,
+    "media-feature-name-allowed-list": null,
+    "media-feature-name-value-allowed-list": null,
+    "property-disallowed-list": null,
+    "selector-attribute-name-disallowed-list": null,
+    "selector-disallowed-list": null,
+    "selector-max-compound-selectors": null,
+    "selector-max-id": null,
+    "selector-max-specificity": null,
+    "selector-max-universal": null,
+    "selector-not-notation": "complex",
+    "time-min-milliseconds": null,
+    "unit-allowed-list": null
+  }
+}
