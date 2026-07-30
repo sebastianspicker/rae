@@ -17,6 +17,7 @@
     "agent": "node scripts/pipeline/autonomous.mjs",
     "benchmark:graph-context": "node scripts/eval/graph-context-benchmark.mjs",
     "build": "npm run build --workspaces --if-present",
+    "build:pages-demo": "bash scripts/build-pages-demo.sh",
     "test:operator": "node --test operator/tests/*.test.mjs",
     "test:runner": "cd scripts/pipeline && ../../node_modules/.bin/vitest run",
     "verify": "./scripts/verify.sh --skip-install"
