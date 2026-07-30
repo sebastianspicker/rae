@@ -101,6 +101,20 @@ for one run with `--graph-memory read`, or admit verified outcomes and
 quarantine model-proposed candidates with `--graph-memory read-write`. The mode
 is immutable on resume.
 
+Use an operator-owned execution profile when workflow nodes declare logical
+tiers:
+
+```bash
+./scripts/rae.sh agent run \
+  --project-root /path/to/target-repository \
+  --execution-profile /absolute/path/to/execution-profile.json \
+  --task "Implement and verify the requested change"
+```
+
+`--execution-profile` is mutually exclusive with `--model` and
+`--reasoning-effort`. The validated profile and canonical digest are stored in
+the run request and remain immutable on resume.
+
 ## Local graph and memory
 
 ```bash
@@ -113,6 +127,21 @@ is immutable on resume.
 The graph is local, rebuildable, and advisory. It cannot modify gates,
 checkpoints, policies, evaluators, Git state, publication state, or plan
 ownership. See the [graph and memory contract](../contracts/graph-memory.md).
+
+Workflow revisions use the same graph command family:
+
+```bash
+./scripts/rae.sh graph workflow list --project-root /path/to/target-repository
+./scripts/rae.sh graph workflow validate --project-root /path/to/target-repository \
+  --workflow-file /absolute/path/to/workflow.json
+./scripts/rae.sh graph workflow propose --project-root /path/to/target-repository \
+  --task "Design a bounded topology" --base-workflow graph-native-default \
+  --actor "operator-name" --rationale "Draft for review"
+```
+
+`propose` starts one read-only, ephemeral structured-output session and permits
+one correction after local validation. It stores only a valid attributed draft.
+It does not activate or execute the draft.
 
 ## Operator console
 

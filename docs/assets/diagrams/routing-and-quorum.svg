@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="430" viewBox="0 0 900 430" role="img" aria-labelledby="title desc">
+  <title id="title">RAE conditional routing and diverse-lens quorum</title>
+  <desc id="desc">A router selects bounded specialist paths whose independent results enter a three-of-four quorum before verification.</desc>
+  <rect width="900" height="430" rx="24" fill="#f5f8f7"/>
+  <g font-family="sans-serif" fill="#17324d"><text x="48" y="52" font-size="27" font-weight="700">Route, inspect, verify</text>
+    <polygon points="150,185 215,130 280,185 215,240" fill="#fff4dc" stroke="#a05a00" stroke-width="3"/><text x="181" y="191" font-size="16">Route</text>
+    <g fill="#fff" stroke="#17324d" stroke-width="2"><rect x="360" y="72" width="170" height="48" rx="8"/><rect x="360" y="136" width="170" height="48" rx="8"/><rect x="360" y="200" width="170" height="48" rx="8"/><rect x="360" y="264" width="170" height="48" rx="8"/></g>
+    <g font-size="15"><text x="395" y="102">Contract lens</text><text x="404" y="166">Safety lens</text><text x="392" y="230">Testing lens</text><text x="395" y="294">Scope lens</text></g>
+    <g stroke="#a05a00" stroke-width="3" stroke-dasharray="8 5"><path d="M280 185 L360 96"/><path d="M280 185 L360 160"/><path d="M280 185 L360 224"/><path d="M280 185 L360 288"/></g>
+    <polygon points="650,185 712,130 774,185 712,240" fill="#e7f3f6" stroke="#087c82" stroke-width="3"/><text x="675" y="181" font-size="15">3 of 4</text><text x="679" y="201" font-size="15">quorum</text>
+    <g stroke="#087c82" stroke-width="3"><path d="M530 96 L650 170"/><path d="M530 160 L650 181"/><path d="M530 224 L650 193"/><path d="M530 288 L650 205"/></g>
+    <text x="150" y="370" font-size="16">Conditional edges choose work. Quorum edges define evidence sufficiency.</text>
+  </g>
+</svg>

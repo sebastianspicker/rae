@@ -29,7 +29,7 @@ The root gate runs:
 
 ## Test inventory
 
-The current tree contains 128 executable test source files and 11 referenced
+The current tree contains 129 executable test source files and 11 referenced
 runner, helper, fixture, or configuration files.
 
 | Classification | Paths | Count | Runner or owner |
@@ -42,7 +42,7 @@ runner, helper, fixture, or configuration files.
 | Active | `packages/loops/ralph/tests/ralph_*_test.sh` | 63 | `packages/loops/ralph/scripts/run_tests.sh` |
 | Active support | Ralph test runner and `tests/lib/test_helpers.sh` | 2 | Ralph shell suite |
 | Active | `packages/orchestration/operator/tests/*.test.mjs` | 5 | Node test runner |
-| Active | `packages/orchestration/scripts/pipeline/tests/*.test.mjs` | 25 | Vitest |
+| Active | `packages/orchestration/scripts/pipeline/tests/*.test.mjs` | 26 | Vitest |
 | Active support | Pipeline Vitest config, test helper, and two fixture modules | 4 | Pipeline Vitest suite |
 | Active | `packages/orchestration/skills/dev-tools/*/tests/unit/*.test.ts` | 17 | Package-local Vitest commands |
 | Active support | `trace-test-helpers.ts` | 1 | Trace collector tests |
@@ -80,7 +80,11 @@ Orchestration:
 npm --prefix packages/orchestration run test:operator
 npm --prefix packages/orchestration run test:runner
 npm --prefix packages/orchestration run verify
+npm --prefix packages/orchestration run benchmark:workflow-topology
 ```
+
+The topology benchmark is a deterministic scheduler fixture for event order,
+critical path, and barrier idle time. It does not measure model quality.
 
 Ralph:
 

@@ -61,6 +61,8 @@ evidence_links: bibliography.md
 - Dossier: [CLM-008 coordination topology](dossiers/clm-008-coordination-topology.md)
 - Internal anchor: `docs/explanation/science/coordination-cost.md`
 - Internal anchor: `packages/orchestration/docs/ORCHESTRATION_POLICY.md`
+- Internal anchor: `docs/tutorials/graph-engineering-with-codex.md`
+- Internal anchor: `packages/orchestration/scripts/pipeline/lib/workflow-scheduler-v21.mjs`
 - External anchor: [Amdahl 1967](bibliography.md#src-amdahl-1967)
 - External anchor: [Conway 1968](bibliography.md#src-conway-1968)
 - External anchor: [Cataldo et al.](bibliography.md#src-cataldo-congruence)
@@ -108,6 +110,8 @@ evidence_links: bibliography.md
 - Dossier: [CLM-016 cognitive tiering](dossiers/clm-016-cognitive-tiering.md)
 - Internal anchor: `docs/explanation/science/cognitive-tiering.md`
 - Internal anchor: `docs/explanation/supplementary/design-axioms.md`
+- Internal anchor: `packages/orchestration/contracts/workflows/execution-profile-v1.schema.json`
+- Internal anchor: `docs/tutorials/graph-engineering-with-codex.md`
 - External anchor: [Kahneman](bibliography.md#src-kahneman-fast-slow)
 - External anchor: [Bainbridge automation](bibliography.md#src-bainbridge-automation)
 - External anchor: [Parasuraman and Riley](bibliography.md#src-parasuraman-riley)
@@ -154,6 +158,7 @@ evidence_links: bibliography.md
 
 - Internal anchor: `docs/reference/contracts/graph-memory.md`
 - Internal anchor: `packages/orchestration/contracts/graph/`
+- Internal anchor: `packages/orchestration/contracts/workflows/workflow-v2.1.schema.json`
 - Regression evidence: `packages/orchestration/scripts/pipeline/tests/graph.test.mjs`
 - External anchor: [GraphRAG-Bench](https://graphrag-bench.github.io/)
 - External anchor: [Does Memory Need Graphs?](https://aclanthology.org/2026.acl-long.1232/)

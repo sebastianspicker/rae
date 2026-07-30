@@ -41,6 +41,7 @@ exclude_docs: |
 nav:
   - Home: INDEX.md
   - Tutorials:
+      - Graph Engineering with Codex and RAE: tutorials/graph-engineering-with-codex.md
       - Autonomous Code Change: tutorials/autonomous-code-change.md
       - First Pipeline: tutorials/first-pipeline.md
       - First Ralph Run: tutorials/first-ralph-run.md

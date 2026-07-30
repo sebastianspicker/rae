@@ -29,6 +29,15 @@ Current imported schema set includes:
 - release readiness
 - execution trace
 - graph manifest, node, edge, context bundle, and memory decision
+- graph-native workflow 2.0 and immutable node-result envelope 2.0
+- graph-native workflow and node-instance envelope 2.1
+- operator-owned execution profile with economy, standard, and judgment tiers
+
+Version 2.1 adds bounded maps, item streams, allowlisted transforms, threshold
+joins, typed failure collection, until-dry convergence, and immutable instance
+identity. Version 2.0 remains a separate accepted contract for existing run
+snapshots and locally activated revisions. RAE does not rewrite private
+registries or migrate stored runs automatically.
 
 Umbrella eval/runtime schemas additionally include:
 
