@@ -36,18 +36,22 @@ describe("workflow topology benchmark", () => {
   test("writes only a direct file under the local eval-results directory", () => {
     const cwd = mkdtempSync(resolve(tmpdir(), "rae-workflow-topology-"));
     try {
-      execFileSync(process.execPath, [benchmark, "--output", "eval-results/fixture.json"], {
-        cwd,
-        encoding: "utf8",
-      });
-      const output = resolve(cwd, "eval-results", "fixture.json");
+      execFileSync(
+        process.execPath,
+        [benchmark, "--output", "eval-results/workflow-topology.json"],
+        {
+          cwd,
+          encoding: "utf8",
+        },
+      );
+      const output = resolve(cwd, "eval-results", "workflow-topology.json");
       expect(JSON.parse(readFileSync(output, "utf8")).fixture_id).toBe(
         "workflow-topology-order-v1",
       );
       expect(existsSync(resolve(cwd, "outside.json"))).toBe(false);
-      expect(outputAttempt(cwd, "outside.json").stderr).toContain("must be inside eval-results");
+      expect(outputAttempt(cwd, "outside.json").stderr).toContain("must be eval-results");
       expect(outputAttempt(cwd, "eval-results/nested/fixture.json").stderr).toContain(
-        "directly inside eval-results",
+        "must be eval-results",
       );
     } finally {
       rmSync(cwd, { recursive: true, force: true });

@@ -44,6 +44,13 @@ export function instanceId(nodeId, itemKey) {
   return itemKey === null ? nodeId : `${nodeId}:${digest(String(itemKey)).slice(0, 16)}`;
 }
 
+export function pendingInstanceId(nodeId, itemKey, loop, loopIteration) {
+  const stableId = instanceId(nodeId, itemKey);
+  return loop && loopIteration > 1 && itemKey === null
+    ? `${stableId}:loop-${loopIteration}`
+    : stableId;
+}
+
 export function freezeEnvelope(value) {
   return Object.freeze({
     schema_version: "2.1.0",

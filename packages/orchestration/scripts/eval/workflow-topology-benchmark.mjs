@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Emits a deterministic fixture for workflow event order, critical path, and barrier idle time. */
 import { existsSync, lstatSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { resolve } from "node:path";
 
 const items = [
   { key: "a", first: 8, second: 2 },
@@ -53,31 +53,29 @@ const result = {
   },
 };
 
-const OUTPUT_DIRECTORY = "eval-results";
+const OUTPUT_PATH = "eval-results/workflow-topology.json";
 
 function outputPath(pathValue, cwd = process.cwd()) {
   if (!pathValue || pathValue.startsWith("--")) throw new Error("--output requires a path");
-  if (isAbsolute(pathValue)) throw new Error("--output must be relative to the current directory");
-  const outputRoot = resolve(cwd, OUTPUT_DIRECTORY);
-  const output = resolve(cwd, pathValue);
-  if (relative(outputRoot, output).startsWith("..")) {
-    throw new Error(`--output must be inside ${OUTPUT_DIRECTORY}/`);
+  if (pathValue !== OUTPUT_PATH) {
+    throw new Error(`--output must be ${OUTPUT_PATH}`);
   }
-  mkdirSync(outputRoot, { recursive: true, mode: 0o700 });
-  if (realpathSync(outputRoot) !== outputRoot) {
-    throw new Error(`${OUTPUT_DIRECTORY}/ must not be a symbolic link`);
+  mkdirSync("eval-results", { recursive: true, mode: 0o700 });
+  if (realpathSync("eval-results") !== resolve(cwd, "eval-results")) {
+    throw new Error("eval-results/ must not be a symbolic link");
   }
-  if (dirname(output) !== outputRoot) {
-    throw new Error(`--output must name a file directly inside ${OUTPUT_DIRECTORY}/`);
-  }
-  if (existsSync(output) && lstatSync(output).isSymbolicLink()) {
+  if (
+    existsSync("eval-results/workflow-topology.json") &&
+    lstatSync("eval-results/workflow-topology.json").isSymbolicLink()
+  ) {
     throw new Error("--output must not replace a symbolic link");
   }
-  return output;
+  return OUTPUT_PATH;
 }
 
 function writeResult(pathValue) {
-  writeFileSync(outputPath(pathValue), `${JSON.stringify(result, null, 2)}\n`, {
+  outputPath(pathValue);
+  writeFileSync("eval-results/workflow-topology.json", `${JSON.stringify(result, null, 2)}\n`, {
     encoding: "utf8",
     mode: 0o600,
   });

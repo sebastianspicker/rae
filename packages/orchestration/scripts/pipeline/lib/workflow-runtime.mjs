@@ -112,9 +112,11 @@ function runWorker(request, cwd) {
     });
     let stdout = "";
     let stderr = "";
-    const timer = setTimeout(() => {
+    const timeout = AbortSignal.timeout(request.timeoutMs + 5000);
+    const terminate = () => {
       if (!signalProcessGroup(child.pid, "SIGKILL")) child.kill("SIGKILL");
-    }, request.timeoutMs + 5000);
+    };
+    timeout.addEventListener("abort", terminate, { once: true });
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
@@ -126,7 +128,7 @@ function runWorker(request, cwd) {
     });
     child.once("error", reject);
     child.once("close", (code) => {
-      clearTimeout(timer);
+      timeout.removeEventListener("abort", terminate);
       if (code !== 0)
         reject(new Error(`workflow agent worker exited with ${code}: ${stderr.trim()}`));
       else accept(JSON.parse(stdout));

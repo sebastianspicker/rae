@@ -9,6 +9,7 @@ import {
   failureEnvelope,
   freezeEnvelope,
   instanceId,
+  pendingInstanceId,
   persistEnvelope,
   predecessors,
   successful,
@@ -113,13 +114,6 @@ export async function scheduleWorkflowV21({
       (edge) => !excludeStream || edge.type !== "stream",
     );
     return edges.every((edge) => isSettled(edge.from));
-  }
-
-  function pendingInstanceId(nodeId, itemKey, loop, loopIteration) {
-    const stableId = instanceId(nodeId, itemKey);
-    return loop && loopIteration > 1 && itemKey === null
-      ? `${stableId}:loop-${loopIteration}`
-      : stableId;
   }
 
   function queue(
@@ -283,10 +277,6 @@ export async function scheduleWorkflowV21({
     }
     if (node.kind === "join") return discoverJoin(node);
     discoverOrdinary(node);
-  }
-
-  function discover() {
-    for (const node of workflow.nodes) discoverNode(node);
   }
 
   function streamSuccessors(spec, envelope) {
@@ -471,7 +461,7 @@ export async function scheduleWorkflowV21({
 
   while (!isSettled(workflow.terminal_node) || running.size || pending.size) {
     if (stopRequested()) return { status: "stopped", completed, workflow_digest: workflowHash };
-    discover();
+    for (const node of workflow.nodes) discoverNode(node);
     if (fatal && running.size === 0) throw fatal;
     const writerRunning = [...running.values()].some(({ spec }) => spec.node.access === "write");
     const candidates = [...pending.values()].sort((left, right) =>
