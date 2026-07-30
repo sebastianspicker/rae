@@ -90,6 +90,9 @@ MAX_TASKS_PER_REPEAT = 8
 MAX_TASK_ATTEMPTS = 12
 MIN_PAIRED_WINS = 2
 MIN_IMPROVEMENT = 0.05
+IMPROVEMENT_CHANGE_ALLOWLIST = frozenset(
+    {"roles", "guidance", "safe_nodes", "edges", "joins", "loop_bounds"}
+)
 
 
 def sha256_file(path: pathlib.Path) -> str:
@@ -163,6 +166,30 @@ def validate_policy(policy: Policy) -> None:
     _validate_policy_inputs(inputs)
 
 
+def validate_candidate_policy_change(
+    incumbent: Policy, candidate: Policy, allowed_changes: object = None
+) -> None:
+    """Keep experimental candidates inside the data-only policy surface.
+
+    The current autonomous-policy schema exposes guidance and safe artifact
+    topology only.  The v2 campaign labels that bounded surface with the
+    broader vocabulary used by future evaluator-owned policy adapters; it
+    cannot alter runtime commands, judges, evaluator code, or activation.
+    """
+    allowlist = (
+        IMPROVEMENT_CHANGE_ALLOWLIST if allowed_changes is None else frozenset(allowed_changes)
+    )
+    if allowlist != IMPROVEMENT_CHANGE_ALLOWLIST:
+        raise ValueError(
+            "candidate change allowlist must exactly match the evaluator-owned allowlist"
+        )
+    validate_policy(incumbent)
+    validate_policy(candidate)
+    changed = {key for key in _POLICY_KEYS if incumbent.get(key) != candidate.get(key)}
+    if changed - {"policy_id", "phase_guidance", "phase_inputs"}:
+        raise ValueError("candidate changes an evaluator-forbidden policy field")
+
+
 def _validate_campaign_header(campaign: object) -> dict[str, Any]:
     if not isinstance(campaign, dict):
         raise ValueError("campaign must be a JSON object")
@@ -173,7 +200,12 @@ def _validate_campaign_header(campaign: object) -> dict[str, Any]:
         "baseline_policy_path",
         "trusted_paths",
     }
-    allowed = required | {"resource_budget"}
+    allowed = required | {
+        "resource_budget",
+        "campaign_version",
+        "frozen_surfaces",
+        "candidate_change_allowlist",
+    }
     if not _has_campaign_fields(campaign, required, allowed):
         raise ValueError("campaign fields do not match the optimizer campaign contract")
     campaign_id = campaign["campaign_id"]
