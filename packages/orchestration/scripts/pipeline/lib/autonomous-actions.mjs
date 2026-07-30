@@ -353,6 +353,217 @@ export function runControlCommand(command, options) {
   throw new Error(`unsupported control command: ${command}`);
 }
 
+function waitingReport(context, provider, runOptions) {
+  const report = writeRunReport(context, { provider, status: "waiting" });
+  printFinal(context, report, runOptions);
+}
+
+function reconcileResumeCheckpoint(context, previousControl, provider, runOptions) {
+  const checkpoints = listCheckpoints(context.runId, context.workspaceRoot);
+  const terminal = checkpoints.find(({ status }) => ["rejected", "escalated"].includes(status));
+  if (terminal) {
+    if (previousControl.status === "waiting") {
+      setRunStatus(context.runId, "blocked", context.workspaceRoot, {
+        waiting_checkpoint_id: null,
+        stop_requested: false,
+      });
+    }
+    throw new Error(
+      `cannot resume after checkpoint ${terminal.checkpoint_id} was ${terminal.status}`,
+    );
+  }
+  const waiting = checkpoints.find(
+    ({ checkpoint_id }) => checkpoint_id === previousControl.waiting_checkpoint_id,
+  );
+  if (previousControl.status !== "waiting") return false;
+  if (waiting?.status === "pending") {
+    waitingReport(context, provider, runOptions);
+    return true;
+  }
+  if (waiting?.status !== "approved") {
+    setRunStatus(context.runId, "blocked", context.workspaceRoot, {
+      waiting_checkpoint_id: null,
+      stop_requested: false,
+    });
+    throw new Error("cannot resume an unreconciled checkpoint state");
+  }
+  setRunStatus(context.runId, "running", context.workspaceRoot, {
+    waiting_checkpoint_id: null,
+    stop_requested: false,
+  });
+  return false;
+}
+
+function prepareLegacyRun(context, command, runOptions, completed, state, provider) {
+  recordFreshCommandResume(context, command, runOptions);
+  const previousControl = readOperatorControl(context.runId, context.workspaceRoot);
+  const allPhasesCompleted = PHASE_ORDER.every((phase) => completed.has(`${phase}-gate`));
+  if (command === "resume" && previousControl.status === "completed" && allPhasesCompleted) {
+    throw new Error(`cannot resume terminal run status: ${previousControl.status}`);
+  }
+  if (
+    command === "resume" &&
+    reconcileResumeCheckpoint(context, previousControl, provider, runOptions)
+  ) {
+    return false;
+  }
+  setRunStatus(context.runId, "running", context.workspaceRoot, { stop_requested: false });
+  if (command === "resume") {
+    appendTraceEvent(
+      context.runId,
+      { event: "run_resumed", phase: nextRunPhase(state), status: "ok" },
+      context.workspaceRoot,
+    );
+    refreshResumeRefBaseline(context.workspaceRoot, context.initialGitState);
+  } else {
+    assertGitStateInvariant(context.workspaceRoot, context.initialGitState, "run preflight");
+  }
+  return true;
+}
+
+function checkpointOutcome(context, provider, phase, kind, runOptions) {
+  const result = checkpointPause(context, phase, kind);
+  if (result === "stopped") publishStoppedRun(context, provider, phase, runOptions);
+  if (result === "waiting") waitingReport(context, provider, runOptions);
+  return result;
+}
+
+function runLegacyPhases(context, phases, controlPolicy, runOptions, initialProvider) {
+  let provider = initialProvider;
+  for (const phase of phases) {
+    if (readOperatorControl(context.runId, context.workspaceRoot).stop_requested) {
+      publishStoppedRun(context, provider, phase, runOptions);
+      return null;
+    }
+    const mutationCheckpoint =
+      phase === "build" && ["before-mutation", "before-mutation-and-ship"].includes(controlPolicy);
+    if (mutationCheckpoint) {
+      const outcome = checkpointOutcome(context, provider, phase, "mutation", runOptions);
+      if (["stopped", "waiting"].includes(outcome)) return null;
+    }
+    if (phase === "release-readiness") completeReviewLoop(context.workspaceRoot, context.runId);
+    const result = runPhaseWithGitInvariant(context, phase, runOptions);
+    provider = result.agent_provider;
+    process.stderr.write(`RAE phase ${phase}: ${result.gate.status}\n`);
+  }
+  return provider;
+}
+
+function writeLegacySummaries(context) {
+  invokeRunner(context.workspaceRoot, ["summarize-progress", "--run-id", context.runId]);
+  invokeRunner(context.workspaceRoot, [
+    "summarize-run",
+    "--run-id",
+    context.runId,
+    "--format",
+    "markdown",
+    "--output",
+    `.pipeline/runs/${context.runId}/trace-summary.md`,
+  ]);
+}
+
+function persistGraphMemory(context, runOptions) {
+  const mode = runOptions["graph-memory"] ?? "off";
+  if (mode !== "off") projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
+  if (mode === "read-write") {
+    recordRunMemory({ projectRoot: context.workspaceRoot, runId: context.runId });
+  }
+}
+
+function finalizeLegacyRun(context, through, controlPolicy, provider, runOptions) {
+  if (through === "release-readiness") writeLegacySummaries(context);
+  if (through === "release-readiness" && controlPolicy === "before-mutation-and-ship") {
+    const outcome = checkpointOutcome(context, provider, "release-readiness", "ship", runOptions);
+    if (["stopped", "waiting"].includes(outcome)) return;
+  }
+  if (readOperatorControl(context.runId, context.workspaceRoot).stop_requested) {
+    publishStoppedRun(context, provider, through, runOptions);
+    return;
+  }
+  const completedControl = setRunStatus(context.runId, "completed", context.workspaceRoot, {
+    stop_requested: false,
+  });
+  if (completedControl.stop_requested) {
+    publishStoppedRun(context, provider, through, runOptions);
+    return;
+  }
+  appendTraceEvent(
+    context.runId,
+    { event: "run_completed", phase: through, status: "completed" },
+    context.workspaceRoot,
+  );
+  persistGraphMemory(context, runOptions);
+  printFinal(context, writeRunReport(context, { provider }), runOptions);
+}
+
+function handleLegacyFailure(context, provider, runOptions, error) {
+  if (error.pipelineStateUnsafe === true) {
+    const payload = {
+      success: false,
+      status: "pipeline-state-unreadable",
+      run_id: context.runId,
+      workspace_root: context.workspaceRoot,
+      report: null,
+      cleanup_command: null,
+      changed_files: [],
+      documentation: null,
+      error: error.message,
+    };
+    if (runOptions.json) process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+    else process.stderr.write(`RAE pipeline state is unreadable: ${error.message}\n`);
+    process.exitCode = 1;
+    return;
+  }
+  const failedControl = readOperatorControl(context.runId, context.workspaceRoot);
+  if (!["completed", "blocked"].includes(failedControl.status)) {
+    setRunStatus(context.runId, "blocked", context.workspaceRoot, { stop_requested: false });
+    const currentState = readJsonStrict(
+      resolve(context.workspaceRoot, ".pipeline", "pipeline-state.json"),
+    );
+    appendTraceEvent(
+      context.runId,
+      { event: "run_blocked", phase: nextRunPhase(currentState), status: "blocked" },
+      context.workspaceRoot,
+    );
+  }
+  printFinal(
+    context,
+    writeRunReport(context, { provider, error: error.message }),
+    runOptions,
+    error,
+  );
+  process.exitCode = 1;
+}
+
+function legacyRunConfiguration(context, runOptions) {
+  const through = runOptions.through ?? "release-readiness";
+  const controlPolicy = checkpointPolicy(runOptions["checkpoint-policy"]);
+  const state = readJsonStrict(resolve(context.workspaceRoot, ".pipeline", "pipeline-state.json"));
+  const completed = new Set(state.completed_gates ?? []);
+  const phases = PHASE_ORDER.slice(0, PHASE_ORDER.indexOf(through) + 1).filter(
+    (phase) => !completed.has(`${phase}-gate`),
+  );
+  return { through, controlPolicy, state, completed, phases };
+}
+
+function runLegacyWorkflow(command, context, runOptions) {
+  const { through, controlPolicy, state, completed, phases } = legacyRunConfiguration(
+    context,
+    runOptions,
+  );
+  const initialProvider = runOptions.provider || "auto";
+  const releaseLock = acquireWorkflowLock(context.workspaceRoot, context.runId);
+  try {
+    if (!prepareLegacyRun(context, command, runOptions, completed, state, initialProvider)) return;
+    const provider = runLegacyPhases(context, phases, controlPolicy, runOptions, initialProvider);
+    if (provider) finalizeLegacyRun(context, through, controlPolicy, provider, runOptions);
+  } catch (error) {
+    handleLegacyFailure(context, initialProvider, runOptions, error);
+  } finally {
+    releaseLock();
+  }
+}
+
 export async function runWorkflow(command, options) {
   if (command === "run") validateOptions(options);
   if (command === "resume") validateFreshCommandResume(options);
@@ -361,265 +572,86 @@ export async function runWorkflow(command, options) {
     ? mergeResumeOptions(context.savedAgentOptions, options)
     : options;
   validateOptions(runOptions);
-  if (context.workflowMode === "graph-native") {
-    if (runOptions.through && !context.workflow.nodes.some(({ id }) => id === runOptions.through)) {
-      throw new Error(`--through names unknown workflow node: ${runOptions.through}`);
-    }
-    return runGraphWorkflowCommand(command, context, runOptions);
+  if (context.workflowMode !== "graph-native")
+    return runLegacyWorkflow(command, context, runOptions);
+  if (runOptions.through && !context.workflow.nodes.some(({ id }) => id === runOptions.through)) {
+    throw new Error(`--through names unknown workflow node: ${runOptions.through}`);
   }
-  const through = runOptions.through ?? "release-readiness";
-  const controlPolicy = checkpointPolicy(runOptions["checkpoint-policy"]);
-  const throughIndex = PHASE_ORDER.indexOf(through);
-  const state = readJsonStrict(resolve(context.workspaceRoot, ".pipeline", "pipeline-state.json"));
-  const completed = new Set(state.completed_gates ?? []);
-  const phases = PHASE_ORDER.slice(0, throughIndex + 1).filter(
-    (phase) => !completed.has(`${phase}-gate`),
-  );
-  let provider = runOptions.provider ?? "auto";
-  const releaseLock = acquireWorkflowLock(context.workspaceRoot, context.runId);
+  return runGraphWorkflowCommand(command, context, runOptions);
+}
 
-  try {
-    try {
-      recordFreshCommandResume(context, command, runOptions);
-      const previousControl = readOperatorControl(context.runId, context.workspaceRoot);
-      const allPhasesCompleted = PHASE_ORDER.every((phase) => completed.has(`${phase}-gate`));
-      if (command === "resume" && previousControl.status === "completed" && allPhasesCompleted) {
-        throw new Error(`cannot resume terminal run status: ${previousControl.status}`);
-      }
-      if (command === "resume") {
-        const checkpoints = listCheckpoints(context.runId, context.workspaceRoot);
-        const terminalRejection = checkpoints.find((checkpoint) =>
-          ["rejected", "escalated"].includes(checkpoint.status),
-        );
-        if (terminalRejection) {
-          if (previousControl.status === "waiting") {
-            setRunStatus(context.runId, "blocked", context.workspaceRoot, {
-              waiting_checkpoint_id: null,
-              stop_requested: false,
-            });
-          }
-          throw new Error(
-            `cannot resume after checkpoint ${terminalRejection.checkpoint_id} was ${terminalRejection.status}`,
-          );
-        }
-        const waiting = checkpoints.find(
-          (checkpoint) => checkpoint.checkpoint_id === previousControl.waiting_checkpoint_id,
-        );
-        if (previousControl.status === "waiting" && waiting?.status === "pending") {
-          const report = writeRunReport(context, { provider, status: "waiting" });
-          printFinal(context, report, runOptions);
-          return;
-        }
-        if (previousControl.status === "waiting" && waiting?.status === "approved") {
-          // A crash can occur after the durable checkpoint decision but before its
-          // control record transition. Reconcile the stale wait before executing.
-          setRunStatus(context.runId, "running", context.workspaceRoot, {
-            waiting_checkpoint_id: null,
-            stop_requested: false,
-          });
-        }
-        if (previousControl.status === "waiting" && waiting?.status !== "approved") {
-          setRunStatus(context.runId, "blocked", context.workspaceRoot, {
-            waiting_checkpoint_id: null,
-            stop_requested: false,
-          });
-          throw new Error("cannot resume an unreconciled checkpoint state");
-        }
-      }
-      setRunStatus(context.runId, "running", context.workspaceRoot, { stop_requested: false });
-      if (command === "resume") {
-        appendTraceEvent(
-          context.runId,
-          { event: "run_resumed", phase: nextRunPhase(state), status: "ok" },
-          context.workspaceRoot,
-        );
-      }
-      if (command === "resume") {
-        refreshResumeRefBaseline(context.workspaceRoot, context.initialGitState);
-      } else {
-        assertGitStateInvariant(context.workspaceRoot, context.initialGitState, "run preflight");
-      }
-      for (const phase of phases) {
-        const control = readOperatorControl(context.runId, context.workspaceRoot);
-        if (control.stop_requested) {
-          publishStoppedRun(context, provider, phase, runOptions);
-          return;
-        }
-        if (
-          phase === "build" &&
-          ["before-mutation", "before-mutation-and-ship"].includes(controlPolicy)
-        ) {
-          const checkpointResult = checkpointPause(context, phase, "mutation");
-          if (checkpointResult === "stopped") {
-            publishStoppedRun(context, provider, phase, runOptions);
-            return;
-          }
-          if (checkpointResult === "waiting") {
-            const report = writeRunReport(context, { provider, status: "waiting" });
-            printFinal(context, report, runOptions);
-            return;
-          }
-        }
-        if (phase === "release-readiness") completeReviewLoop(context.workspaceRoot, context.runId);
-        const result = runPhaseWithGitInvariant(context, phase, runOptions);
-        provider = result.agent_provider;
-        process.stderr.write(`RAE phase ${phase}: ${result.gate.status}\n`);
-      }
-      if (through === "release-readiness") {
-        invokeRunner(context.workspaceRoot, ["summarize-progress", "--run-id", context.runId]);
-        invokeRunner(context.workspaceRoot, [
-          "summarize-run",
-          "--run-id",
-          context.runId,
-          "--format",
-          "markdown",
-          "--output",
-          `.pipeline/runs/${context.runId}/trace-summary.md`,
-        ]);
-      }
-      if (through === "release-readiness" && controlPolicy === "before-mutation-and-ship") {
-        const checkpointResult = checkpointPause(context, "release-readiness", "ship");
-        if (checkpointResult === "stopped") {
-          publishStoppedRun(context, provider, "release-readiness", runOptions);
-          return;
-        }
-        if (checkpointResult === "waiting") {
-          const report = writeRunReport(context, { provider, status: "waiting" });
-          printFinal(context, report, runOptions);
-          return;
-        }
-      }
-      const finalControl = readOperatorControl(context.runId, context.workspaceRoot);
-      if (finalControl.stop_requested) {
-        publishStoppedRun(context, provider, through, runOptions);
-        return;
-      }
-      const completedControl = setRunStatus(context.runId, "completed", context.workspaceRoot, {
-        stop_requested: false,
-      });
-      if (completedControl.stop_requested) {
-        publishStoppedRun(context, provider, through, runOptions);
-        return;
-      }
-      appendTraceEvent(
-        context.runId,
-        { event: "run_completed", phase: through, status: "completed" },
-        context.workspaceRoot,
-      );
-      if ((runOptions["graph-memory"] ?? "off") !== "off") {
-        projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
-      }
-      if (runOptions["graph-memory"] === "read-write") {
-        recordRunMemory({ projectRoot: context.workspaceRoot, runId: context.runId });
-      }
-      const report = writeRunReport(context, { provider });
-      printFinal(context, report, runOptions);
-    } catch (error) {
-      if (error.pipelineStateUnsafe === true) {
-        const payload = {
-          success: false,
-          status: "pipeline-state-unreadable",
-          run_id: context.runId,
-          workspace_root: context.workspaceRoot,
-          report: null,
-          cleanup_command: null,
-          changed_files: [],
-          documentation: null,
-          error: error.message,
-        };
-        if (runOptions.json) process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-        else process.stderr.write(`RAE pipeline state is unreadable: ${error.message}\n`);
-        process.exitCode = 1;
-        return;
-      }
-      const failedControl = readOperatorControl(context.runId, context.workspaceRoot);
-      if (!["completed", "blocked"].includes(failedControl.status)) {
-        setRunStatus(context.runId, "blocked", context.workspaceRoot, {
-          stop_requested: false,
-        });
-        const currentState = readJsonStrict(
-          resolve(context.workspaceRoot, ".pipeline", "pipeline-state.json"),
-        );
-        appendTraceEvent(
-          context.runId,
-          { event: "run_blocked", phase: nextRunPhase(currentState), status: "blocked" },
-          context.workspaceRoot,
-        );
-      }
-      const report = writeRunReport(context, { provider, error: error.message });
-      printFinal(context, report, runOptions, error);
-      process.exitCode = 1;
-    }
-  } finally {
-    releaseLock();
+function prepareGraphRun(command, context) {
+  const previousControl = readOperatorControl(context.runId, context.workspaceRoot);
+  if (command === "resume" && previousControl.status === "completed") {
+    const error = new Error("cannot resume terminal run status: completed");
+    error.preserveControl = true;
+    throw error;
   }
+  setRunStatus(context.runId, "running", context.workspaceRoot, { stop_requested: false });
+  if (command !== "resume") {
+    assertGitStateInvariant(context.workspaceRoot, context.initialGitState, "run preflight");
+    return;
+  }
+  refreshResumeRefBaseline(context.workspaceRoot, context.initialGitState);
+  appendTraceEvent(
+    context.runId,
+    { event: "run_resumed", phase: context.workflow.entry_node, status: "ok" },
+    context.workspaceRoot,
+  );
+}
+
+function completeGraphRun(context, result, provider, runOptions) {
+  if (result.status === "stopped") {
+    publishStoppedRun(context, provider, context.workflow.terminal_node, runOptions);
+    return;
+  }
+  if (result.status === "repair-exhausted") {
+    throw new Error(`repair loop stopped: ${result.reason}`);
+  }
+  if (result.status === "through") {
+    setRunStatus(context.runId, "stopped", context.workspaceRoot, { stop_requested: false });
+    printFinal(context, writeRunReport(context, { provider, status: "stopped" }), runOptions);
+    return;
+  }
+  setRunStatus(context.runId, "completed", context.workspaceRoot, { stop_requested: false });
+  persistGraphMemory(context, runOptions);
+  printFinal(context, writeRunReport(context, { provider }), runOptions);
+}
+
+function handleGraphFailure(context, provider, runOptions, error) {
+  if (error.preserveControl === true) throw error;
+  if (error.workflowWaiting === true) {
+    waitingReport(context, provider, runOptions);
+    return;
+  }
+  setRunStatus(context.runId, "blocked", context.workspaceRoot, { stop_requested: false });
+  appendTraceEvent(
+    context.runId,
+    {
+      event: "run_blocked",
+      phase: context.workflow.entry_node,
+      status: "blocked",
+      message: error.message,
+    },
+    context.workspaceRoot,
+  );
+  printFinal(
+    context,
+    writeRunReport(context, { provider, error: error.message }),
+    runOptions,
+    error,
+  );
+  process.exitCode = 1;
 }
 
 async function runGraphWorkflowCommand(command, context, runOptions) {
   const releaseLock = acquireWorkflowLock(context.workspaceRoot, context.runId);
-  const provider = runOptions.provider ?? "auto";
+  const provider = runOptions.provider || "auto";
   try {
-    const previousControl = readOperatorControl(context.runId, context.workspaceRoot);
-    if (command === "resume" && previousControl.status === "completed") {
-      const error = new Error("cannot resume terminal run status: completed");
-      error.preserveControl = true;
-      throw error;
-    }
-    setRunStatus(context.runId, "running", context.workspaceRoot, { stop_requested: false });
-    if (command === "resume") {
-      refreshResumeRefBaseline(context.workspaceRoot, context.initialGitState);
-      appendTraceEvent(
-        context.runId,
-        { event: "run_resumed", phase: context.workflow.entry_node, status: "ok" },
-        context.workspaceRoot,
-      );
-    } else {
-      assertGitStateInvariant(context.workspaceRoot, context.initialGitState, "run preflight");
-    }
-    const result = await runGraphWorkflow(context, runOptions);
-    if (result.status === "stopped") {
-      publishStoppedRun(context, provider, context.workflow.terminal_node, runOptions);
-      return;
-    }
-    if (result.status === "repair-exhausted") {
-      throw new Error(`repair loop stopped: ${result.reason}`);
-    }
-    if (result.status === "through") {
-      setRunStatus(context.runId, "stopped", context.workspaceRoot, { stop_requested: false });
-      const report = writeRunReport(context, { provider, status: "stopped" });
-      printFinal(context, report, runOptions);
-      return;
-    }
-    setRunStatus(context.runId, "completed", context.workspaceRoot, { stop_requested: false });
-    if ((runOptions["graph-memory"] ?? "off") !== "off") {
-      projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
-    }
-    if (runOptions["graph-memory"] === "read-write") {
-      recordRunMemory({ projectRoot: context.workspaceRoot, runId: context.runId });
-    }
-    const report = writeRunReport(context, { provider });
-    printFinal(context, report, runOptions);
+    prepareGraphRun(command, context);
+    completeGraphRun(context, await runGraphWorkflow(context, runOptions), provider, runOptions);
   } catch (error) {
-    if (error.preserveControl === true) throw error;
-    if (error.workflowWaiting === true) {
-      const report = writeRunReport(context, { provider, status: "waiting" });
-      printFinal(context, report, runOptions);
-      return;
-    }
-    setRunStatus(context.runId, "blocked", context.workspaceRoot, { stop_requested: false });
-    appendTraceEvent(
-      context.runId,
-      {
-        event: "run_blocked",
-        phase: context.workflow.entry_node,
-        status: "blocked",
-        message: error.message,
-      },
-      context.workspaceRoot,
-    );
-    const report = writeRunReport(context, { provider, error: error.message });
-    printFinal(context, report, runOptions, error);
-    process.exitCode = 1;
+    handleGraphFailure(context, provider, runOptions, error);
   } finally {
     releaseLock();
   }

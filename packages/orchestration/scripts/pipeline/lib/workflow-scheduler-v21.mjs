@@ -1,98 +1,19 @@
 /** Schedules immutable v2.1 node instances with bounded fan-out, joins, and stream pipelines. */
-import { createHash, randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { canonicalJson, validateWorkflow, workflowDigest } from "./workflow-contract.mjs";
+import { randomUUID } from "node:crypto";
+import { validateWorkflow, workflowDigest } from "./workflow-contract.mjs";
 import { deduplicateDiscovery, pointerValue } from "./workflow-transforms.mjs";
-import { validateNodeEnvelope } from "./workflow-envelope.mjs";
-
-const digest = (value) => createHash("sha256").update(canonicalJson(value)).digest("hex");
-const successful = (envelope) => envelope.status === "passed";
-
-function conditionMatches(edge, envelope) {
-  if (!edge.condition) return successful(envelope);
-  if (edge.condition === "success") return successful(envelope);
-  if (edge.condition === "failure")
-    return ["failed", "blocked", "collected"].includes(envelope.status);
-  if (edge.condition === "budget-available") return envelope.payload?.budget_available !== false;
-  if (edge.condition === "blocking-findings")
-    return envelope.findings.some(
-      (finding) => finding.blocking === true || finding.severity === "blocking",
-    );
-  return false;
-}
-
-function predecessors(workflow, nodeId) {
-  return workflow.edges.filter((edge) => edge.to === nodeId && edge.type !== "loop-back");
-}
-
-function persistEnvelope(runDir, envelope) {
-  validateNodeEnvelope(envelope);
-  if (!runDir) return;
-  const directory = resolve(runDir, "workflow", "attempts", envelope.node_id);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const safeInstance = envelope.instance_id.replaceAll(/[^a-zA-Z0-9._-]/g, "_");
-  writeFileSync(
-    resolve(directory, `${safeInstance}.${envelope.attempt}.json`),
-    `${JSON.stringify(envelope, null, 2)}\n`,
-    {
-      encoding: "utf8",
-      mode: 0o600,
-      flag: "wx",
-    },
-  );
-}
-
-function instanceId(nodeId, itemKey) {
-  return itemKey === null ? nodeId : `${nodeId}:${digest(String(itemKey)).slice(0, 16)}`;
-}
-
-function freezeEnvelope(value) {
-  return Object.freeze({
-    schema_version: "2.1.0",
-    findings: [],
-    evidence_refs: [],
-    ownership: {},
-    changed_paths: [],
-    command_evidence: [],
-    resource_usage: {},
-    parent_node: null,
-    item_key: null,
-    item_digest: null,
-    failure: null,
-    selection: null,
-    quorum: null,
-    convergence: null,
-    execution_tier: "standard",
-    ...value,
-  });
-}
-
-function failureEnvelope(base, error) {
-  const failure = { type: error?.name ?? "Error", message: error?.message ?? String(error) };
-  const payload = { status: "failed", failure };
-  return freezeEnvelope({
-    ...base,
-    status: "failed",
-    failure,
-    payload,
-    findings: [],
-    output_digest: digest(payload),
-  });
-}
-
-function anyJoinDecision(passed, allSettled) {
-  if (passed.length === 0)
-    return allSettled
-      ? { impossible: true, reason: "any join has no successful input" }
-      : { ready: false };
-  const winner = passed[0];
-  return {
-    ready: true,
-    inputs: [winner],
-    selection: { mode: "any", winner: winner.envelope.instance_id },
-  };
-}
+import {
+  anyJoinDecision,
+  conditionMatches,
+  digest,
+  failureEnvelope,
+  freezeEnvelope,
+  instanceId,
+  persistEnvelope,
+  predecessors,
+  successful,
+  valueOr,
+} from "./workflow-scheduler-v21-support.mjs";
 
 /** Executes a validated v2.1 workflow without mutating its logical topology. */
 export async function scheduleWorkflowV21({
@@ -194,17 +115,20 @@ export async function scheduleWorkflowV21({
     return edges.every((edge) => isSettled(edge.from));
   }
 
+  function pendingInstanceId(nodeId, itemKey, loop, loopIteration) {
+    const stableId = instanceId(nodeId, itemKey);
+    return loop && loopIteration > 1 && itemKey === null
+      ? `${stableId}:loop-${loopIteration}`
+      : stableId;
+  }
+
   function queue(
     node,
     { item = null, itemKey = null, itemDigest = null, parentNode = null, inputs = null } = {},
   ) {
     const loop = memberLoop.get(node.id);
     const loopIteration = loop ? loopIterations.get(loop.id) : 1;
-    const stableId = instanceId(node.id, itemKey);
-    const id =
-      loop && loopIteration > 1 && itemKey === null
-        ? `${stableId}:loop-${loopIteration}`
-        : stableId;
+    const id = pendingInstanceId(node.id, itemKey, loop, loopIteration);
     if (completed.has(id) || pending.has(id) || running.has(id)) return;
     if (pending.size + running.size + completed.size >= dynamicLimit)
       throw new Error(`workflow exceeds ${dynamicLimit} dynamic instances`);
@@ -221,52 +145,97 @@ export async function scheduleWorkflowV21({
     byNode.get(node.id).add(id);
   }
 
-  function expandMap(node) {
-    if (expanded.has(node.id)) return;
-    const streamEdge = predecessors(workflow, node.id).find((edge) => edge.type === "stream");
-    if (streamEdge) {
-      for (const envelope of nodeEnvelopes(streamEdge.from).filter(successful)) {
-        const key = envelope.item_key ?? envelope.instance_id;
-        queue(node, {
-          item: envelope.payload,
-          itemKey: key,
-          itemDigest: envelope.item_digest ?? digest(envelope.payload),
-          parentNode: streamEdge.from,
-          inputs: [{ edge: streamEdge, envelope }],
-        });
-      }
-      if (isSettled(streamEdge.from)) expanded.add(node.id);
-      return;
+  function expandStreamMap(node, streamEdge) {
+    for (const envelope of nodeEnvelopes(streamEdge.from).filter(successful)) {
+      const key = envelope.item_key ?? envelope.instance_id;
+      queue(node, {
+        item: envelope.payload,
+        itemKey: key,
+        itemDigest: envelope.item_digest ?? digest(envelope.payload),
+        parentNode: streamEdge.from,
+        inputs: [{ edge: streamEdge, envelope }],
+      });
     }
-    if (!predecessorsSettled(node.id)) return;
-    const inputs = baseInputs(node.id);
-    const sourceEnvelope = inputs[0]?.envelope;
-    const items = pointerValue(sourceEnvelope?.payload, node.map.source_pointer);
-    if (!Array.isArray(items))
+    if (isSettled(streamEdge.from)) expanded.add(node.id);
+  }
+
+  function mapItems(node, inputs) {
+    const items = pointerValue(inputs[0]?.envelope?.payload, node.map.source_pointer);
+    if (!Array.isArray(items)) {
       throw new Error(`map ${node.id} source pointer must resolve to an array`);
+    }
     const limit = Math.min(node.map.max_items ?? mapLimit, mapLimit, 32);
     if (items.length > limit) throw new Error(`map ${node.id} exceeds its ${limit}-item bound`);
+    return items;
+  }
+
+  function queueMapItems(node, items, inputs) {
     const identities = new Set();
     for (const item of items) {
       const keyValue = pointerValue(item, node.map.stable_key_pointer);
-      if (!["string", "number", "boolean"].includes(typeof keyValue))
+      if (!["string", "number", "boolean"].includes(typeof keyValue)) {
         throw new Error(`map ${node.id} stable key must be a scalar`);
+      }
       const key = String(keyValue);
-      const itemHash = digest(item);
       const identity = instanceId(node.id, key);
-      if (identities.has(identity))
+      if (identities.has(identity)) {
         throw new Error(`map ${node.id} contains duplicate stable key ${key}`);
+      }
       identities.add(identity);
       queue(node, {
         item,
         itemKey: key,
-        itemDigest: itemHash,
-        parentNode: sourceEnvelope?.node_id ?? null,
+        itemDigest: digest(item),
+        parentNode: inputs[0]?.envelope?.node_id ?? null,
         inputs,
       });
     }
+  }
+
+  function expandMap(node) {
+    if (expanded.has(node.id)) return;
+    const streamEdge = predecessors(workflow, node.id).find((edge) => edge.type === "stream");
+    if (streamEdge) return expandStreamMap(node, streamEdge);
+    if (!predecessorsSettled(node.id)) return;
+    const inputs = baseInputs(node.id);
+    const items = mapItems(node, inputs);
+    queueMapItems(node, items, inputs);
     expanded.add(node.id);
     emit("map_expanded", { node_id: node.id, instances: items.length });
+  }
+
+  function quorumDecision(node, edges, envelopes, passed, allSettled) {
+    const threshold = node.quorum.threshold;
+    const groupState = (node.quorum.groups ?? []).map((group) => {
+      const accepted = passed.filter(({ edge }) => group.members.includes(edge.from)).length;
+      const remaining = group.members.filter((member) => !isSettled(member)).length;
+      return { id: group.id, threshold: group.threshold, accepted, remaining };
+    });
+    const groupsPassed = groupState.every((group) => group.accepted >= group.threshold);
+    const groupImpossible = groupState.some(
+      (group) => group.accepted + group.remaining < group.threshold,
+    );
+    if (passed.length >= threshold && groupsPassed) {
+      return {
+        ready: true,
+        inputs: passed,
+        quorum: {
+          threshold,
+          passed: passed.length,
+          possible: envelopes.length,
+          groups: groupState,
+        },
+      };
+    }
+    const remaining = edges.filter((edge) => !isSettled(edge.from)).length;
+    if (passed.length + remaining >= threshold && !groupImpossible && !allSettled) {
+      return { ready: false };
+    }
+    return {
+      impossible: true,
+      reason: `quorum ${node.id} became impossible`,
+      quorum: { threshold, passed: passed.length, remaining, groups: groupState },
+    };
   }
 
   function joinDecision(node) {
@@ -278,68 +247,46 @@ export async function scheduleWorkflowV21({
     const allSettled = edges.every((edge) => isSettled(edge.from));
     if (node.join === "all") return allSettled ? { ready: true, inputs: passed } : { ready: false };
     if (node.join === "any") return anyJoinDecision(passed, allSettled);
-    const threshold = node.quorum.threshold;
-    const groupState = (node.quorum.groups ?? []).map((group) => {
-      const accepted = passed.filter(({ edge }) => group.members.includes(edge.from)).length;
-      const remaining = group.members.filter((member) => !isSettled(member)).length;
-      return { id: group.id, threshold: group.threshold, accepted, remaining };
-    });
-    const groupsPassed = groupState.every((group) => group.accepted >= group.threshold);
-    const groupImpossible = groupState.some(
-      (group) => group.accepted + group.remaining < group.threshold,
-    );
-    if (passed.length >= threshold && groupsPassed)
-      return {
-        ready: true,
-        inputs: passed,
-        quorum: {
-          threshold,
-          passed: passed.length,
-          possible: envelopes.length,
-          groups: groupState,
-        },
-      };
-    const remaining = edges.filter((edge) => !isSettled(edge.from)).length;
-    if (passed.length + remaining < threshold || groupImpossible || allSettled)
-      return {
-        impossible: true,
-        reason: `quorum ${node.id} became impossible`,
-        quorum: { threshold, passed: passed.length, remaining, groups: groupState },
-      };
-    return { ready: false };
+    return quorumDecision(node, edges, envelopes, passed, allSettled);
+  }
+
+  function discoverJoin(node) {
+    const decision = joinDecision(node);
+    if (decision.impossible) {
+      fatal = new Error(decision.reason);
+      emit("quorum_impossible", { node_id: node.id, quorum: decision.quorum });
+      return;
+    }
+    if (!decision.ready) return;
+    queue(node, { inputs: decision.inputs });
+    expanded.add(node.id);
+  }
+
+  function discoverOrdinary(node) {
+    if (!predecessorsSettled(node.id)) return;
+    const inputs = baseInputs(node.id);
+    if (predecessors(workflow, node.id).length && inputs.length === 0) {
+      expanded.add(node.id);
+      return;
+    }
+    queue(node, { inputs });
+    expanded.add(node.id);
+  }
+
+  function discoverNode(node) {
+    if (node.kind === "map") expandMap(node);
+    if (node.kind === "map" || expanded.has(node.id)) return;
+    if (node.id === workflow.entry_node) {
+      queue(node);
+      expanded.add(node.id);
+      return;
+    }
+    if (node.kind === "join") return discoverJoin(node);
+    discoverOrdinary(node);
   }
 
   function discover() {
-    for (const node of workflow.nodes) {
-      if (node.kind === "map") expandMap(node);
-      if (node.kind === "map" || expanded.has(node.id)) continue;
-      if (node.id === workflow.entry_node) {
-        queue(node);
-        expanded.add(node.id);
-        continue;
-      }
-      if (node.kind === "join") {
-        const decision = joinDecision(node);
-        if (decision.impossible) {
-          fatal = new Error(decision.reason);
-          emit("quorum_impossible", { node_id: node.id, quorum: decision.quorum });
-          continue;
-        }
-        if (decision.ready) {
-          queue(node, { inputs: decision.inputs });
-          expanded.add(node.id);
-        }
-        continue;
-      }
-      if (!predecessorsSettled(node.id)) continue;
-      const inputs = baseInputs(node.id);
-      if (predecessors(workflow, node.id).length && inputs.length === 0) {
-        expanded.add(node.id);
-        continue;
-      }
-      queue(node, { inputs });
-      expanded.add(node.id);
-    }
+    for (const node of workflow.nodes) discoverNode(node);
   }
 
   function streamSuccessors(spec, envelope) {
@@ -373,15 +320,17 @@ export async function scheduleWorkflowV21({
   }
 
   function collectPolicyError(node) {
-    if (node.failure_handling?.mode !== "collect") return null;
+    const policy = node.failure_handling;
+    if (!policy || policy.mode !== "collect") return null;
     const envelopes = nodeEnvelopes(node.id);
     const failures = envelopes.filter((envelope) => !successful(envelope)).length;
-    if (failures > (node.failure_handling.max_failures ?? 0))
+    const maxFailures = valueOr(policy.max_failures, 0);
+    const minimumSuccesses = valueOr(policy.minimum_successes, 1);
+    if (failures > maxFailures) {
       return `collect node ${node.id} exceeded its failure bound`;
-    if (
-      isSettled(node.id) &&
-      envelopes.filter(successful).length < (node.failure_handling.minimum_successes ?? 1)
-    ) {
+    }
+    const hasMinimum = envelopes.filter(successful).length >= minimumSuccesses;
+    if (isSettled(node.id) && !hasMinimum) {
       return `collect node ${node.id} did not reach its minimum successes`;
     }
     return null;

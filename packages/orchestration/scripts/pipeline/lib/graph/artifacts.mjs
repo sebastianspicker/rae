@@ -435,20 +435,23 @@ function projectWorkflowNodes(
 function projectWorkflowEdges(graph, nodeIds, snapshotSource, workflowRecord) {
   for (const edge of workflowRecord.snapshot.edges ?? []) {
     if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) continue;
-    addEdge(graph, {
-      ...snapshotSource,
-      family: "workflow",
-      trust: "verified-derived",
-      kind: edge.type === "loop-back" ? "NEXT" : "DEPENDS_ON",
-      from: nodeIds.get(edge.to),
-      to: nodeIds.get(edge.from),
-      attributes: {
-        edge_type: edge.type,
-        condition: edge.condition ?? null,
-        artifact: edge.artifact ?? null,
-      },
-    });
+    projectWorkflowEdge(graph, nodeIds, snapshotSource, edge);
   }
+}
+
+function projectWorkflowEdge(graph, nodeIds, snapshotSource, edge) {
+  const attributes = { edge_type: edge.type };
+  attributes.condition = edge.condition ?? null;
+  attributes.artifact = edge.artifact ?? null;
+  addEdge(graph, {
+    ...snapshotSource,
+    family: "workflow",
+    trust: "verified-derived",
+    kind: edge.type === "loop-back" ? "NEXT" : "DEPENDS_ON",
+    from: nodeIds.get(edge.to),
+    to: nodeIds.get(edge.from),
+    attributes,
+  });
 }
 
 function projectNodeAttempts(graph, root, runDir, runId, nodeId, nodeGraphId, source) {

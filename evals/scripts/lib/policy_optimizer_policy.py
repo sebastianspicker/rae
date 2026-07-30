@@ -6,7 +6,7 @@ import hashlib
 import json
 import pathlib
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import Any
 
 from common import ROOT, is_within_directory
@@ -176,9 +176,12 @@ def validate_candidate_policy_change(
     broader vocabulary used by future evaluator-owned policy adapters; it
     cannot alter runtime commands, judges, evaluator code, or activation.
     """
-    allowlist = (
-        IMPROVEMENT_CHANGE_ALLOWLIST if allowed_changes is None else frozenset(allowed_changes)
-    )
+    if allowed_changes is None:
+        allowlist = IMPROVEMENT_CHANGE_ALLOWLIST
+    elif isinstance(allowed_changes, Iterable):
+        allowlist = frozenset(allowed_changes)
+    else:
+        raise ValueError("candidate change allowlist must be an iterable")
     if allowlist != IMPROVEMENT_CHANGE_ALLOWLIST:
         raise ValueError(
             "candidate change allowlist must exactly match the evaluator-owned allowlist"

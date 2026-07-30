@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Emits a deterministic fixture for workflow event order, critical path, and barrier idle time. */
-import { writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, lstatSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 
 const items = [
   { key: "a", first: 8, second: 2 },
@@ -53,14 +53,39 @@ const result = {
   },
 };
 
-const outputIndex = process.argv.indexOf("--output");
-if (outputIndex >= 0) {
-  const pathValue = process.argv[outputIndex + 1];
+const OUTPUT_DIRECTORY = "eval-results";
+
+function outputPath(pathValue, cwd = process.cwd()) {
   if (!pathValue || pathValue.startsWith("--")) throw new Error("--output requires a path");
-  writeFileSync(resolve(pathValue), `${JSON.stringify(result, null, 2)}\n`, {
+  if (isAbsolute(pathValue)) throw new Error("--output must be relative to the current directory");
+  const outputRoot = resolve(cwd, OUTPUT_DIRECTORY);
+  const output = resolve(cwd, pathValue);
+  if (relative(outputRoot, output).startsWith("..")) {
+    throw new Error(`--output must be inside ${OUTPUT_DIRECTORY}/`);
+  }
+  mkdirSync(outputRoot, { recursive: true, mode: 0o700 });
+  if (realpathSync(outputRoot) !== outputRoot) {
+    throw new Error(`${OUTPUT_DIRECTORY}/ must not be a symbolic link`);
+  }
+  if (dirname(output) !== outputRoot) {
+    throw new Error(`--output must name a file directly inside ${OUTPUT_DIRECTORY}/`);
+  }
+  if (existsSync(output) && lstatSync(output).isSymbolicLink()) {
+    throw new Error("--output must not replace a symbolic link");
+  }
+  return output;
+}
+
+function writeResult(pathValue) {
+  writeFileSync(outputPath(pathValue), `${JSON.stringify(result, null, 2)}\n`, {
     encoding: "utf8",
     mode: 0o600,
   });
+}
+
+const outputIndex = process.argv.indexOf("--output");
+if (outputIndex >= 0) {
+  writeResult(process.argv[outputIndex + 1]);
 } else {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }

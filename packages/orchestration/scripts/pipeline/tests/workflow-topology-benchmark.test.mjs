@@ -1,5 +1,7 @@
 /** Verifies the deterministic topology fixture and its deliberately narrow claims. */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
@@ -30,4 +32,34 @@ describe("workflow topology benchmark", () => {
       universal_speed_claim: false,
     });
   });
+
+  test("writes only a direct file under the local eval-results directory", () => {
+    const cwd = mkdtempSync(resolve(tmpdir(), "rae-workflow-topology-"));
+    try {
+      execFileSync(process.execPath, [benchmark, "--output", "eval-results/fixture.json"], {
+        cwd,
+        encoding: "utf8",
+      });
+      const output = resolve(cwd, "eval-results", "fixture.json");
+      expect(JSON.parse(readFileSync(output, "utf8")).fixture_id).toBe(
+        "workflow-topology-order-v1",
+      );
+      expect(existsSync(resolve(cwd, "outside.json"))).toBe(false);
+      expect(outputAttempt(cwd, "outside.json").stderr).toContain("must be inside eval-results");
+      expect(outputAttempt(cwd, "eval-results/nested/fixture.json").stderr).toContain(
+        "directly inside eval-results",
+      );
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
 });
+
+function outputAttempt(cwd, output) {
+  const result = spawnSync(process.execPath, [benchmark, "--output", output], {
+    cwd,
+    encoding: "utf8",
+  });
+  expect(result.status).toBe(1);
+  return result;
+}

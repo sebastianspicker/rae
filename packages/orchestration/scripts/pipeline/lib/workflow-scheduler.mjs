@@ -49,22 +49,23 @@ function inputsFor(workflow, nodeId, completed) {
     .map((edge) => ({ edge, envelope: completed.get(edge.from) }));
 }
 
+function shouldDisableNode(workflow, node, completed, running, disabled) {
+  if (completed.has(node.id) || running.has(node.id) || disabled.has(node.id)) return false;
+  const incoming = predecessors(workflow, node.id);
+  if (incoming.length === 0) return false;
+  if (!incoming.every((edge) => completed.has(edge.from) || disabled.has(edge.from))) return false;
+  return !incoming.some(
+    (edge) => completed.has(edge.from) && conditionMatches(edge, completed.get(edge.from)),
+  );
+}
+
 function disabledNodes(workflow, completed, running) {
   const disabled = new Set();
   let changed = true;
   while (changed) {
     changed = false;
     for (const node of workflow.nodes) {
-      if (completed.has(node.id) || running.has(node.id) || disabled.has(node.id)) continue;
-      const incoming = predecessors(workflow, node.id);
-      if (incoming.length === 0) continue;
-      if (!incoming.every((edge) => completed.has(edge.from) || disabled.has(edge.from))) continue;
-      if (
-        incoming.some(
-          (edge) => completed.has(edge.from) && conditionMatches(edge, completed.get(edge.from)),
-        )
-      )
-        continue;
+      if (!shouldDisableNode(workflow, node, completed, running, disabled)) continue;
       disabled.add(node.id);
       changed = true;
     }

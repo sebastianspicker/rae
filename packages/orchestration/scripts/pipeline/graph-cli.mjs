@@ -113,26 +113,54 @@ function assignOption(output, option, value) {
 }
 
 function assignPrimaryOption(output, option, value) {
-  const field = PRIMARY_OPTION_FIELDS[option];
-  if (!field) return false;
-  output[field] = value;
-  return true;
+  switch (option) {
+    case "--actor":
+      output.actor = value;
+      return true;
+    case "--candidate-id":
+      output.candidateId = value;
+      return true;
+    case "--depth":
+      output.depth = value;
+      return true;
+    case "--limit":
+      output.limit = value;
+      return true;
+    case "--node":
+      output.node = value;
+      return true;
+    case "--phase":
+      output.phase = value;
+      return true;
+    case "--workflow":
+      output.workflow = value;
+      return true;
+    default:
+      return assignWorkflowFileOption(output, option, value);
+  }
 }
 
-const PRIMARY_OPTION_FIELDS = {
-  "--actor": "actor",
-  "--candidate-id": "candidateId",
-  "--depth": "depth",
-  "--limit": "limit",
-  "--node": "node",
-  "--phase": "phase",
-  "--workflow": "workflow",
-  "--workflow-file": "workflowFile",
-  "--task": "task",
-  "--task-file": "taskFile",
-  "--base-workflow": "baseWorkflow",
-  "--revision": "revision",
-};
+function assignWorkflowFileOption(output, option, value) {
+  switch (option) {
+    case "--workflow-file":
+      output.workflowFile = value;
+      return true;
+    case "--task":
+      output.task = value;
+      return true;
+    case "--task-file":
+      output.taskFile = value;
+      return true;
+    case "--base-workflow":
+      output.baseWorkflow = value;
+      return true;
+    case "--revision":
+      output.revision = value;
+      return true;
+    default:
+      return false;
+  }
+}
 
 function assignSecondaryOption(output, option, value) {
   switch (option) {

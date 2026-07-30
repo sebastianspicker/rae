@@ -12,6 +12,7 @@ import {
 import { relative, resolve } from "node:path";
 import Ajv2020 from "ajv/dist/2020.js";
 import { changedPaths, assertGitStateInvariant } from "./autonomous-git.mjs";
+import { signalProcessGroup } from "./agent-executor.mjs";
 import { createCheckpoint, readOperatorControl, setRunStatus } from "./operator-control.mjs";
 import { appendTraceEvent } from "./trace.mjs";
 import { createRuntimeStateGuard, reconcileRuntimeStateGuard } from "./runtime-state-guard.mjs";
@@ -46,32 +47,36 @@ function workspaceMutationFingerprint(workspaceRoot) {
   return hash.digest("hex");
 }
 
-function ownershipPlan(context) {
-  const planNode = context.workflow.nodes.find((node) => node.ownership_plan === true);
-  if (!planNode) throw new Error("workflow writer has no ownership-plan node");
-  const directory = resolve(context.runDir, "workflow", "attempts", planNode.id);
-  if (!existsSync(directory)) throw new Error(`workflow writer has no ${planNode.id} envelope`);
-  const envelopes = readdirSync(directory)
+function latestPassedEnvelope(directory) {
+  return readdirSync(directory)
     .filter((name) => name.endsWith(".json"))
     .map((name) => JSON.parse(readFileSync(resolve(directory, name), "utf8")))
     .filter((envelope) => envelope.status === "passed")
     .sort(
       (left, right) =>
         (left.loop_iteration ?? 1) - (right.loop_iteration ?? 1) || left.attempt - right.attempt,
-    );
-  const plan = envelopes.at(-1)?.payload;
+    )
+    .at(-1);
+}
+
+function assertSafeOwnershipPath(planNode, pathValue) {
+  const unsafe =
+    typeof pathValue !== "string" ||
+    !pathValue ||
+    pathValue.startsWith("/") ||
+    pathValue.split("/").includes("..");
+  if (unsafe) throw new Error(`ownership plan ${planNode.id} contains an unsafe path`);
+}
+
+function ownershipPlan(context) {
+  const planNode = context.workflow.nodes.find((node) => node.ownership_plan === true);
+  if (!planNode) throw new Error("workflow writer has no ownership-plan node");
+  const directory = resolve(context.runDir, "workflow", "attempts", planNode.id);
+  if (!existsSync(directory)) throw new Error(`workflow writer has no ${planNode.id} envelope`);
+  const plan = latestPassedEnvelope(directory)?.payload;
   if (!Array.isArray(plan?.file_ownership) || plan.file_ownership.length === 0)
     throw new Error(`ownership plan ${planNode.id} must declare file_ownership`);
-  for (const pathValue of plan.file_ownership) {
-    if (
-      typeof pathValue !== "string" ||
-      !pathValue ||
-      pathValue.startsWith("/") ||
-      pathValue.split("/").includes("..")
-    ) {
-      throw new Error(`ownership plan ${planNode.id} contains an unsafe path`);
-    }
-  }
+  for (const pathValue of plan.file_ownership) assertSafeOwnershipPath(planNode, pathValue);
   return plan;
 }
 
@@ -108,11 +113,7 @@ function runWorker(request, cwd) {
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => {
-      try {
-        process.kill(-child.pid, "SIGKILL");
-      } catch {
-        child.kill("SIGKILL");
-      }
+      if (!signalProcessGroup(child.pid, "SIGKILL")) child.kill("SIGKILL");
     }, request.timeoutMs + 5000);
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");

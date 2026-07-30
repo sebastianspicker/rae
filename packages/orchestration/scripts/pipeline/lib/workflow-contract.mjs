@@ -58,6 +58,20 @@ function contractError(message) {
   return new Error(`invalid workflow: ${message}`);
 }
 
+function recordSchemaReference(path, key, entry, refs) {
+  if (FORBIDDEN_PAYLOAD_KEYS.has(key.toLowerCase())) {
+    throw contractError(`payload contract ${path} contains forbidden key ${key}`);
+  }
+  if (["$dynamicRef", "$recursiveRef"].includes(key)) {
+    throw contractError(`payload contract ${path} contains recursive reference ${key}`);
+  }
+  if (key !== "$ref") return;
+  if (typeof entry !== "string" || !entry.startsWith("#/")) {
+    throw contractError(`payload contract ${path} may use local references only`);
+  }
+  refs.push([path, entry]);
+}
+
 function walkSchema(value, path, refs) {
   if (Array.isArray(value)) {
     value.forEach((entry, index) => {
@@ -67,18 +81,7 @@ function walkSchema(value, path, refs) {
   }
   if (!value || typeof value !== "object") return;
   for (const [key, entry] of Object.entries(value)) {
-    if (FORBIDDEN_PAYLOAD_KEYS.has(key.toLowerCase())) {
-      throw contractError(`payload contract ${path} contains forbidden key ${key}`);
-    }
-    if (["$dynamicRef", "$recursiveRef"].includes(key)) {
-      throw contractError(`payload contract ${path} contains recursive reference ${key}`);
-    }
-    if (key === "$ref") {
-      if (typeof entry !== "string" || !entry.startsWith("#/")) {
-        throw contractError(`payload contract ${path} may use local references only`);
-      }
-      refs.push([path, entry]);
-    }
+    recordSchemaReference(path, key, entry, refs);
     walkSchema(entry, `${path}/${key}`, refs);
   }
 }
@@ -218,6 +221,18 @@ function assertAcyclic(workflow, outgoing) {
   for (const node of workflow.nodes) visit(node.id);
 }
 
+function intersectParentDominators(parents, result, all) {
+  let intersection = new Set(all);
+  for (const parent of parents) {
+    intersection = new Set([...intersection].filter((entry) => result.get(parent).has(entry)));
+  }
+  return intersection;
+}
+
+function setsDiffer(left, right) {
+  return left.size !== right.size || [...left].some((entry) => !right.has(entry));
+}
+
 function dominators(workflow, incoming) {
   const ids = workflow.nodes.map(({ id }) => id);
   const all = new Set(ids);
@@ -230,13 +245,10 @@ function dominators(workflow, incoming) {
     for (const id of ids) {
       if (id === workflow.entry_node) continue;
       const parents = incoming.get(id) ?? [];
-      let intersection = new Set(all);
-      for (const parent of parents) {
-        intersection = new Set([...intersection].filter((entry) => result.get(parent).has(entry)));
-      }
+      const intersection = intersectParentDominators(parents, result, all);
       const next = new Set([id, ...intersection]);
       const prior = result.get(id);
-      if (next.size !== prior.size || [...next].some((entry) => !prior.has(entry))) {
+      if (setsDiffer(next, prior)) {
         result.set(id, next);
         changed = true;
       }
@@ -245,7 +257,7 @@ function dominators(workflow, incoming) {
   return result;
 }
 
-function validateLoops(workflow, nodes) {
+function loopMembership(workflow, nodes) {
   const loopMembership = new Map();
   for (const node of workflow.nodes.filter(({ kind }) => kind === "loop")) {
     for (const member of node.loop?.members ?? []) {
@@ -255,11 +267,13 @@ function validateLoops(workflow, nodes) {
       loopMembership.set(member, node.id);
     }
   }
+  return loopMembership;
+}
+
+function validateLoops(workflow, nodes) {
+  const membership = loopMembership(workflow, nodes);
   for (const edge of workflow.edges.filter(({ type }) => type === "loop-back")) {
-    if (
-      !loopMembership.has(edge.from) ||
-      loopMembership.get(edge.from) !== loopMembership.get(edge.to)
-    ) {
+    if (!membership.has(edge.from) || membership.get(edge.from) !== membership.get(edge.to)) {
       throw contractError(
         `loop-back ${edge.from} -> ${edge.to} must remain inside one bounded loop`,
       );
@@ -356,15 +370,26 @@ function validateTopology(workflow) {
   assertWritersAreSerialized(workflow);
 }
 
+function assertKindConfiguration(node, kind, field, requiredMessage) {
+  if (node.kind === kind && !node[field]) throw contractError(requiredMessage);
+  if (node.kind !== kind && node[field]) {
+    throw contractError(`node ${node.id} may not declare ${field} configuration`);
+  }
+}
+
 function assertV21NodeShape(node) {
-  if (node.kind === "map" && !node.map)
-    throw contractError(`map ${node.id} must declare bounded map configuration`);
-  if (node.kind !== "map" && node.map)
-    throw contractError(`node ${node.id} may not declare map configuration`);
-  if (node.kind === "transform" && !node.transform)
-    throw contractError(`transform ${node.id} must declare an allowlisted transform`);
-  if (node.kind !== "transform" && node.transform)
-    throw contractError(`node ${node.id} may not declare transform configuration`);
+  assertKindConfiguration(
+    node,
+    "map",
+    "map",
+    `map ${node.id} must declare bounded map configuration`,
+  );
+  assertKindConfiguration(
+    node,
+    "transform",
+    "transform",
+    `transform ${node.id} must declare an allowlisted transform`,
+  );
 }
 
 function assertTransformConfiguration(node) {
@@ -435,20 +460,28 @@ function assertUntilDryLoops(workflow) {
   }
 }
 
-function streamGraph(workflow, nodes) {
-  const streamIncoming = new Map();
-  for (const edge of workflow.edges.filter(({ type }) => type === "stream")) {
-    const target = nodes.get(edge.to);
-    if (target?.kind !== "map")
-      throw contractError(`stream edge ${edge.from} -> ${edge.to} must target a map node`);
-    streamIncoming.set(edge.to, (streamIncoming.get(edge.to) ?? 0) + 1);
+function streamEdges(workflow) {
+  return workflow.edges.filter(({ type }) => type === "stream");
+}
+
+function recordStreamIncoming(streamIncoming, edge, nodes) {
+  const target = nodes.get(edge.to);
+  if (target?.kind !== "map") {
+    throw contractError(`stream edge ${edge.from} -> ${edge.to} must target a map node`);
   }
+  streamIncoming.set(edge.to, (streamIncoming.get(edge.to) ?? 0) + 1);
+}
+
+function streamGraph(workflow, nodes) {
+  const edges = streamEdges(workflow);
+  const streamIncoming = new Map();
+  for (const edge of edges) recordStreamIncoming(streamIncoming, edge, nodes);
   for (const [nodeId, count] of streamIncoming) {
     if (count > 1)
       throw contractError(`mapped stage ${nodeId} has more than one stream predecessor`);
   }
   const streamOutgoing = new Map();
-  for (const edge of workflow.edges.filter(({ type }) => type === "stream")) {
+  for (const edge of edges) {
     if (!streamOutgoing.has(edge.from)) streamOutgoing.set(edge.from, []);
     streamOutgoing.get(edge.from).push(edge.to);
   }

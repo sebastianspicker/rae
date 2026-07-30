@@ -19,6 +19,11 @@ from outcome_optimizer_helpers import (
 )
 
 
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
 def test_optimizer_accepts_only_measurable_improvement_without_auto_promotion() -> None:
     baseline = policy()
     candidate = policy("candidate")
@@ -223,11 +228,14 @@ def test_improvement_campaign_hill_climbs_ten_candidates_with_paired_wins_and_he
             ),
         )
         lineage = recover_lineage(output / "lineage.jsonl")
-    assert len(lineage) == 10
-    assert lineage[0]["decision"] == "accepted"
-    assert all(event["decision"] in {"accepted", "rejected"} for event in lineage)
-    assert report["recommendation_status"] == "recommended"
-    assert report["automatic_promotion"] is False
+    require(len(lineage) == 10, "campaign did not retain ten lineage events")
+    require(lineage[0]["decision"] == "accepted", "first improvement candidate was not accepted")
+    require(
+        all(event["decision"] in {"accepted", "rejected"} for event in lineage),
+        "lineage contains an unexpected decision",
+    )
+    require(report["recommendation_status"] == "recommended", "campaign was not recommended")
+    require(report["automatic_promotion"] is False, "campaign promoted a policy automatically")
 
 
 def test_improvement_candidate_forbidden_change_is_retained_as_rejection() -> None:
@@ -246,8 +254,8 @@ def test_improvement_candidate_forbidden_change_is_retained_as_rejection() -> No
             max_iterations=1,
         )
         lineage = recover_lineage(output / "lineage.jsonl")
-    assert lineage[0]["decision"] == "rejected"
-    assert "policy" in lineage[0]["reason"]
+    require(lineage[0]["decision"] == "rejected", "forbidden candidate was accepted")
+    require("policy" in lineage[0]["reason"], "rejection did not report the policy violation")
 
 
 def test_improvement_lineage_recovery_rejects_partial_records() -> None:
@@ -257,7 +265,7 @@ def test_improvement_lineage_recovery_rejects_partial_records() -> None:
         try:
             recover_lineage(lineage_path)
         except ValueError as exc:
-            assert "lineage recovery failed" in str(exc)
+            require("lineage recovery failed" in str(exc), "partial lineage error was unclear")
         else:
             raise AssertionError("partial lineage record was accepted")
 
@@ -289,5 +297,8 @@ def test_improvement_rejects_resource_regression_even_with_paired_wins() -> None
             max_iterations=1,
         )
         lineage = recover_lineage(output / "lineage.jsonl")
-    assert lineage[0]["decision"] == "rejected"
-    assert lineage[0]["reason"] == "challenger-hard-failure"
+    require(lineage[0]["decision"] == "rejected", "resource regression was accepted")
+    require(
+        lineage[0]["reason"] == "challenger-hard-failure",
+        "resource regression was not classified as a hard failure",
+    )

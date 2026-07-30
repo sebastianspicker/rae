@@ -4,33 +4,56 @@ import { currentRun, elements, state } from "./state.js";
 
 const escapeText = (value) => String(value ?? "");
 const base = () => `/projects/${encodeURIComponent(state.projectId)}/workflows`;
+const firstDefined = (...values) => values.find((value) => value !== undefined);
 
 function selectedRevision() {
   return state.workflow?.revisions?.at(-1)?.revision ?? state.workflow?.workflow?.revision ?? null;
 }
 
-function groupedVertices(definition) {
+function neighborIds(edges, nodeId, direction) {
+  return edges
+    .filter((edge) => (direction === "to" ? edge.to : edge.from) === nodeId)
+    .map((edge) => (direction === "to" ? edge.from : edge.to))
+    .sort();
+}
+
+function isCollapsibleNode(node) {
+  return node.kind === "agent" && node.access === "read";
+}
+
+function fanoutSignatures(definition) {
   const edges = definition.edges ?? [];
   const signatures = new Map();
   for (const node of definition.nodes ?? []) {
-    if (node.kind !== "agent" || node.access !== "read") continue;
-    const incoming = edges
-      .filter((edge) => edge.to === node.id)
-      .map((edge) => edge.from)
-      .sort();
-    const outgoing = edges
-      .filter((edge) => edge.from === node.id)
-      .map((edge) => edge.to)
-      .sort();
+    if (!isCollapsibleNode(node)) continue;
+    const incoming = neighborIds(edges, node.id, "to");
+    const outgoing = neighborIds(edges, node.id, "from");
     const signature = `${incoming.join(",")}|${outgoing.join(",")}`;
     if (!signatures.has(signature)) signatures.set(signature, []);
     signatures.get(signature).push(node);
   }
-  const collapsed = new Map(
+  return new Map(
     [...signatures.values()]
       .filter((group) => group.length > 2)
       .flatMap((group) => group.map((node) => [node.id, group])),
   );
+}
+
+function fanoutVertex(group) {
+  return {
+    id: `fanout:${group
+      .map((item) => item.id)
+      .sort()
+      .join("+")}`,
+    kind: "fan-out",
+    access: "read",
+    tier: group.every((item) => item.tier === group[0].tier) ? group[0].tier : "mixed",
+    members: group.map((item) => item.id).sort(),
+  };
+}
+
+function groupedVertices(definition) {
+  const collapsed = fanoutSignatures(definition);
   const emitted = new Set();
   const vertices = [];
   const aliases = new Map();
@@ -41,20 +64,11 @@ function groupedVertices(definition) {
       aliases.set(node.id, node.id);
       continue;
     }
-    const id = `fanout:${group
-      .map((item) => item.id)
-      .sort()
-      .join("+")}`;
-    aliases.set(node.id, id);
-    if (emitted.has(id)) continue;
-    emitted.add(id);
-    vertices.push({
-      id,
-      kind: "fan-out",
-      access: "read",
-      tier: group.every((item) => item.tier === group[0].tier) ? group[0].tier : "mixed",
-      members: group.map((item) => item.id).sort(),
-    });
+    const vertex = fanoutVertex(group);
+    aliases.set(node.id, vertex.id);
+    if (emitted.has(vertex.id)) continue;
+    emitted.add(vertex.id);
+    vertices.push(vertex);
   }
   return { vertices, aliases };
 }
@@ -72,10 +86,11 @@ function normalizedEdges(sourceEdges, vertices, aliases) {
 }
 
 function uniqueEdge(edge, ids, aliases, seen) {
-  const from = aliases.get(edge.from) ?? edge.from;
-  const to = aliases.get(edge.to) ?? edge.to;
+  const from = firstDefined(aliases.get(edge.from), edge.from);
+  const to = firstDefined(aliases.get(edge.to), edge.to);
   if (!ids.has(from) || !ids.has(to) || from === to) return [];
-  const key = `${from}|${to}|${edge.type}|${edge.condition ?? edge.artifact ?? ""}`;
+  const detail = firstDefined(edge.condition, edge.artifact, "");
+  const key = `${from}|${to}|${edge.type}|${detail}`;
   if (seen.has(key)) return [];
   seen.add(key);
   return [{ ...edge, from, to }];
@@ -118,64 +133,102 @@ function renderGraph(definition = {}) {
   const graph = elements["workflow-graph-content"];
   graph.replaceChildren();
   const { vertices, edges, layers } = topology(definition);
+  setGraphViewBox(layers);
+  const positions = graphPositions(layers);
+  renderEdges(graph, edges, positions);
+  renderNodes(graph, vertices, positions);
+}
+
+function setGraphViewBox(layers) {
   const maximumRows = Math.max(1, ...[...layers.values()].map((layer) => layer.length));
   const maximumDepth = Math.max(0, ...layers.keys());
   elements["workflow-graph"].setAttribute(
     "viewBox",
     `0 0 ${Math.max(640, (maximumDepth + 1) * 180 + 30)} ${Math.max(250, maximumRows * 92 + 45)}`,
   );
+}
+
+function graphPositions(layers) {
   const positions = new Map();
   for (const [layerIndex, layer] of layers) {
     layer.forEach((node, row) => {
       positions.set(node.id, { x: 20 + layerIndex * 180, y: 24 + row * 92 });
     });
   }
-  const ns = "http://www.w3.org/2000/svg";
+  return positions;
+}
+
+function renderEdges(graph, edges, positions) {
   for (const edgeRecord of edges) {
     const from = positions.get(edgeRecord.from);
     const to = positions.get(edgeRecord.to);
     if (!from || !to) continue;
-    const edge = document.createElementNS(ns, "path");
-    edge.setAttribute("class", `workflow-edge workflow-edge--${edgeRecord.type}`);
-    const bend =
-      edgeRecord.type === "loop-back" ? Math.min(from.y, to.y) - 18 : (from.x + to.x) / 2;
-    edge.setAttribute(
-      "d",
-      edgeRecord.type === "loop-back"
-        ? `M${from.x + 130} ${from.y + 30} C${from.x + 155} ${bend} ${to.x - 25} ${bend} ${to.x} ${to.y + 30}`
-        : `M${from.x + 130} ${from.y + 30} C${bend} ${from.y + 30} ${bend} ${to.y + 30} ${to.x} ${to.y + 30}`,
-    );
-    graph.append(edge);
-    const label = document.createElementNS(ns, "text");
-    label.setAttribute("class", "workflow-edge-label");
-    label.setAttribute("x", (from.x + to.x + 130) / 2);
-    label.setAttribute("y", (from.y + to.y) / 2 + 20);
-    label.textContent = edgeRecord.condition ?? edgeRecord.artifact ?? edgeRecord.type;
-    graph.append(label);
+    graph.append(edgePath(edgeRecord, from, to), edgeLabel(edgeRecord, from, to));
   }
-  vertices.forEach((node) => {
-    const { x, y } = positions.get(node.id);
-    const rect = document.createElementNS(ns, "rect");
-    rect.setAttribute("class", `workflow-node workflow-node--${node.kind}`);
-    rect.setAttribute("x", x);
-    rect.setAttribute("y", y);
-    rect.setAttribute("width", "130");
-    rect.setAttribute("height", "60");
-    graph.append(rect);
-    const text = document.createElementNS(ns, "text");
-    text.setAttribute("x", x + 8);
-    text.setAttribute("y", y + 24);
-    text.textContent = escapeText(
-      node.kind === "fan-out" ? `${node.members.length} parallel nodes` : node.id,
-    );
-    graph.append(text);
-    const badge = document.createElementNS(ns, "text");
-    badge.setAttribute("class", "workflow-node-badge");
-    badge.setAttribute("x", x + 8);
-    badge.setAttribute("y", y + 46);
-    badge.textContent = `${node.kind} · ${node.tier ?? node.access}`;
-    graph.append(badge);
-  });
+}
+
+function edgePath(edgeRecord, from, to) {
+  const edge = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  edge.setAttribute("class", `workflow-edge workflow-edge--${edgeRecord.type}`);
+  edge.setAttribute("d", edgePathData(edgeRecord.type, from, to));
+  return edge;
+}
+
+function edgePathData(type, from, to) {
+  const bend = type === "loop-back" ? Math.min(from.y, to.y) - 18 : (from.x + to.x) / 2;
+  if (type === "loop-back")
+    return `M${from.x + 130} ${from.y + 30} C${from.x + 155} ${bend} ${to.x - 25} ${bend} ${to.x} ${to.y + 30}`;
+  return `M${from.x + 130} ${from.y + 30} C${bend} ${from.y + 30} ${bend} ${to.y + 30} ${to.x} ${to.y + 30}`;
+}
+
+function edgeLabel(edgeRecord, from, to) {
+  const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  label.setAttribute("class", "workflow-edge-label");
+  label.setAttribute("x", (from.x + to.x + 130) / 2);
+  label.setAttribute("y", (from.y + to.y) / 2 + 20);
+  label.textContent = edgeRecord.condition ?? edgeRecord.artifact ?? edgeRecord.type;
+  return label;
+}
+
+function renderNodes(graph, vertices, positions) {
+  for (const node of vertices) {
+    const position = positions.get(node.id);
+    if (position)
+      graph.append(
+        nodeRectangle(node, position),
+        nodeText(node, position),
+        nodeBadge(node, position),
+      );
+  }
+}
+
+function nodeRectangle(node, { x, y }) {
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("class", `workflow-node workflow-node--${node.kind}`);
+  rect.setAttribute("x", x);
+  rect.setAttribute("y", y);
+  rect.setAttribute("width", "130");
+  rect.setAttribute("height", "60");
+  return rect;
+}
+
+function nodeText(node, { x, y }) {
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.setAttribute("x", x + 8);
+  text.setAttribute("y", y + 24);
+  text.textContent = escapeText(
+    node.kind === "fan-out" ? `${node.members.length} parallel nodes` : node.id,
+  );
+  return text;
+}
+
+function nodeBadge(node, { x, y }) {
+  const badge = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  badge.setAttribute("class", "workflow-node-badge");
+  badge.setAttribute("x", x + 8);
+  badge.setAttribute("y", y + 46);
+  badge.textContent = `${node.kind} · ${node.tier ?? node.access}`;
+  return badge;
 }
 
 function structuredTable(caption, columns, rows) {
@@ -281,22 +334,25 @@ function mutationLocked() {
 
 function updateMutationControls() {
   const locked = mutationLocked();
-  for (const id of ["workflow-draft", "workflow-validate", "workflow-activate"]) {
-    elements[id].disabled = locked;
+  for (const control of mutationControls()) {
+    control.disabled = locked;
   }
   elements["workflow-definition"].readOnly = locked;
   if (locked)
     elements["workflow-status"].textContent = "Registry is read-only while a run is active.";
 }
 
-function renderWorkflow() {
-  const workflow = state.workflow;
-  if (!workflow) return;
-  const definition = workflow.workflow ?? {};
-  elements["workflow-definition"].value = JSON.stringify(definition, null, 2);
+function mutationControls() {
+  return [elements["workflow-draft"], elements["workflow-validate"], elements["workflow-activate"]];
+}
+
+function renderWorkflowBudget(definition) {
   elements["workflow-budget"].textContent = definition.budgets
     ? `Budgets: concurrency ${definition.budgets.max_concurrency ?? 4}; map ${definition.budgets.max_map_items ?? 32}; pipeline depth ${definition.budgets.max_pipeline_depth ?? 4}; dynamic instances or attempts ${definition.budgets.max_dynamic_instances ?? 128}; repair rounds ${definition.budgets.max_repair_rounds ?? 5}.`
     : "No explicit revision budgets.";
+}
+
+function renderWorkflowDetails(workflow) {
   elements["workflow-details"].replaceChildren(
     ...Object.entries({
       id: workflow.workflow_id,
@@ -314,6 +370,9 @@ function renderWorkflow() {
       return box;
     }),
   );
+}
+
+function renderWorkflowHistory(workflow) {
   const history = workflow.activation_history ?? [];
   elements["workflow-history"].replaceChildren(
     ...history.map((item) => {
@@ -325,6 +384,16 @@ function renderWorkflow() {
       return li;
     }),
   );
+}
+
+function renderWorkflow() {
+  const workflow = state.workflow;
+  if (!workflow) return;
+  const definition = workflow.workflow ?? {};
+  elements["workflow-definition"].value = JSON.stringify(definition, null, 2);
+  renderWorkflowBudget(definition);
+  renderWorkflowDetails(workflow);
+  renderWorkflowHistory(workflow);
   renderGraph(definition);
   renderStructure(definition);
   updateMutationControls();

@@ -408,14 +408,24 @@ function restoreRunConfiguration(request, options) {
   const policy = storedRunPolicy(request, options);
   const workflow = storedRunWorkflow(request, options);
   const executionProfile = storedRunExecutionProfile(request, options);
+  const workflowConfiguration = workflowConfigurationFields(workflow);
   return {
     policy,
     policyDigest: policyDigest(policy),
-    workflow: workflow?.workflow ?? null,
-    workflowDigest: workflow?.digest ?? null,
-    workflowMode: workflow ? "graph-native" : "legacy-linear",
+    ...workflowConfiguration,
     executionProfile: executionProfile?.profile ?? null,
     executionProfileDigest: executionProfile?.digest ?? null,
+  };
+}
+
+function workflowConfigurationFields(resolvedWorkflow) {
+  if (!resolvedWorkflow) {
+    return { workflow: null, workflowDigest: null, workflowMode: "legacy-linear" };
+  }
+  return {
+    workflow: resolvedWorkflow.workflow,
+    workflowDigest: resolvedWorkflow.digest,
+    workflowMode: "graph-native",
   };
 }
 
@@ -492,6 +502,7 @@ function newRunContext(projectRoot, options) {
   if (resolvedWorkflow) writeWorkflowSnapshot(runDir, resolvedWorkflow);
   const gitStatePath = resolve(runDir, "initial-git-state.json");
   writeJson(gitStatePath, gitStateSnapshot(initialized.workspaceRoot));
+  const workflowConfiguration = workflowConfigurationFields(resolvedWorkflow);
   return {
     ...initialized,
     projectRoot,
@@ -500,9 +511,7 @@ function newRunContext(projectRoot, options) {
     resumed: false,
     policy: resolvedPolicy.policy,
     policyDigest: resolvedPolicy.digest,
-    workflow: resolvedWorkflow?.workflow ?? null,
-    workflowDigest: resolvedWorkflow?.digest ?? null,
-    workflowMode: resolvedWorkflow ? "graph-native" : "legacy-linear",
+    ...workflowConfiguration,
     executionProfile: resolvedExecutionProfile?.profile ?? null,
     executionProfileDigest: resolvedExecutionProfile?.digest ?? null,
     runDir,
@@ -590,10 +599,12 @@ function requestedWorkflow(resolvedWorkflow, options) {
 }
 
 function requestedWorkflowBounds(workflow, options) {
+  const requestedBound = (name, fallback) => Number(options[name] ?? fallback);
   return {
-    max_concurrency: Number(options["max-concurrency"] ?? workflow.budgets?.max_concurrency ?? 4),
-    max_repair_rounds: Number(
-      options["max-repair-rounds"] ?? workflow.budgets?.max_repair_rounds ?? 5,
+    max_concurrency: requestedBound("max-concurrency", workflow.budgets?.max_concurrency ?? 4),
+    max_repair_rounds: requestedBound(
+      "max-repair-rounds",
+      workflow.budgets?.max_repair_rounds ?? 5,
     ),
   };
 }

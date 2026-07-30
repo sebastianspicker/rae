@@ -236,12 +236,13 @@ export function createWorkflowRegistry(projectRoot) {
     const revisions = revisionRecords(root, workflowId);
     const fallback = workflowId === defaultSnapshot.workflow.workflow_id ? defaultSnapshot : null;
     if (!fallback && revisions.length === 0) throw httpError("workflow not found", 404);
+    const latest = revisions.at(-1);
     return {
       workflow_id: workflowId,
       active: activationRecords(root).at(-1) ?? null,
       revisions,
-      workflow: revisions.at(-1)?.workflow ?? fallback.workflow,
-      digest: revisions.at(-1)?.digest ?? fallback.digest,
+      workflow: latest ? latest.workflow : fallback.workflow,
+      digest: latest ? latest.digest : fallback.digest,
       activation_history: activationRecords(root).filter(
         (entry) => entry.workflow_id === workflowId,
       ),
