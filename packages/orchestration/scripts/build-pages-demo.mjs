@@ -38,7 +38,11 @@ html = replaceOnce(
   "RAE Evidence Dossier — local Runboard operator console for autonomous repository runs.",
   "RAE Evidence Dossier static simulation using sanitized fixture data. No command is run.",
 );
-html = replaceOnce(html, "<title>RAE Evidence Dossier</title>", "<title>RAE Evidence Dossier · Static simulation</title>");
+html = replaceOnce(
+  html,
+  "<title>RAE Evidence Dossier</title>",
+  "<title>RAE Evidence Dossier · Static simulation</title>",
+);
 html = replaceOnce(
   html,
   '<link rel="stylesheet" href="/styles.css">',
