@@ -311,7 +311,7 @@ export async function scheduleWorkflowV21({
 
   function collectPolicyError(node) {
     const policy = node.failure_handling;
-    if (!policy || policy.mode !== "collect") return null;
+    if (policy?.mode !== "collect") return null;
     const envelopes = nodeEnvelopes(node.id);
     const failures = envelopes.filter((envelope) => !successful(envelope)).length;
     const maxFailures = valueOr(policy.max_failures, 0);
