@@ -1,0 +1,21 @@
+{
+  "schema_version": "2.1.0",
+  "workflow_id": "unknown-size-discovery",
+  "revision": 1,
+  "title": "Bounded until-dry discovery",
+  "entry_node": "discovery-loop",
+  "terminal_node": "complete",
+  "budgets": { "max_concurrency": 4, "max_repair_rounds": 5, "max_attempts_per_node": 3, "max_dynamic_instances": 128, "max_pipeline_depth": 4, "max_map_items": 32 },
+  "nodes": [
+    { "id": "discovery-loop", "kind": "loop", "access": "control", "guidance": "Track globally seen discovery keys.", "loop": { "mode": "until-dry", "max_iterations": 5, "members": ["discover", "verify-round"], "source_pointer": "/items", "stable_key_pointer": "/id" } },
+    { "id": "discover", "kind": "agent", "access": "read", "tier": "standard", "guidance": "Return at most 32 candidate items with stable id fields, excluding keys supplied as previously seen." },
+    { "id": "verify-round", "kind": "agent", "access": "read", "tier": "judgment", "guidance": "Verify the round and return the next bounded candidate set in items. Return an empty items array when dry.", "verification": true },
+    { "id": "complete", "kind": "terminal", "access": "control", "guidance": "Record converged discovery completion." }
+  ],
+  "edges": [
+    { "from": "discovery-loop", "to": "discover", "type": "sequence" },
+    { "from": "discover", "to": "verify-round", "type": "artifact", "artifact": "round-findings" },
+    { "from": "verify-round", "to": "discover", "type": "loop-back" },
+    { "from": "verify-round", "to": "complete", "type": "condition", "condition": "success" }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": "2.1.0",
+  "workflow_id": "adversarial-review",
+  "revision": 1,
+  "title": "Diverse-lens adversarial review",
+  "entry_node": "design",
+  "terminal_node": "complete",
+  "budgets": { "max_concurrency": 4, "max_repair_rounds": 5, "max_attempts_per_node": 3, "max_dynamic_instances": 128, "max_pipeline_depth": 4, "max_map_items": 32 },
+  "nodes": [
+    { "id": "design", "kind": "agent", "access": "read", "tier": "standard", "guidance": "Extract the design claims and declared verification plan." },
+    { "id": "contracts", "kind": "agent", "access": "read", "tier": "judgment", "guidance": "Review public and persistence contracts.", "failure_handling": { "mode": "collect", "max_failures": 1 } },
+    { "id": "safety", "kind": "agent", "access": "read", "tier": "judgment", "guidance": "Review safety boundaries and failure containment.", "failure_handling": { "mode": "collect", "max_failures": 1 } },
+    { "id": "tests", "kind": "agent", "access": "read", "tier": "standard", "guidance": "Review the test and evidence strategy.", "failure_handling": { "mode": "collect", "max_failures": 1 } },
+    { "id": "scope", "kind": "agent", "access": "read", "tier": "standard", "guidance": "Review scope, ownership, and compatibility.", "failure_handling": { "mode": "collect", "max_failures": 1 } },
+    { "id": "review-quorum", "kind": "join", "access": "control", "guidance": "Require three successful independent lenses.", "join": "quorum", "quorum": { "threshold": 3 } },
+    { "id": "verify", "kind": "gate", "access": "control", "guidance": "Reject blocking quorum findings.", "verification": true },
+    { "id": "complete", "kind": "terminal", "access": "control", "guidance": "Record adversarial-review completion." }
+  ],
+  "edges": [
+    { "from": "design", "to": "contracts", "type": "artifact" }, { "from": "design", "to": "safety", "type": "artifact" },
+    { "from": "design", "to": "tests", "type": "artifact" }, { "from": "design", "to": "scope", "type": "artifact" },
+    { "from": "contracts", "to": "review-quorum", "type": "artifact" }, { "from": "safety", "to": "review-quorum", "type": "artifact" },
+    { "from": "tests", "to": "review-quorum", "type": "artifact" }, { "from": "scope", "to": "review-quorum", "type": "artifact" },
+    { "from": "review-quorum", "to": "verify", "type": "sequence" },
+    { "from": "verify", "to": "complete", "type": "condition", "condition": "success" }
+  ]
+}

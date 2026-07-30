@@ -1,0 +1,22 @@
+{
+  "schema_version": "2.1.0",
+  "workflow_id": "ecosystem-scan",
+  "revision": 1,
+  "title": "Bounded ecosystem scan",
+  "entry_node": "inventory",
+  "terminal_node": "complete",
+  "budgets": { "max_concurrency": 4, "max_repair_rounds": 5, "max_attempts_per_node": 3, "max_dynamic_instances": 128, "max_pipeline_depth": 4, "max_map_items": 32 },
+  "nodes": [
+    { "id": "inventory", "kind": "agent", "access": "read", "tier": "economy", "guidance": "Return at most 32 packages with stable package fields." },
+    { "id": "scan-package", "kind": "map", "access": "read", "tier": "standard", "guidance": "Inspect one package against the supplied ecosystem snapshot.", "map": { "source_pointer": "/items", "stable_key_pointer": "/package", "max_items": 32 } },
+    { "id": "deduplicate", "kind": "transform", "access": "control", "guidance": "Deduplicate package findings by package key.", "transform": { "operation": "deduplicate", "source_pointer": "/inputs", "key_pointer": "/package" } },
+    { "id": "verify", "kind": "gate", "access": "control", "guidance": "Reject unsupported or blocking compatibility findings.", "verification": true },
+    { "id": "complete", "kind": "terminal", "access": "control", "guidance": "Record ecosystem-scan completion." }
+  ],
+  "edges": [
+    { "from": "inventory", "to": "scan-package", "type": "artifact", "artifact": "packages" },
+    { "from": "scan-package", "to": "deduplicate", "type": "artifact", "artifact": "package-findings" },
+    { "from": "deduplicate", "to": "verify", "type": "artifact", "artifact": "deduplicated-findings" },
+    { "from": "verify", "to": "complete", "type": "condition", "condition": "success" }
+  ]
+}
