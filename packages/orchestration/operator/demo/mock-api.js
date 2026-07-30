@@ -1,8 +1,6 @@
 /** Supplies sanitized, in-memory API responses for the static operator-console demonstration. */
 
 (() => {
-  "use strict";
-
   const PHASES = [
     "arm",
     "design",
@@ -53,14 +51,30 @@
       current_phase: "build",
       started_at: "2026-07-23T14:02:00.000Z",
       updated_at: "2026-07-23T14:08:00.000Z",
-      completed_gates: ["arm-gate", "design-gate", "adversarial-review-gate", "plan-gate", "pmatch-gate"],
+      completed_gates: [
+        "arm-gate",
+        "design-gate",
+        "adversarial-review-gate",
+        "plan-gate",
+        "pmatch-gate",
+      ],
       gates: [
         { gate_id: "arm-gate", phase: "arm", status: "pass", artifact_ref: "brief · a91f" },
         { gate_id: "design-gate", phase: "design", status: "pass", artifact_ref: "design · 3c20" },
-        { gate_id: "adversarial-review-gate", phase: "adversarial-review", status: "pass", artifact_ref: "review · 88e1" },
+        {
+          gate_id: "adversarial-review-gate",
+          phase: "adversarial-review",
+          status: "pass",
+          artifact_ref: "review · 88e1",
+        },
         { gate_id: "plan-gate", phase: "plan", status: "pass", artifact_ref: "plan · b7d4" },
         { gate_id: "pmatch-gate", phase: "pmatch", status: "pass", artifact_ref: "drift · 0f2a" },
-        { gate_id: "build-gate", phase: "build", status: "pending", artifact_ref: "build · 7c…e19" },
+        {
+          gate_id: "build-gate",
+          phase: "build",
+          status: "pending",
+          artifact_ref: "build · 7c…e19",
+        },
       ],
       checkpoints: [
         {
@@ -68,7 +82,8 @@
           purpose: "mutation",
           phase: "build",
           status: "pending",
-          message: "Plan-owned implementation is staged. Gate policy before-mutation-and-ship requires an operator record before quality-static runs.",
+          message:
+            "Plan-owned implementation is staged. Gate policy before-mutation-and-ship requires an operator record before quality-static runs.",
           requested_at: "2026-07-23T14:08:00.000Z",
         },
       ],
@@ -108,7 +123,12 @@
       gates: [
         { gate_id: "arm-gate", phase: "arm", status: "pass", artifact_ref: "brief · d102" },
         { gate_id: "design-gate", phase: "design", status: "pass", artifact_ref: "design · 73a4" },
-        { gate_id: "adversarial-review-gate", phase: "adversarial-review", status: "pass", artifact_ref: "review · 220c" },
+        {
+          gate_id: "adversarial-review-gate",
+          phase: "adversarial-review",
+          status: "pass",
+          artifact_ref: "review · 220c",
+        },
         { gate_id: "plan-gate", phase: "plan", status: "pass", artifact_ref: "plan · c814" },
         { gate_id: "pmatch-gate", phase: "pmatch", status: "failed", artifact_ref: "drift · 91ff" },
       ],
@@ -119,20 +139,100 @@
 
   const eventsByRun = {
     "run-7f3a2c91": [
-      { seq: 1, ts: "2026-07-23T14:02:05.000Z", phase: "arm", event: "artifact_recorded", artifact_ref: "brief · a91f", status: "pass", tier: "local" },
-      { seq: 2, ts: "2026-07-23T14:03:18.000Z", phase: "design", event: "gate_completed", gate_id: "design-gate", status: "pass", tier: "local" },
-      { seq: 3, ts: "2026-07-23T14:04:42.000Z", phase: "adversarial-review", event: "review_completed", artifact_ref: "review · 88e1", status: "pass", tier: "local" },
-      { seq: 4, ts: "2026-07-23T14:06:09.000Z", phase: "plan", event: "plan_validated", artifact_ref: "plan · b7d4", status: "pass", tier: "local" },
-      { seq: 5, ts: "2026-07-23T14:07:31.000Z", phase: "pmatch", event: "drift_check_completed", gate_id: "pmatch-gate", status: "pass", tier: "local" },
-      { seq: 6, ts: "2026-07-23T14:08:00.000Z", phase: "build", event: "checkpoint_requested", event_id: "cp-4b91-build", status: "pending", tier: "human" },
+      {
+        seq: 1,
+        ts: "2026-07-23T14:02:05.000Z",
+        phase: "arm",
+        event: "artifact_recorded",
+        artifact_ref: "brief · a91f",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 2,
+        ts: "2026-07-23T14:03:18.000Z",
+        phase: "design",
+        event: "gate_completed",
+        gate_id: "design-gate",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 3,
+        ts: "2026-07-23T14:04:42.000Z",
+        phase: "adversarial-review",
+        event: "review_completed",
+        artifact_ref: "review · 88e1",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 4,
+        ts: "2026-07-23T14:06:09.000Z",
+        phase: "plan",
+        event: "plan_validated",
+        artifact_ref: "plan · b7d4",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 5,
+        ts: "2026-07-23T14:07:31.000Z",
+        phase: "pmatch",
+        event: "drift_check_completed",
+        gate_id: "pmatch-gate",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 6,
+        ts: "2026-07-23T14:08:00.000Z",
+        phase: "build",
+        event: "checkpoint_requested",
+        event_id: "cp-4b91-build",
+        status: "pending",
+        tier: "human",
+      },
     ],
     "run-91bc08d2": [
-      { seq: 1, ts: "2026-07-23T12:42:03.000Z", phase: "arm", event: "run_started", event_id: "evt-01", status: "pass", tier: "local" },
-      { seq: 2, ts: "2026-07-23T13:12:00.000Z", phase: "release-readiness", event: "release_gate_completed", gate_id: "release-readiness-gate", status: "pass", tier: "local" },
+      {
+        seq: 1,
+        ts: "2026-07-23T12:42:03.000Z",
+        phase: "arm",
+        event: "run_started",
+        event_id: "evt-01",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 2,
+        ts: "2026-07-23T13:12:00.000Z",
+        phase: "release-readiness",
+        event: "release_gate_completed",
+        gate_id: "release-readiness-gate",
+        status: "pass",
+        tier: "local",
+      },
     ],
     "run-2e11d4a0": [
-      { seq: 1, ts: "2026-07-23T11:20:02.000Z", phase: "arm", event: "run_started", event_id: "evt-01", status: "pass", tier: "local" },
-      { seq: 2, ts: "2026-07-23T11:58:00.000Z", phase: "pmatch", event: "drift_detected", gate_id: "pmatch-gate", status: "failed", tier: "local" },
+      {
+        seq: 1,
+        ts: "2026-07-23T11:20:02.000Z",
+        phase: "arm",
+        event: "run_started",
+        event_id: "evt-01",
+        status: "pass",
+        tier: "local",
+      },
+      {
+        seq: 2,
+        ts: "2026-07-23T11:58:00.000Z",
+        phase: "pmatch",
+        event: "drift_detected",
+        gate_id: "pmatch-gate",
+        status: "failed",
+        tier: "local",
+      },
     ],
   };
 
@@ -188,27 +288,33 @@
       started_at: "2026-07-23T14:24:00.000Z",
       updated_at: "2026-07-23T14:24:00.000Z",
       completed_gates: [],
-      gates: [{ gate_id: "arm-gate", phase: "arm", status: "pending", artifact_ref: "brief · fixture" }],
-      checkpoints: [{
-        checkpoint_id: `${id}-arm`,
-        purpose: "mutation",
-        phase: "arm",
-        status: "pending",
-        message: "This simulated run is waiting at its first fixture checkpoint.",
-        requested_at: "2026-07-23T14:24:00.000Z",
-      }],
+      gates: [
+        { gate_id: "arm-gate", phase: "arm", status: "pending", artifact_ref: "brief · fixture" },
+      ],
+      checkpoints: [
+        {
+          checkpoint_id: `${id}-arm`,
+          purpose: "mutation",
+          phase: "arm",
+          status: "pending",
+          message: "This simulated run is waiting at its first fixture checkpoint.",
+          requested_at: "2026-07-23T14:24:00.000Z",
+        },
+      ],
       controls: { stop: true, interrupt: true, resume: false, cleanup: false },
     };
     runs.unshift(run);
-    eventsByRun[id] = [{
-      seq: 1,
-      ts: run.started_at,
-      phase: "arm",
-      event: "fixture_run_created",
-      event_id: `${id}-created`,
-      status: "pending",
-      tier: "simulation",
-    }];
+    eventsByRun[id] = [
+      {
+        seq: 1,
+        ts: run.started_at,
+        phase: "arm",
+        event: "fixture_run_created",
+        event_id: `${id}-created`,
+        status: "pending",
+        tier: "simulation",
+      },
+    ];
     return json({ run_id: id, simulated: true }, 202);
   }
 
@@ -222,7 +328,10 @@
         signal?.addEventListener("abort", () => controller.close(), { once: true });
       },
     });
-    return new Response(stream, { status: 200, headers: { "content-type": "application/x-ndjson" } });
+    return new Response(stream, {
+      status: 200,
+      headers: { "content-type": "application/x-ndjson" },
+    });
   }
 
   async function demoFetch(input, options = {}) {
@@ -234,7 +343,9 @@
     const path = url.pathname.slice("/api/v1".length);
     const method = String(options.method || "GET").toUpperCase();
     if (method === "GET" && path === "/projects") {
-      return json({ projects: [{ id: "project_fixture", label: "sebastianspicker/rae · fixture" }] });
+      return json({
+        projects: [{ id: "project_fixture", label: "sebastianspicker/rae · fixture" }],
+      });
     }
     if (method === "GET" && path.endsWith("/events/stream")) return streamResponse(options.signal);
 
@@ -248,7 +359,9 @@
     if (runsMatch && method === "GET") return json({ runs: structuredClone(runs) });
     if (runsMatch && method === "POST") return createRun(bodyOf(options));
 
-    const actionMatch = path.match(/^\/projects\/[^/]+\/runs\/([^/]+)\/(stop|resume|interrupt|cleanup|checkpoint-decision)$/);
+    const actionMatch = path.match(
+      /^\/projects\/[^/]+\/runs\/([^/]+)\/(stop|resume|interrupt|cleanup|checkpoint-decision)$/,
+    );
     if (method === "POST" && actionMatch) {
       const runId = decodeURIComponent(actionMatch[1]);
       const action = actionMatch[2];
@@ -261,9 +374,10 @@
       }
       const status = { stop: "stopping", resume: "running", interrupt: "interrupted" }[action];
       updateRun(run, { status });
-      run.controls = action === "interrupt"
-        ? { stop: false, interrupt: false, resume: true, cleanup: true }
-        : run.controls;
+      run.controls =
+        action === "interrupt"
+          ? { stop: false, interrupt: false, resume: true, cleanup: true }
+          : run.controls;
       return json({ ok: true, simulated: true });
     }
 
