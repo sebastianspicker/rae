@@ -21,6 +21,9 @@ The repository is an alpha candidate. It does not publish a package, container,
 hosted service, or stable API. See [Release Status](RELEASE_STATUS.md) for the
 current release evidence.
 
+Explore the [static Evidence Dossier demo](https://sebastianspicker.github.io/rae/).
+It uses sanitized fixture data, runs no command, and stores no state.
+
 ## Capabilities and limitations
 
 RAE currently provides:
