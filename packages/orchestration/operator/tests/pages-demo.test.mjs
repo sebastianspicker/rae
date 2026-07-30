@@ -9,12 +9,12 @@ import test from "node:test";
 
 const orchestrationRoot = resolve(import.meta.dirname, "../..");
 const staticRoot = resolve(orchestrationRoot, "operator/static");
-const buildScript = resolve(orchestrationRoot, "scripts/build-pages-demo.mjs");
+const buildScript = resolve(orchestrationRoot, "scripts/build-pages-demo.sh");
 
 function buildDemo(t) {
   const output = mkdtempSync(join(tmpdir(), "rae-pages-demo-"));
   t.after(() => rmSync(output, { recursive: true, force: true }));
-  execFileSync(process.execPath, [buildScript, "--output", output]);
+  execFileSync("bash", [buildScript, "--output", output]);
   return output;
 }
 
@@ -40,7 +40,7 @@ test("Pages demo is base-path safe and labels its evidence and actions as simula
   assert.match(html, /Static simulation/);
   assert.match(html, /Sanitized fixture data\. No command is run and no state is saved\./);
   assert.match(html, /href="\.\/styles\.css"/);
-  assert.match(html, /src="\.\/app\.js"/);
+  assert.match(html, /src="\.\/demo\/mock-api\.js"/);
   assert.doesNotMatch(html, /(?:href|src)="\//);
   for (const id of [
     "new-run-button",
@@ -51,7 +51,7 @@ test("Pages demo is base-path safe and labels its evidence and actions as simula
     "cleanup-button",
     "confirm-submit",
   ]) {
-    assert.match(mock, new RegExp(`"${id}"`));
+    assert.ok(mock.includes(`"${id}"`));
   }
   assert.match(mock, /document\.querySelectorAll\("\[data-decision\]"\)/);
   assert.match(mock, /window\.fetch = demoFetch/);
