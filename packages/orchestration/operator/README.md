@@ -59,6 +59,13 @@ overrides, raw trace access, forced cleanup, commit, push, or publish controls.
 Cleanup delegates to the pipeline's ownership- and dirty-state-validating
 worktree cleanup operation.
 
+The workflow editor lists immutable revisions, renders synchronized SVG and
+structured node/edge views, validates drafts, compares revisions, displays
+budgets and activation history, and activates only after exact digest
+confirmation. Native forms and the structured list provide every authoring
+operation; canvas dragging is not required. Registry mutations are rejected
+while any allowlisted project run is active.
+
 Run projections include bounded graph health counts when a projection exists:
 availability, validation state, node and edge counts, stale-source count, and
 stale-memory and unresolved-conflict counts. The API does not expose raw graph records, absolute

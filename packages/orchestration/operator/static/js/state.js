@@ -14,6 +14,9 @@ export const state = {
   runsGeneration: 0,
   streamAbort: null,
   streamGeneration: 0,
+  workflows: [],
+  workflowId: null,
+  workflow: null,
 };
 
 export const elements = Object.fromEntries(
@@ -87,6 +90,27 @@ export const elements = Object.fromEntries(
     "confirm-submit",
     "confirm-close",
     "confirm-cancel",
+    "workflow-refresh",
+    "workflow-list",
+    "workflow-empty",
+    "workflow-graph",
+    "workflow-graph-content",
+    "workflow-definition",
+    "workflow-actor",
+    "workflow-rationale",
+    "workflow-budget",
+    "workflow-structure",
+    "workflow-draft-form",
+    "workflow-draft",
+    "workflow-validate",
+    "workflow-details",
+    "workflow-diff-base",
+    "workflow-diff",
+    "workflow-diff-output",
+    "workflow-activate",
+    "workflow-digest-confirmation",
+    "workflow-history",
+    "workflow-status",
   ].map((id) => [id, document.getElementById(id)]),
 );
 

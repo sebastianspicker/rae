@@ -3,6 +3,7 @@
 import { api, setConnection, showError } from "./api.js";
 import { elements, state } from "./state.js";
 import { renderEvents, renderRun, renderRuns } from "./render.js";
+import { loadWorkflows } from "./workflows.js";
 
 export async function loadProjects() {
   const data = await api("/projects");
@@ -15,6 +16,7 @@ export async function loadProjects() {
   setConnection("connected", "Local session", "No publish controls");
   if (state.projectId) {
     await loadRuns();
+    await loadWorkflows();
   } else {
     elements["runs-loading"].hidden = true;
     renderRuns();

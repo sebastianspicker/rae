@@ -284,6 +284,54 @@
                 </button>
               </nav>
             </section>
+
+            <section class="workflow-editor" aria-labelledby="workflow-heading">
+              <header class="workflow-editor__head">
+                <div><p class="eyebrow">Revision-controlled</p><h2 id="workflow-heading">Workflow systems map</h2></div>
+                <button id="workflow-refresh" type="button">Refresh registry</button>
+              </header>
+              <div class="workflow-editor__grid">
+                <aside class="workflow-rail" aria-label="Workflow registry">
+                  <h3>Registry</h3>
+                  <div id="workflow-list" role="listbox" aria-label="Workflows"></div>
+                  <p id="workflow-empty" class="state-line">Loading workflows…</p>
+                </aside>
+                <div class="workflow-canvas">
+                  <svg id="workflow-graph" viewBox="0 0 640 250" role="img" aria-labelledby="workflow-graph-title workflow-graph-desc">
+                    <title id="workflow-graph-title">Workflow stage map</title>
+                    <desc id="workflow-graph-desc">A topologically layered workflow map. Color and line style distinguish data, stream, condition, sequence, and loop-back edges. The tables after the map provide the complete equivalent structure and live instance state.</desc>
+                    <defs><marker id="workflow-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>
+                    <g id="workflow-graph-content"></g>
+                  </svg>
+                  <form id="workflow-draft-form" class="workflow-form">
+                    <label for="workflow-definition">Draft definition (JSON)</label>
+                    <textarea id="workflow-definition" rows="8" maxlength="32768" spellcheck="false" required></textarea>
+                    <label for="workflow-actor">Actor</label>
+                    <input id="workflow-actor" maxlength="128" required>
+                    <label for="workflow-rationale">Revision or activation rationale</label>
+                    <textarea id="workflow-rationale" rows="3" maxlength="4096" required></textarea>
+                    <p id="workflow-budget" class="field-help">Revision budget unavailable</p>
+                    <div><button id="workflow-draft" type="submit">Save draft revision</button><button id="workflow-validate" type="button">Validate draft</button></div>
+                  </form>
+                  <section aria-labelledby="workflow-structure-heading">
+                    <h3 id="workflow-structure-heading">Structured nodes and edges</h3>
+                    <div id="workflow-structure" class="workflow-structure"></div>
+                  </section>
+                </div>
+                <aside class="workflow-inspector" aria-label="Workflow inspector">
+                  <h3>Inspector</h3>
+                  <dl id="workflow-details"><div><dt>Selection</dt><dd>Choose a registry entry</dd></div></dl>
+                  <label for="workflow-diff-base">Compare from revision</label><input id="workflow-diff-base" inputmode="numeric">
+                  <button id="workflow-diff" type="button">Show diff</button>
+                  <pre id="workflow-diff-output" tabindex="0">No revision diff loaded.</pre>
+                  <label for="workflow-digest-confirmation">Type validated digest to activate</label>
+                  <input id="workflow-digest-confirmation" class="mono" autocomplete="off" spellcheck="false">
+                  <button id="workflow-activate" class="primary-button" type="button">Activate validated revision</button>
+                  <h3>Activation history</h3><ol id="workflow-history"></ol>
+                </aside>
+              </div>
+              <p id="workflow-status" class="state-line" role="status" aria-live="polite">Drafts cannot change while a run is active.</p>
+            </section>
           </div>
         </main>
       </div>
