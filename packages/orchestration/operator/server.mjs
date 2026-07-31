@@ -217,22 +217,21 @@ async function routeRuns(req, res, url, project, controller, parts) {
 }
 
 async function routeRunCollection(req, res, url, project, controller) {
-  if (req.method === "GET") return listRuns(res, url, project, controller);
+  if (req.method === "GET") {
+    const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
+    const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
+    controller.refreshOwnership();
+    const all = discoverRuns(project);
+    const page = all
+      .slice(cursor, cursor + limit)
+      .map((run) => publicRun(run, controller.ownedRunId));
+    sendJson(res, 200, {
+      runs: page,
+      next_cursor: cursor + page.length < all.length ? cursor + page.length : null,
+    });
+    return;
+  }
   return startRun(req, res, project, controller);
-}
-
-function listRuns(res, url, project, controller) {
-  const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
-  const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
-  controller.refreshOwnership();
-  const all = discoverRuns(project);
-  const page = all
-    .slice(cursor, cursor + limit)
-    .map((run) => publicRun(run, controller.ownedRunId));
-  sendJson(res, 200, {
-    runs: page,
-    next_cursor: cursor + page.length < all.length ? cursor + page.length : null,
-  });
 }
 
 async function startRun(req, res, project, controller) {
@@ -432,10 +431,7 @@ function parseCli(argv) {
 
 function writeUsage() {
   process.stdout.write(
-    Buffer.from(
-      "Usage: node operator/server.mjs --project <git-root> [--project <git-root>] [--port 0]\n",
-      "utf8",
-    ),
+    "Usage: node operator/server.mjs --project PROJECT_ROOT [--project PROJECT_ROOT] [--port PORT]\n",
   );
 }
 
