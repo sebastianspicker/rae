@@ -216,21 +216,20 @@ async function routeRuns(req, res, url, project, controller, parts) {
   return routeRunAction(req, res, url, project, controller, runId, parts);
 }
 
+function runPage(url, project, controller) {
+  const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
+  const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
+  controller.refreshOwnership();
+  const all = discoverRuns(project);
+  const runs = all
+    .slice(cursor, cursor + limit)
+    .map((run) => publicRun(run, controller.ownedRunId));
+  const nextCursor = cursor + runs.length < all.length ? cursor + runs.length : null;
+  return { runs, next_cursor: nextCursor };
+}
+
 async function routeRunCollection(req, res, url, project, controller) {
-  if (req.method === "GET") {
-    const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
-    const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
-    controller.refreshOwnership();
-    const all = discoverRuns(project);
-    const page = all
-      .slice(cursor, cursor + limit)
-      .map((run) => publicRun(run, controller.ownedRunId));
-    sendJson(res, 200, {
-      runs: page,
-      next_cursor: cursor + page.length < all.length ? cursor + page.length : null,
-    });
-    return;
-  }
+  if (req.method === "GET") return sendJson(res, 200, runPage(url, project, controller));
   return startRun(req, res, project, controller);
 }
 
