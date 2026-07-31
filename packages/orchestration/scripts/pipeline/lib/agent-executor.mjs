@@ -423,6 +423,18 @@ function commandProviderEnvironment(
   };
 }
 
+function assertCommandCompleted(proc, timeoutMs) {
+  if (proc.error?.code === "ETIMEDOUT") {
+    throw timeoutError("agent command", timeoutMs, proc);
+  }
+  if (proc.error) {
+    throw new Error(`agent command failed to start: ${proc.error.message}`);
+  }
+  if (proc.status !== 0) {
+    throw new Error(`agent command exited with status ${proc.status}: ${failureExcerpt(proc)}`);
+  }
+}
+
 function runCommandProvider(options) {
   const {
     command,
@@ -464,15 +476,7 @@ function runCommandProvider(options) {
     maxBuffer: MAX_AGENT_OUTPUT_BYTES,
   });
 
-  if (proc.error) {
-    if (proc.error.code === "ETIMEDOUT") {
-      throw timeoutError("agent command", timeoutMs, proc);
-    }
-    throw new Error(`agent command failed to start: ${proc.error.message}`);
-  }
-  if (proc.status !== 0) {
-    throw new Error(`agent command exited with status ${proc.status}: ${failureExcerpt(proc)}`);
-  }
+  assertCommandCompleted(proc, timeoutMs);
   return { artifact: parseArtifact(proc.stdout, "agent command") };
 }
 
