@@ -478,35 +478,7 @@ export function runSummarizeProgress(options, { requireOption, ensureStateForRun
   ensureStateForRun(state, runId);
   ensureTraceFile(runId, root);
 
-  const summary = summarizeRun(runId, root);
-  const phaseOrder = Array.isArray(state.phase_order) ? state.phase_order : PHASES;
-  const completedGates = new Set(Array.isArray(state.completed_gates) ? state.completed_gates : []);
-  const phaseStatus = phaseOrder.map((phase) =>
-    progressPhaseEntry(runId, phase, state, completedGates),
-  );
-  const gateTotals = progressGateTotals(phaseStatus);
-  const blockers = phaseStatus
-    .filter((entry) => entry.status === "blocked")
-    .map((entry) => `${entry.phase}:${entry.gate_status}`);
-  const nextPending = phaseStatus.find((entry) => entry.status === "pending");
-  const nextAction = progressNextAction(blockers, nextPending, state.current_phase);
-
-  const artifact = {
-    run_id: runId,
-    current_phase: state.current_phase,
-    workspace_mode: valueOr(state.workspace?.mode, "main-repo"),
-    phase_status: phaseStatus,
-    gate_totals: gateTotals,
-    blockers,
-    activity_summary: valueOr(summary.activity_resolutions, []),
-    cost_summary: {
-      total_cost_usd: valueOr(summary.total_cost_usd, 0),
-      total_tokens_in: valueOr(summary.total_tokens_in, 0),
-      total_tokens_out: valueOr(summary.total_tokens_out, 0),
-    },
-    next_action: nextAction,
-    updated_at: new Date().toISOString(),
-  };
+  const artifact = buildProgressArtifact(runId, root, state);
   persistProgressSummary(runId, root, state, artifact, ensureStateForRun);
   const jsonPayload = {
     success: true,
@@ -523,6 +495,40 @@ export function runSummarizeProgress(options, { requireOption, ensureStateForRun
     text: renderProgressText(runId, artifact),
     markdown: renderProgressMarkdown(runId, artifact),
   });
+}
+
+function buildProgressArtifact(runId, root, state) {
+  const summary = summarizeRun(runId, root);
+  const phaseStatus = progressPhaseStatus(runId, state);
+  const blockers = phaseStatus
+    .filter((entry) => entry.status === "blocked")
+    .map((entry) => `${entry.phase}:${entry.gate_status}`);
+  return {
+    run_id: runId,
+    current_phase: state.current_phase,
+    workspace_mode: valueOr(state.workspace?.mode, "main-repo"),
+    phase_status: phaseStatus,
+    gate_totals: progressGateTotals(phaseStatus),
+    blockers,
+    activity_summary: valueOr(summary.activity_resolutions, []),
+    cost_summary: {
+      total_cost_usd: valueOr(summary.total_cost_usd, 0),
+      total_tokens_in: valueOr(summary.total_tokens_in, 0),
+      total_tokens_out: valueOr(summary.total_tokens_out, 0),
+    },
+    next_action: progressNextAction(
+      blockers,
+      phaseStatus.find((entry) => entry.status === "pending"),
+      state.current_phase,
+    ),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function progressPhaseStatus(runId, state) {
+  const order = Array.isArray(state.phase_order) ? state.phase_order : PHASES;
+  const completed = new Set(Array.isArray(state.completed_gates) ? state.completed_gates : []);
+  return order.map((phase) => progressPhaseEntry(runId, phase, state, completed));
 }
 
 export function printUsage() {

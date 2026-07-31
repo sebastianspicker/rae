@@ -106,11 +106,17 @@ function workspaceRuns(project, workspaceRoot, projectRoot) {
 
 function guardedWorkspaceRun(project, workspaceRoot) {
   const guard = inspectRuntimeStateGuard(workspaceRoot);
-  if (!guard.found) return null;
-  if (!guard.ownerActive) {
-    ensureRuntimeStateReadable(workspaceRoot, { expectedRunId: guard.runId });
-    return null;
-  }
+  if (!guard.found || guardIsReadableInactive(guard, workspaceRoot)) return null;
+  return activeGuardedWorkspaceRun(project, workspaceRoot, guard);
+}
+
+function guardIsReadableInactive(guard, workspaceRoot) {
+  if (guard.ownerActive) return false;
+  ensureRuntimeStateReadable(workspaceRoot, { expectedRunId: guard.runId });
+  return true;
+}
+
+function activeGuardedWorkspaceRun(project, workspaceRoot, guard) {
   return {
     id: guard.runId,
     project_id: project.id,
@@ -181,18 +187,29 @@ function projectedEvents(run, runDir) {
 }
 
 function runTiming(request, events, runDir) {
-  const startedAt =
-    request.requested_at ??
-    events[0]?.ts ??
-    readJson(join(runDir, "operator-control.json"))?.updated_at ??
-    null;
+  const startedAt = runStartTime(request, events, runDir);
   return {
     startedAt,
-    updatedAt:
-      readOperatorControl(basename(runDir), resolve(runDir, "../../..")).updated_at ??
-      events.at(-1)?.ts ??
-      startedAt,
+    updatedAt: runUpdatedTime(events, runDir, startedAt),
   };
+}
+
+function runStartTime(request, events, runDir) {
+  if (request.requested_at) return request.requested_at;
+  return eventOrControlStartTime(events, runDir);
+}
+
+function eventOrControlStartTime(events, runDir) {
+  if (events[0]?.ts) return events[0].ts;
+  return readJson(join(runDir, "operator-control.json"))?.updated_at ?? null;
+}
+
+function runUpdatedTime(events, runDir, startedAt) {
+  return (
+    readOperatorControl(basename(runDir), resolve(runDir, "../../..")).updated_at ??
+    events.at(-1)?.ts ??
+    startedAt
+  );
 }
 
 function runResources(progress, events) {

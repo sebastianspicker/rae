@@ -64,10 +64,10 @@ function parseOptions(argv) {
       assertSafeKey(key, "option name");
       const next = argv[i + 1];
       if (next && !next.startsWith("--")) {
-        out[key] = next;
+        Reflect.set(out, key, next);
         i++;
       } else {
-        out[key] = true;
+        Reflect.set(out, key, true);
       }
       continue;
     }
@@ -77,7 +77,7 @@ function parseOptions(argv) {
 }
 
 function requireOption(options, key) {
-  const value = options[key];
+  const value = Reflect.get(options, key);
   if (value === undefined || value === null || value === "") {
     throw badInput(`missing required option --${key}`);
   }
@@ -175,7 +175,7 @@ function phaseStartEvent(phase, cognitiveTier, taskSession, activityProfile) {
   };
 }
 
-function executeStageLocked(state, { runId, phase, configId, options, root }) {
+function beginStage(state, { runId, phase, configId, options, root }) {
   ensureStateForRun(state, runId);
   assertPhaseReady(state, phase);
   appendRunStartIfMissing(runId, state, root);
@@ -190,6 +190,69 @@ function executeStageLocked(state, { runId, phase, configId, options, root }) {
     activityProfile: context.activityProfile,
     root,
   });
+  return { context, cognitiveTier };
+}
+
+function stageResult({
+  runId,
+  phase,
+  configId,
+  primaryGate,
+  extraGates,
+  artifactRef,
+  schemaRef,
+  context,
+}) {
+  return {
+    success: primaryGate.status !== "fail",
+    run_id: runId,
+    phase,
+    config_id: configId,
+    gate: primaryGate,
+    auxiliary_gates: extraGates,
+    artifact_ref: artifactRef,
+    schema_ref: schemaRef,
+    task_session: context.taskSession?.session ?? null,
+    activity_profile: context.activityProfile,
+  };
+}
+
+function finalizeStage(stage) {
+  const {
+    state,
+    runId,
+    phase,
+    configId,
+    primaryGate,
+    extraGates,
+    artifactRef,
+    schemaRef,
+    context,
+    root,
+  } = stage;
+  ensureStateForRun(state, runId);
+  appendTaskSessionEvent(
+    runId,
+    phase,
+    "task_session_end",
+    primaryGate.status === "fail" ? "error" : "ok",
+    context.taskSession,
+    root,
+  );
+  recordPhaseCompletion({ runId, phase, state, primaryGate, root });
+  return stageResult({
+    runId,
+    phase,
+    configId,
+    primaryGate,
+    extraGates,
+    artifactRef,
+    schemaRef,
+    context,
+  });
+}
+
+function completeStage(state, { runId, phase, configId, options, root, context, cognitiveTier }) {
   const { artifact, artifactRef, schemaRef } = resolveAndWriteArtifact({
     runId,
     phase,
@@ -224,28 +287,23 @@ function executeStageLocked(state, { runId, phase, configId, options, root }) {
     gateStatuses,
     root,
   });
-  ensureStateForRun(state, runId);
-  appendTaskSessionEvent(
+  return finalizeStage({
+    state,
     runId,
     phase,
-    "task_session_end",
-    primaryGate.status === "fail" ? "error" : "ok",
-    context.taskSession,
+    configId,
+    primaryGate,
+    extraGates,
+    artifactRef,
+    schemaRef,
+    context,
     root,
-  );
-  recordPhaseCompletion({ runId, phase, state, primaryGate, root });
-  return {
-    success: primaryGate.status !== "fail",
-    run_id: runId,
-    phase,
-    config_id: configId,
-    gate: primaryGate,
-    auxiliary_gates: extraGates,
-    artifact_ref: artifactRef,
-    schema_ref: schemaRef,
-    task_session: context.taskSession?.session ?? null,
-    activity_profile: context.activityProfile,
-  };
+  });
+}
+
+function executeStageLocked(state, request) {
+  const { context, cognitiveTier } = beginStage(state, request);
+  return completeStage(state, { ...request, context, cognitiveTier });
 }
 
 function runStage(options) {

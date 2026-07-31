@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /** Serves the authenticated loopback-only operator API and static console. */
 import { createServer } from "node:http";
-import { readFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RunController } from "./lib/control.mjs";
@@ -33,6 +32,7 @@ const STATIC_ROOT_FILES = new Map([
   ["/index.html", "index.html"],
 ]);
 const API_PREFIX = "/api/v1";
+const { readFileSync } = process.getBuiltinModule("node:fs");
 
 function securityHeaders() {
   return {
@@ -163,56 +163,88 @@ async function routeApi(req, res, url, context) {
     sendJson(res, 401, { error: { status: 401, message: "bearer authentication required" } });
     return;
   }
+  return routeAuthorizedApi(req, res, url, context, projects, controller);
+}
 
+async function routeAuthorizedApi(req, res, url, context, projects, controller) {
   const parts = splitPath(url.pathname);
-  if (parts[0] !== "api" || parts[1] !== "v1")
-    throw Object.assign(new Error("not found"), { status: 404 });
-  if (parts.length === 3 && parts[2] === "projects") {
-    requireMethod(req, "GET");
-    sendJson(res, 200, {
-      projects: projects.map(({ id, label }) => ({ id, label })),
-      active_run_id: controller.refreshOwnership(),
-    });
-    return;
+  assertApiPath(parts);
+  if (isProjectsEndpoint(parts)) {
+    return routeProjects(req, res, projects, controller);
   }
+  const project = projectForRoute(projects, parts);
+  if (parts[4] === "workflows") {
+    return routeWorkflows(req, res, url, context, project, parts.slice(5));
+  }
+  if (parts[4] !== "runs") throw Object.assign(new Error("not found"), { status: 404 });
+  return routeRuns(req, res, url, project, controller, parts);
+}
+
+function assertApiPath(parts) {
+  if (parts[0] === "api" && parts[1] === "v1") return;
+  throw Object.assign(new Error("not found"), { status: 404 });
+}
+
+function isProjectsEndpoint(parts) {
+  return parts.length === 3 && parts[2] === "projects";
+}
+
+function projectForRoute(projects, parts) {
   if (parts[2] !== "projects" || !parts[3])
     throw Object.assign(new Error("not found"), { status: 404 });
   const project = findProject(projects, parts[3]);
   if (!project) throw Object.assign(new Error("project not found"), { status: 404 });
-  if (parts[4] === "workflows") {
-    await routeWorkflows(req, res, url, context, project, parts.slice(5));
-    return;
-  }
-  if (parts[4] !== "runs") throw Object.assign(new Error("not found"), { status: 404 });
+  return project;
+}
 
+function routeProjects(req, res, projects, controller) {
+  requireMethod(req, "GET");
+  sendJson(res, 200, {
+    projects: projects.map(({ id, label }) => ({ id, label })),
+    active_run_id: controller.refreshOwnership(),
+  });
+}
+
+async function routeRuns(req, res, url, project, controller, parts) {
   if (parts.length === 5) {
-    if (req.method === "GET") {
-      const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
-      const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
-      controller.refreshOwnership();
-      const all = discoverRuns(project);
-      const page = all
-        .slice(cursor, cursor + limit)
-        .map((run) => publicRun(run, controller.ownedRunId));
-      sendJson(res, 200, {
-        runs: page,
-        next_cursor: cursor + page.length < all.length ? cursor + page.length : null,
-      });
-      return;
-    }
-    requireMethod(req, "POST");
-    sendJson(res, 202, controller.start(project, await readJsonBody(req)));
-    return;
+    return routeRunCollection(req, res, url, project, controller);
   }
-
   const runId = validateRunId(parts[5]);
   if (parts.length === 6) {
-    requireMethod(req, "GET");
-    controller.refreshOwnership();
-    sendJson(res, 200, { run: publicRun(locateRun(project, runId), controller.ownedRunId) });
-    return;
+    return routeRunDetail(req, res, project, controller, runId);
   }
+  return routeRunAction(req, res, url, project, controller, runId, parts);
+}
 
+function runPage(url, project, controller) {
+  const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
+  const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
+  controller.refreshOwnership();
+  const all = discoverRuns(project);
+  const runs = all
+    .slice(cursor, cursor + limit)
+    .map((run) => publicRun(run, controller.ownedRunId));
+  const nextCursor = cursor + runs.length < all.length ? cursor + runs.length : null;
+  return { runs, next_cursor: nextCursor };
+}
+
+async function routeRunCollection(req, res, url, project, controller) {
+  if (req.method === "GET") return sendJson(res, 200, runPage(url, project, controller));
+  return startRun(req, res, project, controller);
+}
+
+async function startRun(req, res, project, controller) {
+  requireMethod(req, "POST");
+  sendJson(res, 202, controller.start(project, await readJsonBody(req)));
+}
+
+function routeRunDetail(req, res, project, controller, runId) {
+  requireMethod(req, "GET");
+  controller.refreshOwnership();
+  sendJson(res, 200, { run: publicRun(locateRun(project, runId), controller.ownedRunId) });
+}
+
+async function routeRunAction(req, res, url, project, controller, runId, parts) {
   const action = parts[6];
   if (action === "events" && parts.length === 7) {
     requireMethod(req, "GET");
@@ -230,18 +262,23 @@ async function routeApi(req, res, url, context) {
   requireMethod(req, "POST");
   if (parts.length !== 7) throw Object.assign(new Error("not found"), { status: 404 });
   const body = await readJsonBody(req);
-  if (action === "stop") {
-    sendJson(res, 200, { control: controller.stop(project, runId) });
-  } else if (action === "resume") {
-    sendJson(res, 202, controller.resume(project, runId));
-  } else if (action === "interrupt") {
-    sendJson(res, 202, controller.interrupt(project, runId, body));
-  } else if (action === "checkpoint-decision") {
-    sendJson(res, 200, { checkpoint: controller.decideCheckpoint(project, runId, body) });
-  } else if (action === "cleanup") {
-    sendJson(res, 202, controller.cleanup(project, runId, body));
-  } else {
-    throw Object.assign(new Error("not found"), { status: 404 });
+  return routeRunControlAction(res, action, project, controller, runId, body);
+}
+
+function routeRunControlAction(res, action, project, controller, runId, body) {
+  switch (action) {
+    case "stop":
+      return sendJson(res, 200, { control: controller.stop(project, runId) });
+    case "resume":
+      return sendJson(res, 202, controller.resume(project, runId));
+    case "interrupt":
+      return sendJson(res, 202, controller.interrupt(project, runId, body));
+    case "checkpoint-decision":
+      return sendJson(res, 200, { checkpoint: controller.decideCheckpoint(project, runId, body) });
+    case "cleanup":
+      return sendJson(res, 202, controller.cleanup(project, runId, body));
+    default:
+      throw Object.assign(new Error("not found"), { status: 404 });
   }
 }
 
@@ -372,27 +409,29 @@ export function createOperatorServer({
 function parseCli(argv) {
   const paths = [];
   let port = 0;
-  for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index];
-    if (arg === "--project") {
-      const value = argv[index + 1];
+  const args = argv.values();
+  for (let arg = args.next(); !arg.done; arg = args.next()) {
+    if (arg.value === "--project") {
+      const value = args.next().value;
       if (!value) throw new Error("--project requires a path");
       paths.push(value);
-      index += 1;
-    } else if (arg === "--port") {
-      port = Number(argv[index + 1]);
+    } else if (arg.value === "--port") {
+      port = Number(args.next().value);
       if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("invalid --port");
-      index += 1;
-    } else if (arg === "--help" || arg === "-h") {
-      process.stdout.write(
-        "Usage: node operator/server.mjs --project <git-root> [--project <git-root>] [--port 0]\n",
-      );
+    } else if (arg.value === "--help" || arg.value === "-h") {
+      writeUsage();
       return null;
     } else {
-      throw new Error(`unknown argument: ${arg}`);
+      throw new Error(`unknown argument: ${arg.value}`);
     }
   }
   return { projects: createProjectRegistry(paths), port };
+}
+
+function writeUsage() {
+  process.stdout.write(
+    "Usage: node operator/server.mjs --project PROJECT_ROOT [--project PROJECT_ROOT] [--port PORT]\n",
+  );
 }
 
 async function main() {

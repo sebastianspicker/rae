@@ -30,6 +30,36 @@ def _remove_gate_report_path(run_card_path: pathlib.Path) -> None:
     write_json(run_card_path, payload)
 
 
+def _stale_required_split_benchmark() -> tuple[dict, pathlib.Path]:
+    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    benchmark = {
+        **benchmark,
+        "benchmark_id": "tool-selection-core-stale-required-split",
+        "version": "1.0.2",
+    }
+    path = RESULTS_ROOT / ".tmp-tool-selection-core-stale-required-split.benchmark-card.json"
+    write_json(path, benchmark)
+    return benchmark, path
+
+
+def _write_stale_dev_fixture(output_dir: pathlib.Path, benchmark: dict) -> None:
+    _, _, _, _, run_card_path = write_release_gate_fixture(
+        output_dir / "dev-stale",
+        split="dev",
+        run_id="tool-selection-core-stale-required-split-dev",
+        benchmark=benchmark,
+        calibration_payload={
+            "judge_id": "router",
+            "agreement_rate": 1.0,
+            "calibration_case_count": 4,
+            "status": "pass",
+        },
+        release_gate_status="pass",
+    )
+    _remove_gate_report_path(run_card_path)
+
+
 def test_validate_eval_metadata_discovers_generated_run_card_names() -> None:
     benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
     benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
@@ -94,38 +124,14 @@ def test_release_gate_ignores_stale_passing_run_cards_for_required_split() -> No
     # The held-out gate checks for dev evidence (prior required split).  A dev
     # run-card that declares release_gate_status: pass but is missing its gate
     # report file is stale and must be rejected.
-    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
-    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
-    benchmark = {
-        **benchmark,
-        "benchmark_id": "tool-selection-core-stale-required-split",
-        "version": "1.0.2",
-    }
-    temp_benchmark_path = (
-        RESULTS_ROOT / ".tmp-tool-selection-core-stale-required-split.benchmark-card.json"
-    )
-    write_json(temp_benchmark_path, benchmark)
+    benchmark, temp_benchmark_path = _stale_required_split_benchmark()
 
     with tempfile.TemporaryDirectory(
         dir=RESULTS_ROOT, prefix="release-gate-stale-required-split-"
     ) as tmp:
         output_dir = pathlib.Path(tmp)
         # Create the dev fixture then corrupt it by removing its gate report path.
-        dev_dir = output_dir / "dev-stale"
-        _, _, _, _, dev_run_card_path = write_release_gate_fixture(
-            dev_dir,
-            split="dev",
-            run_id="tool-selection-core-stale-required-split-dev",
-            benchmark=benchmark,
-            calibration_payload={
-                "judge_id": "router",
-                "agreement_rate": 1.0,
-                "calibration_case_count": 4,
-                "status": "pass",
-            },
-            release_gate_status="pass",
-        )
-        _remove_gate_report_path(dev_run_card_path)
+        _write_stale_dev_fixture(output_dir, benchmark)
 
         # Create the held-out fixture; this is the run being gated.
         _, regression_path, ledger_path, _, run_card_path = write_release_gate_fixture(

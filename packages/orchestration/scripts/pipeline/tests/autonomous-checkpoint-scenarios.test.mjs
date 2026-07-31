@@ -324,6 +324,52 @@ function assertRejectedCheckpointCannotResume(output) {
   expect(readFileSync(join(output.workspace_root, "src/value.txt"), "utf8")).toBe("original\n");
 }
 
+function crashRecoveryDecision(outcome) {
+  return {
+    decision_id: `decision_${outcome}_crash_recovery_1`,
+    outcome,
+    actor: "test-operator",
+    at: new Date().toISOString(),
+    rationale: `Simulated crash after the durable ${outcome === "approved" ? "approval" : "checkpoint"} write.`,
+  };
+}
+
+function writeCrashResolvedCheckpoint(checkpointPath, checkpoint, outcome) {
+  const resolved = {
+    ...checkpoint,
+    status: outcome,
+    decision: crashRecoveryDecision(outcome),
+    resolved_at: new Date().toISOString(),
+  };
+  writeFileSync(checkpointPath, `${JSON.stringify(resolved, null, 2)}\n`, "utf8");
+}
+
+function resumeAfterCheckpoint(output, allowFailure = false) {
+  return run(
+    process.execPath,
+    [
+      AUTONOMOUS,
+      "resume",
+      "--project-root",
+      output.workspace_root,
+      "--run-id",
+      output.run_id,
+      "--through",
+      "build",
+      "--provider",
+      "command",
+      "--agent-command",
+      process.execPath,
+      "--agent-arg",
+      FAKE_AGENT,
+      "--allow-unsafe-command-provider",
+      "--json",
+    ],
+    PACKAGE_ROOT,
+    allowFailure,
+  );
+}
+
 function _plannedFixture(root) {
   const planned = run(
     process.execPath,
@@ -491,50 +537,8 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
   it("reconciles a terminal checkpoint left behind with waiting control", () => {
     const root = createRepository();
     const { output, runDir, checkpointPath, checkpoint } = pauseBeforeBuild(root);
-    writeFileSync(
-      checkpointPath,
-      `${JSON.stringify(
-        {
-          ...checkpoint,
-          status: "rejected",
-          decision: {
-            decision_id: "decision_crash_recovery_1",
-            outcome: "rejected",
-            actor: "test-operator",
-            at: new Date().toISOString(),
-            rationale: "Simulated crash after the durable checkpoint write.",
-          },
-          resolved_at: new Date().toISOString(),
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    );
-
-    const resumed = run(
-      process.execPath,
-      [
-        AUTONOMOUS,
-        "resume",
-        "--project-root",
-        output.workspace_root,
-        "--run-id",
-        output.run_id,
-        "--through",
-        "build",
-        "--provider",
-        "command",
-        "--agent-command",
-        process.execPath,
-        "--agent-arg",
-        FAKE_AGENT,
-        "--allow-unsafe-command-provider",
-        "--json",
-      ],
-      PACKAGE_ROOT,
-      true,
-    );
+    writeCrashResolvedCheckpoint(checkpointPath, checkpoint, "rejected");
+    const resumed = resumeAfterCheckpoint(output, true);
     const control = JSON.parse(readFileSync(join(runDir, "operator-control.json"), "utf8"));
 
     expect(resumed.status).toBe(1);
@@ -547,49 +551,8 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
   it("clears a waiting checkpoint after an approved-decision crash", () => {
     const root = createRepository();
     const { output, runDir, checkpointPath, checkpoint } = pauseBeforeBuild(root);
-    writeFileSync(
-      checkpointPath,
-      `${JSON.stringify(
-        {
-          ...checkpoint,
-          status: "approved",
-          decision: {
-            decision_id: "decision_approved_crash_recovery_1",
-            outcome: "approved",
-            actor: "test-operator",
-            at: new Date().toISOString(),
-            rationale: "Simulated crash after the durable approval write.",
-          },
-          resolved_at: new Date().toISOString(),
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    );
-
-    const resumed = run(
-      process.execPath,
-      [
-        AUTONOMOUS,
-        "resume",
-        "--project-root",
-        output.workspace_root,
-        "--run-id",
-        output.run_id,
-        "--through",
-        "build",
-        "--provider",
-        "command",
-        "--agent-command",
-        process.execPath,
-        "--agent-arg",
-        FAKE_AGENT,
-        "--allow-unsafe-command-provider",
-        "--json",
-      ],
-      PACKAGE_ROOT,
-    );
+    writeCrashResolvedCheckpoint(checkpointPath, checkpoint, "approved");
+    const resumed = resumeAfterCheckpoint(output);
     const control = JSON.parse(readFileSync(join(runDir, "operator-control.json"), "utf8"));
 
     expect(JSON.parse(resumed.stdout).success).toBe(true);

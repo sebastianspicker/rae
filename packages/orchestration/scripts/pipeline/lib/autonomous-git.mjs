@@ -341,50 +341,59 @@ export function validateConcurrentOperatorChanges({
 
 export function validateConcurrentControl(beforeControl, afterControl, runId) {
   if (sameJson(beforeControl, afterControl)) return;
-  const mutable = new Set(["status", "stop_requested", "stop_requested_at", "updated_at"]);
-  const unexpected = Object.keys(afterControl).some(
-    (key) => !Object.hasOwn(beforeControl, key) && !mutable.has(key),
-  );
-  const stableChanged = Object.keys(beforeControl).some(
-    (key) => !mutable.has(key) && !sameJson(beforeControl[key], afterControl[key]),
-  );
-  const invalidTimestamp =
-    typeof afterControl.stop_requested_at !== "string" ||
-    !Number.isFinite(Date.parse(afterControl.stop_requested_at)) ||
-    typeof afterControl.updated_at !== "string" ||
-    !Number.isFinite(Date.parse(afterControl.updated_at));
-  if (
-    afterControl.run_id !== runId ||
-    afterControl.status !== "stop-requested" ||
-    afterControl.stop_requested !== true ||
-    invalidTimestamp ||
-    unexpected ||
-    stableChanged
-  ) {
+  if (!validConcurrentControlTransition(beforeControl, afterControl, runId)) {
     throw new Error("provider or concurrent process made an invalid operator-control transition");
   }
 }
 
+function validConcurrentControlTransition(before, after, runId) {
+  const mutable = new Set(["status", "stop_requested", "stop_requested_at", "updated_at"]);
+  const unchanged = Object.keys(before).every(
+    (key) => mutable.has(key) || sameJson(before[key], after[key]),
+  );
+  const noUnexpected = Object.keys(after).every(
+    (key) => Object.hasOwn(before, key) || mutable.has(key),
+  );
+  return (
+    unchanged &&
+    noUnexpected &&
+    after.run_id === runId &&
+    after.status === "stop-requested" &&
+    after.stop_requested === true &&
+    validTransitionTimestamp(after.stop_requested_at) &&
+    validTransitionTimestamp(after.updated_at)
+  );
+}
+
+function validTransitionTimestamp(value) {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
 export function validateConcurrentTraceEvent(line, runId, expectedPhase = null) {
-  let event;
+  const event = parseConcurrentTraceEvent(line);
+  const expectedKeys = ["event", "phase", "run_id", "status", "ts"];
+  if (!validConcurrentTraceEvent(event, expectedKeys, runId, expectedPhase)) {
+    throw new Error("provider or concurrent process appended a non-stop operator trace event");
+  }
+}
+
+function parseConcurrentTraceEvent(line) {
   try {
-    event = JSON.parse(line);
+    return JSON.parse(line);
   } catch {
     throw new Error("provider or concurrent process appended invalid trace JSON");
   }
-  const expectedKeys = ["event", "phase", "run_id", "status", "ts"];
-  if (
-    JSON.stringify(Object.keys(event).sort()) !== JSON.stringify(expectedKeys) ||
-    event.event !== "run_stop_requested" ||
-    event.run_id !== runId ||
-    event.status !== "ok" ||
-    !PHASE_ORDER.includes(event.phase) ||
-    (expectedPhase && event.phase !== expectedPhase) ||
-    typeof event.ts !== "string" ||
-    !Number.isFinite(Date.parse(event.ts))
-  ) {
-    throw new Error("provider or concurrent process appended a non-stop operator trace event");
-  }
+}
+function validConcurrentTraceEvent(event, expectedKeys, runId, expectedPhase) {
+  return (
+    JSON.stringify(Object.keys(event).sort()) === JSON.stringify(expectedKeys) &&
+    event.event === "run_stop_requested" &&
+    event.run_id === runId &&
+    event.status === "ok" &&
+    PHASE_ORDER.includes(event.phase) &&
+    (!expectedPhase || event.phase === expectedPhase) &&
+    validTransitionTimestamp(event.ts)
+  );
 }
 
 export function assertRuntimeNamespaceInvariant(before, workspaceRoot, allowedChanges = []) {

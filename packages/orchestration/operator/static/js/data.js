@@ -108,8 +108,7 @@ async function streamEvents(after, generation, projectId, runId) {
   if (!isCurrentEventSelection(generation, projectId, runId)) return;
   const controller = new AbortController();
   state.streamAbort = controller;
-  elements["stream-status"].innerHTML =
-    `<span class="spinner" aria-hidden="true"></span> Live verification`;
+  showLiveVerificationStatus();
   const response = await openEventStream(after, controller, projectId, runId);
   if (!isCurrentEventSelection(generation, projectId, runId)) {
     controller.abort();
@@ -123,7 +122,7 @@ async function streamEvents(after, generation, projectId, runId) {
 }
 
 async function openEventStream(after, controller, projectId, runId) {
-  return await fetch(
+  return fetch(
     `/api/v1/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/events/stream?after=${after}`,
     {
       headers: { authorization: `Bearer ${state.token}` },
@@ -132,18 +131,30 @@ async function openEventStream(after, controller, projectId, runId) {
   );
 }
 
+function showLiveVerificationStatus() {
+  const status = elements["stream-status"];
+  const spinner = document.createElement("span");
+  spinner.className = "spinner";
+  spinner.setAttribute("aria-hidden", "true");
+  status.replaceChildren(spinner, document.createTextNode(" Live verification"));
+}
+
 async function consumeEventStream(response, generation, projectId, runId) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done || !isCurrentEventSelection(generation, projectId, runId)) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop();
-    appendStreamEvents(lines);
-    renderEvents();
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done || !isCurrentEventSelection(generation, projectId, runId)) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      appendStreamEvents(lines);
+      renderEvents();
+    }
+  } catch (error) {
+    if (error.name !== "AbortError") throw error;
   }
 }
 

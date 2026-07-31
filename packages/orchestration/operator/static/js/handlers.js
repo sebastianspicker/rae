@@ -65,8 +65,8 @@ export function bindHandlers() {
     elements["start-task"].focus();
   });
 
-  for (const id of ["start-close", "start-cancel"]) {
-    elements[id].addEventListener("click", () => elements["start-dialog"].close());
+  for (const element of [elements["start-close"], elements["start-cancel"]]) {
+    element.addEventListener("click", () => elements["start-dialog"].close());
   }
 
   elements["start-form"].addEventListener("submit", async (event) => {
@@ -118,8 +118,8 @@ export function bindHandlers() {
       elements["confirm-run-id"].value !== elements["confirm-expected-id"].textContent;
   });
 
-  for (const id of ["confirm-close", "confirm-cancel"]) {
-    elements[id].addEventListener("click", closeConfirmation);
+  for (const element of [elements["confirm-close"], elements["confirm-cancel"]]) {
+    element.addEventListener("click", closeConfirmation);
   }
 
   elements["confirm-form"].addEventListener("submit", async (event) => {

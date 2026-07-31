@@ -246,111 +246,132 @@ function emitReadableControlResult(context, result, options) {
 
 export function runControlCommand(command, options) {
   const context = controlCommandContext(options);
-  if (command === "status") {
-    const runDir = getRunDir(context.runId, context.workspaceRoot);
-    emitReadableControlResult(
-      context,
-      {
-        schema_version: "1.0.0",
-        run_id: context.runId,
-        workspace_root: context.workspaceRoot,
-        active_lock: existsSync(resolve(runDir, "autonomous.lock")),
-        completed_gates: context.state.completed_gates ?? [],
-        operator_control: readOperatorControl(context.runId, context.workspaceRoot),
-        checkpoints: listCheckpoints(context.runId, context.workspaceRoot),
-      },
-      options,
-    );
-    return;
+  switch (command) {
+    case "status":
+      return reportControlStatus(context, options);
+    case "stop":
+      return requestControlStop(context, options);
+    case "resolve-checkpoint":
+      return resolveControlCheckpoint(context, options);
+    case "events":
+      return reportControlEvents(context, options);
+    default:
+      throw new Error(`unsupported control command: ${command}`);
   }
-  if (command === "stop") {
-    const previous = readOperatorControl(context.runId, context.workspaceRoot);
-    const control = requestStop(context.runId, context.workspaceRoot);
-    if (!["stop-requested", "stopped"].includes(previous.status)) {
-      appendTraceEvent(
-        context.runId,
-        { event: "run_stop_requested", phase: nextRunPhase(context.state), status: "ok" },
-        context.workspaceRoot,
-      );
-    }
-    emitReadableControlResult(
-      context,
-      { success: true, run_id: context.runId, operator_control: control },
-      options,
-    );
-    return;
-  }
-  if (command === "resolve-checkpoint") {
-    const decision = options.decision;
-    if (!["approved", "rejected", "escalated"].includes(decision)) {
-      throw new Error("--decision must be approved, rejected, or escalated");
-    }
-    for (const key of ["checkpoint-id", "decision-id", "actor", "rationale"]) {
-      if (!options[key]) throw new Error(`resolve-checkpoint requires --${key}`);
-    }
-    const checkpoint = resolveCheckpointById(
-      context.runId,
-      options["checkpoint-id"],
-      {
-        status: decision,
-        decisionId: options["decision-id"],
-        actor: options.actor,
-        rationale: options.rationale,
-      },
-      context.workspaceRoot,
-    );
+}
+
+function reportControlStatus(context, options) {
+  const runDir = getRunDir(context.runId, context.workspaceRoot);
+  emitReadableControlResult(
+    context,
+    {
+      schema_version: "1.0.0",
+      run_id: context.runId,
+      workspace_root: context.workspaceRoot,
+      active_lock: existsSync(resolve(runDir, "autonomous.lock")),
+      completed_gates: context.state.completed_gates ?? [],
+      operator_control: readOperatorControl(context.runId, context.workspaceRoot),
+      checkpoints: listCheckpoints(context.runId, context.workspaceRoot),
+    },
+    options,
+  );
+}
+
+function requestControlStop(context, options) {
+  const previous = readOperatorControl(context.runId, context.workspaceRoot);
+  const control = requestStop(context.runId, context.workspaceRoot);
+  if (!["stop-requested", "stopped"].includes(previous.status)) {
     appendTraceEvent(
       context.runId,
-      {
-        event: "checkpoint_resolved",
-        phase: checkpoint.phase,
-        status: decision === "approved" ? "ok" : "blocked",
-        metadata: { checkpoint_id: checkpoint.checkpoint_id, outcome: decision },
-      },
+      { event: "run_stop_requested", phase: nextRunPhase(context.state), status: "ok" },
       context.workspaceRoot,
     );
-    if (decision !== "approved") {
-      appendTraceEvent(
-        context.runId,
-        { event: "run_blocked", phase: checkpoint.phase, status: "blocked" },
-        context.workspaceRoot,
-      );
-    }
-    emitReadableControlResult(
-      context,
-      { success: true, run_id: context.runId, checkpoint },
-      options,
-    );
-    return;
   }
-  if (command === "events") {
-    const afterSeq = Number(options["after-seq"] ?? 0);
-    const limit = Number(options.limit ?? 100);
-    if (!Number.isInteger(afterSeq) || afterSeq < 0) {
-      throw new Error("--after-seq must be a non-negative integer");
-    }
-    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
-      throw new Error("--limit must be an integer between 1 and 1000");
-    }
-    const all = projectOperatorEvents(context.runId, context.workspaceRoot).filter(
-      (event) => event.seq > afterSeq,
+  emitReadableControlResult(
+    context,
+    { success: true, run_id: context.runId, operator_control: control },
+    options,
+  );
+}
+
+function requiredCheckpointDecision(options) {
+  const decision = options.decision;
+  if (!["approved", "rejected", "escalated"].includes(decision))
+    throw new Error("--decision must be approved, rejected, or escalated");
+  for (const key of ["checkpoint-id", "decision-id", "actor", "rationale"])
+    if (!options[key]) throw new Error(`resolve-checkpoint requires --${key}`);
+  return decision;
+}
+
+function resolveControlCheckpoint(context, options) {
+  const decision = requiredCheckpointDecision(options);
+  const checkpoint = resolveCheckpointById(
+    context.runId,
+    options["checkpoint-id"],
+    {
+      status: decision,
+      decisionId: options["decision-id"],
+      actor: options.actor,
+      rationale: options.rationale,
+    },
+    context.workspaceRoot,
+  );
+  appendTraceEvent(
+    context.runId,
+    {
+      event: "checkpoint_resolved",
+      phase: checkpoint.phase,
+      status: decision === "approved" ? "ok" : "blocked",
+      metadata: { checkpoint_id: checkpoint.checkpoint_id, outcome: decision },
+    },
+    context.workspaceRoot,
+  );
+  if (decision !== "approved")
+    appendTraceEvent(
+      context.runId,
+      { event: "run_blocked", phase: checkpoint.phase, status: "blocked" },
+      context.workspaceRoot,
     );
-    const events = all.slice(0, limit);
-    emitReadableControlResult(
-      context,
-      {
-        schema_version: "1.0.0",
-        run_id: context.runId,
-        after_seq: afterSeq,
-        next_after_seq: events.at(-1)?.seq ?? afterSeq,
-        has_more: all.length > events.length,
-        events,
-      },
-      { ...options, json: true },
-    );
-    return;
-  }
-  throw new Error(`unsupported control command: ${command}`);
+  emitReadableControlResult(context, { success: true, run_id: context.runId, checkpoint }, options);
+}
+
+function validEventRange(options) {
+  const afterSeq = Number(options["after-seq"] ?? 0);
+  const limit = Number(options.limit ?? 100);
+  assertEventRange(afterSeq, limit);
+  return { afterSeq, limit };
+}
+
+function assertEventRange(afterSeq, limit) {
+  if (!validAfterSequence(afterSeq)) throw new Error("--after-seq must be a non-negative integer");
+  if (!validEventLimit(limit)) throw new Error("--limit must be an integer between 1 and 1000");
+}
+
+function validAfterSequence(value) {
+  return Number.isInteger(value) && value >= 0;
+}
+function validEventLimit(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 1000;
+}
+
+function reportControlEvents(context, options) {
+  const { afterSeq, limit } = validEventRange(options);
+  const all = projectOperatorEvents(context.runId, context.workspaceRoot).filter(
+    (event) => event.seq > afterSeq,
+  );
+  const events = all.slice(0, limit);
+  emitReadableControlResult(
+    context,
+    {
+      schema_version: "1.0.0",
+      run_id: context.runId,
+      after_seq: afterSeq,
+      next_after_seq: events.at(-1)?.seq ?? afterSeq,
+      has_more: all.length > events.length,
+      events,
+    },
+    { ...options, json: true },
+  );
 }
 
 function waitingReport(context, provider, runOptions) {

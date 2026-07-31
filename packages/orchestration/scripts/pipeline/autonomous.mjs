@@ -63,7 +63,7 @@ Safety defaults:
 }
 
 function parseOptions(argv) {
-  const options = { _: [], agentArgs: [] };
+  const options = Object.assign(Object.create(null), { _: [], agentArgs: [] });
   const booleanFlags = new Set([
     "in-place",
     "json",
@@ -79,7 +79,7 @@ function parseOptions(argv) {
     }
     const key = token.slice(2);
     if (booleanFlags.has(key)) {
-      options[key] = true;
+      Reflect.set(options, key, true);
       continue;
     }
     const value = argv[index + 1];
@@ -90,7 +90,7 @@ function parseOptions(argv) {
     if (key === "agent-arg") {
       options.agentArgs.push(value);
     } else {
-      options[key] = value;
+      Reflect.set(options, key, value);
     }
   }
   return options;

@@ -378,6 +378,19 @@ def _start_campaign(
     return state, output_dir / "lineage.jsonl"
 
 
+def _record_blocked_iteration(
+    state: dict[str, Any],
+    lineage_path: pathlib.Path,
+    iteration: int,
+    reason: str,
+    candidate_id: str | None = None,
+) -> None:
+    event: dict[str, Any] = {"iteration": iteration, "decision": "blocked", "reason": reason}
+    if candidate_id is not None:
+        event["candidate_id"] = candidate_id
+    _record_event(state["lineage"], lineage_path, event)
+
+
 def _run_iterations(
     state: dict[str, Any],
     lineage_path: pathlib.Path,
@@ -385,15 +398,7 @@ def _run_iterations(
 ) -> None:
     for iteration in range(1, campaign.max_iterations + 1):
         if trusted_manifest(campaign.trusted_paths) != state["initial_manifest"]:
-            _record_event(
-                state["lineage"],
-                lineage_path,
-                {
-                    "iteration": iteration,
-                    "decision": "blocked",
-                    "reason": "evaluator-integrity-drift",
-                },
-            )
+            _record_blocked_iteration(state, lineage_path, iteration, "evaluator-integrity-drift")
             break
         candidate, candidate_id = _candidate_or_rejection(
             campaign.proposer,
@@ -410,15 +415,12 @@ def _run_iterations(
             state, candidate, campaign.evaluator, campaign.resource_budget
         )
         if budget_blocked:
-            _record_event(
-                state["lineage"],
+            _record_blocked_iteration(
+                state,
                 lineage_path,
-                {
-                    "iteration": iteration,
-                    "candidate_id": candidate_id,
-                    "decision": "blocked",
-                    "reason": "budget-exceeded-or-incomplete-measurement",
-                },
+                iteration,
+                "budget-exceeded-or-incomplete-measurement",
+                candidate_id,
             )
             dump_json(campaign.output_dir / "evaluations" / f"{candidate_id}.json", evaluation)
             break
