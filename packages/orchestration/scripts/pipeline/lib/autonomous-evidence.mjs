@@ -47,18 +47,20 @@ function successfulKeys(result, phase, workspaceRoot) {
 
 function recordMissingEvidence(phase, artifact) {
   if (phase === "build") {
-    artifact.groups = [
-      ...(artifact.groups ?? []),
-      {
-        group_id: "runtime-command-evidence",
-        status: "fail",
-        tasks_completed: 0,
-        tasks_total: 1,
-        errors: ["Codex emitted no command_execution event for build verification"],
-      },
-    ];
+    recordMissingBuildEvidence(artifact);
     return;
   }
+  recordMissingQualityEvidence(phase, artifact);
+}
+
+function recordMissingBuildEvidence(artifact) {
+  artifact.groups = [...(artifact.groups ?? []), {
+    group_id: "runtime-command-evidence", status: "fail", tasks_completed: 0, tasks_total: 1,
+    errors: ["Codex emitted no command_execution event for build verification"],
+  }];
+}
+
+function recordMissingQualityEvidence(phase, artifact) {
   artifact.violations = [
     ...(artifact.violations ?? []),
     {

@@ -24,8 +24,8 @@ export interface ToolHandlerResult<TData> {
 export async function runTool<TInput, TData>(
   toolVersion: string,
   handler: (
-    input: TInput,
-    logs: string[],
+    _input: TInput,
+    _logs: string[],
   ) => Promise<ToolHandlerResult<TData>> | ToolHandlerResult<TData>,
 ): Promise<void> {
   const t0 = performance.now();

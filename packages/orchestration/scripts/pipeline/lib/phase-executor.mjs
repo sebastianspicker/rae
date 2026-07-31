@@ -224,24 +224,7 @@ function validateProviderRuntime(state, context, phase, options, execution) {
   const eventLog = execution.result?.eventLogPath ?? execution.error?.eventLogPath;
   const allowed = eventLog ? [relative(resolve(context.workspaceRoot, ".pipeline"), eventLog)] : [];
   if (state.runtimeGuard) {
-    let reconciliation;
-    try {
-      reconciliation = reconcileRuntimeStateGuard(context.workspaceRoot, {
-        allowedRefs: allowed,
-        expectedRunId: context.runId,
-      });
-    } catch (error) {
-      error.pipelineStateUnsafe = true;
-      throw error;
-    }
-    if (reconciliation.tampered) {
-      const changed = reconciliation.changed?.length
-        ? reconciliation.changed.slice(0, 8).join(", ")
-        : (reconciliation.detail ?? "unsafe runtime entry");
-      const error = new Error(`provider modified protected .pipeline state; restored: ${changed}`);
-      recordProviderError(error, context, phase, options, state.sandboxMode);
-      throw error;
-    }
+    validateRuntimeGuard(state, context, phase, options, allowed);
     return;
   }
   try {
@@ -263,6 +246,17 @@ function validateProviderRuntime(state, context, phase, options, execution) {
     recordProviderError(error, context, phase, options, state.sandboxMode);
     throw error;
   }
+}
+
+function validateRuntimeGuard(state, context, phase, options, allowed) {
+  let reconciliation;
+  try { reconciliation = reconcileRuntimeStateGuard(context.workspaceRoot, { allowedRefs: allowed, expectedRunId: context.runId }); }
+  catch (error) { error.pipelineStateUnsafe = true; throw error; }
+  if (!reconciliation.tampered) return;
+  const changed = reconciliation.changed?.length ? reconciliation.changed.slice(0, 8).join(", ") : (reconciliation.detail ?? "unsafe runtime entry");
+  const error = new Error(`provider modified protected .pipeline state; restored: ${changed}`);
+  recordProviderError(error, context, phase, options, state.sandboxMode);
+  throw error;
 }
 
 function throwProviderError(error, context, phase, options, sandboxMode) {

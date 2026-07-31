@@ -163,37 +163,21 @@ function assignWorkflowFileOption(output, option, value) {
 }
 
 function assignSecondaryOption(output, option, value) {
-  switch (option) {
-    case "--project-root":
-      output.projectRoot = value;
-      return true;
-    case "--rationale":
-      output.rationale = value;
-      return true;
-    case "--run-id":
-      output.runId = value;
-      return true;
-    case "--seed":
-      output.seed = value;
-      return true;
-    case "--source-ref":
-      output.sourceRef = value;
-      return true;
-    case "--status":
-      output.status = value;
-      return true;
-    case "--digest":
-      output.digest = value;
-      return true;
-    case "--from":
-      output.from = value;
-      return true;
-    case "--to":
-      output.to = value;
-      return true;
-    default:
-      return false;
-  }
+  const optionKeys = new Map([
+    ["--project-root", "projectRoot"],
+    ["--rationale", "rationale"],
+    ["--run-id", "runId"],
+    ["--seed", "seed"],
+    ["--source-ref", "sourceRef"],
+    ["--status", "status"],
+    ["--digest", "digest"],
+    ["--from", "from"],
+    ["--to", "to"],
+  ]);
+  const key = optionKeys.get(option);
+  if (!key) return false;
+  Reflect.set(output, key, value);
+  return true;
 }
 
 function emit(value, options) {
@@ -246,22 +230,17 @@ function decideGraphMemory(decision, options) {
 }
 
 function graphCommand(command, options, action) {
-  switch (command) {
-    case "build":
-      return projectGraph({ projectRoot: projectRoot(options), runId: options.runId });
-    case "status":
-      return graphStatus({ projectRoot: projectRoot(options), runId: options.runId });
-    case "query":
-      return graphQuery(options);
-    case "explain":
-      return explainGraph(options);
-    case "memory":
-      return memoryCommand(action ?? "list", options);
-    case "workflow":
-      return workflowCommand(action ?? "list", options);
-    default:
-      throw new Error(`unknown graph command: ${command}`);
-  }
+  const handlers = new Map([
+    ["build", () => projectGraph({ projectRoot: projectRoot(options), runId: options.runId })],
+    ["status", () => graphStatus({ projectRoot: projectRoot(options), runId: options.runId })],
+    ["query", () => graphQuery(options)],
+    ["explain", () => explainGraph(options)],
+    ["memory", () => memoryCommand(action ?? "list", options)],
+    ["workflow", () => workflowCommand(action ?? "list", options)],
+  ]);
+  const handler = handlers.get(command);
+  if (!handler) throw new Error(`unknown graph command: ${command}`);
+  return handler();
 }
 
 function workflowCommand(action, options) {

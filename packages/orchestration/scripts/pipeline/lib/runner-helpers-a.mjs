@@ -196,21 +196,16 @@ export function contextBudgetForPhase(phase, state) {
   const value = coalesce(direct, budgets[fallbackKey]);
   if (value === undefined || value === null) return null;
 
-  if (typeof value === "number") {
-    return {
-      token_max: value,
-      files_max: 64,
-    };
-  }
+  return normalizeContextBudget(value);
+}
 
-  if (value && typeof value === "object") {
-    return {
-      token_max: toNumber(coalesce(value.token_max, value.max_tokens, value.token_estimate), 0),
-      files_max: Math.max(1, Math.trunc(toNumber(coalesce(value.files_max, value.max_files), 64))),
-    };
-  }
-
-  return null;
+function normalizeContextBudget(value) {
+  if (typeof value === "number") return { token_max: value, files_max: 64 };
+  if (!value || typeof value !== "object") return null;
+  return {
+    token_max: toNumber(coalesce(value.token_max, value.max_tokens, value.token_estimate), 0),
+    files_max: Math.max(1, Math.trunc(toNumber(coalesce(value.files_max, value.max_files), 64))),
+  };
 }
 
 export function stageProfileFromTask({ task, configId, phase }) {
@@ -255,40 +250,31 @@ export function resolveOptionalArtifactRefForRun(runId, artifactRef, root) {
 
 export function resolveQualityCoverageLedger(runId, state, phase, root) {
   if (phase !== "quality-tests") return null;
+  const refs = qualityCoverageArtifacts(runId, state, root);
+  if (!refs) return null;
+  recordArtifactReads(runId, phase, [refs.briefAbs, refs.planAbs], root);
+  const brief = readJsonStrict(refs.briefAbs, `quality coverage brief ${refs.briefRef}`);
+  const plan = readJsonStrict(refs.planAbs, `quality coverage plan ${refs.planRef}`);
+  return buildRequirementCoverageLedger({ brief, plan });
+}
 
+function qualityCoverageArtifacts(runId, state, root) {
   const briefRef = state?.artifacts?.brief ?? "brief.json";
   const planRef = state?.artifacts?.plan ?? "plan.json";
   const briefAbs = resolveOptionalArtifactRefForRun(runId, briefRef, root);
   const planAbs = resolveOptionalArtifactRefForRun(runId, planRef, root);
+  const refs = { briefRef, planRef, briefAbs, planAbs };
+  return availableQualityCoverageArtifacts(refs) ? refs : null;
+}
 
-  if (!briefAbs || !planAbs || !existsSync(briefAbs) || !existsSync(planAbs)) {
-    return null;
+function availableQualityCoverageArtifacts({ briefAbs, planAbs }) {
+  return Boolean(briefAbs && planAbs) && existsSync(briefAbs) && existsSync(planAbs);
+}
+
+function recordArtifactReads(runId, phase, refs, root) {
+  for (const pathValue of refs) {
+    appendTraceEvent(runId, { event: "artifact_read", phase, artifact_ref: toWorkspaceRelative(pathValue, root), status: "ok" }, root);
   }
-
-  appendTraceEvent(
-    runId,
-    {
-      event: "artifact_read",
-      phase,
-      artifact_ref: toWorkspaceRelative(briefAbs, root),
-      status: "ok",
-    },
-    root,
-  );
-  appendTraceEvent(
-    runId,
-    {
-      event: "artifact_read",
-      phase,
-      artifact_ref: toWorkspaceRelative(planAbs, root),
-      status: "ok",
-    },
-    root,
-  );
-
-  const brief = readJsonStrict(briefAbs, `quality coverage brief ${briefRef}`);
-  const plan = readJsonStrict(planAbs, `quality coverage plan ${planRef}`);
-  return buildRequirementCoverageLedger({ brief, plan });
 }
 
 export function resolveReviewLoopSnapshot(runId, phase, root) {
@@ -298,16 +284,7 @@ export function resolveReviewLoopSnapshot(runId, phase, root) {
     return null;
   }
 
-  appendTraceEvent(
-    runId,
-    {
-      event: "artifact_read",
-      phase,
-      artifact_ref: toWorkspaceRelative(reviewLoopAbs, root),
-      status: "ok",
-    },
-    root,
-  );
+  recordArtifactReads(runId, phase, [reviewLoopAbs], root);
 
   const reviewLoop = readJsonStrict(reviewLoopAbs, "review-loop.json");
   return {

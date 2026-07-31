@@ -3,17 +3,16 @@
  * Runs the deterministic drift-detection benchmark and enforces its fixture-defined quality thresholds.
  */
 import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
+  existsSync as skillEntrypointExists,
+  mkdirSync as createDirectory,
+  mkdtempSync as createTempDirectory,
+  readdirSync as listFixtureFiles,
+  rmSync as removeTempDirectory,
+  writeFileSync as writeTempTarget,
 } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
-import { resolveWithinRepo } from "../pipeline/lib/state.mjs";
+import { readJsonStrict, resolveWithinRepo, writeJson } from "../pipeline/lib/state.mjs";
 import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
 import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
 
@@ -73,7 +72,7 @@ function toMetrics(tp, fp, fn) {
 }
 
 function evaluateByClass(expected, predicted) {
-  const byClass = {};
+  const byClass = new Map();
   let totalTp = 0;
   let totalFp = 0;
   let totalFn = 0;
@@ -85,7 +84,7 @@ function evaluateByClass(expected, predicted) {
     const fp = Math.max(0, predictedCount - expectedCount);
     const fn = Math.max(0, expectedCount - predictedCount);
 
-    byClass[cls] = toMetrics(tp, fp, fn);
+    byClass.set(cls, toMetrics(tp, fp, fn));
     totalTp += tp;
     totalFp += fp;
     totalFn += fn;
@@ -93,65 +92,64 @@ function evaluateByClass(expected, predicted) {
 
   return {
     overall: toMetrics(totalTp, totalFp, totalFn),
-    by_class: byClass,
+    byClass,
   };
+}
+
+function driftInput(fixture, targetRef, mode) {
+  const driftConfig = { target_ref: targetRef, mode };
+  if (mode !== "dual-extractor") {
+    return {
+      action: { type: "drift-detect" },
+      document: { content: fixture.source, type: "plan" },
+      drift_config: driftConfig,
+    };
+  }
+  if (!Array.isArray(fixture.extractor_claim_sets) || fixture.extractor_claim_sets.length !== 2) {
+    throw new Error(`fixture ${fixture.id} missing extractor_claim_sets for dual-extractor mode`);
+  }
+  return {
+    action: { type: "drift-detect" },
+    document: { content: fixture.source, type: "plan" },
+    drift_config: { ...driftConfig, extractor_claim_sets: fixture.extractor_claim_sets },
+  };
+}
+
+function runDriftSkill(skillEntrypoint, repoRoot, input) {
+  const result = spawnSync("node", [skillEntrypoint], {
+    cwd: repoRoot,
+    input: JSON.stringify(input),
+    encoding: "utf8",
+    env: { ...process.env, WORKSPACE_ROOT: repoRoot },
+  });
+  if (result.error) throw result.error;
+  if (!result.stdout && !result.stderr) throw new Error("drift-detect returned empty output");
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || "drift-detect failed");
+  return result.stdout;
+}
+
+function parseDriftResult(output) {
+  let parsed;
+  try {
+    parsed = JSON.parse(output);
+  } catch (error) {
+    throw new Error(`drift-detect returned invalid JSON: ${String(error)}`);
+  }
+  if (!parsed.success) throw new Error(parsed.error?.message || "drift-detect failed");
+  return parsed.data;
 }
 
 function runSkill(repoRoot, fixture, targetRef, mode) {
   const skillEntrypoint = resolve(repoRoot, "skills/dev-tools/multi-model-review/dist/index.js");
-  if (!existsSync(skillEntrypoint)) {
+  if (!skillEntrypointExists(skillEntrypoint)) {
     throw new Error(
       "multi-model-review dist/index.js not found. Run npm run build in skills/dev-tools/multi-model-review first.",
     );
   }
 
-  const driftConfig = {
-    target_ref: targetRef,
-    mode,
-  };
-
-  if (mode === "dual-extractor") {
-    if (!Array.isArray(fixture.extractor_claim_sets) || fixture.extractor_claim_sets.length !== 2) {
-      throw new Error(`fixture ${fixture.id} missing extractor_claim_sets for dual-extractor mode`);
-    }
-    driftConfig.extractor_claim_sets = fixture.extractor_claim_sets;
-  }
-
-  const input = {
-    action: { type: "drift-detect" },
-    document: { content: fixture.source, type: "plan" },
-    drift_config: driftConfig,
-  };
-
-  const result = spawnSync("node", [skillEntrypoint], {
-    cwd: repoRoot,
-    input: JSON.stringify(input),
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      WORKSPACE_ROOT: repoRoot,
-    },
-  });
-
-  const rawOut = result.stdout || result.stderr;
-  if (!rawOut) {
-    throw new Error("drift-detect returned empty output");
-  }
-  if (result.status !== 0) {
-    throw new Error(result.stderr || result.stdout || "drift-detect failed");
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(result.stdout);
-  } catch (error) {
-    throw new Error(`drift-detect returned invalid JSON: ${String(error)}`);
-  }
-  if (!parsed.success) {
-    throw new Error(parsed.error?.message || "drift-detect failed");
-  }
-
-  return parsed.data;
+  return parseDriftResult(
+    runDriftSkill(skillEntrypoint, repoRoot, driftInput(fixture, targetRef, mode)),
+  );
 }
 
 function normalizeExpected(fixture) {
@@ -184,8 +182,8 @@ function requireFixtureObject(fixture, fileName) {
   }
 }
 
-function requireFixtureText(fixture, field) {
-  if (typeof fixture[field] !== "string" || fixture[field].length === 0) {
+function requireFixtureText(fixture, field, value) {
+  if (typeof value !== "string" || value.length === 0) {
     throw new Error(`fixture ${fixture.id} is missing non-empty ${field}`);
   }
 }
@@ -197,119 +195,145 @@ function validateFixtureShape(fixture, fileName) {
       `fixture ${fileName} has invalid id: must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`,
     );
   }
-  requireFixtureText(fixture, "source");
-  requireFixtureText(fixture, "target");
+  requireFixtureText(fixture, "source", fixture.source);
+  requireFixtureText(fixture, "target", fixture.target);
+}
+
+function benchmarkPaths(args) {
+  const repoRoot = resolve(args.root);
+  return {
+    repoRoot,
+    casesDir: resolve(repoRoot, "docs/eval/drift_goldset/cases"),
+    outPath: resolveWithinRepo(args.output, repoRoot),
+    workspaceTmpRoot: resolveWithinRepo(".pipeline/tmp", repoRoot),
+    thresholds: {
+      precision: args.precisionMin,
+      recall: args.recallMin,
+      f1: args.f1Min,
+    },
+  };
+}
+
+function modeResultStore() {
+  return new Map(MODES.map((mode) => [mode, { expected: [], predicted: [], cases: [] }]));
+}
+
+function fixtureFiles(casesDir) {
+  return listFixtureFiles(casesDir)
+    .filter((file) => file.endsWith(".json"))
+    .sort();
+}
+
+function collectFixtureResults({ files, casesDir, modeResults, repoRoot, tmpDir }) {
+  for (const file of files) {
+    const fixturePath = resolve(casesDir, file);
+    const fixture = readJsonStrict(fixturePath);
+    validateFixtureShape(fixture, file);
+    const targetPath = join(tmpDir, `${fixture.id}.target.md`);
+    writeTempTarget(targetPath, fixture.target, "utf8");
+    const targetRef = relative(repoRoot, targetPath);
+    const expected = normalizeExpected(fixture);
+
+    for (const mode of MODES) {
+      const drift = runSkill(repoRoot, fixture, targetRef, mode);
+      const predicted = normalizePredicted(drift);
+      const metrics = evaluateByClass(expected, predicted);
+      const result = modeResults.get(mode);
+
+      result.expected.push(...expected);
+      result.predicted.push(...predicted);
+      result.cases.push({
+        case_id: fixture.id,
+        metrics: { overall: metrics.overall, by_class: Object.fromEntries(metrics.byClass) },
+        expected,
+        predicted,
+      });
+    }
+  }
+}
+
+function aggregateModeResults(modeResults) {
+  const metricsByMode = new Map();
+  const metricsByClass = new Map(TAXONOMY.map((cls) => [cls, new Map()]));
+
+  for (const mode of MODES) {
+    const result = modeResults.get(mode);
+    const aggregate = evaluateByClass(result.expected, result.predicted);
+    metricsByMode.set(mode, aggregate.overall);
+    for (const cls of TAXONOMY) {
+      metricsByClass.get(cls).set(mode, aggregate.byClass.get(cls));
+    }
+    result.aggregate = {
+      overall: aggregate.overall,
+      by_class: Object.fromEntries(aggregate.byClass),
+    };
+  }
+  return { metricsByMode, metricsByClass };
+}
+
+function overallMetrics(metricsByMode) {
+  const meanMetric = (metric) =>
+    MODES.reduce((sum, mode) => sum + metric(metricsByMode.get(mode)), 0) / MODES.length;
+  return {
+    precision: meanMetric((metrics) => metrics.precision),
+    recall: meanMetric((metrics) => metrics.recall),
+    f1: meanMetric((metrics) => metrics.f1),
+  };
+}
+
+function benchmarkReport({ files, thresholds, metricsByMode, metricsByClass, modeResults }) {
+  const failedModes = MODES.filter((mode) => thresholdFailed(metricsByMode.get(mode), thresholds));
+  return {
+    generated_at: new Date().toISOString(),
+    case_count: files.length,
+    thresholds,
+    metrics_by_mode: Object.fromEntries(metricsByMode),
+    metrics_by_class: Object.fromEntries(
+      [...metricsByClass].map(([cls, metrics]) => [cls, Object.fromEntries(metrics)]),
+    ),
+    overall: overallMetrics(metricsByMode),
+    modes: Object.fromEntries(
+      MODES.map((mode) => {
+        const aggregate = modeResults.get(mode).aggregate;
+        return [
+          mode,
+          {
+            overall: aggregate.overall,
+            by_class: aggregate.by_class,
+            cases: modeResults.get(mode).cases,
+          },
+        ];
+      }),
+    ),
+    status: failedModes.length === 0 ? "pass" : "fail",
+    failed_modes: failedModes,
+  };
 }
 
 function main() {
-  const args = parseArgs(process.argv);
-  const repoRoot = resolve(args.root);
-  const casesDir = resolve(repoRoot, "docs/eval/drift_goldset/cases");
-  const outPath = resolveWithinRepo(args.output, repoRoot);
-  const workspaceTmpRoot = resolveWithinRepo(".pipeline/tmp", repoRoot);
-
-  const thresholds = {
-    precision: args.precisionMin,
-    recall: args.recallMin,
-    f1: args.f1Min,
-  };
-
-  mkdirSync(workspaceTmpRoot, { recursive: true });
-  mkdirSync(dirname(outPath), { recursive: true });
-  const tmpDir = mkdtempSync(join(workspaceTmpRoot, "drift-benchmark-"));
-
-  const files = readdirSync(casesDir)
-    .filter((file) => file.endsWith(".json"))
-    .sort();
-
-  const modeResults = {};
-  for (const mode of MODES) {
-    modeResults[mode] = {
-      expected: [],
-      predicted: [],
-      cases: [],
-    };
-  }
+  const paths = benchmarkPaths(parseArgs(process.argv));
+  createDirectory(paths.workspaceTmpRoot, { recursive: true });
+  const tmpDir = createTempDirectory(join(paths.workspaceTmpRoot, "drift-benchmark-"));
+  const files = fixtureFiles(paths.casesDir);
+  const modeResults = modeResultStore();
 
   try {
-    for (const file of files) {
-      const fixturePath = resolve(casesDir, file);
-      const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
-      validateFixtureShape(fixture, file);
-      const targetPath = join(tmpDir, `${fixture.id}.target.md`);
-      writeFileSync(targetPath, fixture.target, "utf8");
-      const targetRef = relative(repoRoot, targetPath);
-      const expected = normalizeExpected(fixture);
-
-      for (const mode of MODES) {
-        const drift = runSkill(repoRoot, fixture, targetRef, mode);
-        const predicted = normalizePredicted(drift);
-        const metrics = evaluateByClass(expected, predicted);
-
-        modeResults[mode].expected.push(...expected);
-        modeResults[mode].predicted.push(...predicted);
-        modeResults[mode].cases.push({
-          case_id: fixture.id,
-          metrics,
-          expected,
-          predicted,
-        });
-      }
-    }
-
-    const metricsByMode = {};
-    const metricsByClass = {};
-
-    for (const cls of TAXONOMY) {
-      metricsByClass[cls] = {};
-    }
-
-    for (const mode of MODES) {
-      const aggregate = evaluateByClass(modeResults[mode].expected, modeResults[mode].predicted);
-      metricsByMode[mode] = aggregate.overall;
-      for (const cls of TAXONOMY) {
-        metricsByClass[cls][mode] = aggregate.by_class[cls];
-      }
-      modeResults[mode].aggregate = aggregate;
-    }
-
-    const overall = {
-      precision: MODES.reduce((acc, mode) => acc + metricsByMode[mode].precision, 0) / MODES.length,
-      recall: MODES.reduce((acc, mode) => acc + metricsByMode[mode].recall, 0) / MODES.length,
-      f1: MODES.reduce((acc, mode) => acc + metricsByMode[mode].f1, 0) / MODES.length,
-    };
-
-    const failedModes = MODES.filter((mode) => thresholdFailed(metricsByMode[mode], thresholds));
-
-    const report = {
-      generated_at: new Date().toISOString(),
-      case_count: files.length,
-      thresholds,
-      metrics_by_mode: metricsByMode,
-      metrics_by_class: metricsByClass,
-      overall,
-      modes: Object.fromEntries(
-        MODES.map((mode) => [
-          mode,
-          {
-            overall: modeResults[mode].aggregate.overall,
-            by_class: modeResults[mode].aggregate.by_class,
-            cases: modeResults[mode].cases,
-          },
-        ]),
-      ),
-      status: failedModes.length === 0 ? "pass" : "fail",
-      failed_modes: failedModes,
-    };
-
-    writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
-    process.stdout.write(`${outPath}\n`);
-
-    if (failedModes.length > 0) {
+    collectFixtureResults({ ...paths, files, modeResults, tmpDir });
+    const { metricsByMode, metricsByClass } = aggregateModeResults(modeResults);
+    const report = benchmarkReport({
+      ...paths,
+      files,
+      metricsByMode,
+      metricsByClass,
+      modeResults,
+    });
+    writeJson(paths.outPath, report);
+    process.stdout.write(`${paths.outPath}\n`);
+    if (report.failed_modes.length > 0) {
       process.exitCode = 1;
     }
   } finally {
-    rmSync(tmpDir, { recursive: true, force: true });
+    removeTempDirectory(tmpDir, { recursive: true, force: true });
   }
 }
 

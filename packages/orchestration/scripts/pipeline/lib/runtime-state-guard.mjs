@@ -426,22 +426,24 @@ function safeRuntimeFile(pipelineRoot, ref) {
   const normalized = ref.replaceAll("\\", "/");
   const segments = normalized.split("/");
   if (segments.some((part) => !part || part === "." || part === "..")) return null;
-  let current = pipelineRoot;
-  for (const [index, segment] of segments.entries()) {
-    current = resolve(current, segment);
-    let stat;
-    try {
-      stat = lstatSync(current);
-    } catch (error) {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-    if (stat.isSymbolicLink()) return null;
-    if (index < segments.length - 1 && !stat.isDirectory()) return null;
-    if (index === segments.length - 1 && !stat.isFile()) return null;
-  }
+  const current = resolveSafeRuntimePath(pipelineRoot, segments);
+  if (!current) return null;
   const stat = lstatSync(current);
   return { bytes: readFileSync(current), mode: modeOf(stat) };
+}
+
+function resolveSafeRuntimePath(root, segments) {
+  let current = root;
+  for (const [index, segment] of segments.entries()) {
+    current = resolve(current, segment);
+    const stat = safeLstat(current);
+    if (!stat || stat.isSymbolicLink() || (index < segments.length - 1 ? !stat.isDirectory() : !stat.isFile())) return null;
+  }
+  return current;
+}
+
+function safeLstat(pathValue) {
+  try { return lstatSync(pathValue); } catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
 function snapshotFile(activePath, manifest, ref) {
@@ -449,25 +451,24 @@ function snapshotFile(activePath, manifest, ref) {
   if (entry?.kind !== "file") return null;
   const pathValue = resolve(activePath, "payload", ref);
   const payloadRoot = resolve(activePath, "payload");
-  let current = payloadRoot;
-  for (const [index, segment] of ref.split("/").entries()) {
-    current = resolve(current, segment);
-    const stat = lstatSync(current);
-    if (stat.isSymbolicLink()) {
-      throw new Error(`pipeline state guard payload contains a symlink: ${ref}`);
-    }
-    if (index < ref.split("/").length - 1 && !stat.isDirectory()) {
-      throw new Error(`pipeline state guard payload parent is not a directory: ${ref}`);
-    }
-    if (index === ref.split("/").length - 1 && !stat.isFile()) {
-      throw new Error(`pipeline state guard payload is not a file: ${ref}`);
-    }
-  }
+  assertSafeSnapshotPath(payloadRoot, ref);
   const bytes = readFileSync(pathValue);
   if (sha256(bytes) !== entry.sha256 || bytes.length !== entry.size) {
     throw new Error(`pipeline state guard payload failed verification: ${ref}`);
   }
   return { bytes, mode: entry.mode };
+}
+
+function assertSafeSnapshotPath(payloadRoot, ref) {
+  const segments = ref.split("/");
+  let current = payloadRoot;
+  for (const [index, segment] of segments.entries()) {
+    current = resolve(current, segment);
+    const stat = lstatSync(current);
+    if (stat.isSymbolicLink()) throw new Error(`pipeline state guard payload contains a symlink: ${ref}`);
+    if (index < segments.length - 1 && !stat.isDirectory()) throw new Error(`pipeline state guard payload parent is not a directory: ${ref}`);
+    if (index === segments.length - 1 && !stat.isFile()) throw new Error(`pipeline state guard payload is not a file: ${ref}`);
+  }
 }
 
 function parseJsonFile(file, label) {

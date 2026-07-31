@@ -8,7 +8,7 @@ import { runTool } from "@coding-agents-space/shared";
 
 const TOOL_VERSION = "0.2.0";
 
-runTool<Input, ReviewData | DriftData>(TOOL_VERSION, async (input: Input, logs: string[]) => {
+runTool<Input, ReviewData | DriftData>(TOOL_VERSION, (input: Input, logs: string[]) => {
   validateInput(input);
   let data: ReviewData | DriftData;
   if (input.action.type === "review") {

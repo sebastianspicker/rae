@@ -105,29 +105,7 @@ export function resolveAndWriteArtifact({
       artifact = readJsonStrict(inputAbs, `input artifact ${options["input-artifact"]}`);
       wroteArtifact = true;
     } else {
-      artifact = buildArtifactForPhase({
-        phase,
-        runId,
-        configId,
-        task: taskContext?.task,
-        stageProfile,
-        budget,
-      });
-      if (artifact) {
-        wroteArtifact = true;
-      } else if (existsSync(artifactAbs)) {
-        appendTraceEvent(
-          runId,
-          {
-            event: "artifact_read",
-            phase,
-            artifact_ref: toWorkspaceRelative(artifactAbs, root),
-            status: "ok",
-          },
-          root,
-        );
-        artifact = readJsonStrict(artifactAbs, `artifact ${artifactRef}`);
-      }
+      ({ artifact, wroteArtifact } = resolveGeneratedArtifact({ phase, runId, configId, taskContext, stageProfile, budget, artifactAbs, artifactRef, root }));
     }
 
     if (artifact && !options["input-artifact"]) {
@@ -178,6 +156,14 @@ export function resolveAndWriteArtifact({
   return { artifact, artifactRef, schemaRef };
 }
 
+function resolveGeneratedArtifact({ phase, runId, configId, taskContext, stageProfile, budget, artifactAbs, artifactRef, root }) {
+  const artifact = buildArtifactForPhase({ phase, runId, configId, task: taskContext?.task, stageProfile, budget });
+  if (artifact) return { artifact, wroteArtifact: true };
+  if (!existsSync(artifactAbs)) return { artifact: null, wroteArtifact: false };
+  appendTraceEvent(runId, { event: "artifact_read", phase, artifact_ref: toWorkspaceRelative(artifactAbs, root), status: "ok" }, root);
+  return { artifact: readJsonStrict(artifactAbs, `artifact ${artifactRef}`), wroteArtifact: false };
+}
+
 export function evaluateAuxiliaryGates({
   runId,
   phase,
@@ -187,49 +173,32 @@ export function evaluateAuxiliaryGates({
   state,
   root,
 }) {
-  const gateStatuses = [];
-  const extraGates = [];
-
-  // Auxiliary gates can worsen the primary phase gate, but they are emitted as
-  // separate artifacts so operators can see which invariant actually failed.
-  const budget = contextBudgetForPhase(phaseTokenForContextBudget(phase), state);
-  if (artifact && budget) {
-    const budgetGate = evaluateContextBudgetGate({
-      runId,
-      phase,
-      artifact,
-      artifactRef: artifactRef || "n/a",
-      schemaRef,
-      state,
-      budget,
-      root,
-    });
-    if (budgetGate) {
-      gateStatuses.push(budgetGate.status);
-      extraGates.push(budgetGate);
-    }
-  }
-
-  if (phase === "plan" || phase === "build") {
-    const traceabilityGate = evaluateTraceabilityGate({
-      runId,
-      phase,
-      state,
-      resolveArtifactRef: (nextRunId, artifactPath) =>
-        resolveArtifactRefForRun(nextRunId, artifactPath, root),
-      resolveOptionalArtifactRef: (nextRunId, artifactPath) =>
-        resolveOptionalArtifactRefForRun(nextRunId, artifactPath, root),
-      root,
-    });
-    if (traceabilityGate) {
-      if (traceabilityGate.status === "fail") {
-        gateStatuses.push(traceabilityGate.status);
-      }
-      extraGates.push(traceabilityGate);
-    }
-  }
+  const { gateStatuses, extraGates } = collectAuxiliaryGates({ runId, phase, artifact, artifactRef, schemaRef, state, root });
 
   return { gateStatuses, extraGates };
+}
+
+function collectAuxiliaryGates(input) {
+  const gateStatuses = [];
+  const extraGates = [];
+  const budget = contextBudgetForPhase(phaseTokenForContextBudget(input.phase), input.state);
+  addBudgetGate(input, budget, gateStatuses, extraGates);
+  addTraceabilityGate(input, gateStatuses, extraGates);
+  return { gateStatuses, extraGates };
+}
+
+function addBudgetGate(input, budget, statuses, gates) {
+  if (!input.artifact || !budget) return;
+  const gate = evaluateContextBudgetGate({ ...input, artifactRef: input.artifactRef || "n/a", budget });
+  if (gate) { statuses.push(gate.status); gates.push(gate); }
+}
+
+function addTraceabilityGate(input, statuses, gates) {
+  if (!["plan", "build"].includes(input.phase)) return;
+  const gate = evaluateTraceabilityGate({ runId: input.runId, phase: input.phase, state: input.state, resolveArtifactRef: (runId, ref) => resolveArtifactRefForRun(runId, ref, input.root), resolveOptionalArtifactRef: (runId, ref) => resolveOptionalArtifactRefForRun(runId, ref, input.root), root: input.root });
+  if (!gate) return;
+  if (gate.status === "fail") statuses.push(gate.status);
+  gates.push(gate);
 }
 
 function valueOrNull(value) {
