@@ -379,13 +379,7 @@ function traceabilityResult({ phase, enforce, criteria, schemaGate, normalized, 
 
   const schemaInvalid = !schemaGate.schema_validation.valid;
 
-  let status = "pass";
-  if (enforce) {
-    if (schemaInvalid || requiredFailures.length > 0) status = "fail";
-    else if (warningFailures.length > 0) status = "warn";
-  } else {
-    if (schemaInvalid || requiredFailures.length > 0 || warningFailures.length > 0) status = "warn";
-  }
+  const status = traceabilityStatus(enforce, schemaInvalid, requiredFailures, warningFailures);
 
   const blockingFailures =
     enforce && status === "fail"
@@ -422,4 +416,11 @@ function traceabilityResult({ phase, enforce, criteria, schemaGate, normalized, 
     missing_requirement_ids: missingRequirementIds,
     refs,
   };
+}
+
+function traceabilityStatus(enforce, schemaInvalid, requiredFailures, warningFailures) {
+  const requiredFailed = schemaInvalid || requiredFailures.length > 0;
+  if (enforce && requiredFailed) return "fail";
+  if (requiredFailed || warningFailures.length > 0) return "warn";
+  return "pass";
 }

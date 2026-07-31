@@ -136,7 +136,15 @@ function recordPhaseDuration(
 
 function recordPhaseStart(event: TraceEvent, starts: Map<string, number>) {
   const timestamp = Date.parse(event.ts);
-  if (!Number.isNaN(timestamp)) starts.set(event.phase, timestamp);
+  if (!Number.isNaN(timestamp)) setPhaseStartTime(starts, event.phase, timestamp);
+}
+
+function setPhaseStartTime(
+  starts: Map<string, number>,
+  phase: TraceEvent["phase"],
+  timestamp: number,
+) {
+  starts.set(phase, timestamp);
 }
 
 function recordPhaseEnd(

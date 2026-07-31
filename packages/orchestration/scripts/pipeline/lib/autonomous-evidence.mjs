@@ -61,6 +61,12 @@ function recordMissingBuildEvidence(artifact) {
 }
 
 function recordMissingQualityEvidence(phase, artifact) {
+  recordEvidenceViolation(phase, artifact);
+  recordEvidenceSummary(artifact);
+  recordEvidenceBundle(phase, artifact);
+}
+
+function recordEvidenceViolation(phase, artifact) {
   artifact.violations = [
     ...(artifact.violations ?? []),
     {
@@ -73,11 +79,17 @@ function recordMissingQualityEvidence(phase, artifact) {
       ...(phase === "post-build" ? { category: "production-exposure" } : {}),
     },
   ];
+}
+
+function recordEvidenceSummary(artifact) {
   artifact.summary = {
     ...(artifact.summary ?? {}),
     fail: Math.max(1, artifact.summary?.fail ?? 0),
     open: Math.max(1, artifact.summary?.open ?? 0),
   };
+}
+
+function recordEvidenceBundle(phase, artifact) {
   artifact.evidence_bundle = {
     status: "partial",
     references: artifact.evidence_bundle?.references ?? [],

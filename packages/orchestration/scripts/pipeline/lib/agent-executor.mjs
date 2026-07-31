@@ -315,6 +315,14 @@ function runCodex(options) {
     throw new Error("Codex CLI is not available on PATH");
   }
 
+  const args = codexArguments({ workspaceRoot, schemaPath, outputPath, sandboxMode, model, reasoningEffort });
+  const proc = spawnCodex(executable, args, { workspaceRoot, env, prompt, timeoutMs });
+  assertCodexCompleted(proc, outputPath, timeoutMs);
+  const events = persistCodexEvents(proc.stdout, eventLogPath, phase);
+  return { artifact: parseArtifact(readFileSync(outputPath, "utf8"), "codex"), eventLogPath, ...events };
+}
+
+function codexArguments({ workspaceRoot, schemaPath, outputPath, sandboxMode, model, reasoningEffort }) {
   const args = [
     "-a",
     "never",
@@ -338,7 +346,11 @@ function runCodex(options) {
   }
   args.push("-");
 
-  const proc = spawnSync(executable, args, {
+  return args;
+}
+
+function spawnCodex(executable, args, { workspaceRoot, env, prompt, timeoutMs }) {
+  return spawnSync(executable, args, {
     cwd: workspaceRoot,
     env: minimalChildEnvironment(env, workspaceRoot),
     input: prompt,
@@ -349,6 +361,9 @@ function runCodex(options) {
     maxBuffer: MAX_AGENT_OUTPUT_BYTES,
   });
 
+}
+
+function assertCodexCompleted(proc, outputPath, timeoutMs) {
   if (proc.error) {
     if (proc.error.code === "ETIMEDOUT") {
       throw timeoutError("Codex phase", timeoutMs, proc);
@@ -361,12 +376,6 @@ function runCodex(options) {
   if (!existsSync(outputPath)) {
     throw new Error("Codex completed without writing its structured final message");
   }
-  const events = persistCodexEvents(proc.stdout, eventLogPath, phase);
-  return {
-    artifact: parseArtifact(readFileSync(outputPath, "utf8"), "codex"),
-    eventLogPath,
-    ...events,
-  };
 }
 
 function commandProviderEnvironment(sanitizedEnv, { phase, runId, workspaceRoot, schemaPath, sandboxMode }) {

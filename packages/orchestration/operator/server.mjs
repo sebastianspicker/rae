@@ -217,11 +217,11 @@ async function routeRuns(req, res, url, project, controller, parts) {
 }
 
 async function routeRunCollection(req, res, url, project, controller) {
-  if (req.method !== "GET") {
-    requireMethod(req, "POST");
-    sendJson(res, 202, controller.start(project, await readJsonBody(req)));
-    return;
-  }
+  if (req.method === "GET") return listRuns(res, url, project, controller);
+  return startRun(req, res, project, controller);
+}
+
+function listRuns(res, url, project, controller) {
   const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
   const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
   controller.refreshOwnership();
@@ -233,6 +233,11 @@ async function routeRunCollection(req, res, url, project, controller) {
     runs: page,
     next_cursor: cursor + page.length < all.length ? cursor + page.length : null,
   });
+}
+
+async function startRun(req, res, project, controller) {
+  requireMethod(req, "POST");
+  sendJson(res, 202, controller.start(project, await readJsonBody(req)));
 }
 
 function routeRunDetail(req, res, project, controller, runId) {
@@ -416,15 +421,22 @@ function parseCli(argv) {
       port = Number(args.next().value);
       if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("invalid --port");
     } else if (arg.value === "--help" || arg.value === "-h") {
-      console.log(
-        "Usage: node operator/server.mjs --project <git-root> [--project <git-root>] [--port 0]",
-      );
+      writeUsage();
       return null;
     } else {
       throw new Error(`unknown argument: ${arg.value}`);
     }
   }
   return { projects: createProjectRegistry(paths), port };
+}
+
+function writeUsage() {
+  process.stdout.write(
+    Buffer.from(
+      "Usage: node operator/server.mjs --project <git-root> [--project <git-root>] [--port 0]\n",
+      "utf8",
+    ),
+  );
 }
 
 async function main() {

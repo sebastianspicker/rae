@@ -246,9 +246,13 @@ function emitReadableControlResult(context, result, options) {
 
 export function runControlCommand(command, options) {
   const context = controlCommandContext(options);
-  const handler = CONTROL_COMMAND_HANDLERS[command];
-  if (!handler) throw new Error(`unsupported control command: ${command}`);
-  handler(context, options);
+  switch (command) {
+    case "status": return reportControlStatus(context, options);
+    case "stop": return requestControlStop(context, options);
+    case "resolve-checkpoint": return resolveControlCheckpoint(context, options);
+    case "events": return reportControlEvents(context, options);
+    default: throw new Error(`unsupported control command: ${command}`);
+  }
 }
 
 function reportControlStatus(context, options) {
@@ -305,13 +309,6 @@ function reportControlEvents(context, options) {
   const events = all.slice(0, limit);
   emitReadableControlResult(context, { schema_version: "1.0.0", run_id: context.runId, after_seq: afterSeq, next_after_seq: events.at(-1)?.seq ?? afterSeq, has_more: all.length > events.length, events }, { ...options, json: true });
 }
-
-const CONTROL_COMMAND_HANDLERS = {
-  status: reportControlStatus,
-  stop: requestControlStop,
-  "resolve-checkpoint": resolveControlCheckpoint,
-  events: reportControlEvents,
-};
 
 function waitingReport(context, provider, runOptions) {
   const report = writeRunReport(context, { provider, status: "waiting" });

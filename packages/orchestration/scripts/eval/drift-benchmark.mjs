@@ -3,12 +3,12 @@
  * Runs the deterministic drift-detection benchmark and enforces its fixture-defined quality thresholds.
  */
 import {
-  existsSync as skillEntrypointExists,
-  mkdirSync as createDirectory,
+  existsSync,
+  mkdirSync,
   mkdtempSync as createTempDirectory,
-  readdirSync as listFixtureFiles,
+  readdirSync,
   rmSync as removeTempDirectory,
-  writeFileSync as writeTempTarget,
+  writeFileSync,
 } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -140,13 +140,17 @@ function parseDriftResult(output) {
 }
 
 function runSkill(repoRoot, fixture, targetRef, mode) {
-  const skillEntrypoint = resolve(repoRoot, "skills/dev-tools/multi-model-review/dist/index.js");
-  if (!skillEntrypointExists(skillEntrypoint)) {
+  if (
+    !withWorkingDirectory(repoRoot, () =>
+      existsSync("skills/dev-tools/multi-model-review/dist/index.js"),
+    )
+  ) {
     throw new Error(
       "multi-model-review dist/index.js not found. Run npm run build in skills/dev-tools/multi-model-review first.",
     );
   }
 
+  const skillEntrypoint = resolve(repoRoot, "skills/dev-tools/multi-model-review/dist/index.js");
   return parseDriftResult(
     runDriftSkill(skillEntrypoint, repoRoot, driftInput(fixture, targetRef, mode)),
   );
@@ -203,7 +207,7 @@ function benchmarkPaths(args) {
   const repoRoot = resolve(args.root);
   return {
     repoRoot,
-    casesDir: resolve(repoRoot, "docs/eval/drift_goldset/cases"),
+    casesDir: resolveWithinRepo("docs/eval/drift_goldset/cases", repoRoot),
     outPath: resolveWithinRepo(args.output, repoRoot),
     workspaceTmpRoot: resolveWithinRepo(".pipeline/tmp", repoRoot),
     thresholds: {
@@ -218,10 +222,25 @@ function modeResultStore() {
   return new Map(MODES.map((mode) => [mode, { expected: [], predicted: [], cases: [] }]));
 }
 
+function withWorkingDirectory(directory, action) {
+  const original = process.cwd();
+  process.chdir(directory);
+  try {
+    return action();
+  } finally {
+    process.chdir(original);
+  }
+}
+
 function fixtureFiles(casesDir) {
-  return listFixtureFiles(casesDir)
+  return withWorkingDirectory(casesDir, () => readdirSync("."))
     .filter((file) => file.endsWith(".json"))
     .sort();
+}
+
+function writeFixtureTarget(tmpDir, target) {
+  withWorkingDirectory(tmpDir, () => writeFileSync("target.md", target, "utf8"));
+  return join(tmpDir, "target.md");
 }
 
 function collectFixtureResults({ files, casesDir, modeResults, repoRoot, tmpDir }) {
@@ -229,8 +248,7 @@ function collectFixtureResults({ files, casesDir, modeResults, repoRoot, tmpDir 
     const fixturePath = resolve(casesDir, file);
     const fixture = readJsonStrict(fixturePath);
     validateFixtureShape(fixture, file);
-    const targetPath = join(tmpDir, `${fixture.id}.target.md`);
-    writeTempTarget(targetPath, fixture.target, "utf8");
+    const targetPath = writeFixtureTarget(tmpDir, fixture.target);
     const targetRef = relative(repoRoot, targetPath);
     const expected = normalizeExpected(fixture);
 
@@ -312,7 +330,7 @@ function benchmarkReport({ files, thresholds, metricsByMode, metricsByClass, mod
 
 function main() {
   const paths = benchmarkPaths(parseArgs(process.argv));
-  createDirectory(paths.workspaceTmpRoot, { recursive: true });
+  withWorkingDirectory(paths.repoRoot, () => mkdirSync(".pipeline/tmp", { recursive: true }));
   const tmpDir = createTempDirectory(join(paths.workspaceTmpRoot, "drift-benchmark-"));
   const files = fixtureFiles(paths.casesDir);
   const modeResults = modeResultStore();

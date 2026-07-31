@@ -2,7 +2,6 @@
 /**
  * Aggregates pipeline evaluation artifacts into comparable configuration metrics for repeatable analysis.
  */
-import { existsSync as runDirectoryExists } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
@@ -85,14 +84,6 @@ export function gatePassRate(gates) {
   );
 }
 
-function requireRunDirectory(root, runId) {
-  const runDir = getRunDir(runId, root);
-  if (!runDirectoryExists(runDir)) {
-    throw new Error(`run directory not found for run_id=${runId}`);
-  }
-  return runDir;
-}
-
 function loadGateResults(gatesDir) {
   const gateFiles = [
     "arm-gate.json",
@@ -127,9 +118,10 @@ function reviewMetrics(review) {
 }
 
 function loadRunMetrics(root, runId) {
-  const runDir = requireRunDirectory(root, runId);
+  const runDir = getRunDir(runId, root);
   const gatesDir = resolve(runDir, "gates");
-  const traceSummary = readJson(resolve(runDir, "trace.summary.json"), {});
+  const traceSummary = readJson(resolve(runDir, "trace.summary.json"), null);
+  if (!traceSummary) throw new Error(`run directory not found for run_id=${runId}`);
   const drift = readJson(resolve(runDir, "drift-reports", "pmatch.json"), {});
   const review = readJson(resolve(runDir, "review.json"), {});
   const security = readJson(resolve(runDir, "quality-reports", "security.json"), {});

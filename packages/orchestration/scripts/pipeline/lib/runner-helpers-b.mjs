@@ -156,7 +156,8 @@ export function resolveAndWriteArtifact({
   return { artifact, artifactRef, schemaRef };
 }
 
-function resolveGeneratedArtifact({ phase, runId, configId, taskContext, stageProfile, budget, artifactAbs, artifactRef, root }) {
+function resolveGeneratedArtifact(input) {
+  const { phase, runId, configId, taskContext, stageProfile, budget, artifactAbs, artifactRef, root } = input;
   const artifact = buildArtifactForPhase({ phase, runId, configId, task: taskContext?.task, stageProfile, budget });
   if (artifact) return { artifact, wroteArtifact: true };
   if (!existsSync(artifactAbs)) return { artifact: null, wroteArtifact: false };
