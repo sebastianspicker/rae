@@ -54,10 +54,16 @@ function recordMissingEvidence(phase, artifact) {
 }
 
 function recordMissingBuildEvidence(artifact) {
-  artifact.groups = [...(artifact.groups ?? []), {
-    group_id: "runtime-command-evidence", status: "fail", tasks_completed: 0, tasks_total: 1,
-    errors: ["Codex emitted no command_execution event for build verification"],
-  }];
+  artifact.groups = [
+    ...(artifact.groups ?? []),
+    {
+      group_id: "runtime-command-evidence",
+      status: "fail",
+      tasks_completed: 0,
+      tasks_total: 1,
+      errors: ["Codex emitted no command_execution event for build verification"],
+    },
+  ];
 }
 
 function recordMissingQualityEvidence(phase, artifact) {

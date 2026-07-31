@@ -348,9 +348,21 @@ export function validateConcurrentControl(beforeControl, afterControl, runId) {
 
 function validConcurrentControlTransition(before, after, runId) {
   const mutable = new Set(["status", "stop_requested", "stop_requested_at", "updated_at"]);
-  const unchanged = Object.keys(before).every((key) => mutable.has(key) || sameJson(before[key], after[key]));
-  const noUnexpected = Object.keys(after).every((key) => Object.hasOwn(before, key) || mutable.has(key));
-  return unchanged && noUnexpected && after.run_id === runId && after.status === "stop-requested" && after.stop_requested === true && validTransitionTimestamp(after.stop_requested_at) && validTransitionTimestamp(after.updated_at);
+  const unchanged = Object.keys(before).every(
+    (key) => mutable.has(key) || sameJson(before[key], after[key]),
+  );
+  const noUnexpected = Object.keys(after).every(
+    (key) => Object.hasOwn(before, key) || mutable.has(key),
+  );
+  return (
+    unchanged &&
+    noUnexpected &&
+    after.run_id === runId &&
+    after.status === "stop-requested" &&
+    after.stop_requested === true &&
+    validTransitionTimestamp(after.stop_requested_at) &&
+    validTransitionTimestamp(after.updated_at)
+  );
 }
 
 function validTransitionTimestamp(value) {
@@ -365,9 +377,23 @@ export function validateConcurrentTraceEvent(line, runId, expectedPhase = null) 
   }
 }
 
-function parseConcurrentTraceEvent(line) { try { return JSON.parse(line); } catch { throw new Error("provider or concurrent process appended invalid trace JSON"); } }
+function parseConcurrentTraceEvent(line) {
+  try {
+    return JSON.parse(line);
+  } catch {
+    throw new Error("provider or concurrent process appended invalid trace JSON");
+  }
+}
 function validConcurrentTraceEvent(event, expectedKeys, runId, expectedPhase) {
-  return JSON.stringify(Object.keys(event).sort()) === JSON.stringify(expectedKeys) && event.event === "run_stop_requested" && event.run_id === runId && event.status === "ok" && PHASE_ORDER.includes(event.phase) && (!expectedPhase || event.phase === expectedPhase) && validTransitionTimestamp(event.ts);
+  return (
+    JSON.stringify(Object.keys(event).sort()) === JSON.stringify(expectedKeys) &&
+    event.event === "run_stop_requested" &&
+    event.run_id === runId &&
+    event.status === "ok" &&
+    PHASE_ORDER.includes(event.phase) &&
+    (!expectedPhase || event.phase === expectedPhase) &&
+    validTransitionTimestamp(event.ts)
+  );
 }
 
 export function assertRuntimeNamespaceInvariant(before, workspaceRoot, allowedChanges = []) {

@@ -203,7 +203,9 @@ function normalizeTraceabilityInput({
   designRequirementIds,
   refs,
 }) {
-  const sources = Object.fromEntries(Object.entries(refs).filter(([, value]) => typeof value === "string" && value.length > 0));
+  const sources = Object.fromEntries(
+    Object.entries(refs).filter(([, value]) => typeof value === "string" && value.length > 0),
+  );
 
   return {
     must_requirement_ids: uniqueSortedStrings(mustRequirementIds),
@@ -304,8 +306,24 @@ export function evaluateMustTraceability({
 }) {
   const input = loadTraceabilityInput({ briefRef, planRef, driftRef, designRef });
   const criteria = traceabilityCriteria(input.normalized, input.drift, input.design);
-  const schemaGate = runQualityGate({ artifact: input.normalized, artifact_ref: input.refs.plan_ref, schema_ref: "contracts/artifacts/traceability-check.schema.json", phase, criteria: [] }, input.packageRoot);
-  const result = traceabilityResult({ phase, enforce, criteria, schemaGate, normalized: input.normalized, refs: input.refs });
+  const schemaGate = runQualityGate(
+    {
+      artifact: input.normalized,
+      artifact_ref: input.refs.plan_ref,
+      schema_ref: "contracts/artifacts/traceability-check.schema.json",
+      phase,
+      criteria: [],
+    },
+    input.packageRoot,
+  );
+  const result = traceabilityResult({
+    phase,
+    enforce,
+    criteria,
+    schemaGate,
+    normalized: input.normalized,
+    refs: input.refs,
+  });
   return result;
 }
 
@@ -315,10 +333,28 @@ function loadTraceabilityInput({ briefRef, planRef, driftRef, designRef }) {
   const planPath = requiredTraceabilityArtifact(planRef, "plan", workspaceRoot);
   const drift = loadOptionalJson(driftRef, workspaceRoot);
   const design = loadOptionalJson(designRef, workspaceRoot);
-  const refs = { brief_ref: toWorkspaceRelative(briefPath, workspaceRoot), plan_ref: toWorkspaceRelative(planPath, workspaceRoot), drift_ref: drift.rel, design_ref: design.rel };
+  const refs = {
+    brief_ref: toWorkspaceRelative(briefPath, workspaceRoot),
+    plan_ref: toWorkspaceRelative(planPath, workspaceRoot),
+    drift_ref: drift.rel,
+    design_ref: design.rel,
+  };
   const brief = JSON.parse(readFileSync(briefPath, "utf8"));
   const plan = JSON.parse(readFileSync(planPath, "utf8"));
-  return { packageRoot: getPackageRoot(), drift, design, refs, normalized: normalizeTraceabilityInput({ mustRequirementIds: extractMustRequirementIds(brief), planTaskRequirementIds: extractPlanTaskRequirementIds(plan), planTestRequirementIds: extractPlanTestRequirementIds(plan), driftRequirementIds: extractDriftRequirementIds(drift.data), designRequirementIds: extractDesignRequirementIds(design.data), refs }) };
+  return {
+    packageRoot: getPackageRoot(),
+    drift,
+    design,
+    refs,
+    normalized: normalizeTraceabilityInput({
+      mustRequirementIds: extractMustRequirementIds(brief),
+      planTaskRequirementIds: extractPlanTaskRequirementIds(plan),
+      planTestRequirementIds: extractPlanTestRequirementIds(plan),
+      driftRequirementIds: extractDriftRequirementIds(drift.data),
+      designRequirementIds: extractDesignRequirementIds(design.data),
+      refs,
+    }),
+  };
 }
 
 function requiredTraceabilityArtifact(ref, name, root) {
@@ -367,7 +403,6 @@ function traceabilityCriteria(normalized, drift, design) {
 }
 
 function traceabilityResult({ phase, enforce, criteria, schemaGate, normalized, refs }) {
-
   const requiredCriteria = new Set(parseRequiredCriteria(phase));
   const requiredFailures = criteria
     .filter((criterion) => requiredCriteria.has(criterion.name) && !criterion.passed)

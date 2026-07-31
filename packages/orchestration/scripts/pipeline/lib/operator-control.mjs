@@ -244,10 +244,21 @@ function validateCheckpointDecision({ status, decisionId, actor, rationale }) {
   assertDecisionRationale(rationale);
 }
 
-function assertCheckpointStatus(status) { if (!CHECKPOINT_STATUSES.has(status) || status === "pending") throw badInput("checkpoint status must be approved, rejected, or escalated"); }
-function assertDecisionId(value) { if (typeof value !== "string" || value.length === 0) throw badInput("decision_id is required"); }
-function assertDecisionActor(value) { if (typeof value !== "string" || value.length === 0 || value.length > 128) throw badInput("checkpoint actor is required and must be at most 128 characters"); }
-function assertDecisionRationale(value) { if (typeof value !== "string" || value.trim().length === 0 || value.length > 4096) throw badInput("checkpoint rationale is required and must be at most 4096 characters"); }
+function assertCheckpointStatus(status) {
+  if (!CHECKPOINT_STATUSES.has(status) || status === "pending")
+    throw badInput("checkpoint status must be approved, rejected, or escalated");
+}
+function assertDecisionId(value) {
+  if (typeof value !== "string" || value.length === 0) throw badInput("decision_id is required");
+}
+function assertDecisionActor(value) {
+  if (typeof value !== "string" || value.length === 0 || value.length > 128)
+    throw badInput("checkpoint actor is required and must be at most 128 characters");
+}
+function assertDecisionRationale(value) {
+  if (typeof value !== "string" || value.trim().length === 0 || value.length > 4096)
+    throw badInput("checkpoint rationale is required and must be at most 4096 characters");
+}
 
 export function resolveCheckpointById(runId, checkpointIdValue, decision, root) {
   if (!/^checkpoint-[a-f0-9]{24}$/.test(checkpointIdValue ?? "")) {

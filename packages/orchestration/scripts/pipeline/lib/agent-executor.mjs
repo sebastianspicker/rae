@@ -231,7 +231,11 @@ function completedCommandItem(event) {
 }
 
 function validCommandItem(item) {
-  return typeof item.command === "string" && Boolean(item.command.trim()) && Number.isSafeInteger(item.exit_code);
+  return (
+    typeof item.command === "string" &&
+    Boolean(item.command.trim()) &&
+    Number.isSafeInteger(item.exit_code)
+  );
 }
 
 function parseCodexEvent(line, index) {
@@ -307,22 +311,49 @@ function resolveProvider(options) {
 
 function runCodex(options) {
   const {
-    phase, workspaceRoot, schemaPath, outputPath, eventLogPath, prompt, sandboxMode, model, reasoningEffort,
-    timeoutMs, env,
+    phase,
+    workspaceRoot,
+    schemaPath,
+    outputPath,
+    eventLogPath,
+    prompt,
+    sandboxMode,
+    model,
+    reasoningEffort,
+    timeoutMs,
+    env,
   } = options;
   const executable = executableFromPath("codex", env);
   if (!executable) {
     throw new Error("Codex CLI is not available on PATH");
   }
 
-  const args = codexArguments({ workspaceRoot, schemaPath, outputPath, sandboxMode, model, reasoningEffort });
+  const args = codexArguments({
+    workspaceRoot,
+    schemaPath,
+    outputPath,
+    sandboxMode,
+    model,
+    reasoningEffort,
+  });
   const proc = spawnCodex(executable, args, { workspaceRoot, env, prompt, timeoutMs });
   assertCodexCompleted(proc, outputPath, timeoutMs);
   const events = persistCodexEvents(proc.stdout, eventLogPath, phase);
-  return { artifact: parseArtifact(readFileSync(outputPath, "utf8"), "codex"), eventLogPath, ...events };
+  return {
+    artifact: parseArtifact(readFileSync(outputPath, "utf8"), "codex"),
+    eventLogPath,
+    ...events,
+  };
 }
 
-function codexArguments({ workspaceRoot, schemaPath, outputPath, sandboxMode, model, reasoningEffort }) {
+function codexArguments({
+  workspaceRoot,
+  schemaPath,
+  outputPath,
+  sandboxMode,
+  model,
+  reasoningEffort,
+}) {
   const args = [
     "-a",
     "never",
@@ -360,7 +391,6 @@ function spawnCodex(executable, args, { workspaceRoot, env, prompt, timeoutMs })
     killSignal: "SIGTERM",
     maxBuffer: MAX_AGENT_OUTPUT_BYTES,
   });
-
 }
 
 function assertCodexCompleted(proc, outputPath, timeoutMs) {
@@ -378,7 +408,10 @@ function assertCodexCompleted(proc, outputPath, timeoutMs) {
   }
 }
 
-function commandProviderEnvironment(sanitizedEnv, { phase, runId, workspaceRoot, schemaPath, sandboxMode }) {
+function commandProviderEnvironment(
+  sanitizedEnv,
+  { phase, runId, workspaceRoot, schemaPath, sandboxMode },
+) {
   return {
     ...sanitizedEnv,
     RAE_AGENT_PROTOCOL: "rae-agent-v1",
@@ -391,7 +424,18 @@ function commandProviderEnvironment(sanitizedEnv, { phase, runId, workspaceRoot,
 }
 
 function runCommandProvider(options) {
-  const { command, commandArgs, phase, runId, workspaceRoot, schemaPath, prompt, sandboxMode, timeoutMs, env } = options;
+  const {
+    command,
+    commandArgs,
+    phase,
+    runId,
+    workspaceRoot,
+    schemaPath,
+    prompt,
+    sandboxMode,
+    timeoutMs,
+    env,
+  } = options;
   if (!command) {
     throw new Error("--provider command requires --agent-command <executable>");
   }
@@ -465,7 +509,13 @@ export function agentDoctor(options = {}) {
   const childEnv = minimalChildEnvironment(sourceEnv, process.cwd());
   const executable = executableFromPath("codex", childEnv);
   if (["auto", "codex"].includes(options.provider ?? "auto") && !executable) {
-    return { success: false, provider: "codex", executable: null, sandbox_enforced: false, detail: "Codex CLI is not available on PATH" };
+    return {
+      success: false,
+      provider: "codex",
+      executable: null,
+      sandbox_enforced: false,
+      detail: "Codex CLI is not available on PATH",
+    };
   }
   const provider = resolveProvider({ ...options, env: childEnv });
   if (provider === "command") {

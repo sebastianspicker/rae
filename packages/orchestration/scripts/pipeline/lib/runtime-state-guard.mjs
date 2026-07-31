@@ -437,13 +437,23 @@ function resolveSafeRuntimePath(root, segments) {
   for (const [index, segment] of segments.entries()) {
     current = resolve(current, segment);
     const stat = safeLstat(current);
-    if (!stat || stat.isSymbolicLink() || (index < segments.length - 1 ? !stat.isDirectory() : !stat.isFile())) return null;
+    if (
+      !stat ||
+      stat.isSymbolicLink() ||
+      (index < segments.length - 1 ? !stat.isDirectory() : !stat.isFile())
+    )
+      return null;
   }
   return current;
 }
 
 function safeLstat(pathValue) {
-  try { return lstatSync(pathValue); } catch (error) { if (error.code === "ENOENT") return null; throw error; }
+  try {
+    return lstatSync(pathValue);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 function snapshotFile(activePath, manifest, ref) {
@@ -465,9 +475,12 @@ function assertSafeSnapshotPath(payloadRoot, ref) {
   for (const [index, segment] of segments.entries()) {
     current = resolve(current, segment);
     const stat = lstatSync(current);
-    if (stat.isSymbolicLink()) throw new Error(`pipeline state guard payload contains a symlink: ${ref}`);
-    if (index < segments.length - 1 && !stat.isDirectory()) throw new Error(`pipeline state guard payload parent is not a directory: ${ref}`);
-    if (index === segments.length - 1 && !stat.isFile()) throw new Error(`pipeline state guard payload is not a file: ${ref}`);
+    if (stat.isSymbolicLink())
+      throw new Error(`pipeline state guard payload contains a symlink: ${ref}`);
+    if (index < segments.length - 1 && !stat.isDirectory())
+      throw new Error(`pipeline state guard payload parent is not a directory: ${ref}`);
+    if (index === segments.length - 1 && !stat.isFile())
+      throw new Error(`pipeline state guard payload is not a file: ${ref}`);
   }
 }
 

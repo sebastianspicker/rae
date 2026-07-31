@@ -273,7 +273,16 @@ function availableQualityCoverageArtifacts({ briefAbs, planAbs }) {
 
 function recordArtifactReads(runId, phase, refs, root) {
   for (const pathValue of refs) {
-    appendTraceEvent(runId, { event: "artifact_read", phase, artifact_ref: toWorkspaceRelative(pathValue, root), status: "ok" }, root);
+    appendTraceEvent(
+      runId,
+      {
+        event: "artifact_read",
+        phase,
+        artifact_ref: toWorkspaceRelative(pathValue, root),
+        status: "ok",
+      },
+      root,
+    );
   }
 }
 

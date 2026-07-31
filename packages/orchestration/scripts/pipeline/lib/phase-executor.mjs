@@ -250,10 +250,19 @@ function validateProviderRuntime(state, context, phase, options, execution) {
 
 function validateRuntimeGuard(state, context, phase, options, allowed) {
   let reconciliation;
-  try { reconciliation = reconcileRuntimeStateGuard(context.workspaceRoot, { allowedRefs: allowed, expectedRunId: context.runId }); }
-  catch (error) { error.pipelineStateUnsafe = true; throw error; }
+  try {
+    reconciliation = reconcileRuntimeStateGuard(context.workspaceRoot, {
+      allowedRefs: allowed,
+      expectedRunId: context.runId,
+    });
+  } catch (error) {
+    error.pipelineStateUnsafe = true;
+    throw error;
+  }
   if (!reconciliation.tampered) return;
-  const changed = reconciliation.changed?.length ? reconciliation.changed.slice(0, 8).join(", ") : (reconciliation.detail ?? "unsafe runtime entry");
+  const changed = reconciliation.changed?.length
+    ? reconciliation.changed.slice(0, 8).join(", ")
+    : (reconciliation.detail ?? "unsafe runtime entry");
   const error = new Error(`provider modified protected .pipeline state; restored: ${changed}`);
   recordProviderError(error, context, phase, options, state.sandboxMode);
   throw error;

@@ -105,7 +105,17 @@ export function resolveAndWriteArtifact({
       artifact = readJsonStrict(inputAbs, `input artifact ${options["input-artifact"]}`);
       wroteArtifact = true;
     } else {
-      ({ artifact, wroteArtifact } = resolveGeneratedArtifact({ phase, runId, configId, taskContext, stageProfile, budget, artifactAbs, artifactRef, root }));
+      ({ artifact, wroteArtifact } = resolveGeneratedArtifact({
+        phase,
+        runId,
+        configId,
+        taskContext,
+        stageProfile,
+        budget,
+        artifactAbs,
+        artifactRef,
+        root,
+      }));
     }
 
     if (artifact && !options["input-artifact"]) {
@@ -157,11 +167,37 @@ export function resolveAndWriteArtifact({
 }
 
 function resolveGeneratedArtifact(input) {
-  const { phase, runId, configId, taskContext, stageProfile, budget, artifactAbs, artifactRef, root } = input;
-  const artifact = buildArtifactForPhase({ phase, runId, configId, task: taskContext?.task, stageProfile, budget });
+  const {
+    phase,
+    runId,
+    configId,
+    taskContext,
+    stageProfile,
+    budget,
+    artifactAbs,
+    artifactRef,
+    root,
+  } = input;
+  const artifact = buildArtifactForPhase({
+    phase,
+    runId,
+    configId,
+    task: taskContext?.task,
+    stageProfile,
+    budget,
+  });
   if (artifact) return { artifact, wroteArtifact: true };
   if (!existsSync(artifactAbs)) return { artifact: null, wroteArtifact: false };
-  appendTraceEvent(runId, { event: "artifact_read", phase, artifact_ref: toWorkspaceRelative(artifactAbs, root), status: "ok" }, root);
+  appendTraceEvent(
+    runId,
+    {
+      event: "artifact_read",
+      phase,
+      artifact_ref: toWorkspaceRelative(artifactAbs, root),
+      status: "ok",
+    },
+    root,
+  );
   return { artifact: readJsonStrict(artifactAbs, `artifact ${artifactRef}`), wroteArtifact: false };
 }
 
@@ -174,7 +210,15 @@ export function evaluateAuxiliaryGates({
   state,
   root,
 }) {
-  const { gateStatuses, extraGates } = collectAuxiliaryGates({ runId, phase, artifact, artifactRef, schemaRef, state, root });
+  const { gateStatuses, extraGates } = collectAuxiliaryGates({
+    runId,
+    phase,
+    artifact,
+    artifactRef,
+    schemaRef,
+    state,
+    root,
+  });
 
   return { gateStatuses, extraGates };
 }
@@ -190,13 +234,28 @@ function collectAuxiliaryGates(input) {
 
 function addBudgetGate(input, budget, statuses, gates) {
   if (!input.artifact || !budget) return;
-  const gate = evaluateContextBudgetGate({ ...input, artifactRef: input.artifactRef || "n/a", budget });
-  if (gate) { statuses.push(gate.status); gates.push(gate); }
+  const gate = evaluateContextBudgetGate({
+    ...input,
+    artifactRef: input.artifactRef || "n/a",
+    budget,
+  });
+  if (gate) {
+    statuses.push(gate.status);
+    gates.push(gate);
+  }
 }
 
 function addTraceabilityGate(input, statuses, gates) {
   if (!["plan", "build"].includes(input.phase)) return;
-  const gate = evaluateTraceabilityGate({ runId: input.runId, phase: input.phase, state: input.state, resolveArtifactRef: (runId, ref) => resolveArtifactRefForRun(runId, ref, input.root), resolveOptionalArtifactRef: (runId, ref) => resolveOptionalArtifactRefForRun(runId, ref, input.root), root: input.root });
+  const gate = evaluateTraceabilityGate({
+    runId: input.runId,
+    phase: input.phase,
+    state: input.state,
+    resolveArtifactRef: (runId, ref) => resolveArtifactRefForRun(runId, ref, input.root),
+    resolveOptionalArtifactRef: (runId, ref) =>
+      resolveOptionalArtifactRefForRun(runId, ref, input.root),
+    root: input.root,
+  });
   if (!gate) return;
   if (gate.status === "fail") statuses.push(gate.status);
   gates.push(gate);
