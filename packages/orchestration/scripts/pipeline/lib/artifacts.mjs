@@ -164,53 +164,50 @@ function buildArmArtifact({ requirements, task }) {
   };
 }
 
+function buildReviewer({ modelId, id, traceId, description, suggestion, requirementId }) {
+  return {
+    model_id: modelId,
+    findings: [
+      {
+        id,
+        trace_id: traceId,
+        category: "robustness",
+        description,
+        severity: "medium",
+        covers_requirement_ids: [requirementId],
+        evidence: "review signal",
+        suggestion,
+      },
+    ],
+  };
+}
+
 function buildAdversarialReviewArtifact({ requirements }) {
   const reviewers = [
-    {
-      model_id: "architect-reviewer",
-      findings: [
-        {
-          id: "finding-1",
-          trace_id: "finding-trace-1",
-          category: "robustness",
-          description: "Check requirement linkage remains intact.",
-          severity: "medium",
-          covers_requirement_ids: [requirements[0]],
-          evidence: "review signal",
-          suggestion: "Keep coverage-min enforced",
-        },
-      ],
-    },
-    {
-      model_id: "security-engineer",
-      findings: [
-        {
-          id: "finding-2",
-          trace_id: "finding-trace-2",
-          category: "robustness",
-          description: "Check trust-boundary assumptions remain explicit.",
-          severity: "medium",
-          covers_requirement_ids: [requirements[0]],
-          evidence: "review signal",
-          suggestion: "Keep security findings evidence-backed",
-        },
-      ],
-    },
-    {
-      model_id: "performance-engineer",
-      findings: [
-        {
-          id: "finding-3",
-          trace_id: "finding-trace-3",
-          category: "robustness",
-          description: "Check gate execution does not add avoidable work.",
-          severity: "medium",
-          covers_requirement_ids: [requirements[0]],
-          evidence: "review signal",
-          suggestion: "Keep pipeline work bounded",
-        },
-      ],
-    },
+    buildReviewer({
+      modelId: "architect-reviewer",
+      id: "finding-1",
+      traceId: "finding-trace-1",
+      description: "Check requirement linkage remains intact.",
+      suggestion: "Keep coverage-min enforced",
+      requirementId: requirements[0],
+    }),
+    buildReviewer({
+      modelId: "security-engineer",
+      id: "finding-2",
+      traceId: "finding-trace-2",
+      description: "Check trust-boundary assumptions remain explicit.",
+      suggestion: "Keep security findings evidence-backed",
+      requirementId: requirements[0],
+    }),
+    buildReviewer({
+      modelId: "performance-engineer",
+      id: "finding-3",
+      traceId: "finding-trace-3",
+      description: "Check gate execution does not add avoidable work.",
+      suggestion: "Keep pipeline work bounded",
+      requirementId: requirements[0],
+    }),
   ];
 
   return {
@@ -249,18 +246,25 @@ function buildAdversarialReviewArtifact({ requirements }) {
   };
 }
 
+function buildFreshExecutionSession(sessionId, sessionKind) {
+  return {
+    session_id: sessionId,
+    session_kind: sessionKind,
+    fresh_context: true,
+    inherits_history: false,
+    max_attempts: 2,
+    retry_behavior: "restart-fresh-session",
+  };
+}
+
 function buildPlanTestCase(testCoverage) {
   return {
     name: "runner-stage-smoke",
     trace_id: "test-trace-1",
-    execution_session: {
-      session_id: "quality-case-runner-stage-smoke",
-      session_kind: "quality-case",
-      fresh_context: true,
-      inherits_history: false,
-      max_attempts: 2,
-      retry_behavior: "restart-fresh-session",
-    },
+    execution_session: buildFreshExecutionSession(
+      "quality-case-runner-stage-smoke",
+      "quality-case",
+    ),
     context_manifest: buildTaskContextManifest("scripts/pipeline/tests/runner-stage.test.mjs"),
     covers_requirement_ids: testCoverage,
     setup: "Initialize pipeline",
@@ -274,14 +278,7 @@ function buildPlanTask(requirementCoverage, testCoverage) {
     id: "task-1",
     trace_id: "task-trace-1",
     description: "Implement orchestrated runner flow",
-    execution_session: {
-      session_id: "build-task-1",
-      session_kind: "build-task",
-      fresh_context: true,
-      inherits_history: false,
-      max_attempts: 2,
-      retry_behavior: "restart-fresh-session",
-    },
+    execution_session: buildFreshExecutionSession("build-task-1", "build-task"),
     context_manifest: buildTaskContextManifest("scripts/pipeline/runner.mjs"),
     covers_requirement_ids: requirementCoverage,
     covers_constraint_ids: ["constraint-contracts"],

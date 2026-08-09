@@ -1,0 +1,120 @@
+{
+  "schema_version": "2.0.0",
+  "workflow_id": "graph-native-default",
+  "revision": 1,
+  "title": "Graph-native autonomous delivery",
+  "entry_node": "requirements",
+  "terminal_node": "complete",
+  "budgets": {
+    "max_concurrency": 4,
+    "max_repair_rounds": 5,
+    "max_attempts_per_node": 3
+  },
+  "payload_contracts": {
+    "findings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "findings"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 8000 },
+        "findings": { "type": "array", "maxItems": 256, "items": { "type": "object" } }
+      }
+    },
+    "ownership-plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "findings", "file_ownership", "documentation"],
+      "properties": {
+        "summary": { "type": "string", "maxLength": 8000 },
+        "findings": { "type": "array", "maxItems": 256, "items": { "type": "object" } },
+        "file_ownership": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        },
+        "documentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "paths", "rationale"],
+          "properties": {
+            "required": { "type": "boolean" },
+            "paths": { "type": "array", "maxItems": 128, "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 4096 } },
+            "rationale": { "type": "string", "minLength": 1, "maxLength": 4000 }
+          }
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rationale"],
+      "properties": {
+        "status": { "enum": ["passed", "failed", "blocked"] },
+        "rationale": { "type": "string", "maxLength": 8000 },
+        "findings": { "type": "array", "maxItems": 256, "items": { "type": "object" } }
+      }
+    }
+  },
+  "nodes": [
+    { "id": "requirements", "kind": "agent", "access": "read", "role": "requirements", "guidance": "Extract explicit requirements, constraints, evidence sources, and acceptance conditions.", "payload_contract": "findings" },
+    { "id": "design", "kind": "agent", "access": "read", "role": "design", "guidance": "Develop an implementation design grounded in repository contracts and requirements.", "payload_contract": "findings" },
+    { "id": "design-critic-safety", "kind": "agent", "access": "read", "role": "design critic", "guidance": "Critique safety boundaries and failure modes independently.", "payload_contract": "findings" },
+    { "id": "design-critic-contracts", "kind": "agent", "access": "read", "role": "design critic", "guidance": "Critique contract compatibility and migration risks independently.", "payload_contract": "findings" },
+    { "id": "design-critic-verification", "kind": "agent", "access": "read", "role": "design critic", "guidance": "Critique the verification strategy and missing evidence independently.", "payload_contract": "findings" },
+    { "id": "design-critic-scope", "kind": "agent", "access": "read", "role": "design critic", "guidance": "Critique scope, ownership, and unnecessary complexity independently.", "payload_contract": "findings" },
+    { "id": "design-collection", "kind": "join", "access": "control", "guidance": "Collect all typed design findings deterministically.", "join": "all" },
+    { "id": "design-adjudication", "kind": "agent", "access": "read", "role": "adjudicator", "guidance": "Adjudicate the collected findings without erasing dissent.", "payload_contract": "decision" },
+    { "id": "plan", "kind": "agent", "access": "read", "role": "planner", "guidance": "Produce repository-relative file ownership, task order, verification evidence requirements, and an explicit documentation decision.", "payload_contract": "ownership-plan", "ownership_plan": true },
+    { "id": "alignment-a", "kind": "agent", "access": "read", "role": "alignment extractor", "guidance": "Independently map the plan to requirements.", "payload_contract": "findings" },
+    { "id": "alignment-b", "kind": "agent", "access": "read", "role": "alignment extractor", "guidance": "Independently map the plan to requirements using a fresh session.", "payload_contract": "findings" },
+    { "id": "alignment-gate", "kind": "join", "access": "control", "guidance": "Require compatible independent alignment evidence.", "join": "all" },
+    { "id": "mutation-checkpoint", "kind": "checkpoint", "access": "control", "guidance": "Pause when the configured policy requires approval before mutation.", "mutation_checkpoint": true },
+    { "id": "build", "kind": "agent", "access": "write", "role": "builder", "guidance": "Implement only plan-owned changes and capture command evidence.", "payload_contract": "findings" },
+    { "id": "repair-loop", "kind": "loop", "access": "control", "guidance": "Bound repair and re-verification by success, budget, no-progress, or five rounds.", "loop": { "max_iterations": 5, "members": ["critic-static", "critic-tests", "critic-security", "critic-docs-scope", "repair-join", "diagnose", "repair", "verification"] } },
+    { "id": "critic-static", "kind": "agent", "access": "read", "role": "static critic", "guidance": "Inspect static-analysis evidence and report typed blocking findings.", "payload_contract": "findings", "resource": "workspace-commands" },
+    { "id": "critic-tests", "kind": "agent", "access": "read", "role": "test critic", "guidance": "Inspect test evidence and report typed blocking findings.", "payload_contract": "findings", "resource": "workspace-commands" },
+    { "id": "critic-security", "kind": "agent", "access": "read", "role": "security critic", "guidance": "Inspect security boundaries and report typed blocking findings.", "payload_contract": "findings" },
+    { "id": "critic-docs-scope", "kind": "agent", "access": "read", "role": "documentation and scope critic", "guidance": "Inspect documentation accuracy, changed-path ownership, and scope.", "payload_contract": "findings" },
+    { "id": "repair-join", "kind": "join", "access": "control", "guidance": "Collect all repair-round findings deterministically.", "join": "all" },
+    { "id": "diagnose", "kind": "agent", "access": "read", "role": "diagnostician", "guidance": "Diagnose blocking evidence and decide whether repair is warranted.", "payload_contract": "decision" },
+    { "id": "repair", "kind": "agent", "access": "write", "role": "repair writer", "guidance": "Repair only diagnosed, plan-owned blocking findings.", "payload_contract": "findings" },
+    { "id": "verification", "kind": "gate", "access": "control", "guidance": "Require complete verification evidence and owned changes before completion.", "verification": true },
+    { "id": "complete", "kind": "terminal", "access": "control", "guidance": "Record the terminal evidence summary without publishing changes." }
+  ],
+  "edges": [
+    { "from": "requirements", "to": "design", "type": "artifact", "artifact": "requirements" },
+    { "from": "design", "to": "design-critic-safety", "type": "artifact", "artifact": "design" },
+    { "from": "design", "to": "design-critic-contracts", "type": "artifact", "artifact": "design" },
+    { "from": "design", "to": "design-critic-verification", "type": "artifact", "artifact": "design" },
+    { "from": "design", "to": "design-critic-scope", "type": "artifact", "artifact": "design" },
+    { "from": "design-critic-safety", "to": "design-collection", "type": "artifact", "artifact": "findings" },
+    { "from": "design-critic-contracts", "to": "design-collection", "type": "artifact", "artifact": "findings" },
+    { "from": "design-critic-verification", "to": "design-collection", "type": "artifact", "artifact": "findings" },
+    { "from": "design-critic-scope", "to": "design-collection", "type": "artifact", "artifact": "findings" },
+    { "from": "design-collection", "to": "design-adjudication", "type": "artifact", "artifact": "design-findings" },
+    { "from": "design-adjudication", "to": "plan", "type": "sequence" },
+    { "from": "plan", "to": "alignment-a", "type": "artifact", "artifact": "plan" },
+    { "from": "plan", "to": "alignment-b", "type": "artifact", "artifact": "plan" },
+    { "from": "alignment-a", "to": "alignment-gate", "type": "artifact", "artifact": "alignment" },
+    { "from": "alignment-b", "to": "alignment-gate", "type": "artifact", "artifact": "alignment" },
+    { "from": "alignment-gate", "to": "mutation-checkpoint", "type": "sequence" },
+    { "from": "mutation-checkpoint", "to": "build", "type": "sequence" },
+    { "from": "build", "to": "repair-loop", "type": "sequence" },
+    { "from": "repair-loop", "to": "critic-static", "type": "sequence" },
+    { "from": "repair-loop", "to": "critic-tests", "type": "sequence" },
+    { "from": "repair-loop", "to": "critic-security", "type": "sequence" },
+    { "from": "repair-loop", "to": "critic-docs-scope", "type": "sequence" },
+    { "from": "critic-static", "to": "repair-join", "type": "artifact", "artifact": "findings" },
+    { "from": "critic-tests", "to": "repair-join", "type": "artifact", "artifact": "findings" },
+    { "from": "critic-security", "to": "repair-join", "type": "artifact", "artifact": "findings" },
+    { "from": "critic-docs-scope", "to": "repair-join", "type": "artifact", "artifact": "findings" },
+    { "from": "repair-join", "to": "diagnose", "type": "artifact", "artifact": "round-findings" },
+    { "from": "diagnose", "to": "repair", "type": "condition", "condition": "blocking-findings" },
+    { "from": "diagnose", "to": "verification", "type": "condition", "condition": "success" },
+    { "from": "repair", "to": "verification", "type": "sequence" },
+    { "from": "verification", "to": "critic-static", "type": "loop-back", "condition": "failure" },
+    { "from": "verification", "to": "complete", "type": "condition", "condition": "success" }
+  ]
+}

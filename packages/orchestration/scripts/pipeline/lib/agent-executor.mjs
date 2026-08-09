@@ -5,11 +5,23 @@ import {
   constants as fsConstants,
   accessSync,
   existsSync,
+  mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
-import { delimiter, isAbsolute, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { delimiter, isAbsolute, relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+  assertProjectCodexCapabilities,
+  capabilitySurface,
+  codexCapabilityArgs,
+  codexCapabilityOverrides,
+} from "./codex-capabilities.mjs";
+import { credentialDigestManifest } from "./execution-profile.mjs";
+import { openCodeDoctor, opencodeVersion, runOpenCodePhase } from "./opencode-adapter.mjs";
 
 const MAX_AGENT_OUTPUT_BYTES = 16 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -57,6 +69,23 @@ const CHILD_ENV_ALLOWLIST = [
   "REQUESTS_CA_BUNDLE",
   "CURL_CA_BUNDLE",
   "GIT_SSL_CAINFO",
+];
+const SEALED_CHILD_ENV_ALLOWLIST = [
+  "PATH",
+  "HOME",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+  "TERM",
+  "COLORTERM",
+  "NO_COLOR",
+  "USER",
+  "LOGNAME",
+  "SHELL",
+  "CODEX_HOME",
 ];
 
 function executableFromPath(command, env = process.env) {
@@ -120,7 +149,7 @@ function waitBounded(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
-function signalProcessGroup(pid, signal) {
+export function signalProcessGroup(pid, signal) {
   if (process.platform === "win32" || !Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(-pid, signal);
@@ -212,7 +241,35 @@ function codexResourceUsage(events) {
   return measurement;
 }
 
-function persistCodexEvents(raw, eventLogPath, phase) {
+function evidenceWorkingDirectory(value, workspaceRoot) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  if (!isAbsolute(value)) return value.trim();
+  const relativePath = relative(workspaceRoot, value);
+  if (!relativePath || (!relativePath.startsWith("..") && !isAbsolute(relativePath))) {
+    return relativePath || ".";
+  }
+  return null;
+}
+
+function redactEventPaths(value, workspaceRoot, key = "") {
+  if (["cwd", "working_directory", "workingDirectory"].includes(key)) {
+    return evidenceWorkingDirectory(value, workspaceRoot);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactEventPaths(entry, workspaceRoot));
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([entryKey, entryValue]) => [
+        entryKey,
+        redactEventPaths(entryValue, workspaceRoot, entryKey),
+      ]),
+    );
+  }
+  return value;
+}
+
+function persistCodexEvents(raw, eventLogPath, phase, workspaceRoot) {
   const lines = String(raw ?? "")
     .split("\n")
     .map((line) => line.trim())
@@ -231,23 +288,24 @@ function persistCodexEvents(raw, eventLogPath, phase) {
       throw new Error(`Codex event stream is invalid at line ${index + 1}: ${error.message}`);
     }
     events.push(event);
-    persistedLines.push(JSON.stringify(redactEventValue(event)));
+    const safeEvent = redactEventPaths(redactEventValue(event), workspaceRoot);
+    persistedLines.push(JSON.stringify(safeEvent));
     if (
-      event?.type === "item.completed" &&
-      event.item?.type === "command_execution" &&
-      typeof event.item.command === "string" &&
-      event.item.command.trim() &&
-      Number.isSafeInteger(event.item.exit_code)
+      safeEvent?.type === "item.completed" &&
+      safeEvent.item?.type === "command_execution" &&
+      typeof safeEvent.item.command === "string" &&
+      safeEvent.item.command.trim() &&
+      Number.isSafeInteger(safeEvent.item.exit_code)
     ) {
       commandEvents.push({
-        command: event.item.command.trim(),
-        working_directory:
-          typeof (event.item.cwd ?? event.item.working_directory ?? event.cwd) === "string"
-            ? (event.item.cwd ?? event.item.working_directory ?? event.cwd).trim()
-            : null,
+        command: safeEvent.item.command.trim(),
+        working_directory: evidenceWorkingDirectory(
+          safeEvent.item.cwd ?? safeEvent.item.working_directory ?? safeEvent.cwd,
+          workspaceRoot,
+        ),
         phase: typeof phase === "string" ? phase : null,
-        exit_code: event.item.exit_code,
-        successful: event.item.exit_code === 0,
+        exit_code: safeEvent.item.exit_code,
+        successful: safeEvent.item.exit_code === 0,
       });
     }
   }
@@ -272,9 +330,13 @@ function persistCodexEvents(raw, eventLogPath, phase) {
 }
 
 /** Builds the fixed Ralph-compatible child environment used at autonomous trust boundaries. */
-export function minimalChildEnvironment(env, cwd) {
+export function minimalChildEnvironment(env, cwd, credentialEnvVars = null) {
   const sanitized = {};
-  for (const key of CHILD_ENV_ALLOWLIST) {
+  const allowlist = credentialEnvVars ? SEALED_CHILD_ENV_ALLOWLIST : CHILD_ENV_ALLOWLIST;
+  for (const key of allowlist) {
+    if (env?.[key] !== undefined) sanitized[key] = env[key];
+  }
+  for (const key of credentialEnvVars ?? []) {
     if (env?.[key] !== undefined) sanitized[key] = env[key];
   }
   sanitized.PWD = cwd;
@@ -290,8 +352,10 @@ function resolveProvider(options) {
       "no autonomous agent provider is available; install Codex CLI or pass --provider command with --agent-command",
     );
   }
-  if (!["codex", "command"].includes(requested)) {
-    throw new Error(`unsupported autonomous provider: ${requested} (expected codex or command)`);
+  if (!["codex", "opencode", "command"].includes(requested)) {
+    throw new Error(
+      `unsupported autonomous provider: ${requested} (expected codex, opencode, or command)`,
+    );
   }
   return requested;
 }
@@ -306,6 +370,7 @@ function runCodex({
   sandboxMode,
   model,
   reasoningEffort,
+  capabilities,
   timeoutMs,
   env,
 }) {
@@ -314,10 +379,14 @@ function runCodex({
     throw new Error("Codex CLI is not available on PATH");
   }
 
+  const projectConfig = assertProjectCodexCapabilities(workspaceRoot, capabilities);
+  const credentials = credentialDigestManifest(capabilities, env);
+
   const args = [
     "-a",
     "never",
     "exec",
+    ...codexCapabilityArgs(capabilities),
     "-C",
     workspaceRoot,
     "-s",
@@ -339,7 +408,7 @@ function runCodex({
 
   const proc = spawnSync(executable, args, {
     cwd: workspaceRoot,
-    env: minimalChildEnvironment(env, workspaceRoot),
+    env: minimalChildEnvironment(env, workspaceRoot, capabilities?.credential_env_vars ?? null),
     input: prompt,
     encoding: "utf8",
     timeout: timeoutMs,
@@ -360,11 +429,14 @@ function runCodex({
   if (!existsSync(outputPath)) {
     throw new Error("Codex completed without writing its structured final message");
   }
-  const events = persistCodexEvents(proc.stdout, eventLogPath, phase);
+  const events = persistCodexEvents(proc.stdout, eventLogPath, phase, workspaceRoot);
   return {
     artifact: parseArtifact(readFileSync(outputPath, "utf8"), "codex"),
     eventLogPath,
     ...events,
+    capabilitySurface: capabilitySurface(capabilities),
+    credentialManifest: credentials,
+    projectConfig,
   };
 }
 
@@ -441,10 +513,7 @@ export function runAgentPhase(options) {
   const startedAt = Date.now();
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const env = options.env ?? process.env;
-  const execution =
-    provider === "codex"
-      ? runCodex({ ...options, timeoutMs, env })
-      : runCommandProvider({ ...options, timeoutMs, env });
+  const execution = runProviderAdapter(provider, { ...options, timeoutMs, env });
 
   return {
     provider,
@@ -453,12 +522,44 @@ export function runAgentPhase(options) {
   };
 }
 
+function runProviderAdapter(provider, options) {
+  if (provider === "codex") return runCodex(options);
+  if (provider === "opencode") return runOpenCodePhase(options);
+  return runCommandProvider(options);
+}
+
+/** Returns the exact provider runtime identity used in immutable run provenance. */
+export function providerRuntimeIdentity(provider, options = {}) {
+  if (provider === "opencode") return opencodeVersion(options);
+  if (provider === "codex") {
+    const executable = executableFromPath("codex", options.env ?? process.env);
+    if (!executable) throw new Error("Codex CLI is not available on PATH");
+    const proc = spawnSync(executable, ["--version"], {
+      encoding: "utf8",
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024,
+      env: minimalChildEnvironment(options.env ?? process.env, process.cwd()),
+    });
+    if (proc.status !== 0) throw new Error(`Codex version probe failed: ${failureExcerpt(proc)}`);
+    return Object.freeze({
+      executor: "codex",
+      executable,
+      version: proc.stdout.trim(),
+      binary_digest: createHash("sha256").update(readFileSync(executable)).digest("hex"),
+    });
+  }
+  return Object.freeze({ executor: provider, executable: null, version: null });
+}
+
 /**
  * Checks agent availability and runtime capabilities before an autonomous workflow starts work.
  */
 export function agentDoctor(options = {}) {
   const sourceEnv = options.env ?? process.env;
   const childEnv = minimalChildEnvironment(sourceEnv, process.cwd());
+  if (options.provider === "opencode") {
+    return openCodeDoctor({ ...options, env: sourceEnv });
+  }
   if (["auto", "codex"].includes(options.provider ?? "auto")) {
     const executable = executableFromPath("codex", childEnv);
     if (!executable) {
@@ -499,6 +600,8 @@ export function agentDoctor(options = {}) {
     structured_output: help.includes("--output-schema"),
     ephemeral_sessions: help.includes("--ephemeral"),
     event_stream: help.includes("--json"),
+    ignore_user_config: help.includes("--ignore-user-config"),
+    strict_config: help.includes("--strict-config"),
   };
   const authProbe = spawnSync(executable, ["login", "status"], {
     encoding: "utf8",
@@ -507,6 +610,57 @@ export function agentDoctor(options = {}) {
     env: childEnv,
   });
   capabilities.authenticated = authProbe.status === 0;
+  let effectiveSurface = null;
+  if (options.capabilities) {
+    const doctorHome = mkdtempSync(resolve(tmpdir(), "rae-codex-doctor-home-"));
+    try {
+      assertProjectCodexCapabilities(options.workspaceRoot ?? process.cwd(), options.capabilities);
+      credentialDigestManifest(options.capabilities, sourceEnv);
+      const surfaceProbe = spawnSync(
+        executable,
+        [...codexCapabilityOverrides(options.capabilities), "mcp", "list", "--json"],
+        {
+          encoding: "utf8",
+          timeout: 10_000,
+          maxBuffer: 1024 * 1024,
+          cwd: doctorHome,
+          env: {
+            ...minimalChildEnvironment(
+              sourceEnv,
+              doctorHome,
+              options.capabilities.credential_env_vars,
+            ),
+            CODEX_HOME: doctorHome,
+          },
+        },
+      );
+      if (surfaceProbe.status !== 0) throw new Error(failureExcerpt(surfaceProbe));
+      const actual = JSON.parse(surfaceProbe.stdout || "[]");
+      const expected = capabilitySurface(options.capabilities);
+      const normalizedActual = actual.map((server) => ({
+        name: server.name,
+        url: server.url,
+        enabled_tools: [...(server.enabled_tools ?? [])].sort(),
+      }));
+      const normalizedExpected = expected.mcp_servers.map((server) => ({
+        name: server.name,
+        url: server.url,
+        enabled_tools: server.enabled_tools,
+      }));
+      if (JSON.stringify(normalizedActual) !== JSON.stringify(normalizedExpected)) {
+        throw new Error("effective Codex MCP surface contains missing or extra servers/tools");
+      }
+      effectiveSurface = expected;
+    } catch (error) {
+      capabilities.profile_surface = false;
+      capabilities.profile_surface_error = error.message;
+    } finally {
+      rmSync(doctorHome, { recursive: true, force: true });
+    }
+  }
+  if (options.capabilities && capabilities.profile_surface !== false) {
+    capabilities.profile_surface = true;
+  }
   const success = probe.status === 0 && Object.values(capabilities).every(Boolean);
   return {
     success,
@@ -514,6 +668,7 @@ export function agentDoctor(options = {}) {
     executable,
     sandbox_enforced: capabilities.workspace_sandbox,
     capabilities,
+    effective_surface: effectiveSurface,
     detail: success
       ? "Codex is authenticated and supports workspace sandboxing, structured output, and ephemeral phase sessions"
       : "Codex is unauthenticated or missing one or more required autonomous execution capabilities",

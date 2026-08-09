@@ -35,6 +35,7 @@ run_outcome_task = outcome_eval.run_outcome_task
 task_matrix_digest = outcome_eval.task_matrix_digest
 trusted_judge_argv = outcome_eval.trusted_judge_argv
 optimize_campaign = policy_optimizer.optimize_campaign
+recover_lineage = policy_optimizer.recover_lineage
 policy_digest = policy_optimizer.policy_digest
 trusted_manifest = policy_optimizer.trusted_manifest
 resource_usage_issues = release_gate_core._resource_usage_issues

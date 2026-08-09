@@ -217,6 +217,54 @@ export function gateStatusFromPhaseAndProfile(_phase, stageProfile) {
   return typeof stageProfile.gate_status === "string" ? stageProfile.gate_status : "pass";
 }
 
+function emitMissingContextManifestGate({ runId, phase, artifactRef, enforce, root }) {
+  const status = enforce ? "fail" : "warn";
+  return emitGate({
+    runId,
+    phase,
+    gateId: `${phase}-context-budget-gate`,
+    status,
+    artifactRef,
+    criteria: [
+      {
+        name: "context-manifest-present",
+        passed: false,
+        evidence: "context_manifest is missing",
+      },
+    ],
+    blockingFailures: status === "fail" ? ["context-manifest-present"] : [],
+    metadata: {
+      gate_type: "context_budget",
+      mode: enforce ? "enforce" : "shadow",
+    },
+    gateFileOverride: `${phase}-context-budget-gate.json`,
+    root,
+  });
+}
+
+function contextBudgetGateInput(artifact, artifactRef, phase, budget) {
+  return {
+    artifact: { context_manifest: artifact.context_manifest },
+    artifact_ref: artifactRef,
+    schema_ref: "contracts/artifacts/context-manifest-gate.schema.json",
+    phase,
+    criteria: [
+      {
+        name: "context-files-max",
+        type: "count-max",
+        path: "context_manifest.files_loaded",
+        value: budget.files_max,
+      },
+      {
+        name: "context-token-max",
+        type: "number-max",
+        path: "context_manifest.token_estimate",
+        value: budget.token_max,
+      },
+    ],
+  };
+}
+
 /**
  * Evaluates context budgets deterministically so stage profiles cannot silently exceed their token policy.
  */
@@ -236,52 +284,10 @@ export function evaluateContextBudgetGate({
   const enforce = parseBooleanFlag(flags.context_budget_v1);
 
   if (!artifact.context_manifest) {
-    const status = enforce ? "fail" : "warn";
-    return emitGate({
-      runId,
-      phase,
-      gateId: `${phase}-context-budget-gate`,
-      status,
-      artifactRef,
-      criteria: [
-        {
-          name: "context-manifest-present",
-          passed: false,
-          evidence: "context_manifest is missing",
-        },
-      ],
-      blockingFailures: status === "fail" ? ["context-manifest-present"] : [],
-      metadata: {
-        gate_type: "context_budget",
-        mode: enforce ? "enforce" : "shadow",
-      },
-      gateFileOverride: `${phase}-context-budget-gate.json`,
-      root,
-    });
+    return emitMissingContextManifestGate({ runId, phase, artifactRef, enforce, root });
   }
 
-  const gateResult = runQualityGate({
-    artifact: {
-      context_manifest: artifact.context_manifest,
-    },
-    artifact_ref: artifactRef,
-    schema_ref: "contracts/artifacts/context-manifest-gate.schema.json",
-    phase,
-    criteria: [
-      {
-        name: "context-files-max",
-        type: "count-max",
-        path: "context_manifest.files_loaded",
-        value: budget.files_max,
-      },
-      {
-        name: "context-token-max",
-        type: "number-max",
-        path: "context_manifest.token_estimate",
-        value: budget.token_max,
-      },
-    ],
-  });
+  const gateResult = runQualityGate(contextBudgetGateInput(artifact, artifactRef, phase, budget));
 
   const mappedStatus = gateResult.status === "fail" && !enforce ? "warn" : gateResult.status;
 
@@ -306,6 +312,74 @@ export function evaluateContextBudgetGate({
   });
 }
 
+function traceabilityArtifactPaths(runId, state, resolveArtifactRef, resolveOptionalArtifactRef) {
+  const briefRef = state?.artifacts?.brief ?? "brief.json";
+  const planRef = state?.artifacts?.plan ?? "plan.json";
+  const designRef = state?.artifacts?.design ?? "design.json";
+  const driftReports = state?.artifacts?.drift_reports;
+  const driftRef =
+    Array.isArray(driftReports) && driftReports.length > 0
+      ? driftReports[driftReports.length - 1]
+      : null;
+  return {
+    brief: resolveArtifactRef(runId, briefRef),
+    plan: resolveArtifactRef(runId, planRef),
+    design: resolveOptionalArtifactRef(runId, designRef),
+    drift: resolveOptionalArtifactRef(runId, driftRef),
+  };
+}
+
+function emitMissingTraceabilityInputs({ runId, phase, paths, enforce, root }) {
+  return emitGate({
+    runId,
+    phase,
+    gateId: `${phase}-traceability-gate`,
+    status: enforce ? "fail" : "warn",
+    artifactRef: `${toWorkspaceRelative(paths.brief)}|${toWorkspaceRelative(paths.plan)}`,
+    criteria: [
+      {
+        name: "traceability-inputs-present",
+        passed: false,
+        evidence: `brief_exists=${existsSync(paths.brief)} plan_exists=${existsSync(paths.plan)}`,
+      },
+    ],
+    blockingFailures: enforce ? ["traceability-inputs-present"] : [],
+    metadata: {
+      gate_type: "traceability",
+      mode: enforce ? "enforce" : "shadow",
+    },
+    gateFileOverride: `${phase}-traceability-gate.json`,
+    root,
+  });
+}
+
+function recordTraceabilityArtifactReads(runId, phase, paths, root) {
+  for (const absPath of Object.values(paths)) {
+    if (!absPath || !existsSync(absPath)) continue;
+    appendTraceEvent(
+      runId,
+      {
+        event: "artifact_read",
+        phase,
+        artifact_ref: toWorkspaceRelative(absPath, root),
+        status: "ok",
+      },
+      root,
+    );
+  }
+}
+
+function traceabilityOutcome(phase, enforce, paths, root) {
+  return evaluateMustTraceability({
+    phase,
+    enforce,
+    briefRef: toWorkspaceRelative(paths.brief, root),
+    planRef: toWorkspaceRelative(paths.plan, root),
+    designRef: paths.design ? toWorkspaceRelative(paths.design, root) : null,
+    driftRef: paths.drift ? toWorkspaceRelative(paths.drift, root) : null,
+  });
+}
+
 /**
  * Builds a must-traceability result only from persisted artifacts and the configured quality-gate contract.
  */
@@ -322,65 +396,18 @@ export function evaluateTraceabilityGate({
 
   // Plan/build traceability is only meaningful after brief and plan artifacts
   // exist. Missing inputs produce a gate artifact instead of a silent skip.
-  const briefRef = state?.artifacts?.brief ?? "brief.json";
-  const planRef = state?.artifacts?.plan ?? "plan.json";
-  const designRef = state?.artifacts?.design ?? "design.json";
-  const driftRef =
-    Array.isArray(state?.artifacts?.drift_reports) && state.artifacts.drift_reports.length > 0
-      ? state.artifacts.drift_reports[state.artifacts.drift_reports.length - 1]
-      : null;
-  const briefAbs = resolveArtifactRef(runId, briefRef);
-  const planAbs = resolveArtifactRef(runId, planRef);
-  const designAbs = resolveOptionalArtifactRef(runId, designRef);
-  const driftAbs = resolveOptionalArtifactRef(runId, driftRef);
-
-  if (!existsSync(briefAbs) || !existsSync(planAbs)) {
-    return emitGate({
-      runId,
-      phase,
-      gateId: `${phase}-traceability-gate`,
-      status: enforce ? "fail" : "warn",
-      artifactRef: `${toWorkspaceRelative(briefAbs)}|${toWorkspaceRelative(planAbs)}`,
-      criteria: [
-        {
-          name: "traceability-inputs-present",
-          passed: false,
-          evidence: `brief_exists=${existsSync(briefAbs)} plan_exists=${existsSync(planAbs)}`,
-        },
-      ],
-      blockingFailures: enforce ? ["traceability-inputs-present"] : [],
-      metadata: {
-        gate_type: "traceability",
-        mode: enforce ? "enforce" : "shadow",
-      },
-      gateFileOverride: `${phase}-traceability-gate.json`,
-      root,
-    });
+  const paths = traceabilityArtifactPaths(
+    runId,
+    state,
+    resolveArtifactRef,
+    resolveOptionalArtifactRef,
+  );
+  if (!existsSync(paths.brief) || !existsSync(paths.plan)) {
+    return emitMissingTraceabilityInputs({ runId, phase, paths, enforce, root });
   }
 
-  for (const absPath of [briefAbs, planAbs, designAbs, driftAbs]) {
-    if (absPath && existsSync(absPath)) {
-      appendTraceEvent(
-        runId,
-        {
-          event: "artifact_read",
-          phase,
-          artifact_ref: toWorkspaceRelative(absPath, root),
-          status: "ok",
-        },
-        root,
-      );
-    }
-  }
-
-  const outcome = evaluateMustTraceability({
-    phase,
-    enforce,
-    briefRef: toWorkspaceRelative(briefAbs, root),
-    planRef: toWorkspaceRelative(planAbs, root),
-    designRef: designAbs ? toWorkspaceRelative(designAbs, root) : null,
-    driftRef: driftAbs ? toWorkspaceRelative(driftAbs, root) : null,
-  });
+  recordTraceabilityArtifactReads(runId, phase, paths, root);
+  const outcome = traceabilityOutcome(phase, enforce, paths, root);
 
   return emitGate({
     runId,

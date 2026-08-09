@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="962" height="1012" viewBox="0 0 962 1012" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="1232" viewBox="0 0 980 1232" role="img" aria-labelledby="title description">
   <title id="title">RAE autonomous agent safety defaults</title>
   <desc id="description">Deterministic terminal capture generated from the live RAE CLI.</desc>
   <style>
     .line { fill: #e6edf3; font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .chrome { fill: #8b949e; font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
-  <rect width="962" height="1012" rx="14" fill="#0d1117"/>
-  <rect width="962" height="44" rx="14" fill="#161b22"/>
+  <rect width="980" height="1232" rx="14" fill="#0d1117"/>
+  <rect width="980" height="44" rx="14" fill="#161b22"/>
   <circle cx="24" cy="22" r="6" fill="#ff5f56"/>
   <circle cx="44" cy="22" r="6" fill="#ffbd2e"/>
   <circle cx="64" cy="22" r="6" fill="#27c93f"/>
@@ -16,41 +16,51 @@
     <text x="32" y="120" class="line">RAE autonomous coding-agent orchestrator</text>
     <text x="32" y="142" class="line"></text>
     <text x="32" y="164" class="line">Usage:</text>
-    <text x="32" y="186" class="line">  node scripts/pipeline/autonomous.mjs doctor [--provider codex]</text>
+    <text x="32" y="186" class="line">  node scripts/pipeline/autonomous.mjs doctor [--provider codex|opencode] [--model &lt;provider/model&gt;]</text>
     <text x="32" y="208" class="line">  node scripts/pipeline/autonomous.mjs run --task &lt;text&gt; [options]</text>
     <text x="32" y="230" class="line">  node scripts/pipeline/autonomous.mjs resume --run-id &lt;id&gt; [options]</text>
     <text x="32" y="252" class="line">  node scripts/pipeline/autonomous.mjs status --project-root &lt;workspace&gt; --run-id &lt;id&gt; [--json]</text>
     <text x="32" y="274" class="line">  node scripts/pipeline/autonomous.mjs stop --project-root &lt;workspace&gt; --run-id &lt;id&gt; [--json]</text>
-    <text x="32" y="296" class="line">  node scripts/pipeline/autonomous.mjs resolve-checkpoint --project-root &lt;workspace&gt; --run-id &lt;id&gt;</text>
-    <text x="32" y="318" class="line">    --checkpoint-id &lt;id&gt; --decision &lt;approved|rejected|escalated&gt;</text>
-    <text x="32" y="340" class="line">    --decision-id &lt;id&gt; --actor &lt;label&gt; --rationale &lt;text&gt; [--json]</text>
-    <text x="32" y="362" class="line">  node scripts/pipeline/autonomous.mjs events --project-root &lt;workspace&gt; --run-id &lt;id&gt;</text>
-    <text x="32" y="384" class="line">    [--after-seq &lt;n&gt;] [--limit &lt;1..1000&gt;] [--json]</text>
-    <text x="32" y="406" class="line"></text>
-    <text x="32" y="428" class="line">Run options:</text>
-    <text x="32" y="450" class="line">  --project-root &lt;path&gt;       Target Git repository (default: current directory)</text>
-    <text x="32" y="472" class="line">  --task &lt;text&gt;               Work request</text>
-    <text x="32" y="494" class="line">  --task-file &lt;path&gt;          Read a relative, non-symlink .md or .txt file under the project root</text>
-    <text x="32" y="516" class="line">  --provider &lt;name&gt;           auto or codex (command is test-integration only)</text>
-    <text x="32" y="538" class="line">  --model &lt;id&gt;                Optional Codex model override</text>
-    <text x="32" y="560" class="line">  --reasoning-effort &lt;level&gt;  low, medium, high, or xhigh</text>
-    <text x="32" y="582" class="line">  --timeout-seconds &lt;n&gt;       Per-phase timeout (default: 1800)</text>
-    <text x="32" y="604" class="line">  --policy &lt;path&gt;             Validated data-only autonomous policy JSON</text>
-    <text x="32" y="626" class="line">  --checkpoint-policy &lt;mode&gt; Human pause mode: none, before-mutation, or before-mutation-and-ship</text>
-    <text x="32" y="648" class="line">  --in-place                  Modify a clean target checkout directly</text>
-    <text x="32" y="670" class="line">  --through &lt;phase&gt;           Stop after one named phase (default: release-readiness)</text>
-    <text x="32" y="692" class="line">  --run-id &lt;id&gt;               Resume an existing run (resume command only)</text>
-    <text x="32" y="714" class="line">  --json                      Emit the final result as JSON</text>
-    <text x="32" y="736" class="line"></text>
-    <text x="32" y="758" class="line">Custom command-provider options:</text>
-    <text x="32" y="780" class="line">  --agent-command &lt;path&gt;      Executable implementing the rae-agent-v1 stdin/stdout protocol</text>
-    <text x="32" y="802" class="line">  --agent-arg &lt;value&gt;         Argument for the command; repeat as needed</text>
-    <text x="32" y="824" class="line">  --allow-unsafe-command-provider</text>
-    <text x="32" y="846" class="line">                              Explicitly enable the unsandboxed test-integration provider</text>
-    <text x="32" y="868" class="line"></text>
-    <text x="32" y="890" class="line">Safety defaults:</text>
-    <text x="32" y="912" class="line">  - run creates an isolated Git worktree unless --in-place is explicit</text>
-    <text x="32" y="934" class="line">  - Codex phases use read-only or workspace-write sandbox modes as appropriate</text>
-    <text x="32" y="956" class="line">  - agents may not commit, push, publish, install dependencies, or use network infrastructure</text>
-    <text x="32" y="978" class="line">  - the custom command provider always fails doctor and cannot run without an unsafe opt-in</text>
+    <text x="32" y="296" class="line">  node scripts/pipeline/autonomous.mjs signal --project-root &lt;workspace&gt; --run-id &lt;id&gt;</text>
+    <text x="32" y="318" class="line">    --node-id &lt;wait-node&gt; --signal &lt;name&gt; --idempotency-key &lt;key&gt; [--payload-json &lt;json&gt;] [--json]</text>
+    <text x="32" y="340" class="line">  node scripts/pipeline/autonomous.mjs resolve-checkpoint --project-root &lt;workspace&gt; --run-id &lt;id&gt;</text>
+    <text x="32" y="362" class="line">    --checkpoint-id &lt;id&gt; --decision &lt;approved|rejected|escalated&gt;</text>
+    <text x="32" y="384" class="line">    --decision-id &lt;id&gt; --actor &lt;label&gt; --rationale &lt;text&gt; [--json]</text>
+    <text x="32" y="406" class="line">  node scripts/pipeline/autonomous.mjs events --project-root &lt;workspace&gt; --run-id &lt;id&gt;</text>
+    <text x="32" y="428" class="line">    [--after-seq &lt;n&gt;] [--limit &lt;1..1000&gt;] [--json]</text>
+    <text x="32" y="450" class="line"></text>
+    <text x="32" y="472" class="line">Run options:</text>
+    <text x="32" y="494" class="line">  --project-root &lt;path&gt;       Target Git repository (default: current directory)</text>
+    <text x="32" y="516" class="line">  --task &lt;text&gt;               Work request</text>
+    <text x="32" y="538" class="line">  --task-file &lt;path&gt;          Read a relative, non-symlink .md or .txt file under the project root</text>
+    <text x="32" y="560" class="line">  --provider &lt;name&gt;           auto, codex, or explicit opencode (command is test-integration only)</text>
+    <text x="32" y="582" class="line">  --model &lt;id&gt;                Optional Codex model or required OpenCode provider/model</text>
+    <text x="32" y="604" class="line">  --reasoning-effort &lt;level&gt;  Codex low, medium, high, or xhigh</text>
+    <text x="32" y="626" class="line">  --variant &lt;name&gt;            Optional OpenCode model variant</text>
+    <text x="32" y="648" class="line">  --execution-profile &lt;file&gt; Operator-owned logical tiers and provider routes</text>
+    <text x="32" y="670" class="line">  --timeout-seconds &lt;n&gt;       Per-phase timeout (default: 1800)</text>
+    <text x="32" y="692" class="line">  --policy &lt;path&gt;             Validated data-only autonomous policy JSON</text>
+    <text x="32" y="714" class="line">  --workflow &lt;path&gt;           Explicit graph-native workflow JSON for a new run</text>
+    <text x="32" y="736" class="line">  --legacy-linear             Start a temporary v1 ten-phase run</text>
+    <text x="32" y="758" class="line">  --checkpoint-policy &lt;mode&gt; Human pause mode: none, before-mutation, or before-mutation-and-ship</text>
+    <text x="32" y="780" class="line">  --graph-memory &lt;mode&gt;      Local graph mode: off, read, or read-write (default: off)</text>
+    <text x="32" y="802" class="line">  --in-place                  Modify a clean target checkout directly</text>
+    <text x="32" y="824" class="line">  --through &lt;node-id&gt;         Stop after one workflow node</text>
+    <text x="32" y="846" class="line">  --max-concurrency &lt;n&gt;       Concurrent readers, from 1 to 4 (default: 4)</text>
+    <text x="32" y="868" class="line">  --max-repair-rounds &lt;n&gt;     Repair iterations, from 1 to 5 (default: 5)</text>
+    <text x="32" y="890" class="line">  --run-id &lt;id&gt;               Resume an existing run (resume command only)</text>
+    <text x="32" y="912" class="line">  --json                      Emit the final result as JSON</text>
+    <text x="32" y="934" class="line"></text>
+    <text x="32" y="956" class="line">Custom command-provider options:</text>
+    <text x="32" y="978" class="line">  --agent-command &lt;path&gt;      Executable implementing the rae-agent-v1 stdin/stdout protocol</text>
+    <text x="32" y="1000" class="line">  --agent-arg &lt;value&gt;         Argument for the command; repeat as needed</text>
+    <text x="32" y="1022" class="line">  --allow-unsafe-command-provider</text>
+    <text x="32" y="1044" class="line">                              Explicitly enable the unsandboxed test-integration provider</text>
+    <text x="32" y="1066" class="line"></text>
+    <text x="32" y="1088" class="line">Safety defaults:</text>
+    <text x="32" y="1110" class="line">  - run creates an isolated Git worktree unless --in-place is explicit</text>
+    <text x="32" y="1132" class="line">  - Codex phases use read-only or workspace-write sandbox modes as appropriate</text>
+    <text x="32" y="1154" class="line">  - OpenCode is explicit, macOS-contained, and never selected by auto</text>
+    <text x="32" y="1176" class="line">  - agents may not commit, push, publish, install dependencies, or use network infrastructure</text>
+    <text x="32" y="1198" class="line">  - the custom command provider always fails doctor and cannot run without an unsafe opt-in</text>
 </svg>

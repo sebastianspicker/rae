@@ -2,6 +2,7 @@
 
 import importlib.util
 import pathlib
+import re
 import struct
 import zlib
 
@@ -147,6 +148,106 @@ def test_required_files_include_public_alpha_surface() -> None:
         "docs/stylesheets/brand.css",
     }.issubset(module.REQUIRED_PUBLIC_FILES)
     assert "scripts/check_source_documentation.py" in module.REQUIRED_REPOSITORY_FILES
+
+
+def test_testing_document_inventory_matches_live_tree() -> None:
+    documentation = (ROOT / "TESTING.md").read_text(encoding="utf-8")
+    inventory_rows = (
+        ("`tests/test_*.py`", ("tests/test_*.py",), False),
+        ("`tests/runtime-contract.sh`", ("tests/runtime-contract.sh",), False),
+        ("`evals/tests/test_*.py`", ("evals/tests/test_*.py",), False),
+        (
+            "`evals/tests/benchmark_contracts_helpers.py`, "
+            "`evals/tests/outcome_optimizer_helpers.py`",
+            (
+                "evals/tests/benchmark_contracts_helpers.py",
+                "evals/tests/outcome_optimizer_helpers.py",
+            ),
+            True,
+        ),
+        (
+            "`evals/fixtures/autonomous-outcomes/*/tests/test_*.py`",
+            ("evals/fixtures/autonomous-outcomes/*/tests/test_*.py",),
+            False,
+        ),
+        (
+            "`packages/loops/ralph/tests/ralph_*_test.sh`",
+            ("packages/loops/ralph/tests/ralph_*_test.sh",),
+            False,
+        ),
+        (
+            "Ralph test runner and `tests/lib/test_helpers.sh`",
+            (
+                "packages/loops/ralph/scripts/run_tests.sh",
+                "packages/loops/ralph/tests/lib/test_helpers.sh",
+            ),
+            True,
+        ),
+        (
+            "`packages/orchestration/operator/tests/*.test.mjs`",
+            ("packages/orchestration/operator/tests/*.test.mjs",),
+            False,
+        ),
+        (
+            "`packages/orchestration/scripts/pipeline/tests/*.test.mjs`",
+            ("packages/orchestration/scripts/pipeline/tests/*.test.mjs",),
+            False,
+        ),
+        (
+            "`packages/orchestration/platform/test/platform.test.mjs`",
+            ("packages/orchestration/platform/test/platform.test.mjs",),
+            False,
+        ),
+        (
+            "Pipeline Vitest config, test helper, and three fixture modules",
+            (
+                "packages/orchestration/scripts/pipeline/vitest.config.mjs",
+                "packages/orchestration/scripts/pipeline/tests/runner-stage.test-helpers.mjs",
+                "packages/orchestration/scripts/pipeline/tests/fixtures/*.mjs",
+            ),
+            True,
+        ),
+        (
+            "`packages/orchestration/skills/dev-tools/*/tests/unit/*.test.ts`",
+            ("packages/orchestration/skills/dev-tools/*/tests/unit/*.test.ts",),
+            False,
+        ),
+        ("`trace-test-helpers.ts`", ("**/trace-test-helpers.ts",), True),
+        (
+            "`profiles/agent-environments/tests/profile-installation.sh`",
+            ("profiles/agent-environments/tests/profile-installation.sh",),
+            False,
+        ),
+        (
+            "`tools/repo-hygiene/coauthor-trailer-cleaner/tests/test-*.sh`",
+            ("tools/repo-hygiene/coauthor-trailer-cleaner/tests/test-*.sh",),
+            False,
+        ),
+        (
+            "Hygiene test runner and `helpers.sh`",
+            (
+                "tools/repo-hygiene/coauthor-trailer-cleaner/tests/run-tests.sh",
+                "tools/repo-hygiene/coauthor-trailer-cleaner/tests/helpers.sh",
+            ),
+            True,
+        ),
+    )
+    totals = {False: 0, True: 0}
+    all_paths: set[pathlib.Path] = set()
+
+    for path_cell, patterns, is_support in inventory_rows:
+        paths = {path for pattern in patterns for path in ROOT.glob(pattern) if path.is_file()}
+        assert paths
+        assert all_paths.isdisjoint(paths)
+        all_paths.update(paths)
+        totals[is_support] += len(paths)
+        row_pattern = rf"^\| [^|]+ \| {re.escape(path_cell)} \| {len(paths)} \|"
+        assert re.search(row_pattern, documentation, re.MULTILINE), path_cell
+
+    headline = (
+        f"contains {totals[False]} executable test source files and {totals[True]} referenced"
+    )
+    assert headline in documentation
 
 
 def test_release_candidate_git_state_rejects_dirty_worktree() -> None:

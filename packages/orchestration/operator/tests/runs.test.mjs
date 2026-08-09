@@ -68,12 +68,72 @@ test("durable discovery projects run state without exposing raw trace metadata",
   assert.equal(runs[0].task, "Verify projected events");
   assert.equal(runs[0].current_phase, "quality-tests");
   assert.equal(publicRun(runs[0]).workspaceRoot, undefined);
+  assert.deepEqual(runs[0].graph_health, {
+    available: false,
+    valid: false,
+    node_count: 0,
+    edge_count: 0,
+    stale_sources: 0,
+    stale_memory: 0,
+    unresolved_conflicts: 0,
+  });
   const page = paginatedEvents(runs[0], { after: 0, limit: 10 });
   assert.equal(page.events.length, 1);
   assert.equal(page.events[0].event, "agent_call");
   assert.equal(page.events[0].metadata, undefined);
   assert.equal(page.events[0].tokens_in, undefined);
   assert.doesNotMatch(JSON.stringify(page), /must-not-leak|private-provider/);
+});
+
+test("graph workflow discovery exposes sanitized node-instance progress without provider payloads", () => {
+  const { root, runId } = createDiscoverableRun();
+  const runDir = join(root, ".pipeline", "runs", runId);
+  writeJson(join(runDir, "request.json"), {
+    schema_version: "2.1.0",
+    task: "Map modules",
+    requested_at: "2026-07-17T09:42:00.000Z",
+    workflow: {
+      mode: "graph-native",
+      workflow_id: "module-map",
+      revision: 2,
+      digest: "a".repeat(64),
+      snapshot: { schema_version: "2.1.0", budgets: { max_concurrency: 4 } },
+    },
+  });
+  const attempts = join(runDir, "workflow", "attempts", "inspect");
+  mkdirSync(attempts, { recursive: true });
+  writeJson(join(attempts, "inspect_item.1.json"), {
+    schema_version: "2.1.0",
+    workflow_digest: "a".repeat(64),
+    node_id: "inspect",
+    instance_id: "inspect:item-a",
+    parent_node: "discover",
+    item_key: "module-a",
+    item_digest: "b".repeat(64),
+    status: "passed",
+    attempt: 1,
+    execution_tier: "judgment",
+    payload: { secret_provider_payload: "must-not-leak" },
+    resource_usage: { tokens: 1234 },
+    quorum: { threshold: 1, passed: 1 },
+  });
+
+  const [run] = discoverRuns({ id: "project_12345678", root, label: root });
+  assert.equal(run.workflow.workflow_id, "module-map");
+  assert.deepEqual(run.workflow.instances[0], {
+    instance_id: "inspect:item-a",
+    node_id: "inspect",
+    parent_node: "discover",
+    item_key: "module-a",
+    item_digest: "b".repeat(64),
+    status: "passed",
+    attempt: 1,
+    execution_tier: "judgment",
+    selection: null,
+    quorum: { threshold: 1, passed: 1 },
+    convergence: null,
+  });
+  assert.doesNotMatch(JSON.stringify(publicRun(run)), /must-not-leak|tokens/);
 });
 
 test("active guard discovery returns phase-active without consuming poisoned pipeline state", (t) => {

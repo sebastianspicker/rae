@@ -56,8 +56,8 @@ Do not publish:
 
 ### Autonomous orchestration
 
-- The supported Codex path requires workspace sandboxing, structured output,
-  JSON event streaming, and a fresh session for each phase.
+- The Codex path requires workspace sandboxing, structured output, JSON event
+  streaming, and a fresh session for each phase.
 - Provider requests contain the task, phase guidance, and selected predecessor
   artifacts. Absolute POSIX, Windows, UNC, and `file:` URL path tokens are
   sanitized before request construction; the local Codex process still receives
@@ -83,6 +83,37 @@ Do not publish:
   and requires fresh command, arguments, and unsafe authorization on every
   resume. A same-user command can escape RAE's filesystem controls or leave
   detached descendants.
+
+#### OpenCode execution
+
+- OpenCode must be selected explicitly. `auto` never selects it. The current
+  adapter is supported only on macOS and requires a root-owned, non-symlink
+  `/usr/bin/sandbox-exec`.
+- OpenCode write routes require RAE's isolated worktree and reject
+  `--in-place`. The Seatbelt profile denies writes to Git metadata,
+  `.pipeline`, the source checkout, home directories, workflow registries,
+  evaluator-owned paths, and other external locations. Read routes receive no
+  workspace write permission.
+- Each attempt uses `--pure`, JSON event output, a fresh session directory, and
+  an inline denied-by-default permission configuration. RAE checks the merged
+  configuration before execution and rejects unknown tools, additional MCP
+  servers, project extensions, shell, web, external-directory, subagent,
+  skill, question, and plugin access.
+- Verification runs through a RAE-owned broker that accepts opaque allowlisted
+  IDs. It executes fixed argument vectors without a shell under a nested
+  no-network sandbox and records bounded, redacted evidence independently of
+  model output.
+- The pinned OpenCode process can read the configured OpenCode credential store
+  needed for provider authentication. RAE records only provider and source
+  metadata, not credential values or store contents. The operator profile API
+  never returns credential paths, environment values, or raw provider traces.
+- Provider inference still requires outbound network access from the OpenCode
+  process. Denying web and MCP tools prevents model-directed network tools; it
+  does not make the provider process itself offline. RAE makes no provider-side
+  storage or retention claim.
+- Resume requires the recorded workflow and execution-profile digests, resolved
+  routes, models, variants, OpenCode version, and executable digest. Drift fails
+  before provider execution.
 
 ### Ralph fixing mode
 
@@ -119,6 +150,26 @@ Do not publish:
 - The built documentation site loads the exact MathJax 3.2.2 browser bundle
   from jsDelivr. Building the documentation is local, but viewing pages that
   use that script makes a request to that third-party CDN.
+
+### Experimental hosted platform
+
+- `packages/orchestration/platform/` is not a deployed service. The loopback
+  operator can proxy only allowlisted remote routes and keeps the upstream
+  token out of browser code. Insecure authentication and cleartext HTTP require
+  explicit development flags.
+- Hosted configuration requires OIDC validation of exact issuer, audience,
+  JWKS URL, token type, bounded issue time, allowed asymmetric signing
+  algorithms, subject, and unexpired expiration. Route scopes and
+  project claims are enforced per request; worker identifiers must match token
+  subjects.
+- Worker reports, heartbeats, and artifact finalization require an active
+  lease with the matching worker and fence value. Artifact verification hashes
+  the object and quarantines a mismatched upload.
+- The checked-in compose file contains development credentials and cleartext
+  loopback ports. It is not production deployment configuration. HTTPS,
+  identity-provider interoperability, database and object-store operations,
+  worker isolation, secret handling, and incident recovery remain deployment
+  responsibilities without current integration evidence.
 
 ### Repository and evaluation data
 

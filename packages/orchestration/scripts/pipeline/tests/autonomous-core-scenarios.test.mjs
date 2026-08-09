@@ -26,7 +26,7 @@ function run(command, args, cwd, allowFailure = false, env = process.env) {
     cwd,
     env,
     encoding: "utf8",
-    timeout: 60_000,
+    timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
   });
   if (!allowFailure && proc.status !== 0) {
@@ -98,7 +98,7 @@ function createRepository() {
   return root;
 }
 
-function runAutonomous(root, task, allowFailure = false) {
+function runAutonomous(root, task, allowFailure = false, extraArgs = []) {
   return run(
     process.execPath,
     [
@@ -118,6 +118,7 @@ function runAutonomous(root, task, allowFailure = false) {
       "--timeout-seconds",
       "30",
       "--json",
+      ...extraArgs,
     ],
     PACKAGE_ROOT,
     allowFailure,
@@ -426,6 +427,68 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
     assertSuccessfulArtifacts(output);
   });
 
+  it("keeps graph retrieval opt-in and persists bounded phase context", () => {
+    const root = createRepository();
+    const proc = runAutonomous(root, "Implement the fixture value and document it.", false, [
+      "--through",
+      "plan",
+      "--graph-memory",
+      "read",
+    ]);
+    const output = JSON.parse(proc.stdout);
+    const runDir = join(output.workspace_root, ".pipeline", "runs", output.run_id);
+    const request = JSON.parse(readFileSync(join(runDir, "request.json"), "utf8"));
+    expect(request.graph_memory).toBe("read");
+    expect(existsSync(join(runDir, "graph", "manifest.json"))).toBe(true);
+    const context = JSON.parse(
+      readFileSync(join(runDir, "graph", "contexts", "plan.json"), "utf8"),
+    );
+    expect(context.limits).toEqual({ max_depth: 4, max_records: 50 });
+    expect(context.records.length).toBeLessThanOrEqual(50);
+    expect(
+      context.records.every((record) =>
+        ["authoritative", "verified-derived"].includes(record.trust_class),
+      ),
+    ).toBe(true);
+  });
+
+  it("records verified completed-run memory and quarantines model proposals", () => {
+    const root = createRepository();
+    const fakeBin = createFakeCodexBin();
+    const proc = run(
+      process.execPath,
+      [
+        AUTONOMOUS,
+        "run",
+        "--project-root",
+        root,
+        "--task",
+        "Implement the fixture value and document it.",
+        "--provider",
+        "codex",
+        "--legacy-linear",
+        "--graph-memory",
+        "read-write",
+        "--json",
+      ],
+      PACKAGE_ROOT,
+      false,
+      { ...process.env, PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ""}` },
+    );
+    const output = JSON.parse(proc.stdout);
+    const memoryRoot = join(root, ".git", "rae-memory", "v1");
+    const facts = readFileSync(join(memoryRoot, "facts.jsonl"), "utf8");
+    const candidates = readFileSync(join(memoryRoot, "candidates.jsonl"), "utf8");
+    expect(facts).toContain('"kind":"GateDecision"');
+    expect(candidates).toContain('"trust_class":"untrusted"');
+    expect(
+      readFileSync(
+        join(output.workspace_root, ".pipeline", "runs", output.run_id, "request.json"),
+        "utf8",
+      ),
+    ).toContain('"graph_memory": "read-write"');
+  });
+
   it("honors a stop requested by the final provider before publishing completion", () => {
     const root = createRepository();
     const proc = runAutonomous(
@@ -457,6 +520,7 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
         "Implement the fixture value and document it.",
         "--provider",
         "codex",
+        "--legacy-linear",
         "--json",
       ],
       PACKAGE_ROOT,

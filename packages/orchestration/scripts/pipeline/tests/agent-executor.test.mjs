@@ -3,9 +3,10 @@
  */
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { agentDoctor, runAgentPhase } from "../lib/agent-executor.mjs";
+import { agentDoctor, minimalChildEnvironment, runAgentPhase } from "../lib/agent-executor.mjs";
+import { codexCapabilityArgs } from "../lib/codex-capabilities.mjs";
 
 const tempRoots = [];
 
@@ -18,7 +19,7 @@ function fakeCodex(authenticated) {
     [
       "#!/bin/sh",
       'if [ "$1" = "exec" ]; then',
-      '  printf "%s\\n" "--sandbox --output-schema --ephemeral --json"',
+      '  printf "%s\\n" "--sandbox --output-schema --ephemeral --json --ignore-user-config --strict-config"',
       "  exit 0",
       "fi",
       'if [ "$1" = "login" ] && [ "$2" = "status" ]; then',
@@ -47,6 +48,12 @@ function fakeCodexRuntime(events = []) {
       "if (process.env.RAE_TEST_UNKNOWN_SECRET) process.exit(23);",
       'if (prompt.includes("ENV_PROBE") && process.env.OPENAI_API_KEY !== "allowed-auth") process.exit(24);',
       'if (prompt.includes("ENV_PROBE") && process.env.CODEX_INTERNAL_ORIGINATOR_OVERRIDE !== "codex_cli_rs") process.exit(25);',
+      'if (prompt.includes("CAPABILITY_PROBE") && !args.includes("--ignore-user-config")) process.exit(26);',
+      'if (prompt.includes("CAPABILITY_PROBE") && !args.includes("--strict-config")) process.exit(27);',
+      'if (prompt.includes("CAPABILITY_PROBE") && !args.includes(\'mcp_servers.research.enabled_tools=["lookup_claim"]\')) process.exit(28);',
+      'if (prompt.includes("CAPABILITY_PROBE") && !args.includes(\'shell_environment_policy.filters.RAE_MCP_TOKEN_RESEARCH="exclude"\')) process.exit(29);',
+      'if (prompt.includes("CAPABILITY_PROBE") && process.env.RAE_MCP_TOKEN_RESEARCH !== "declared-token") process.exit(30);',
+      'if (prompt.includes("CAPABILITY_PROBE") && process.env.HTTPS_PROXY) process.exit(31);',
       'const outputIndex = args.indexOf("--output-last-message");',
       'fs.writeFileSync(args[outputIndex + 1], "{}\\n", "utf8");',
       'process.stdout.write(JSON.stringify({ type: "item.completed", item: { type: "command_execution", command: "git diff --check", cwd: ".", exit_code: 0 } }) + "\\n");',
@@ -95,6 +102,99 @@ afterEach(() => {
 });
 
 describe("agentDoctor", () => {
+  it("builds a sealed one-run capability surface and hides MCP credentials from shell tools", () => {
+    const args = codexCapabilityArgs({
+      web_search: "disabled",
+      credential_env_vars: ["RESEARCH_MCP_TOKEN"],
+      mcp_servers: [
+        {
+          name: "research",
+          url: "https://mcp.example.invalid/rae",
+          enabled_tools: ["lookup_claim"],
+          token_env_var: "RESEARCH_MCP_TOKEN",
+        },
+      ],
+    });
+    expect(args).toContain("--ignore-user-config");
+    expect(args).toContain("--ignore-rules");
+    expect(args).toContain("--strict-config");
+    expect(args).toContain('web_search="disabled"');
+    expect(args).toContain("features.apps=false");
+    expect(args).toContain("features.plugins=false");
+    expect(args).toContain('mcp_servers.research.enabled_tools=["lookup_claim"]');
+    expect(args).toContain('shell_environment_policy.filters.RESEARCH_MCP_TOKEN="exclude"');
+  });
+
+  it("drops ambient proxy, trust-store, XDG, and undeclared credential variables for v2", () => {
+    const child = minimalChildEnvironment(
+      {
+        PATH: "/bin",
+        HOME: "/home/fixture",
+        CODEX_HOME: "/codex/fixture",
+        HTTPS_PROXY: "http://proxy.invalid",
+        SSL_CERT_FILE: "/private/ca.pem",
+        XDG_CONFIG_HOME: "/private/config",
+        OPENAI_API_KEY: "ambient-provider-secret",
+        RAE_MCP_TOKEN_RESEARCH: "declared-mcp-secret",
+      },
+      "/workspace",
+      ["RAE_MCP_TOKEN_RESEARCH"],
+    );
+    expect(child).toMatchObject({
+      PATH: "/bin",
+      HOME: "/home/fixture",
+      CODEX_HOME: "/codex/fixture",
+      RAE_MCP_TOKEN_RESEARCH: "declared-mcp-secret",
+      PWD: "/workspace",
+    });
+    expect(child.HTTPS_PROXY).toBeUndefined();
+    expect(child.SSL_CERT_FILE).toBeUndefined();
+    expect(child.XDG_CONFIG_HOME).toBeUndefined();
+    expect(child.OPENAI_API_KEY).toBeUndefined();
+  });
+
+  it("runs Codex with only the profile-declared MCP surface and credential", () => {
+    const { root } = fakeCodexRuntime();
+    const result = runAgentPhase({
+      provider: "codex",
+      workspaceRoot: root,
+      schemaPath: join(root, "schema.json"),
+      outputPath: join(root, "artifact.json"),
+      eventLogPath: join(root, "events.jsonl"),
+      prompt: "CAPABILITY_PROBE",
+      sandboxMode: "read-only",
+      timeoutMs: 5_000,
+      capabilities: {
+        web_search: "disabled",
+        credential_env_vars: ["RAE_MCP_TOKEN_RESEARCH"],
+        mcp_servers: [
+          {
+            name: "research",
+            url: "https://mcp.example.invalid/rae",
+            enabled_tools: ["lookup_claim"],
+            token_env_var: "RAE_MCP_TOKEN_RESEARCH",
+          },
+        ],
+      },
+      env: {
+        PATH: root,
+        HOME: root,
+        CODEX_HOME: root,
+        HTTPS_PROXY: "http://ambient-proxy.invalid",
+        RAE_MCP_TOKEN_RESEARCH: "declared-token",
+        UNDECLARED_SECRET: "must-not-leak",
+      },
+    });
+
+    expect(result.capabilitySurface.mcp_servers[0].enabled_tools).toEqual(["lookup_claim"]);
+    expect(result.credentialManifest).toEqual([
+      {
+        name: "RAE_MCP_TOKEN_RESEARCH",
+        digest: "85e04780d862d1d9814a9a1575e689dab694f01f25f9e5d9510e3ee60f836970",
+      },
+    ]);
+  });
+
   it("passes only when Codex has required capabilities and authentication", () => {
     const path = fakeCodex(true);
     const result = agentDoctor({ provider: "codex", env: { PATH: path } });
@@ -111,6 +211,26 @@ describe("agentDoctor", () => {
     expect(result.success).toBe(false);
     expect(result.capabilities.authenticated).toBe(false);
     expect(result.detail).toContain("unauthenticated");
+  });
+
+  it("skips non-executable PATH entries and fails closed when no executable remains", () => {
+    const blockedRoot = mkdtempSync(join(tmpdir(), "rae-non-executable-codex-"));
+    tempRoots.push(blockedRoot);
+    const blockedExecutable = join(blockedRoot, "codex");
+    writeFileSync(blockedExecutable, "#!/bin/sh\nexit 0\n", "utf8");
+    chmodSync(blockedExecutable, 0o644);
+    const executableRoot = fakeCodex(true);
+
+    expect(
+      agentDoctor({
+        provider: "codex",
+        env: { PATH: [blockedRoot, executableRoot].join(delimiter) },
+      }).success,
+    ).toBe(true);
+    expect(agentDoctor({ provider: "codex", env: { PATH: blockedRoot } })).toMatchObject({
+      success: false,
+      executable: null,
+    });
   });
 
   it("persists a validated Codex JSON event stream with command evidence", () => {
@@ -248,6 +368,36 @@ describe("agentDoctor", () => {
     });
   });
 
+  it("does not persist an absolute command working directory outside the workspace", () => {
+    const externalCwd = join(tmpdir(), "rae-external-workspace");
+    const { root } = fakeCodexRuntime([
+      {
+        type: "item.completed",
+        item: {
+          type: "command_execution",
+          command: "npm test",
+          cwd: externalCwd,
+          exit_code: 0,
+        },
+      },
+    ]);
+    const eventLogPath = join(root, "events.jsonl");
+    const result = runAgentPhase({
+      provider: "codex",
+      workspaceRoot: root,
+      schemaPath: join(root, "schema.json"),
+      outputPath: join(root, "artifact.json"),
+      eventLogPath,
+      prompt: "Return the test artifact.",
+      sandboxMode: "read-only",
+      timeoutMs: 5_000,
+      env: { PATH: root },
+    });
+
+    expect(result.commandEvents.at(-1).working_directory).toBeNull();
+    expect(readFileSync(eventLogPath, "utf8")).not.toContain(externalCwd);
+  });
+
   it("marks incomplete documented usage partial", () => {
     const { root } = fakeCodexRuntime([
       {
@@ -314,6 +464,7 @@ describe("agentDoctor", () => {
         item: {
           type: "command_execution",
           command: "tool --api-key top-secret-value --header 'Bearer bearer-secret-value'",
+          exit_code: 0,
           environment: {
             access_token: "structured-secret-value",
             AWS_SECRET_ACCESS_KEY: "aws-secret-value",
@@ -327,7 +478,7 @@ describe("agentDoctor", () => {
       },
     ]);
     const eventLogPath = join(root, "events.jsonl");
-    runAgentPhase({
+    const result = runAgentPhase({
       provider: "codex",
       workspaceRoot: root,
       schemaPath: join(root, "schema.json"),
@@ -354,6 +505,9 @@ describe("agentDoctor", () => {
     }
     expect(evidence).toContain("visible-value");
     expect(evidence).toContain("[REDACTED]");
+    expect(JSON.stringify(result.commandEvents)).not.toContain("top-secret-value");
+    expect(JSON.stringify(result.commandEvents)).not.toContain("bearer-secret-value");
+    expect(result.commandEvents.at(-1).command).toContain("[REDACTED]");
     for (const line of evidence.trim().split("\n")) expect(() => JSON.parse(line)).not.toThrow();
   });
 

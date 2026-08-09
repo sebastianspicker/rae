@@ -43,6 +43,19 @@ test("start input permits only task and checkpoint policy", () => {
   assert.throws(() => validateStartInput({ task: "" }), /task is required/);
 });
 
+test("start input accepts a profile only after server-side resolution", () => {
+  const profile = { source: "/private/operator-profile.json" };
+  assert.equal(
+    validateStartInput({ task: "safe", execution_profile_id: "local-codex" }, profile)
+      .executionProfile,
+    profile,
+  );
+  assert.throws(
+    () => validateStartInput({ task: "safe", execution_profile_id: "../../private" }),
+    /preloaded execution profile/,
+  );
+});
+
 test("typed confirmation must match the exact run id", () => {
   assert.doesNotThrow(() => requireTypedConfirmation({ confirm_run_id: "run-1" }, "run-1"));
   assert.throws(
@@ -80,6 +93,26 @@ test("controller starts fixed Codex argv without a shell and owns only the newly
   discovery = [{ id: "old-run" }, { id: "new-run" }];
   assert.equal(controller.refreshOwnership(), "new-run");
   assert.throws(() => controller.start(project, { task: "second" }), /already active/);
+});
+
+test("controller passes only the resolved execution-profile source to the fixed argv", () => {
+  const child = new FakeChild();
+  const calls = [];
+  const controller = new RunController({
+    spawnFn(command, args) {
+      calls.push({ command, args });
+      return child;
+    },
+    discoverRunsFn: () => [],
+  });
+  controller.start(
+    { id: "project_12345678", root: "/repo" },
+    { task: "Use the bounded profile", execution_profile_id: "local-codex" },
+    { source: "/private/operator-profile.json" },
+  );
+  const index = calls[0].args.indexOf("--execution-profile");
+  assert.equal(calls[0].args[index + 1], "/private/operator-profile.json");
+  assert.equal(calls[0].args.includes("local-codex"), false);
 });
 
 test("interrupt signals only the exact active child and persists interrupted state", (t) => {
