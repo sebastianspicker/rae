@@ -26,7 +26,7 @@ function httpError(status, message) {
 }
 
 function assertAllowedStartFields(body) {
-  const allowed = new Set(["task", "checkpoint_policy"]);
+  const allowed = new Set(["task", "checkpoint_policy", "execution_profile_id"]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) throw httpError(400, `unsupported start field: ${key}`);
   }
@@ -48,11 +48,15 @@ function startCheckpointPolicy(value) {
   return policy;
 }
 
-export function validateStartInput(body) {
+export function validateStartInput(body, executionProfile = null) {
   assertAllowedStartFields(body);
+  if (body.execution_profile_id !== undefined && !executionProfile?.source) {
+    throw httpError(400, "execution_profile_id must name a preloaded execution profile");
+  }
   return {
     task: normalizedStartTask(body.task),
     checkpointPolicy: startCheckpointPolicy(body.checkpoint_policy),
+    ...(executionProfile ? { executionProfile } : {}),
   };
 }
 
@@ -199,8 +203,8 @@ export class RunController {
     return this.ownedRunId;
   }
 
-  start(project, body) {
-    const { task, checkpointPolicy } = validateStartInput(body);
+  start(project, body, executionProfile = null) {
+    const { task, checkpointPolicy } = validateStartInput(body, executionProfile);
     const baselineIds = new Set(this.discoverRunsFn(project).map((run) => run.id));
     this.#spawn(
       project,
@@ -214,6 +218,7 @@ export class RunController {
         "codex",
         "--checkpoint-policy",
         checkpointPolicy,
+        ...(executionProfile ? ["--execution-profile", executionProfile.source] : []),
         "--json",
       ],
       baselineIds,

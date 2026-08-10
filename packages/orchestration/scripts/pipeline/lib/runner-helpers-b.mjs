@@ -68,6 +68,100 @@ export function appendRunEndIfMissing(runId, state, root = getRepoRoot(), option
   }
 }
 
+function readCallerArtifact({ runId, phase, inputArtifactRef, root }) {
+  // Preserve caller-supplied artifacts exactly; the runner adds evidence
+  // events and gate results around them instead of rewriting their content.
+  const inputAbs = resolveWithinRepo(inputArtifactRef, root);
+  appendTraceEvent(
+    runId,
+    {
+      event: "artifact_read",
+      phase,
+      artifact_ref: toWorkspaceRelative(inputAbs, root),
+      status: "ok",
+    },
+    root,
+  );
+  return readJsonStrict(inputAbs, `input artifact ${inputArtifactRef}`);
+}
+
+function buildOrReadArtifact({
+  runId,
+  phase,
+  configId,
+  options,
+  taskContext,
+  stageProfile,
+  artifactAbs,
+  artifactRef,
+  budget,
+  root,
+}) {
+  const inputArtifactRef = options["input-artifact"];
+  if (inputArtifactRef) {
+    return {
+      artifact: readCallerArtifact({ runId, phase, inputArtifactRef, root }),
+      wroteArtifact: true,
+    };
+  }
+
+  const artifact = buildArtifactForPhase({
+    phase,
+    runId,
+    configId,
+    task: taskContext?.task,
+    stageProfile,
+    budget,
+  });
+  if (artifact) return { artifact, wroteArtifact: true };
+  if (!existsSync(artifactAbs)) return { artifact: null, wroteArtifact: false };
+
+  appendTraceEvent(
+    runId,
+    {
+      event: "artifact_read",
+      phase,
+      artifact_ref: toWorkspaceRelative(artifactAbs, root),
+      status: "ok",
+    },
+    root,
+  );
+  return { artifact: readJsonStrict(artifactAbs, `artifact ${artifactRef}`), wroteArtifact: false };
+}
+
+function addRunDerivedArtifactEvidence({ artifact, runId, phase, state, root }) {
+  const coverageLedger = resolveQualityCoverageLedger(runId, state, phase, root);
+  const artifactWithCoverage = coverageLedger
+    ? {
+        ...artifact,
+        coverage_ledger: {
+          coverage_scope: coverageLedger.coverage_scope,
+          requirements: coverageLedger.requirements,
+          summary: coverageLedger.summary,
+        },
+        qc_summary: coverageLedger.qc_summary,
+      }
+    : artifact;
+  const reviewLoopSnapshot = resolveReviewLoopSnapshot(runId, phase, root);
+  return reviewLoopSnapshot
+    ? { ...artifactWithCoverage, ...reviewLoopSnapshot }
+    : artifactWithCoverage;
+}
+
+function writeArtifactAndTrace({ runId, phase, artifactAbs, artifact, root }) {
+  writeJson(artifactAbs, artifact);
+  appendTraceEvent(
+    runId,
+    {
+      event: "artifact_write",
+      phase,
+      artifact_ref: toWorkspaceRelative(artifactAbs, root),
+      status: "ok",
+    },
+    root,
+  );
+}
+
 export function resolveAndWriteArtifact({
   runId,
   phase,
@@ -82,80 +176,28 @@ export function resolveAndWriteArtifact({
   let artifactRef = options["artifact-ref"] || defaults.artifactRef;
   const schemaRef = options["schema-ref"] || defaults.schemaRef;
   let artifact = null;
-  let wroteArtifact = false;
 
   if (artifactRef) {
     const artifactAbs = resolveArtifactRefForRun(runId, artifactRef, root);
     const budget = contextBudgetForPhase(phaseTokenForContextBudget(phase), state);
-
-    if (options["input-artifact"]) {
-      // Preserve caller-supplied artifacts exactly; the runner adds evidence
-      // events and gate results around them instead of rewriting their content.
-      const inputAbs = resolveWithinRepo(options["input-artifact"], root);
-      appendTraceEvent(
-        runId,
-        {
-          event: "artifact_read",
-          phase,
-          artifact_ref: toWorkspaceRelative(inputAbs, root),
-          status: "ok",
-        },
-        root,
-      );
-      artifact = readJsonStrict(inputAbs, `input artifact ${options["input-artifact"]}`);
-      wroteArtifact = true;
-    } else {
-      ({ artifact, wroteArtifact } = resolveGeneratedArtifact({
-        phase,
-        runId,
-        configId,
-        taskContext,
-        stageProfile,
-        budget,
-        artifactAbs,
-        artifactRef,
-        root,
-      }));
-    }
-
+    const resolved = buildOrReadArtifact({
+      runId,
+      phase,
+      configId,
+      options,
+      taskContext,
+      stageProfile,
+      artifactAbs,
+      artifactRef,
+      budget,
+      root,
+    });
+    artifact = resolved.artifact;
     if (artifact && !options["input-artifact"]) {
-      const coverageLedger = resolveQualityCoverageLedger(runId, state, phase, root);
-      if (coverageLedger) {
-        artifact = {
-          ...artifact,
-          coverage_ledger: {
-            coverage_scope: coverageLedger.coverage_scope,
-            requirements: coverageLedger.requirements,
-            summary: coverageLedger.summary,
-          },
-          qc_summary: coverageLedger.qc_summary,
-        };
-      }
-      const reviewLoopSnapshot = resolveReviewLoopSnapshot(runId, phase, root);
-      if (reviewLoopSnapshot) {
-        artifact = {
-          ...artifact,
-          ...reviewLoopSnapshot,
-        };
-      }
+      artifact = addRunDerivedArtifactEvidence({ artifact, runId, phase, state, root });
     }
-
-    if (wroteArtifact) {
-      writeJson(artifactAbs, artifact);
-    }
-
-    if (wroteArtifact) {
-      appendTraceEvent(
-        runId,
-        {
-          event: "artifact_write",
-          phase,
-          artifact_ref: toWorkspaceRelative(artifactAbs, root),
-          status: "ok",
-        },
-        root,
-      );
-    }
+    if (resolved.wroteArtifact)
+      writeArtifactAndTrace({ runId, phase, artifactAbs, artifact, root });
 
     artifactRef = toWorkspaceRelative(artifactAbs, root);
     if (artifact) {
@@ -166,39 +208,39 @@ export function resolveAndWriteArtifact({
   return { artifact, artifactRef, schemaRef };
 }
 
-function resolveGeneratedArtifact(input) {
-  const {
-    phase,
+function recordAuxiliaryGate(gateStatuses, extraGates, gate, affectsPrimaryGate) {
+  if (!gate) return;
+  if (affectsPrimaryGate) gateStatuses.push(gate.status);
+  extraGates.push(gate);
+}
+
+function evaluateBudgetGate({ runId, phase, artifact, artifactRef, schemaRef, state, root }) {
+  const budget = contextBudgetForPhase(phaseTokenForContextBudget(phase), state);
+  if (!artifact || !budget) return null;
+  return evaluateContextBudgetGate({
     runId,
-    configId,
-    taskContext,
-    stageProfile,
+    phase,
+    artifact,
+    artifactRef: artifactRef || "n/a",
+    schemaRef,
+    state,
     budget,
-    artifactAbs,
-    artifactRef,
     root,
-  } = input;
-  const artifact = buildArtifactForPhase({
-    phase,
-    runId,
-    configId,
-    task: taskContext?.task,
-    stageProfile,
-    budget,
   });
-  if (artifact) return { artifact, wroteArtifact: true };
-  if (!existsSync(artifactAbs)) return { artifact: null, wroteArtifact: false };
-  appendTraceEvent(
+}
+
+function evaluateTraceabilityGateForPhase({ runId, phase, state, root }) {
+  if (phase !== "plan" && phase !== "build") return null;
+  return evaluateTraceabilityGate({
     runId,
-    {
-      event: "artifact_read",
-      phase,
-      artifact_ref: toWorkspaceRelative(artifactAbs, root),
-      status: "ok",
-    },
+    phase,
+    state,
+    resolveArtifactRef: (nextRunId, artifactPath) =>
+      resolveArtifactRefForRun(nextRunId, artifactPath, root),
+    resolveOptionalArtifactRef: (nextRunId, artifactPath) =>
+      resolveOptionalArtifactRefForRun(nextRunId, artifactPath, root),
     root,
-  );
-  return { artifact: readJsonStrict(artifactAbs, `artifact ${artifactRef}`), wroteArtifact: false };
+  });
 }
 
 export function evaluateAuxiliaryGates({
@@ -210,7 +252,12 @@ export function evaluateAuxiliaryGates({
   state,
   root,
 }) {
-  const { gateStatuses, extraGates } = collectAuxiliaryGates({
+  const gateStatuses = [];
+  const extraGates = [];
+
+  // Auxiliary gates can worsen the primary phase gate, but they are emitted as
+  // separate artifacts so operators can see which invariant actually failed.
+  const budgetGate = evaluateBudgetGate({
     runId,
     phase,
     artifact,
@@ -219,46 +266,16 @@ export function evaluateAuxiliaryGates({
     state,
     root,
   });
+  recordAuxiliaryGate(gateStatuses, extraGates, budgetGate, true);
+  const traceabilityGate = evaluateTraceabilityGateForPhase({ runId, phase, state, root });
+  recordAuxiliaryGate(
+    gateStatuses,
+    extraGates,
+    traceabilityGate,
+    traceabilityGate?.status === "fail",
+  );
 
   return { gateStatuses, extraGates };
-}
-
-function collectAuxiliaryGates(input) {
-  const gateStatuses = [];
-  const extraGates = [];
-  const budget = contextBudgetForPhase(phaseTokenForContextBudget(input.phase), input.state);
-  addBudgetGate(input, budget, gateStatuses, extraGates);
-  addTraceabilityGate(input, gateStatuses, extraGates);
-  return { gateStatuses, extraGates };
-}
-
-function addBudgetGate(input, budget, statuses, gates) {
-  if (!input.artifact || !budget) return;
-  const gate = evaluateContextBudgetGate({
-    ...input,
-    artifactRef: input.artifactRef || "n/a",
-    budget,
-  });
-  if (gate) {
-    statuses.push(gate.status);
-    gates.push(gate);
-  }
-}
-
-function addTraceabilityGate(input, statuses, gates) {
-  if (!["plan", "build"].includes(input.phase)) return;
-  const gate = evaluateTraceabilityGate({
-    runId: input.runId,
-    phase: input.phase,
-    state: input.state,
-    resolveArtifactRef: (runId, ref) => resolveArtifactRefForRun(runId, ref, input.root),
-    resolveOptionalArtifactRef: (runId, ref) =>
-      resolveOptionalArtifactRefForRun(runId, ref, input.root),
-    root: input.root,
-  });
-  if (!gate) return;
-  if (gate.status === "fail") statuses.push(gate.status);
-  gates.push(gate);
 }
 
 function valueOrNull(value) {

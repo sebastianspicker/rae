@@ -6,6 +6,18 @@ import { SKILL_ENTRYPOINTS } from "../../lib/constants.mjs";
 import { getPackageRoot, getRepoRoot, resolveWithinRepo, toWorkspaceRelative } from "./state.mjs";
 import { badInput } from "./errors.mjs";
 import { spawnSkillTool } from "./subprocess.mjs";
+import {
+  buildCoverageResult,
+  extractDesignRequirementIds,
+  extractDriftRequirementIds,
+  extractMustRequirementIds,
+  extractPlanTaskRequirementIds,
+  extractPlanTestRequirementIds,
+  normalizeTraceabilityInput,
+  uniqueSortedStrings,
+} from "./traceability-coverage.mjs";
+
+export { buildCoverageResult, buildRequirementCoverageLedger } from "./traceability-coverage.mjs";
 
 const REQUIRED_BY_PHASE = {
   plan: ["must-covered-by-plan-tasks", "must-covered-by-plan-tests"],
@@ -15,157 +27,6 @@ const REQUIRED_BY_PHASE = {
     "must-covered-by-drift-claims",
   ],
 };
-
-function asArray(value) {
-  return Array.isArray(value) ? value : [];
-}
-
-function uniqueSortedStrings(values) {
-  return [
-    ...new Set(values.filter((value) => typeof value === "string" && value.length > 0)),
-  ].sort();
-}
-
-function collectIdsFromList(entries, key) {
-  const out = [];
-  for (const entry of asArray(entries)) {
-    const ids = asArray(entry?.[key]);
-    for (const id of ids) {
-      if (typeof id === "string" && id.length > 0) out.push(id);
-    }
-  }
-  return out;
-}
-
-function extractMustRequirementIds(brief) {
-  return uniqueSortedStrings(
-    asArray(brief?.requirements)
-      .filter((req) => req?.priority === "must")
-      .map((req) => req?.id),
-  );
-}
-
-function extractPlanTaskRequirementIds(plan) {
-  const taskGroups = asArray(plan?.task_groups);
-  const ids = [];
-  for (const group of taskGroups) {
-    const tasks = asArray(group?.tasks);
-    for (const task of tasks) {
-      ids.push(...collectIdsFromList([task], "covers_requirement_ids"));
-    }
-  }
-  return uniqueSortedStrings(ids);
-}
-
-function extractPlanTestRequirementIds(plan) {
-  const taskGroups = asArray(plan?.task_groups);
-  const ids = [];
-  for (const group of taskGroups) {
-    const tasks = asArray(group?.tasks);
-    for (const task of tasks) {
-      ids.push(...collectIdsFromList(asArray(task?.test_cases), "covers_requirement_ids"));
-    }
-  }
-  return uniqueSortedStrings(ids);
-}
-
-function planTasks(plan) {
-  return asArray(plan?.task_groups).flatMap((group) => asArray(group?.tasks));
-}
-
-function entryIdentifier(entry, keys) {
-  for (const key of keys) {
-    const value = entry?.[key];
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return null;
-}
-
-function addMappedValues(mapping, keys, values) {
-  for (const key of asArray(keys)) {
-    if (typeof key !== "string" || key.length === 0) continue;
-    const existing = mapping.get(key) ?? [];
-    existing.push(...values);
-    mapping.set(key, existing);
-  }
-}
-
-function collectPlanTaskIdsByRequirement(plan) {
-  const mapping = new Map();
-  for (const task of planTasks(plan)) {
-    const taskId = entryIdentifier(task, ["id"]);
-    if (!taskId) continue;
-    addMappedValues(mapping, task?.covers_requirement_ids, [taskId]);
-  }
-  return mapping;
-}
-
-function collectPlanTestCasesByRequirement(plan) {
-  const mapping = new Map();
-  for (const task of planTasks(plan)) {
-    for (const testCase of asArray(task?.test_cases)) {
-      const testCaseName = entryIdentifier(testCase, ["name", "trace_id"]);
-      if (!testCaseName) continue;
-      addMappedValues(mapping, testCase?.covers_requirement_ids, [testCaseName]);
-    }
-  }
-  return mapping;
-}
-
-function collectAcceptanceCriteriaByRequirement(plan) {
-  const mapping = new Map();
-  const taskGroups = asArray(plan?.task_groups);
-  for (const group of taskGroups) {
-    const tasks = asArray(group?.tasks);
-    for (const task of tasks) {
-      const acceptanceCriteria = uniqueSortedStrings(asArray(task?.acceptance_criteria));
-      for (const requirementId of asArray(task?.covers_requirement_ids)) {
-        if (typeof requirementId !== "string" || requirementId.length === 0) continue;
-        const existing = mapping.get(requirementId) ?? [];
-        existing.push(...acceptanceCriteria);
-        mapping.set(requirementId, existing);
-      }
-    }
-  }
-  return mapping;
-}
-
-function extractDriftRequirementIds(drift) {
-  return uniqueSortedStrings(collectIdsFromList(asArray(drift?.claims), "covers_requirement_ids"));
-}
-
-function extractDesignRequirementIds(design) {
-  return uniqueSortedStrings(
-    collectIdsFromList(asArray(design?.constraints_classification), "covers_requirement_ids"),
-  );
-}
-
-export function buildCoverageResult(name, sourceIds, targetIds, extra = {}) {
-  const source = uniqueSortedStrings(sourceIds);
-  const target = new Set(uniqueSortedStrings(targetIds));
-
-  if (source.length === 0) {
-    return {
-      name,
-      passed: false,
-      evidence: "coverage=0.0000 threshold=1.0000 matched=0/0 missing=none",
-      missing_ids: [],
-      ...extra,
-    };
-  }
-
-  const matched = source.filter((id) => target.has(id));
-  const missing = source.filter((id) => !target.has(id)).sort();
-  const coverage = matched.length / source.length;
-
-  return {
-    name,
-    passed: missing.length === 0,
-    evidence: `coverage=${coverage.toFixed(4)} threshold=1.0000 matched=${matched.length}/${source.length} missing=${missing.join(", ") || "none"}`,
-    missing_ids: missing,
-    ...extra,
-  };
-}
 
 function runQualityGate(input, root) {
   return spawnSkillTool({
@@ -195,175 +56,69 @@ function loadOptionalJson(ref, root) {
   }
 }
 
-function normalizeTraceabilityInput({
-  mustRequirementIds,
-  planTaskRequirementIds,
-  planTestRequirementIds,
-  driftRequirementIds,
-  designRequirementIds,
-  refs,
-}) {
-  const sources = Object.fromEntries(
-    Object.entries(refs).filter(([, value]) => typeof value === "string" && value.length > 0),
-  );
-
-  return {
-    must_requirement_ids: uniqueSortedStrings(mustRequirementIds),
-    plan_task_requirement_ids: uniqueSortedStrings(planTaskRequirementIds),
-    plan_test_requirement_ids: uniqueSortedStrings(planTestRequirementIds),
-    drift_requirement_ids: uniqueSortedStrings(driftRequirementIds),
-    design_requirement_ids: uniqueSortedStrings(designRequirementIds),
-    sources,
-  };
-}
-
 function parseRequiredCriteria(phase) {
   return REQUIRED_BY_PHASE[phase] ?? REQUIRED_BY_PHASE.plan;
 }
 
-function missingCoverage(values, marker) {
-  return values.length > 0 ? [] : [marker];
+function traceabilityStatus(enforce, schemaInvalid, requiredFailures, warningFailures) {
+  const hasRequiredFailure = schemaInvalid || requiredFailures.length > 0;
+  const hasWarningFailure = warningFailures.length > 0;
+  if (!enforce) return hasRequiredFailure || hasWarningFailure ? "warn" : "pass";
+  if (hasRequiredFailure) return "fail";
+  return hasWarningFailure ? "warn" : "pass";
 }
 
-function coverageStatus(plannedTaskIds, plannedTestCases) {
-  const hasTasks = plannedTaskIds.length > 0;
-  const hasTests = plannedTestCases.length > 0;
-  if (hasTasks && hasTests) return "covered";
-  if (hasTasks || hasTests) return "partial";
-  return "missing";
+function loadRequiredArtifact(ref, label, root) {
+  const path = resolveWithinRepo(ref, root);
+  if (!existsSync(path)) throw badInput(`${label} artifact not found: ${ref}`);
+  return { path, data: JSON.parse(readFileSync(path, "utf8")) };
 }
 
-function buildRequirementCoverageEntry(requirementId, taskMap, testMap, acceptanceMap) {
-  const plannedTaskIds = uniqueSortedStrings(taskMap.get(requirementId) ?? []);
-  const plannedTestCases = uniqueSortedStrings(testMap.get(requirementId) ?? []);
-  const acceptanceCriteria = uniqueSortedStrings(acceptanceMap.get(requirementId) ?? []);
+function loadTraceabilityArtifacts({ briefRef, planRef, driftRef, designRef }, root) {
+  const brief = loadRequiredArtifact(briefRef, "brief", root);
+  const plan = loadRequiredArtifact(planRef, "plan", root);
   return {
-    requirement_id: requirementId,
-    planned_task_ids: plannedTaskIds,
-    planned_test_cases: plannedTestCases,
-    acceptance_criteria: acceptanceCriteria,
-    missing_task_ids: missingCoverage(plannedTaskIds, "unplanned-task-coverage"),
-    missing_test_cases: missingCoverage(plannedTestCases, "unplanned-test-coverage"),
-    status: coverageStatus(plannedTaskIds, plannedTestCases),
+    brief,
+    plan,
+    drift: loadOptionalJson(driftRef, root),
+    design: loadOptionalJson(designRef, root),
   };
 }
 
-export function buildRequirementCoverageLedger({ brief, plan }) {
-  const mustRequirementIds = extractMustRequirementIds(brief);
-  const taskMap = collectPlanTaskIdsByRequirement(plan);
-  const testMap = collectPlanTestCasesByRequirement(plan);
-  const acceptanceMap = collectAcceptanceCriteriaByRequirement(plan);
-
-  const requirements = mustRequirementIds.map((requirementId) =>
-    buildRequirementCoverageEntry(requirementId, taskMap, testMap, acceptanceMap),
-  );
-
-  const coveredRequirements = requirements
-    .filter((entry) => entry.status === "covered")
-    .map((entry) => entry.requirement_id);
-  const partialRequirements = requirements.filter((entry) => entry.status === "partial").length;
-  const missingRequirementIds = requirements
-    .filter((entry) => entry.status === "missing")
-    .map((entry) => entry.requirement_id);
-
+function traceabilityRefs(artifacts, root) {
   return {
-    coverage_scope: "must-requirements",
-    requirements,
-    summary: {
-      total_requirements: requirements.length,
-      covered_requirements: coveredRequirements.length,
-      partial_requirements: partialRequirements,
-      missing_requirements: missingRequirementIds.length,
-    },
-    qc_summary: {
-      headline:
-        requirements.length === 0
-          ? "No MUST requirements were declared, so traceability cannot be satisfied."
-          : missingRequirementIds.length === 0
-            ? "All MUST requirements map to at least one planned task and planned test."
-            : `Coverage gaps remain for ${missingRequirementIds.length} MUST requirement(s).`,
-      coverage_status:
-        requirements.length === 0
-          ? "missing"
-          : missingRequirementIds.length > 0
-            ? "missing"
-            : partialRequirements > 0
-              ? "partial"
-              : "complete",
-      covered_requirements: coveredRequirements,
-      missing_requirement_ids: missingRequirementIds,
-    },
+    brief_ref: toWorkspaceRelative(artifacts.brief.path, root),
+    plan_ref: toWorkspaceRelative(artifacts.plan.path, root),
+    drift_ref: artifacts.drift.rel,
+    design_ref: artifacts.design.rel,
   };
 }
 
-export function evaluateMustTraceability({
-  phase,
-  enforce,
-  briefRef,
-  planRef,
-  driftRef,
-  designRef,
-}) {
-  const input = loadTraceabilityInput({ briefRef, planRef, driftRef, designRef });
-  const criteria = traceabilityCriteria(input.normalized, input.drift, input.design);
-  const schemaGate = runQualityGate(
-    {
-      artifact: input.normalized,
-      artifact_ref: input.refs.plan_ref,
-      schema_ref: "contracts/artifacts/traceability-check.schema.json",
-      phase,
-      criteria: [],
-    },
-    input.packageRoot,
-  );
-  const result = traceabilityResult({
-    phase,
-    enforce,
-    criteria,
-    schemaGate,
-    normalized: input.normalized,
-    refs: input.refs,
-  });
-  return result;
-}
-
-function loadTraceabilityInput({ briefRef, planRef, driftRef, designRef }) {
-  const workspaceRoot = getRepoRoot();
-  const briefPath = requiredTraceabilityArtifact(briefRef, "brief", workspaceRoot);
-  const planPath = requiredTraceabilityArtifact(planRef, "plan", workspaceRoot);
-  const drift = loadOptionalJson(driftRef, workspaceRoot);
-  const design = loadOptionalJson(designRef, workspaceRoot);
-  const refs = {
-    brief_ref: toWorkspaceRelative(briefPath, workspaceRoot),
-    plan_ref: toWorkspaceRelative(planPath, workspaceRoot),
-    drift_ref: drift.rel,
-    design_ref: design.rel,
-  };
-  const brief = JSON.parse(readFileSync(briefPath, "utf8"));
-  const plan = JSON.parse(readFileSync(planPath, "utf8"));
-  return {
-    packageRoot: getPackageRoot(),
-    drift,
-    design,
+function normalizedTraceability(artifacts, refs) {
+  return normalizeTraceabilityInput({
+    mustRequirementIds: extractMustRequirementIds(artifacts.brief.data),
+    planTaskRequirementIds: extractPlanTaskRequirementIds(artifacts.plan.data),
+    planTestRequirementIds: extractPlanTestRequirementIds(artifacts.plan.data),
+    driftRequirementIds: extractDriftRequirementIds(artifacts.drift.data),
+    designRequirementIds: extractDesignRequirementIds(artifacts.design.data),
     refs,
-    normalized: normalizeTraceabilityInput({
-      mustRequirementIds: extractMustRequirementIds(brief),
-      planTaskRequirementIds: extractPlanTaskRequirementIds(plan),
-      planTestRequirementIds: extractPlanTestRequirementIds(plan),
-      driftRequirementIds: extractDriftRequirementIds(drift.data),
-      designRequirementIds: extractDesignRequirementIds(design.data),
-      refs,
-    }),
+  });
+}
+
+function publicCoverageCriterion(entry) {
+  const suffix = entry.evidence_suffix;
+  return {
+    name: entry.name,
+    passed: entry.passed,
+    evidence:
+      typeof suffix === "string" && suffix.length > 0
+        ? `${entry.evidence}${suffix}`
+        : entry.evidence,
+    missing_ids: entry.missing_ids,
   };
 }
 
-function requiredTraceabilityArtifact(ref, name, root) {
-  const pathValue = resolveWithinRepo(ref, root);
-  if (!existsSync(pathValue)) throw badInput(`${name} artifact not found: ${ref}`);
-  return pathValue;
-}
-
-function traceabilityCriteria(normalized, drift, design) {
+function buildTraceabilityCriteria(normalized, artifacts) {
   return [
     buildCoverageResult(
       "must-covered-by-plan-tasks",
@@ -379,60 +134,80 @@ function traceabilityCriteria(normalized, drift, design) {
       "must-covered-by-drift-claims",
       normalized.must_requirement_ids,
       normalized.drift_requirement_ids,
-      {
-        evidence_suffix: drift.exists ? undefined : " (drift artifact missing)",
-      },
+      { evidence_suffix: artifacts.drift.exists ? undefined : " (drift artifact missing)" },
     ),
     buildCoverageResult(
       "must-covered-by-design",
       normalized.must_requirement_ids,
       normalized.design_requirement_ids,
-      {
-        evidence_suffix: design.exists ? undefined : " (design artifact missing)",
-      },
+      { evidence_suffix: artifacts.design.exists ? undefined : " (design artifact missing)" },
     ),
-  ].map((entry) => ({
-    name: entry.name,
-    passed: entry.passed,
-    evidence:
-      typeof entry.evidence_suffix === "string" && entry.evidence_suffix.length > 0
-        ? `${entry.evidence}${entry.evidence_suffix}`
-        : entry.evidence,
-    missing_ids: entry.missing_ids,
-  }));
+  ].map(publicCoverageCriterion);
 }
 
-function traceabilityResult({ phase, enforce, criteria, schemaGate, normalized, refs }) {
+function traceabilityFailures(criteria, phase) {
   const requiredCriteria = new Set(parseRequiredCriteria(phase));
-  const requiredFailures = criteria
-    .filter((criterion) => requiredCriteria.has(criterion.name) && !criterion.passed)
-    .map((criterion) => criterion.name);
+  const failed = criteria.filter((criterion) => !criterion.passed);
+  return {
+    required: failed
+      .filter((criterion) => requiredCriteria.has(criterion.name))
+      .map((item) => item.name),
+    warnings: failed
+      .filter((criterion) => !requiredCriteria.has(criterion.name))
+      .map((item) => item.name),
+  };
+}
 
-  const warningFailures = criteria
-    .filter((criterion) => !requiredCriteria.has(criterion.name) && !criterion.passed)
-    .map((criterion) => criterion.name);
+function missingTraceability(criteria) {
+  const byCriterion = Object.fromEntries(
+    criteria
+      .filter((criterion) => criterion.missing_ids.length > 0)
+      .map((criterion) => [criterion.name, [...criterion.missing_ids].sort()]),
+  );
+  return {
+    byCriterion,
+    requirementIds: uniqueSortedStrings(Object.values(byCriterion).flat()),
+  };
+}
 
+export function evaluateMustTraceability({
+  phase,
+  enforce,
+  briefRef,
+  planRef,
+  driftRef,
+  designRef,
+}) {
+  const workspaceRoot = getRepoRoot();
+  const packageRoot = getPackageRoot();
+  const artifacts = loadTraceabilityArtifacts(
+    { briefRef, planRef, driftRef, designRef },
+    workspaceRoot,
+  );
+  const refs = traceabilityRefs(artifacts, workspaceRoot);
+  const normalized = normalizedTraceability(artifacts, refs);
+
+  const schemaGate = runQualityGate(
+    {
+      artifact: normalized,
+      artifact_ref: refs.plan_ref,
+      schema_ref: "contracts/artifacts/traceability-check.schema.json",
+      phase,
+      criteria: [],
+    },
+    packageRoot,
+  );
+
+  const criteria = buildTraceabilityCriteria(normalized, artifacts);
+  const failures = traceabilityFailures(criteria, phase);
   const schemaInvalid = !schemaGate.schema_validation.valid;
-
-  const status = traceabilityStatus(enforce, schemaInvalid, requiredFailures, warningFailures);
+  const status = traceabilityStatus(enforce, schemaInvalid, failures.required, failures.warnings);
 
   const blockingFailures =
     enforce && status === "fail"
-      ? [...(schemaInvalid ? ["traceability-schema-valid"] : []), ...requiredFailures]
+      ? [...(schemaInvalid ? ["traceability-schema-valid"] : []), ...failures.required]
       : [];
-
-  const missingByCriterion = criteria
-    .filter((criterion) => criterion.missing_ids.length > 0)
-    .reduce((acc, criterion) => {
-      acc[criterion.name] = [...criterion.missing_ids].sort();
-      return acc;
-    }, {});
-
-  const missingRequirementIds = uniqueSortedStrings(
-    Object.values(missingByCriterion)
-      .flat()
-      .filter((id) => typeof id === "string"),
-  );
+  const missing = missingTraceability(criteria);
 
   return {
     gate: {
@@ -445,17 +220,10 @@ function traceabilityResult({ phase, enforce, criteria, schemaGate, normalized, 
       schema_validation: schemaGate.schema_validation,
     },
     normalized,
-    required_failures: requiredFailures,
-    warning_failures: warningFailures,
-    missing_by_criterion: missingByCriterion,
-    missing_requirement_ids: missingRequirementIds,
+    required_failures: failures.required,
+    warning_failures: failures.warnings,
+    missing_by_criterion: missing.byCriterion,
+    missing_requirement_ids: missing.requirementIds,
     refs,
   };
-}
-
-function traceabilityStatus(enforce, schemaInvalid, requiredFailures, warningFailures) {
-  const requiredFailed = schemaInvalid || requiredFailures.length > 0;
-  if (enforce && requiredFailed) return "fail";
-  if (requiredFailed || warningFailures.length > 0) return "warn";
-  return "pass";
 }

@@ -8,7 +8,8 @@
   ],
   "dependencies": {
     "ajv": "8.18.0",
-    "ajv-formats": "3.0.1"
+    "ajv-formats": "3.0.1",
+    "smol-toml": "1.7.1"
   },
   "engines": {
     "node": ">=20.19.0 <21 || >=22.12.0 <23 || >=24.0.0"
@@ -16,7 +17,6 @@
   "scripts": {
     "agent": "node scripts/pipeline/autonomous.mjs",
     "benchmark:graph-context": "node scripts/eval/graph-context-benchmark.mjs",
-    "build:pages-demo": "bash scripts/build-pages-demo.sh",
     "benchmark:workflow-topology": "node scripts/eval/workflow-topology-benchmark.mjs",
     "build": "npm run build --workspaces --if-present",
     "test:operator": "node --test operator/tests/*.test.mjs",

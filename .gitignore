@@ -60,6 +60,7 @@ evals/results/verification-baseline/
 .codex/
 .claude/
 .cursor/
+.continue/
 .gemini/
 .kilo/
 /.codacy/
@@ -72,6 +73,7 @@ evals/results/verification-baseline/
 /docs/agent/
 /plan.md
 /status.md
+/WIP.md
 /AUDIT*.md
 /CODEBASE_AUDIT*.md
 /PLAN*.md
@@ -117,3 +119,7 @@ id_ed25519.*
 /.netrc
 /.npmrc
 /.pypirc
+/.repowise/
+/.mcp.json
+/work-in-progress/
+/wip/

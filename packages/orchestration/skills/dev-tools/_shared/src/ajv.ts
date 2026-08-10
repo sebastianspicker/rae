@@ -7,16 +7,16 @@ export interface AjvErrorObject {
 }
 
 export interface AjvValidateFunction {
-  (_data: unknown): boolean;
+  (data: unknown): boolean;
   errors?: AjvErrorObject[] | null;
 }
 
 export interface AjvInstance {
-  compile(_schema: Record<string, unknown>): AjvValidateFunction;
+  compile(schema: Record<string, unknown>): AjvValidateFunction;
 }
 
-export type AjvConstructor = new (_opts: Record<string, unknown>) => AjvInstance;
-export type AjvFormatsFn = (_ajv: AjvInstance, _formats?: string[]) => void;
+export type AjvConstructor = new (opts: Record<string, unknown>) => AjvInstance;
+export type AjvFormatsFn = (ajv: AjvInstance, formats?: string[]) => void;
 
 let _AjvClass: AjvConstructor | undefined;
 let _addFormats: AjvFormatsFn | undefined;

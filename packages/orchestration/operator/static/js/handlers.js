@@ -2,7 +2,7 @@
 
 import { api, showError, showToast } from "./api.js";
 import { closeConfirmation, openConfirmation, postAction, submitConfirmation } from "./actions.js";
-import { loadRuns, selectRun, waitForNewRun } from "./data.js";
+import { loadExecutionProfiles, loadRuns, selectRun, waitForNewRun } from "./data.js";
 import { humanize } from "./format.js";
 import { renderRuns, setEvidenceExpanded } from "./render.js";
 import { loadWorkflows } from "./workflows.js";
@@ -15,6 +15,7 @@ export function bindHandlers() {
     state.runQuery = "";
     elements["run-search-input"].value = "";
     await loadRuns(false).catch(showError);
+    await loadExecutionProfiles().catch(showError);
     await loadWorkflows().catch(showError);
   });
 
@@ -65,8 +66,8 @@ export function bindHandlers() {
     elements["start-task"].focus();
   });
 
-  for (const element of [elements["start-close"], elements["start-cancel"]]) {
-    element.addEventListener("click", () => elements["start-dialog"].close());
+  for (const id of ["start-close", "start-cancel"]) {
+    elements[id].addEventListener("click", () => elements["start-dialog"].close());
   }
 
   elements["start-form"].addEventListener("submit", async (event) => {
@@ -80,6 +81,9 @@ export function bindHandlers() {
         body: JSON.stringify({
           task: elements["start-task"].value,
           checkpoint_policy: elements["start-checkpoint-policy"].value,
+          ...(elements["start-execution-profile"].value
+            ? { execution_profile_id: elements["start-execution-profile"].value }
+            : {}),
         }),
       });
       elements["start-dialog"].close();
@@ -118,8 +122,8 @@ export function bindHandlers() {
       elements["confirm-run-id"].value !== elements["confirm-expected-id"].textContent;
   });
 
-  for (const element of [elements["confirm-close"], elements["confirm-cancel"]]) {
-    element.addEventListener("click", closeConfirmation);
+  for (const id of ["confirm-close", "confirm-cancel"]) {
+    elements[id].addEventListener("click", closeConfirmation);
   }
 
   elements["confirm-form"].addEventListener("submit", async (event) => {

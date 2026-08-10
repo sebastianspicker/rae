@@ -50,7 +50,9 @@ report.
 - Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`
 - npm
 - `git` and `rg`
-- Codex CLI for provider-backed autonomous runs
+- Codex CLI for Codex-backed autonomous runs
+- OpenCode CLI for explicit OpenCode routes on the supported macOS containment
+  backend
 - a target Git repository with at least one commit and usable `HEAD` and
   current-branch reflogs
 
@@ -97,8 +99,9 @@ Useful options:
 
 - `--workflow <path>` selects a validated graph-native workflow for a new run
 - `--execution-profile <path>` snapshots an operator-owned mapping from logical
-  economy, standard, and judgment tiers to Codex model settings; it is mutually
-  exclusive with global model and reasoning overrides
+  economy, standard, and judgment tiers to named Codex or OpenCode routes; it is
+  mutually exclusive with global provider, model, reasoning, and variant
+  overrides
 - `--through <node-id>` stops after the selected workflow node
 - `--max-concurrency <1..4>` caps concurrent read-only nodes
 - `--max-repair-rounds <1..5>` tightens the workflow repair bound
@@ -133,7 +136,7 @@ It has no filesystem or network sandbox, always fails `agent doctor`, and
 requires `--allow-unsafe-command-provider` on every run and resume. Do not use
 it as an operational backend.
 
-## Operator console
+## Operator console and workflow designer
 
 From the repository root:
 
@@ -144,9 +147,20 @@ From the repository root:
 
 Repeat `--project` to allowlist more than one Git root. The console binds only
 to loopback and prints a URL with an ephemeral bearer token in the fragment.
+Repeat `--execution-profile` to preload server-owned profile files. The browser
+receives only profile IDs, route metadata, models, and readiness. It never
+receives profile paths, credentials, environment values, or raw provider
+events.
 It exposes status, projected events, stop, interrupt, resume, checkpoint, and
 fail-closed cleanup controls. It does not expose in-place execution, arbitrary
 commands, environment overrides, Git publication, or deployment.
+
+The workflow workspace keeps Loop, Graph, Analyze, and JSON views synchronized.
+Five guided templates compile directly to workflow 2.1. Structured node and
+edge controls remain keyboard operable, while the JSON view retains access to
+existing 2.0 and experimental 2.2 revisions. Analysis and proposal results stay
+unsaved until an operator creates a revision. Activation remains a separate,
+exact-digest action.
 
 See [`operator/README.md`](operator/README.md) for the HTTP and event contract.
 
@@ -179,7 +193,15 @@ until-dry convergence, and logical execution tiers. Stored 2.0 runs and active
 2.0 registry revisions keep their original executor. RAE does not migrate a
 private registry automatically.
 
-Create a draft-only Codex proposal with:
+Workflow 2.2 is an experimental local scheduler for durable wait nodes and
+typed signals. It writes wait state under
+`.pipeline/runs/<run-id>/workflow/wait-state.json`, consumes accepted signals
+idempotently on resume, and fails a wait on timeout. Its bounded context
+assembly is not a context-efficiency result. Existing 2.0 and 2.1 runs remain
+on their original schedulers. See
+[`docs/reference/contracts/workflow-v2.2.md`](../../docs/reference/contracts/workflow-v2.2.md).
+
+Create a proposal with:
 
 ```bash
 ./scripts/rae.sh graph workflow propose \
@@ -190,8 +212,10 @@ Create a draft-only Codex proposal with:
   --rationale "Draft for review"
 ```
 
-The proposal uses a read-only ephemeral session, validates locally, permits one
-correction, and never activates or executes its output.
+Without `--preview`, the command stores a validated draft revision. Add
+`--preview` to return a validated candidate without saving it. When an
+execution profile is supplied, proposal generation uses its `judgment` route.
+Neither mode activates or executes the result.
 
 ## Low-level pipeline API
 
@@ -250,9 +274,10 @@ python3 scripts/adapters/generate_adapters.py
 python3 scripts/adapters/generate_adapters.py --check
 ```
 
-Committed adapters exist for Codex, Cursor, Claude, Gemini, and Kilo. Only
-Codex currently has a supported autonomous CLI executor. The other adapters
-are portable guidance and must not be interpreted as executable integrations.
+Committed guidance adapters exist for Codex, Cursor, Claude, Gemini, and Kilo.
+The autonomous runtime has executable adapters for Codex and explicit OpenCode
+routes. The other adapters are portable guidance and must not be interpreted
+as executable integrations.
 
 ## Repository structure
 
@@ -267,6 +292,7 @@ are portable guidance and must not be interpreted as executable integrations.
 | `orchestrators/` | Stage instructions consumed by the runtime |
 | `skills/dev-tools/` | Quality-gate, review, and trace packages |
 | `docs/` | Package runbook, platform notes, policy, and repository map |
+| `platform/` | Experimental PostgreSQL control plane, OIDC API, fenced worker lease, artifact, and MCP source |
 
 ## Security and data handling
 
@@ -287,6 +313,13 @@ The runner:
 - guards `.pipeline` state outside provider-writable workspace and temporary
   roots during writable stages
 - rejects protected Git-state changes on supported provider runs
+
+OpenCode write routes add a macOS Seatbelt boundary around the isolated
+worktree. RAE verifies the effective OpenCode configuration before execution,
+denies shell, web, external-directory, plugin, skill, subagent, question, and
+unapproved MCP access, and exposes only an opaque allowlisted verification
+broker. The pinned OpenCode process can read its configured credential store;
+credential contents are not copied into run artifacts or operator responses.
 
 The provider process still receives the working directory and schema paths
 needed for execution. Consult the provider's data controls for storage and
@@ -331,6 +364,12 @@ Operational recovery and troubleshooting are documented in
 [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Platform support is documented in
 [`docs/PLATFORMS.md`](docs/PLATFORMS.md).
 
+The `platform/` package is an experimental vertical slice connected to the
+operator only through remote-mode proxy routes. Its source-unit test can be
+run with `npm --prefix platform test` from this directory. PostgreSQL,
+container, OIDC, S3-compatible storage, and remote worker execution remain
+integration evidence lanes.
+
 ## Limitations
 
 - Worktree isolation depends on Git reflogs and repository identity checks.
@@ -338,6 +377,10 @@ Operational recovery and troubleshooting are documented in
   creates a new POSIX session.
 - Guard recovery fails closed while ownership or repository identity is
   uncertain.
+- OpenCode write routes are supported only on macOS, require the isolated
+  worktree, and reject `--in-place`.
+- A real provider run is still required before treating fake-executable event
+  tests as evidence for a specific OpenCode release or provider account.
 - Deterministic fixtures and committed baselines are test evidence, not proof
   of behavior on arbitrary repositories.
 - The low-level stage runner validates pipeline contracts; it is not a

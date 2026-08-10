@@ -92,13 +92,13 @@ export function renderRuns() {
 }
 
 export function renderRunControls(run) {
-  for (const [element, enabled] of [
-    [elements["stop-button"], run?.controls?.stop],
-    [elements["interrupt-button"], run?.controls?.interrupt],
-    [elements["resume-button"], run?.controls?.resume],
-    [elements["cleanup-button"], run?.controls?.cleanup],
+  for (const [element, key] of [
+    [elements["stop-button"], "stop"],
+    [elements["interrupt-button"], "interrupt"],
+    [elements["resume-button"], "resume"],
+    [elements["cleanup-button"], "cleanup"],
   ]) {
-    element.disabled = !enabled;
+    element.disabled = !run?.controls[key];
   }
 }
 

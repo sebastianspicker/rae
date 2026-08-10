@@ -119,6 +119,8 @@ test("operator UI maps Evidence Dossier metrics and evidence to projected API da
 
 test("operator UI includes focus, reduced-motion, responsive, and status treatments", () => {
   assert.match(css, /:focus-visible/);
+  assert.match(css, /\.skip:focus-visible/);
+  assert.match(css, /transform: translateY\(calc\(-100% - 0\.75rem\)\)/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /@media \(max-width: 1260px\)/);
   assert.match(css, /@media \(max-width: 900px\)/);
@@ -180,5 +182,54 @@ test("workflow map provides topology, typed edges, budgets, and accessible insta
   assert.match(app, /Registry is read-only while a run is active/);
   assert.match(css, /\.workflow-edge--stream/);
   assert.match(css, /\.workflow-edge--loop-back/);
+  assert.match(css, /\.workflow-inspector input:not\(\[type="checkbox"\]\)/);
+  assert.match(css, /\.workflow-checks label \{ display:flex; align-items:center/);
+  assert.match(css, /\.workflow-inspector dd \{ overflow-wrap:anywhere; \}/);
+  assert.match(css, /\.workflow-editor__head \{ align-items:flex-start; flex-direction:column; \}/);
+  assert.match(css, /#workflow-graph-panel \{ overflow-x:auto; \}/);
   assert.match(html, /complete equivalent structure and live instance state/);
+});
+
+test("workflow designer keeps accessible synchronized views and structured authoring controls", () => {
+  for (const id of [
+    "workflow-view-loop",
+    "workflow-view-graph",
+    "workflow-view-analyze",
+    "workflow-view-json",
+    "workflow-template",
+    "workflow-add-node",
+    "workflow-delete-node",
+    "workflow-add-edge",
+    "workflow-delete-edge",
+    "workflow-auto-layout",
+    "workflow-node-guidance",
+    "workflow-node-access",
+    "workflow-node-tier",
+    "workflow-node-payload",
+    "workflow-node-join",
+    "workflow-node-failure",
+    "workflow-node-resource",
+    "workflow-node-verification",
+    "workflow-node-checkpoint",
+    "workflow-node-ownership",
+    "workflow-node-kind",
+    "workflow-node-quorum",
+    "workflow-node-loop-mode",
+    "workflow-node-loop-bound",
+    "workflow-node-loop-members",
+    "workflow-proposal-task",
+    "workflow-proposal-profile",
+    "workflow-propose",
+    "start-execution-profile",
+  ])
+    assert.ok(html.includes(`id="${id}"`));
+  assert.match(html, /role="tablist"/);
+  assert.match(app, /expert-only JSON surface/);
+  assert.match(app, /analyze: "workflow-analysis"/);
+  assert.match(app, /for \(const \[name, panelId\] of Object\.entries\(WORKFLOW_VIEW_PANELS\)\)/);
+  assert.match(app, /updateWorkflowView/);
+  assert.match(app, /analyzeDraft/);
+  assert.match(app, /pollProposal/);
+  assert.match(html, /Auto layout/);
+  assert.match(css, /prefers-reduced-motion/);
 });

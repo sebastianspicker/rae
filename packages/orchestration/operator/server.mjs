@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Serves the authenticated loopback-only operator API and static console. */
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { RunController } from "./lib/control.mjs";
@@ -15,7 +16,16 @@ import {
   validateRunId,
 } from "./lib/security.mjs";
 import { discoverRuns, locateRun, paginatedEvents, publicRun } from "./lib/runs.mjs";
-import { assertRegistryMethod, workflowRegistryFor } from "./lib/workflows.mjs";
+import {
+  analyzeWorkflowFor,
+  assertRegistryMethod,
+  compileWorkflowTemplateFor,
+  workflowRegistryFor,
+  workflowTemplates,
+} from "./lib/workflows.mjs";
+import { OperatorProfiles, loadOperatorProfiles } from "./lib/profiles.mjs";
+import { WorkflowProposalJobs } from "./lib/proposals.mjs";
+import { createRemoteOperatorProxy, MAX_REMOTE_RESPONSE_BYTES } from "./lib/remote.mjs";
 import { assertSupportedNodeRuntime } from "../scripts/lib/node-runtime.mjs";
 
 assertSupportedNodeRuntime();
@@ -32,7 +42,6 @@ const STATIC_ROOT_FILES = new Map([
   ["/index.html", "index.html"],
 ]);
 const API_PREFIX = "/api/v1";
-const { readFileSync } = process.getBuiltinModule("node:fs");
 
 function securityHeaders() {
   return {
@@ -53,6 +62,42 @@ function sendJson(res, status, value) {
     "content-type": "application/json; charset=utf-8",
   });
   res.end(`${JSON.stringify(value)}\n`);
+}
+
+async function sendRemoteResponse(req, res, upstream) {
+  res.writeHead(upstream.status, {
+    ...securityHeaders(),
+    "content-type": upstream.contentType,
+    ...(upstream.body ? { "content-length": upstream.body.length } : {}),
+  });
+  if (!upstream.stream) {
+    res.end(upstream.body);
+    return;
+  }
+  const reader = upstream.stream.getReader();
+  let size = 0;
+  let closed = false;
+  const finish = async () => {
+    if (closed) return;
+    closed = true;
+    await reader.cancel().catch(() => {});
+    res.end();
+  };
+  const timeout = setTimeout(() => void finish(), 15_000);
+  timeout.unref?.();
+  req.once("close", () => void finish());
+  try {
+    while (!closed) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_REMOTE_RESPONSE_BYTES) break;
+      res.write(Buffer.from(value));
+    }
+  } finally {
+    clearTimeout(timeout);
+    await finish();
+  }
 }
 
 function errorResponse(res, error) {
@@ -149,7 +194,7 @@ function streamEvents(req, res, run, after) {
 }
 
 async function routeApi(req, res, url, context) {
-  const { projects, token, controller, host, origin } = context;
+  const { projects, token, controller, host, origin, remote } = context;
   const loopback = validateLoopbackRequest(req, {
     host,
     origin,
@@ -163,88 +208,70 @@ async function routeApi(req, res, url, context) {
     sendJson(res, 401, { error: { status: 401, message: "bearer authentication required" } });
     return;
   }
-  return routeAuthorizedApi(req, res, url, context, projects, controller);
-}
+  if (remote) {
+    const upstream = await remote.forward(req, url);
+    await sendRemoteResponse(req, res, upstream);
+    return;
+  }
 
-async function routeAuthorizedApi(req, res, url, context, projects, controller) {
   const parts = splitPath(url.pathname);
-  assertApiPath(parts);
-  if (isProjectsEndpoint(parts)) {
-    return routeProjects(req, res, projects, controller);
+  if (parts[0] !== "api" || parts[1] !== "v1")
+    throw Object.assign(new Error("not found"), { status: 404 });
+  if (parts.length === 3 && parts[2] === "projects") {
+    requireMethod(req, "GET");
+    sendJson(res, 200, {
+      projects: projects.map(({ id, label }) => ({ id, label })),
+      active_run_id: controller.refreshOwnership(),
+    });
+    return;
   }
-  const project = projectForRoute(projects, parts);
-  if (parts[4] === "workflows") {
-    return routeWorkflows(req, res, url, context, project, parts.slice(5));
-  }
-  if (parts[4] !== "runs") throw Object.assign(new Error("not found"), { status: 404 });
-  return routeRuns(req, res, url, project, controller, parts);
-}
-
-function assertApiPath(parts) {
-  if (parts[0] === "api" && parts[1] === "v1") return;
-  throw Object.assign(new Error("not found"), { status: 404 });
-}
-
-function isProjectsEndpoint(parts) {
-  return parts.length === 3 && parts[2] === "projects";
-}
-
-function projectForRoute(projects, parts) {
   if (parts[2] !== "projects" || !parts[3])
     throw Object.assign(new Error("not found"), { status: 404 });
   const project = findProject(projects, parts[3]);
   if (!project) throw Object.assign(new Error("project not found"), { status: 404 });
-  return project;
-}
-
-function routeProjects(req, res, projects, controller) {
-  requireMethod(req, "GET");
-  sendJson(res, 200, {
-    projects: projects.map(({ id, label }) => ({ id, label })),
-    active_run_id: controller.refreshOwnership(),
-  });
-}
-
-async function routeRuns(req, res, url, project, controller, parts) {
-  if (parts.length === 5) {
-    return routeRunCollection(req, res, url, project, controller);
+  if (parts[4] === "execution-profiles" && parts.length === 5) {
+    requireMethod(req, "GET");
+    sendJson(res, 200, { profiles: (context.profiles ?? new OperatorProfiles()).list() });
+    return;
   }
+  if (parts[4] === "workflows") {
+    await routeWorkflows(req, res, url, context, project, parts.slice(5));
+    return;
+  }
+  if (parts[4] !== "runs") throw Object.assign(new Error("not found"), { status: 404 });
+
+  if (parts.length === 5) {
+    if (req.method === "GET") {
+      const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
+      const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
+      controller.refreshOwnership();
+      const all = discoverRuns(project);
+      const page = all
+        .slice(cursor, cursor + limit)
+        .map((run) => publicRun(run, controller.ownedRunId));
+      sendJson(res, 200, {
+        runs: page,
+        next_cursor: cursor + page.length < all.length ? cursor + page.length : null,
+      });
+      return;
+    }
+    requireMethod(req, "POST");
+    const body = await readJsonBody(req);
+    const executionProfile = (context.profiles ?? new OperatorProfiles()).resolve(
+      body.execution_profile_id,
+    );
+    sendJson(res, 202, controller.start(project, body, executionProfile));
+    return;
+  }
+
   const runId = validateRunId(parts[5]);
   if (parts.length === 6) {
-    return routeRunDetail(req, res, project, controller, runId);
+    requireMethod(req, "GET");
+    controller.refreshOwnership();
+    sendJson(res, 200, { run: publicRun(locateRun(project, runId), controller.ownedRunId) });
+    return;
   }
-  return routeRunAction(req, res, url, project, controller, runId, parts);
-}
 
-function runPage(url, project, controller) {
-  const cursor = positiveInteger(url.searchParams.get("cursor"), 0, 1_000_000);
-  const limit = positiveInteger(url.searchParams.get("limit"), 30, 100);
-  controller.refreshOwnership();
-  const all = discoverRuns(project);
-  const runs = all
-    .slice(cursor, cursor + limit)
-    .map((run) => publicRun(run, controller.ownedRunId));
-  const nextCursor = cursor + runs.length < all.length ? cursor + runs.length : null;
-  return { runs, next_cursor: nextCursor };
-}
-
-async function routeRunCollection(req, res, url, project, controller) {
-  if (req.method === "GET") return sendJson(res, 200, runPage(url, project, controller));
-  return startRun(req, res, project, controller);
-}
-
-async function startRun(req, res, project, controller) {
-  requireMethod(req, "POST");
-  sendJson(res, 202, controller.start(project, await readJsonBody(req)));
-}
-
-function routeRunDetail(req, res, project, controller, runId) {
-  requireMethod(req, "GET");
-  controller.refreshOwnership();
-  sendJson(res, 200, { run: publicRun(locateRun(project, runId), controller.ownedRunId) });
-}
-
-async function routeRunAction(req, res, url, project, controller, runId, parts) {
   const action = parts[6];
   if (action === "events" && parts.length === 7) {
     requireMethod(req, "GET");
@@ -262,23 +289,18 @@ async function routeRunAction(req, res, url, project, controller, runId, parts) 
   requireMethod(req, "POST");
   if (parts.length !== 7) throw Object.assign(new Error("not found"), { status: 404 });
   const body = await readJsonBody(req);
-  return routeRunControlAction(res, action, project, controller, runId, body);
-}
-
-function routeRunControlAction(res, action, project, controller, runId, body) {
-  switch (action) {
-    case "stop":
-      return sendJson(res, 200, { control: controller.stop(project, runId) });
-    case "resume":
-      return sendJson(res, 202, controller.resume(project, runId));
-    case "interrupt":
-      return sendJson(res, 202, controller.interrupt(project, runId, body));
-    case "checkpoint-decision":
-      return sendJson(res, 200, { checkpoint: controller.decideCheckpoint(project, runId, body) });
-    case "cleanup":
-      return sendJson(res, 202, controller.cleanup(project, runId, body));
-    default:
-      throw Object.assign(new Error("not found"), { status: 404 });
+  if (action === "stop") {
+    sendJson(res, 200, { control: controller.stop(project, runId) });
+  } else if (action === "resume") {
+    sendJson(res, 202, controller.resume(project, runId));
+  } else if (action === "interrupt") {
+    sendJson(res, 202, controller.interrupt(project, runId, body));
+  } else if (action === "checkpoint-decision") {
+    sendJson(res, 200, { checkpoint: controller.decideCheckpoint(project, runId, body) });
+  } else if (action === "cleanup") {
+    sendJson(res, 202, controller.cleanup(project, runId, body));
+  } else {
+    throw Object.assign(new Error("not found"), { status: 404 });
   }
 }
 
@@ -309,6 +331,31 @@ async function routeWorkflows(req, res, url, context, project, tail) {
     sendJson(res, 200, { workflows: await assertRegistryMethod(registry, "list")() });
     return;
   }
+  if (tail[0] === "templates" && tail.length === 1) {
+    if (req.method === "GET") {
+      sendJson(res, 200, { templates: await workflowTemplates() });
+      return;
+    }
+    requireMethod(req, "POST");
+    const body = await readJsonBody(req);
+    const allowed = new Set(["template_id", "workflow_id", "revision", "title"]);
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
+      Object.keys(body).some((key) => !allowed.has(key))
+    ) {
+      throw Object.assign(new Error("invalid workflow template request"), { status: 400 });
+    }
+    sendJson(res, 200, {
+      workflow: await compileWorkflowTemplateFor(body.template_id, {
+        workflow_id: body.workflow_id,
+        revision: body.revision,
+        ...(body.title ? { title: body.title } : {}),
+      }),
+    });
+    return;
+  }
   const workflowId = tail[0];
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(workflowId)) {
     throw Object.assign(new Error("invalid workflow id"), { status: 400 });
@@ -316,6 +363,48 @@ async function routeWorkflows(req, res, url, context, project, tail) {
   if (tail.length === 1) {
     requireMethod(req, "GET");
     sendJson(res, 200, { workflow: await assertRegistryMethod(registry, "show")(workflowId) });
+    return;
+  }
+  if (tail[1] === "analysis" && tail.length === 2) {
+    requireMethod(req, "POST");
+    const body = await readJsonBody(req);
+    if (
+      !body ||
+      typeof body !== "object" ||
+      Array.isArray(body) ||
+      Object.keys(body).some((key) => key !== "workflow")
+    ) {
+      throw Object.assign(new Error("analysis accepts only a workflow object"), { status: 400 });
+    }
+    sendJson(res, 200, await analyzeWorkflowFor(body.workflow));
+    return;
+  }
+  if (tail[1] === "proposals" && tail.length === 2) {
+    requireMethod(req, "POST");
+    const body = await readJsonBody(req);
+    const executionProfile = (context.profiles ?? new OperatorProfiles()).resolve(
+      body.execution_profile_id,
+    );
+    sendJson(
+      res,
+      202,
+      (context.proposalJobs ?? new WorkflowProposalJobs()).submit({
+        project,
+        workflowId,
+        body,
+        executionProfile,
+      }),
+    );
+    return;
+  }
+  if (tail[1] === "proposals" && tail.length === 3) {
+    requireMethod(req, "GET");
+    if (!/^proposal-[a-f0-9-]{36}$/.test(tail[2])) {
+      throw Object.assign(new Error("invalid proposal job id"), { status: 400 });
+    }
+    sendJson(res, 200, {
+      proposal: (context.proposalJobs ?? new WorkflowProposalJobs()).get(tail[2], workflowId),
+    });
     return;
   }
   if (tail[1] === "drafts" && tail.length === 2) {
@@ -383,11 +472,26 @@ export async function handleOperatorRequest(req, res, context) {
 }
 
 export function createOperatorServer({
-  projects,
+  projects = [],
   token = createSessionToken(),
   controller = new RunController(),
+  remoteUrl = null,
+  tokenFile = null,
+  fetchImpl,
+  profiles = new OperatorProfiles(),
+  proposalJobs = new WorkflowProposalJobs(),
 }) {
-  if (!Array.isArray(projects) || projects.length === 0) throw new Error("projects are required");
+  if (!Array.isArray(projects)) throw new Error("projects must be an array");
+  if (remoteUrl && projects.length)
+    throw new Error("--remote-url cannot be combined with --project");
+  if (!remoteUrl && tokenFile) throw new Error("--token-file requires --remote-url");
+  if (!remoteUrl && projects.length === 0) throw new Error("projects are required");
+  if (!profiles || typeof profiles.list !== "function" || typeof profiles.resolve !== "function") {
+    throw new Error("profiles must be an OperatorProfiles instance");
+  }
+  const remote = remoteUrl
+    ? createRemoteOperatorProxy({ remoteUrl, tokenFile, ...(fetchImpl ? { fetchImpl } : {}) })
+    : null;
   const server = createServer(async (req, res) => {
     const address = server.address();
     if (!address || typeof address === "string") {
@@ -399,6 +503,9 @@ export function createOperatorServer({
       projects,
       token,
       controller,
+      profiles,
+      proposalJobs,
+      remote,
       host,
       origin: `http://${host}`,
     });
@@ -409,35 +516,61 @@ export function createOperatorServer({
 function parseCli(argv) {
   const paths = [];
   let port = 0;
-  const args = argv.values();
-  for (let arg = args.next(); !arg.done; arg = args.next()) {
-    if (arg.value === "--project") {
-      const value = args.next().value;
+  let remoteUrl = null;
+  let tokenFile = null;
+  const executionProfiles = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--project") {
+      const value = argv[index + 1];
       if (!value) throw new Error("--project requires a path");
       paths.push(value);
-    } else if (arg.value === "--port") {
-      port = Number(args.next().value);
+      index += 1;
+    } else if (arg === "--port") {
+      port = Number(argv[index + 1]);
       if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("invalid --port");
-    } else if (arg.value === "--help" || arg.value === "-h") {
-      writeUsage();
+      index += 1;
+    } else if (arg === "--remote-url") {
+      const value = argv[index + 1];
+      if (!value) throw new Error("--remote-url requires a URL");
+      remoteUrl = value;
+      index += 1;
+    } else if (arg === "--token-file") {
+      const value = argv[index + 1];
+      if (!value) throw new Error("--token-file requires a path");
+      tokenFile = value;
+      index += 1;
+    } else if (arg === "--execution-profile") {
+      const value = argv[index + 1];
+      if (!value) throw new Error("--execution-profile requires a path");
+      executionProfiles.push(value);
+      index += 1;
+    } else if (arg === "--help" || arg === "-h") {
+      process.stdout.write(
+        "Usage: node operator/server.mjs (--project <git-root> [--project <git-root>] | --remote-url <https-url> --token-file <owner-only-file>) [--execution-profile <file>] [--port 0]\n",
+      );
       return null;
     } else {
-      throw new Error(`unknown argument: ${arg.value}`);
+      throw new Error(`unknown argument: ${arg}`);
     }
   }
-  return { projects: createProjectRegistry(paths), port };
-}
-
-function writeUsage() {
-  process.stdout.write(
-    "Usage: node operator/server.mjs --project PROJECT_ROOT [--project PROJECT_ROOT] [--port PORT]\n",
-  );
+  if (remoteUrl && paths.length) throw new Error("--remote-url cannot be combined with --project");
+  if (remoteUrl && !tokenFile) throw new Error("--token-file is required with --remote-url");
+  if (!remoteUrl && tokenFile) throw new Error("--token-file requires --remote-url");
+  return {
+    projects: remoteUrl ? [] : createProjectRegistry(paths),
+    port,
+    remoteUrl,
+    tokenFile,
+    executionProfiles,
+  };
 }
 
 async function main() {
   const options = parseCli(process.argv.slice(2));
   if (!options) return;
-  const instance = createOperatorServer({ projects: options.projects });
+  const profiles = await loadOperatorProfiles(options.executionProfiles);
+  const instance = createOperatorServer({ ...options, profiles });
   await new Promise((resolveListen, reject) => {
     instance.server.once("error", reject);
     instance.server.listen(options.port, "127.0.0.1", resolveListen);

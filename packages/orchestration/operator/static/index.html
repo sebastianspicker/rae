@@ -297,15 +297,43 @@
                   <p id="workflow-empty" class="state-line">Loading workflows…</p>
                 </aside>
                 <div class="workflow-canvas">
+                  <div class="workflow-views" role="tablist" aria-label="Workflow views">
+                    <button id="workflow-view-loop" role="tab" type="button" aria-selected="false" aria-controls="workflow-loop">Loop</button>
+                    <button id="workflow-view-graph" role="tab" type="button" aria-selected="true" aria-controls="workflow-graph-panel">Graph</button>
+                    <button id="workflow-view-analyze" role="tab" type="button" aria-selected="false" aria-controls="workflow-analysis">Analyze</button>
+                    <button id="workflow-view-json" role="tab" type="button" aria-selected="false" aria-controls="workflow-json">JSON</button>
+                  </div>
+                  <section id="workflow-loop" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-loop" hidden>
+                    <h3>Loop controls</h3><p id="workflow-loop-summary">No loop nodes in this revision.</p>
+                  </section>
+                  <section id="workflow-graph-panel" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-graph">
                   <svg id="workflow-graph" viewBox="0 0 640 250" role="img" aria-labelledby="workflow-graph-title workflow-graph-desc">
                     <title id="workflow-graph-title">Workflow stage map</title>
                     <desc id="workflow-graph-desc">A topologically layered workflow map. Color and line style distinguish data, stream, condition, sequence, and loop-back edges. The tables after the map provide the complete equivalent structure and live instance state.</desc>
                     <defs><marker id="workflow-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>
                     <g id="workflow-graph-content"></g>
                   </svg>
+                  </section>
+                  <section id="workflow-analysis" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-analyze" hidden>
+                    <h3>Static analysis</h3><pre id="workflow-analysis-output" tabindex="0">Select Analyze to inspect the unsaved workflow.</pre>
+                  </section>
                   <form id="workflow-draft-form" class="workflow-form">
-                    <label for="workflow-definition">Draft definition (JSON)</label>
-                    <textarea id="workflow-definition" rows="8" maxlength="32768" spellcheck="false" required></textarea>
+                    <section id="workflow-json" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-json" hidden>
+                    <label for="workflow-definition">Draft definition (JSON, expert)</label>
+                    <textarea id="workflow-definition" rows="8" maxlength="32768" spellcheck="false" required aria-describedby="workflow-version-help"></textarea>
+                    <p id="workflow-version-help" class="field-help">JSON is for schema 2.0 and 2.2 experts. Use structured controls for standard graph authoring.</p>
+                    </section>
+                    <section id="workflow-structured-controls" class="workflow-structured-controls" aria-labelledby="workflow-controls-heading">
+                      <h3 id="workflow-controls-heading">Structured authoring</h3>
+                      <label for="workflow-template">Guided loop template</label>
+                      <select id="workflow-template"><option value="">Keep current workflow</option></select>
+                      <div class="workflow-control-row"><button id="workflow-add-node" type="button">Add node</button><button id="workflow-delete-node" type="button">Delete selected node</button><button id="workflow-add-edge" type="button">Connect selected nodes</button><button id="workflow-delete-edge" type="button">Delete selected edge</button><button id="workflow-auto-layout" type="button">Auto layout</button></div>
+                      <label for="workflow-node-select">Selected node</label><select id="workflow-node-select"></select>
+                      <label for="workflow-edge-select">Selected edge</label><select id="workflow-edge-select"></select>
+                      <label for="workflow-proposal-task">Proposal task</label><textarea id="workflow-proposal-task" rows="2" maxlength="32768" placeholder="Describe the topology change to propose."></textarea>
+                      <label for="workflow-proposal-profile">Proposal execution profile</label><select id="workflow-proposal-profile"><option value="">Runtime default</option></select>
+                      <button id="workflow-propose" type="button">Generate unsaved proposal</button>
+                    </section>
                     <label for="workflow-actor">Actor</label>
                     <input id="workflow-actor" maxlength="128" required>
                     <label for="workflow-rationale">Revision or activation rationale</label>
@@ -320,6 +348,11 @@
                 </div>
                 <aside class="workflow-inspector" aria-label="Workflow inspector">
                   <h3>Inspector</h3>
+                  <p id="workflow-inspector-help" class="field-help">Select a node to configure its safe, data-only workflow fields.</p>
+                  <label for="workflow-node-guidance">Guidance</label><textarea id="workflow-node-guidance" rows="3" maxlength="12000"></textarea>
+                  <label for="workflow-node-role">Role</label><input id="workflow-node-role" maxlength="128">
+                  <div class="workflow-inspector-grid"><label>Kind<select id="workflow-node-kind"><option>agent</option><option>map</option><option>transform</option><option>join</option><option>gate</option><option>checkpoint</option><option>loop</option><option>terminal</option></select></label><label>Access<select id="workflow-node-access"><option>read</option><option>write</option><option>control</option></select></label><label>Tier<select id="workflow-node-tier"><option value="">default</option><option>economy</option><option>standard</option><option>judgment</option></select></label><label>Payload<input id="workflow-node-payload" maxlength="64"></label><label>Join<select id="workflow-node-join"><option value="">none</option><option>all</option><option>any</option><option>quorum</option></select></label><label>Quorum threshold<input id="workflow-node-quorum" type="number" min="1" max="64"></label><label>Failure<select id="workflow-node-failure"><option value="">default</option><option>fail-workflow</option><option>collect</option></select></label><label>Resource<input id="workflow-node-resource" maxlength="128"></label><label>Loop mode<select id="workflow-node-loop-mode"><option value="bounded">bounded</option><option value="until-dry">until dry</option></select></label><label>Loop bound<input id="workflow-node-loop-bound" type="number" min="1" max="5"></label><label>Loop members<input id="workflow-node-loop-members" maxlength="512" placeholder="make, check"></label></div>
+                  <div class="workflow-checks"><label><input id="workflow-node-verification" type="checkbox"> Verification</label><label><input id="workflow-node-checkpoint" type="checkbox"> Mutation checkpoint</label><label><input id="workflow-node-ownership" type="checkbox"> Ownership plan</label></div>
                   <dl id="workflow-details"><div><dt>Selection</dt><dd>Choose a registry entry</dd></div></dl>
                   <label for="workflow-diff-base">Compare from revision</label><input id="workflow-diff-base" inputmode="numeric">
                   <button id="workflow-diff" type="button">Show diff</button>
@@ -360,8 +393,10 @@
           <option value="before-mutation">Before mutation</option>
           <option value="none">No automatic checkpoint</option>
         </select>
+        <label for="start-execution-profile">Execution profile</label>
+        <select id="start-execution-profile"><option value="">Runtime default</option></select>
         <p class="dialog-note">
-          Runs use Codex in a dedicated Git worktree. The console cannot commit, push, publish,
+          Runs use the selected local execution profile in a dedicated Git worktree. The console cannot commit, push, publish,
           deploy, or force cleanup.
         </p>
         <footer>

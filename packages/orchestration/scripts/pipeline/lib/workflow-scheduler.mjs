@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { canonicalJson, validateWorkflow, workflowDigest } from "./workflow-contract.mjs";
 import { scheduleWorkflowV21 } from "./workflow-scheduler-v21.mjs";
+import { scheduleWorkflowV22 } from "./workflow-scheduler-v22.mjs";
 
 function digest(value) {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
@@ -173,7 +174,27 @@ export async function scheduleWorkflow({
   resumeEnvelopes = [],
   onEvent = () => {},
   resolveTier,
+  task,
+  verifiedGraphRecords,
+  admittedMemory,
+  contextPolicy,
 }) {
+  if (suppliedWorkflow?.schema_version === "2.2.0") {
+    return scheduleWorkflowV22({
+      workflow: suppliedWorkflow,
+      runId,
+      execute,
+      runDir,
+      through,
+      resumeEnvelopes,
+      onEvent,
+      resolveTier,
+      task,
+      verifiedGraphRecords,
+      admittedMemory,
+      contextPolicy,
+    });
+  }
   if (suppliedWorkflow?.schema_version === "2.1.0") {
     return scheduleWorkflowV21({
       workflow: suppliedWorkflow,

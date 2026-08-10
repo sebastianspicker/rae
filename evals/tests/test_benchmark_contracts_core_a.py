@@ -3,7 +3,6 @@
 import json
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,16 +17,6 @@ from benchmark_contracts_helpers import (
     write_passing_held_out_fixture,
     write_release_gate_fixture,
 )
-
-
-def _trusted_bash() -> str:
-    bash = shutil.which("bash")
-    if bash is None:
-        raise RuntimeError("bash is required for the doctor contract test")
-    resolved = pathlib.Path(bash).resolve()
-    if not resolved.is_absolute() or not resolved.is_file():
-        raise RuntimeError("resolved bash executable is not a regular absolute path")
-    return str(resolved)
 
 
 def test_run_benchmark_rejects_output_dir_outside_results_root() -> None:
@@ -209,7 +198,7 @@ def test_rae_doctor_reports_missing_rg_dependency() -> None:
         install_path_mirror(bin_dir)
         # B603 rationale: fixed Bash executable and repository test entrypoint.
         completed = subprocess.run(  # nosec B603
-            [_trusted_bash(), str(ROOT / "scripts/rae.sh"), "doctor"],
+            ["bash", str(ROOT / "scripts/rae.sh"), "doctor"],
             cwd=ROOT,
             text=True,
             capture_output=True,
@@ -226,7 +215,7 @@ def test_rae_doctor_reports_missing_rg_dependency() -> None:
         install_path_mirror(bin_dir, exclude={"rg"})
         # B603 rationale: fixed Bash executable and repository test entrypoint.
         completed = subprocess.run(  # nosec B603
-            [_trusted_bash(), str(ROOT / "scripts/rae.sh"), "doctor"],
+            ["bash", str(ROOT / "scripts/rae.sh"), "doctor"],
             cwd=ROOT,
             text=True,
             capture_output=True,
@@ -242,7 +231,7 @@ def test_rae_doctor_reports_missing_rg_dependency() -> None:
 def test_rae_worktree_help_lists_supervision_commands() -> None:
     # B603 rationale: fixed Bash executable and repository test entrypoint.
     completed = subprocess.run(  # nosec B603
-        [_trusted_bash(), str(ROOT / "scripts/rae.sh"), "worktree", "help"],
+        ["bash", str(ROOT / "scripts/rae.sh"), "worktree", "help"],
         cwd=ROOT,
         text=True,
         capture_output=True,

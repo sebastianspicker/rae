@@ -377,7 +377,7 @@ export async function scheduleWorkflowV21({
       inputs: inputs.map(({ envelope }) => envelope.output_digest),
       item: spec.item,
     });
-    const resolvedTier = resolveTier(spec.node.tier ?? "standard");
+    const resolvedTier = resolveTier(spec.node.tier ?? "standard", spec.node.id);
     const base = {
       run_id: runId,
       workflow_digest: workflowHash,

@@ -415,72 +415,6 @@ function commitPreflightDrift(workspaceRoot) {
   );
 }
 
-function poisonStoredAgentRequest(planOutput) {
-  const requestPath = join(
-    planOutput.workspace_root,
-    ".pipeline/runs",
-    planOutput.run_id,
-    "request.json",
-  );
-  const request = JSON.parse(readFileSync(requestPath, "utf8"));
-  writeFileSync(
-    requestPath,
-    `${JSON.stringify({ ...request, agent: { ...request.agent, command: "/poison/provider", command_args: ["poison.mjs"], allow_unsafe_command_provider: true } })}\n`,
-    "utf8",
-  );
-}
-
-function resumeWithoutFreshCommandAuthorization(planOutput) {
-  return run(
-    process.execPath,
-    [
-      AUTONOMOUS,
-      "resume",
-      "--project-root",
-      planOutput.workspace_root,
-      "--run-id",
-      planOutput.run_id,
-      "--through",
-      "build",
-      "--provider",
-      "command",
-      "--agent-command",
-      process.execPath,
-      "--agent-arg",
-      FAKE_AGENT,
-      "--json",
-    ],
-    PACKAGE_ROOT,
-    true,
-  );
-}
-
-function planCommandProviderRun(root) {
-  const planned = run(
-    process.execPath,
-    [
-      AUTONOMOUS,
-      "run",
-      "--project-root",
-      root,
-      "--task",
-      "Implement the fixture value and document it.",
-      "--through",
-      "plan",
-      "--provider",
-      "command",
-      "--agent-command",
-      process.execPath,
-      "--agent-arg",
-      FAKE_AGENT,
-      "--allow-unsafe-command-provider",
-      "--json",
-    ],
-    PACKAGE_ROOT,
-  );
-  return JSON.parse(planned.stdout);
-}
-
 // The file exercises many independent ten-phase subprocess runs. Keep the suite
 // budget bounded while allowing their cumulative wall time on slower CI hosts.
 describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
@@ -497,8 +431,40 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
     unlinkSync(lockPath);
     run("git", ["branch", "unrelated-progress"], root);
     run("git", ["update-ref", "refs/remotes/origin/unrelated-progress", "HEAD"], root);
-    poisonStoredAgentRequest(planOutput);
-    const missingFreshOptIn = resumeWithoutFreshCommandAuthorization(planOutput);
+    const requestPath = join(
+      planOutput.workspace_root,
+      ".pipeline/runs",
+      planOutput.run_id,
+      "request.json",
+    );
+    const request = JSON.parse(readFileSync(requestPath, "utf8"));
+    writeFileSync(
+      requestPath,
+      `${JSON.stringify({ ...request, agent: { ...request.agent, command: "/poison/provider", command_args: ["poison.mjs"], allow_unsafe_command_provider: true } })}\n`,
+      "utf8",
+    );
+    const missingFreshOptIn = run(
+      process.execPath,
+      [
+        AUTONOMOUS,
+        "resume",
+        "--project-root",
+        planOutput.workspace_root,
+        "--run-id",
+        planOutput.run_id,
+        "--through",
+        "build",
+        "--provider",
+        "command",
+        "--agent-command",
+        process.execPath,
+        "--agent-arg",
+        FAKE_AGENT,
+        "--json",
+      ],
+      PACKAGE_ROOT,
+      true,
+    );
     expect(missingFreshOptIn.status).toBe(1);
     expect(missingFreshOptIn.stderr).toContain("requires --allow-unsafe-command-provider");
     const resumedOutput = JSON.parse(resumeBuild(planOutput).stdout);
@@ -507,7 +473,29 @@ describe("autonomous coding-agent workflow", { timeout: 120_000 }, () => {
 
   it("rejects a sensitive shared ref added while a run is paused", () => {
     const root = createRepository();
-    const output = planCommandProviderRun(root);
+    const planned = run(
+      process.execPath,
+      [
+        AUTONOMOUS,
+        "run",
+        "--project-root",
+        root,
+        "--task",
+        "Implement the fixture value and document it.",
+        "--through",
+        "plan",
+        "--provider",
+        "command",
+        "--agent-command",
+        process.execPath,
+        "--agent-arg",
+        FAKE_AGENT,
+        "--allow-unsafe-command-provider",
+        "--json",
+      ],
+      PACKAGE_ROOT,
+    );
+    const output = JSON.parse(planned.stdout);
     const head = run("git", ["rev-parse", "HEAD"], root).stdout.trim();
     const tree = run("git", ["rev-parse", "HEAD^{tree}"], root).stdout.trim();
     const replacement = run(

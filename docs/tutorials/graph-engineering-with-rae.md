@@ -1,25 +1,25 @@
 ---
 status: experimental
 owner: orchestration
-last_reviewed: 2026-07-30
+last_reviewed: 2026-08-04
 source_of_truth: packages/orchestration/contracts/workflows/workflow-v2.1.schema.json
 evidence_links: ../reference/claims/evidence-index.md
 ---
 
-# Graph Engineering with Codex and RAE
+# Graph Engineering with RAE
 
 This course has two layers. The topology layer explains what work can proceed
 and what must wait. The contract layer names the workflow fields that make that
 decision durable and reviewable.
 
-RAE and Codex solve different coordination problems. Native Codex
+RAE workflows are provider-neutral. Native Codex
 [subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) are
-collaborators inside one Codex task. A RAE agent node starts a fresh,
-ephemeral [`codex exec`](https://learn.chatgpt.com/docs/non-interactive-mode)
-session and persists its validated result as workflow evidence. RAE also uses
-isolated Git [worktrees](https://learn.chatgpt.com/docs/environments/git-worktrees)
-for writer runs. It does not preserve a shared model conversation between
-nodes.
+collaborators inside one Codex task. A RAE agent node is a durable workflow
+unit whose provider route is selected by the operator. Codex and OpenCode
+attempts both start fresh sessions and persist only validated workflow output
+and sanitized execution evidence. Writer runs use isolated Git
+[worktrees](https://learn.chatgpt.com/docs/environments/git-worktrees). Nodes do
+not share a model conversation.
 
 Every agent or mapped agent instance consumes model tokens. Scheduling, joins,
 condition evaluation, and allowlisted transforms do not call a model. A wider
@@ -44,24 +44,40 @@ only typed predecessor envelopes and the mapped item, when present. A node can
 request a logical `economy`, `standard`, or `judgment` tier. It cannot name a
 provider, model, tool, command, environment value, or reasoning effort.
 
-The operator owns concrete model selection in an execution profile:
+The operator owns concrete provider and model selection in execution profile
+3.0:
 
 ```json
 {
-  "schema_version": "1.0.0",
-  "profile_id": "local-codex-routing",
+  "schema_version": "3.0.0",
+  "profile_id": "local-routing",
+  "routes": {
+    "routine": {
+      "executor": "codex",
+      "model": "operator-codex-model",
+      "reasoning_effort": "medium"
+    },
+    "review": {
+      "executor": "opencode",
+      "model": "opencode/example-model",
+      "variant": "high"
+    }
+  },
   "tiers": {
-    "economy": { "model": "operator-economy-model", "reasoning_effort": "low" },
-    "standard": { "model": "operator-standard-model", "reasoning_effort": "medium" },
-    "judgment": { "model": "operator-judgment-model", "reasoning_effort": "high" }
+    "economy": "routine",
+    "standard": "routine",
+    "judgment": "review"
   }
 }
 ```
 
-Replace the three operator-owned model identifiers with models available in
-your Codex installation. The profile is validated and snapshotted by digest.
-`--execution-profile` cannot be combined with global `--model` or
-`--reasoning-effort`, and resume uses the stored snapshot.
+Replace the model identifiers with models available through the selected local
+executors. The profile is validated and snapshotted by digest.
+`--execution-profile` cannot be combined with global provider, model,
+reasoning-effort, or variant overrides. Resume requires the stored profile,
+resolved routes, models, and exact executor versions. See [Execution Profile
+3.0](../reference/contracts/execution-profile-v3.md) for the full contract and
+OpenCode platform limits.
 
 ## 3. Diamonds and deterministic reduction
 
@@ -119,11 +135,39 @@ when a round yields no globally unseen stable key. The seen set includes every
 previous decision, including rejected findings. This prevents a rejected item
 from being rediscovered forever under a different round.
 
-## 8. Proposal, validation, activation, execution, evidence
+## 8. Design, analyze, propose, and activate
 
 ![Human-activated workflow lifecycle](../assets/diagrams/human-activated-workflow-lifecycle.svg)
 
-Generate a draft:
+Start the loopback operator to use the synchronized Loop, Graph, Analyze, and
+JSON views:
+
+```bash
+./scripts/rae.sh operator serve \
+  --project /path/to/target-repository \
+  --execution-profile /absolute/path/to/execution-profile.json
+```
+
+The guided editor provides single-agent verification, maker-checker repair,
+parallel review with quorum, mapped work, and bounded until-dry templates. Each
+template compiles to workflow 2.1. Node and edge controls are keyboard
+operable; JSON remains available for existing workflow 2.0 and experimental
+2.2 revisions.
+
+Analyze a workflow file without saving it:
+
+```bash
+./scripts/rae.sh graph workflow analyze \
+  --workflow-file /absolute/path/to/workflow.json \
+  --execution-profile /absolute/path/to/execution-profile.json
+```
+
+The analyzer reports schema and topology diagnostics, unreachable nodes,
+writer and verification paths, bounded attempt and instance estimates,
+concurrency bounds, and resolved execution routes. It does not invent a cost
+estimate when provider usage data is unavailable.
+
+Generate a validated candidate without saving it:
 
 ```bash
 ./scripts/rae.sh graph workflow propose \
@@ -131,12 +175,15 @@ Generate a draft:
   --task "Design a bounded review topology for this repository" \
   --base-workflow graph-native-default \
   --actor "operator-name" \
-  --rationale "Draft for topology review"
+  --rationale "Draft for topology review" \
+  --execution-profile /absolute/path/to/execution-profile.json \
+  --preview
 ```
 
 The proposal session is read-only and ephemeral. RAE permits one correction
-attempt after local validation, then stores only a valid optimistic-lock draft.
-The command does not activate or execute it.
+attempt after local validation. `--preview` returns the candidate without
+saving it; omitting `--preview` stores a valid optimistic-lock draft. Neither
+mode activates or executes the result.
 
 Review and activate an exact revision:
 

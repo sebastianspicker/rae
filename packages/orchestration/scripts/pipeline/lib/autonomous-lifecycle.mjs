@@ -33,10 +33,14 @@ import { reconcileRuntimeStateGuard } from "./runtime-state-guard.mjs";
 import { loadWorkflow, validateWorkflow, workflowDigest } from "./workflow-contract.mjs";
 import { DEFAULT_WORKFLOW_PATH, resolveActivatedWorkflow } from "./workflow-registry.mjs";
 import {
+  assertExecutionProfileCoverage,
+  executionProfileExecutors,
   executionProfileDigest,
   loadExecutionProfile,
+  resolveWorkflowRoutes,
   validateExecutionProfile,
 } from "./execution-profile.mjs";
+import { providerRuntimeIdentity } from "./agent-executor.mjs";
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const PIPELINE_INIT = resolve(PACKAGE_ROOT, "scripts/pipeline-init.sh");
 const MAX_TASK_BYTES = 128 * 1024;
@@ -276,6 +280,7 @@ export function savedAgentOptions(request) {
     agentArgs: [],
     ...(saved.model ? { model: saved.model } : {}),
     ...(saved.reasoning_effort ? { "reasoning-effort": saved.reasoning_effort } : {}),
+    ...(saved.variant ? { variant: saved.variant } : {}),
     ...(request.execution_profile ? { "execution-profile-snapshot": true } : {}),
     ...(saved.timeout_seconds ? { "timeout-seconds": String(saved.timeout_seconds) } : {}),
     "checkpoint-policy": request.checkpoint_policy ?? "none",
@@ -405,9 +410,13 @@ function resumeContext(projectRoot, options) {
 }
 
 function restoreRunConfiguration(request, options) {
+  assertStoredAgentRuntime(request);
   const policy = storedRunPolicy(request, options);
   const workflow = storedRunWorkflow(request, options);
   const executionProfile = storedRunExecutionProfile(request, options);
+  if (workflow && executionProfile) {
+    assertExecutionProfileCoverage(executionProfile.profile, workflow.workflow);
+  }
   const workflowConfiguration = workflowConfigurationFields(workflow);
   return {
     policy,
@@ -415,7 +424,21 @@ function restoreRunConfiguration(request, options) {
     ...workflowConfiguration,
     executionProfile: executionProfile?.profile ?? null,
     executionProfileDigest: executionProfile?.digest ?? null,
+    executionRuntime: request.execution_profile?.runtime ?? null,
   };
+}
+
+function assertStoredAgentRuntime(request) {
+  if ((request.agent?.provider ?? request.provider) !== "opencode") return;
+  const stored = request.agent?.runtime;
+  if (!stored?.version || !stored?.binary_digest) {
+    throw new Error("resume requires the stored OpenCode version and executable digest");
+  }
+  if (JSON.stringify(runtimeIdentity("opencode")) !== JSON.stringify(stored)) {
+    throw new Error(
+      "resume OpenCode provider version drifted; start a recovery run with the original runtime",
+    );
+  }
 }
 
 function workflowConfigurationFields(resolvedWorkflow) {
@@ -447,7 +470,47 @@ function storedRunExecutionProfile(request, options) {
   ) {
     throw new Error("resume execution profile digest does not match the stored snapshot");
   }
+  assertExecutionRuntimeSnapshot(profile, request.execution_profile.runtime);
   return { profile, digest };
+}
+
+function runtimeIdentity(executor) {
+  const identity = providerRuntimeIdentity(executor);
+  return {
+    executor,
+    version: identity.version,
+    binary_digest: identity.binary_digest ?? null,
+  };
+}
+
+function executionRuntimeSnapshot(profile, workflow) {
+  if (profile?.schema_version !== "3.0.0" || !workflow) return null;
+  const identities = new Map(
+    executionProfileExecutors(profile).map((executor) => [executor, runtimeIdentity(executor)]),
+  );
+  return {
+    routes: resolveWorkflowRoutes(profile, workflow).map((route) => ({
+      ...route,
+      executor_version: identities.get(route.executor)?.version ?? null,
+      executor_binary_digest: identities.get(route.executor)?.binary_digest ?? null,
+    })),
+  };
+}
+
+function assertExecutionRuntimeSnapshot(profile, stored) {
+  if (profile.schema_version !== "3.0.0") return;
+  if (!stored?.routes) {
+    throw new Error("resume requires the stored execution route and provider-version snapshot");
+  }
+  const workflow = {
+    nodes: stored.routes.map((route) => ({ id: route.node_id, kind: "agent", tier: route.tier })),
+  };
+  const current = executionRuntimeSnapshot(profile, workflow);
+  if (JSON.stringify(current) !== JSON.stringify(stored)) {
+    throw new Error(
+      "resume execution route, model, variant, or provider version drifted; start a recovery run with the original runtime",
+    );
+  }
 }
 
 function storedRunWorkflow(request, options) {
@@ -485,20 +548,35 @@ function newRunContext(projectRoot, options) {
   const resolvedExecutionProfile = options["execution-profile"]
     ? loadExecutionProfile(options["execution-profile"])
     : null;
+  if (resolvedWorkflow && resolvedExecutionProfile) {
+    assertExecutionProfileCoverage(resolvedExecutionProfile.profile, resolvedWorkflow.workflow);
+  }
+  if (
+    options["in-place"] === true &&
+    executionProfileExecutors(resolvedExecutionProfile?.profile).includes("opencode")
+  ) {
+    throw new Error("OpenCode routes require an isolated RAE worktree and reject --in-place");
+  }
+  const resolvedExecutionRuntime = executionRuntimeSnapshot(
+    resolvedExecutionProfile?.profile,
+    resolvedWorkflow?.workflow,
+  );
+  const directExecutionRuntime =
+    options.provider === "opencode" ? runtimeIdentity("opencode") : null;
   const initialized = initializeRun(projectRoot, options["in-place"] === true);
   const runDir = resolve(initialized.workspaceRoot, ".pipeline", "runs", initialized.runId);
-  writeJson(
-    resolve(runDir, "request.json"),
-    newRunRequest(
-      task,
-      projectRoot,
-      initialized,
-      options,
-      resolvedPolicy,
-      resolvedWorkflow,
-      resolvedExecutionProfile,
-    ),
-  );
+  const resolvedRun = {
+    task,
+    projectRoot,
+    initialized,
+    options,
+    resolvedPolicy,
+    resolvedWorkflow,
+    resolvedExecutionProfile,
+    resolvedExecutionRuntime,
+    directExecutionRuntime,
+  };
+  writeJson(resolve(runDir, "request.json"), newRunRequest(resolvedRun));
   if (resolvedWorkflow) writeWorkflowSnapshot(runDir, resolvedWorkflow);
   const gitStatePath = resolve(runDir, "initial-git-state.json");
   writeJson(gitStatePath, gitStateSnapshot(initialized.workspaceRoot));
@@ -514,6 +592,7 @@ function newRunContext(projectRoot, options) {
     ...workflowConfiguration,
     executionProfile: resolvedExecutionProfile?.profile ?? null,
     executionProfileDigest: resolvedExecutionProfile?.digest ?? null,
+    executionRuntime: resolvedExecutionRuntime,
     runDir,
   };
 }
@@ -547,20 +626,23 @@ function resolveNewWorkflow(projectRoot, options) {
   return { ...loadWorkflow(DEFAULT_WORKFLOW_PATH), source: DEFAULT_WORKFLOW_PATH };
 }
 
-function newRunRequest(
-  task,
-  projectRoot,
-  initialized,
-  options,
-  resolvedPolicy,
-  resolvedWorkflow,
-  resolvedExecutionProfile,
-) {
+function newRunRequest(context) {
+  const {
+    task,
+    projectRoot,
+    initialized,
+    options,
+    resolvedPolicy,
+    resolvedWorkflow,
+    resolvedExecutionProfile,
+    resolvedExecutionRuntime,
+    directExecutionRuntime,
+  } = context;
   return {
     schema_version: resolvedWorkflow?.workflow.schema_version ?? "1.0.0",
     task,
     provider: options.provider ?? "auto",
-    agent: requestedAgent(options),
+    agent: requestedAgent(options, directExecutionRuntime),
     requested_at: new Date().toISOString(),
     primary_project_root: projectRoot,
     workspace_root: initialized.workspaceRoot,
@@ -569,18 +651,22 @@ function newRunRequest(
     checkpoint_policy: checkpointPolicy(options["checkpoint-policy"]),
     graph_memory: options["graph-memory"] ?? "off",
     policy: requestedPolicy(resolvedPolicy),
-    execution_profile: requestedExecutionProfile(resolvedExecutionProfile),
+    execution_profile: requestedExecutionProfile(
+      resolvedExecutionProfile,
+      resolvedExecutionRuntime,
+    ),
     workflow: requestedWorkflow(resolvedWorkflow, options),
   };
 }
 
-function requestedExecutionProfile(resolvedExecutionProfile) {
+function requestedExecutionProfile(resolvedExecutionProfile, runtime) {
   if (!resolvedExecutionProfile) return null;
   return {
     profile_id: resolvedExecutionProfile.profile.profile_id,
     digest: resolvedExecutionProfile.digest,
     source: resolvedExecutionProfile.source,
     snapshot: resolvedExecutionProfile.profile,
+    runtime,
   };
 }
 
@@ -609,12 +695,14 @@ function requestedWorkflowBounds(workflow, options) {
   };
 }
 
-function requestedAgent(options) {
+function requestedAgent(options, runtime = null) {
   return {
     provider: options.provider ?? "auto",
     ...agentCommand(options),
     command_args: options.agentArgs,
     ...agentTuning(options),
+    variant: options.variant ?? null,
+    runtime,
     allow_unsafe_command_provider: options["allow-unsafe-command-provider"] === true,
   };
 }

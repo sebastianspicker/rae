@@ -13,3 +13,7 @@ The workflow editor extends that system as a visual systems map:
 Canvas dragging is optional and never the only authoring path. Standard controls retain native keyboard behavior. Focus indicators remain visible, status is communicated with words and symbols as well as color, and motion is removed when the user requests reduced motion. Responsive layouts preserve the registry, editor, and validation order at narrow widths.
 
 This register describes the implemented design intent. It makes no formal accessibility-conformance claim.
+
+The experimental hosted platform has no implemented public console or hosted
+product interface. Its current surface is a JSON HTTP and MCP compatibility
+boundary; it does not extend the operator console's visual system.

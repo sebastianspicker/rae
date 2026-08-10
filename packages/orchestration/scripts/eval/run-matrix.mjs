@@ -2,11 +2,12 @@
 /**
  * Executes evaluation task/configuration matrices through the pipeline while preserving run isolation.
  */
+import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { validateTasksetSchema } from "./lib/taskset-validate.mjs";
 import {
-  readJson,
+  getRunDir,
   readJsonStrict,
   resolveWithinRepo,
   toWorkspaceRelative,
@@ -78,8 +79,8 @@ function parseRunId(initOutput, root) {
     throw new Error(`Could not parse run_id from pipeline-init output:\n${initOutput}`);
   }
   const runId = match[1];
-  const state = readJsonStrict(resolve(root, ".pipeline", "pipeline-state.json"));
-  if (state.run_id !== runId) {
+  const runDir = getRunDir(runId, root);
+  if (!existsSync(runDir)) {
     throw new Error(`pipeline-init returned run_id without run directory: ${runId}`);
   }
   return runId;
@@ -150,10 +151,10 @@ function validateTaskset(taskset) {
 
 function loadTaskset(root, tasksetRef) {
   const abs = resolveWithinRepo(tasksetRef, root);
-  const taskset = readJson(abs, null);
-  if (!taskset) {
+  if (!existsSync(abs)) {
     throw new Error(`Taskset not found: ${tasksetRef}`);
   }
+  const taskset = readJsonStrict(abs);
   validateTasksetSchema({
     root,
     tasksetPath: tasksetRef,
@@ -233,15 +234,19 @@ function executeRun({ root, runId, configId, tasksetRel, taskId }) {
   return { failed };
 }
 
-function evaluationPaths(root, evalId) {
-  const evalDir = resolveWithinRepo(`.pipeline/evaluations/${evalId}`, root);
-  return {
-    matrixPath: resolve(evalDir, "matrix.json"),
-    reportPath: resolve(evalDir, "evaluation-report.json"),
-  };
-}
+function main() {
+  const args = parseArgs(process.argv);
+  const root = resolve(args.root);
+  const { taskset, tasksetRel } = (() => {
+    const loaded = loadTaskset(root, args.taskset);
+    return { taskset: loaded.taskset, tasksetRel: loaded.rel };
+  })();
 
-function executeMatrix({ args, root, taskset, tasksetRel }) {
+  const evalDir = resolveWithinRepo(`.pipeline/evaluations/${args.evalId}`, root);
+  const matrixPath = resolve(evalDir, "matrix.json");
+  const reportPath = resolve(evalDir, "evaluation-report.json");
+  mkdirSync(evalDir, { recursive: true });
+
   const runIdsByConfig = new Map(CONFIG_IDS.map((id) => [id, []]));
   const runMeta = [];
 
@@ -272,11 +277,8 @@ function executeMatrix({ args, root, taskset, tasksetRel }) {
       }
     }
   }
-  return { runIdsByConfig, runMeta };
-}
 
-function matrixArtifact({ args, taskset, runIdsByConfig, runMeta }) {
-  return {
+  const matrix = {
     evaluation_id: args.evalId,
     taskset_id: taskset.taskset_id,
     mode: args.mode,
@@ -287,9 +289,9 @@ function matrixArtifact({ args, taskset, runIdsByConfig, runMeta }) {
     })),
     run_meta: runMeta,
   };
-}
 
-function aggregateMatrix({ args, root }) {
+  writeJson(matrixPath, matrix);
+
   runCommand(
     "node",
     [
@@ -303,9 +305,7 @@ function aggregateMatrix({ args, root }) {
     ],
     { cwd: root },
   );
-}
 
-function emitMatrixSummary({ matrixPath, reportPath, runMeta }) {
   const failedRuns = runMeta.filter((entry) => entry.failed);
   process.stdout.write(
     `${JSON.stringify(
@@ -322,17 +322,6 @@ function emitMatrixSummary({ matrixPath, reportPath, runMeta }) {
   if (failedRuns.length > 0) {
     process.exitCode = 1;
   }
-}
-
-function main() {
-  const args = parseArgs(process.argv);
-  const root = resolve(args.root);
-  const { taskset, rel: tasksetRel } = loadTaskset(root, args.taskset);
-  const { matrixPath, reportPath } = evaluationPaths(root, args.evalId);
-  const { runIdsByConfig, runMeta } = executeMatrix({ args, root, taskset, tasksetRel });
-  writeJson(matrixPath, matrixArtifact({ args, taskset, runIdsByConfig, runMeta }));
-  aggregateMatrix({ args, root });
-  emitMatrixSummary({ matrixPath, reportPath, runMeta });
 }
 
 try {

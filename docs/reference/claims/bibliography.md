@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: science
-last_reviewed: 2026-04-17
+last_reviewed: 2026-08-04
 source_of_truth: editorial
 evidence_links: evidence-index.md
 ---
@@ -273,6 +273,43 @@ https://arxiv.org/abs/2501.14050
 "LongMemEval-V2: Benchmarking Memory-Augmented Agents in Long-Horizon
 Interactive Environments." 2026.
 https://arxiv.org/abs/2605.12493
+
+## Execution and containment sources
+
+### SRC-OPENCODE-CLI { #src-opencode-cli }
+
+OpenCode. "CLI." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/cli/
+
+### SRC-OPENCODE-CONFIG { #src-opencode-config }
+
+OpenCode. "Config." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/config
+
+### SRC-OPENCODE-PERMISSIONS { #src-opencode-permissions }
+
+OpenCode. "Permissions." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/permissions/
+
+### SRC-OPENCODE-TOOLS { #src-opencode-tools }
+
+OpenCode. "Tools." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/tools/
+
+### SRC-OPENCODE-PROVIDERS { #src-opencode-providers }
+
+OpenCode. "Providers." Accessed August 4, 2026.
+https://opencode.ai/docs/providers
+
+### SRC-JSON-SCHEMA-2020-12 { #src-json-schema-2020-12 }
+
+JSON Schema. "JSON Schema Draft 2020-12." Accessed August 4, 2026.
+https://json-schema.org/draft/2020-12
+
+### SRC-APPLE-APP-SANDBOX { #src-apple-app-sandbox }
+
+Apple. "Accessing files from the macOS App Sandbox." Accessed August 4, 2026.
+https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox
 
 ## Coverage note
 

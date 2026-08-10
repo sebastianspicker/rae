@@ -15,12 +15,37 @@ export async function loadProjects() {
   elements["new-run-button"].disabled = !state.projectId;
   setConnection("connected", "Local session", "No publish controls");
   if (state.projectId) {
+    await loadExecutionProfiles();
     await loadRuns();
     await loadWorkflows();
   } else {
     elements["runs-loading"].hidden = true;
     renderRuns();
   }
+}
+
+export async function loadExecutionProfiles() {
+  if (!state.projectId) return;
+  const payload = await api(`/projects/${encodeURIComponent(state.projectId)}/execution-profiles`);
+  state.workflowProfiles = payload.profiles ?? [];
+  elements["start-execution-profile"].replaceChildren(
+    new Option("Runtime default", ""),
+    ...state.workflowProfiles.map(
+      (profile) =>
+        new Option(
+          `${profile.id} · ${profile.readiness} · ${Object.entries(profile.models ?? {})
+            .map(([tier, model]) => `${tier}: ${model}`)
+            .join(", ")}`,
+          profile.id,
+        ),
+    ),
+  );
+  elements["workflow-proposal-profile"].replaceChildren(
+    new Option("Runtime default", ""),
+    ...state.workflowProfiles.map(
+      (profile) => new Option(`${profile.id} · ${profile.readiness}`, profile.id),
+    ),
+  );
 }
 
 export async function loadRuns(preserveSelection = true) {
@@ -108,7 +133,8 @@ async function streamEvents(after, generation, projectId, runId) {
   if (!isCurrentEventSelection(generation, projectId, runId)) return;
   const controller = new AbortController();
   state.streamAbort = controller;
-  showLiveVerificationStatus();
+  elements["stream-status"].innerHTML =
+    `<span class="spinner" aria-hidden="true"></span> Live verification`;
   const response = await openEventStream(after, controller, projectId, runId);
   if (!isCurrentEventSelection(generation, projectId, runId)) {
     controller.abort();
@@ -122,7 +148,7 @@ async function streamEvents(after, generation, projectId, runId) {
 }
 
 async function openEventStream(after, controller, projectId, runId) {
-  return fetch(
+  return await fetch(
     `/api/v1/projects/${encodeURIComponent(projectId)}/runs/${encodeURIComponent(runId)}/events/stream?after=${after}`,
     {
       headers: { authorization: `Bearer ${state.token}` },
@@ -131,30 +157,18 @@ async function openEventStream(after, controller, projectId, runId) {
   );
 }
 
-function showLiveVerificationStatus() {
-  const status = elements["stream-status"];
-  const spinner = document.createElement("span");
-  spinner.className = "spinner";
-  spinner.setAttribute("aria-hidden", "true");
-  status.replaceChildren(spinner, document.createTextNode(" Live verification"));
-}
-
 async function consumeEventStream(response, generation, projectId, runId) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  try {
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done || !isCurrentEventSelection(generation, projectId, runId)) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop();
-      appendStreamEvents(lines);
-      renderEvents();
-    }
-  } catch (error) {
-    if (error.name !== "AbortError") throw error;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done || !isCurrentEventSelection(generation, projectId, runId)) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    appendStreamEvents(lines);
+    renderEvents();
   }
 }
 

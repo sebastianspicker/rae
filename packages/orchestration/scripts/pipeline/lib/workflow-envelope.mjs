@@ -8,6 +8,7 @@ const validators = new Map(
   [
     ["2.0.0", "node-envelope-v2.schema.json"],
     ["2.1.0", "node-envelope-v2.1.schema.json"],
+    ["2.2.0", "node-envelope-v2.2.schema.json"],
   ].map(([version, name]) => {
     const schema = JSON.parse(
       readFileSync(resolve(PACKAGE_ROOT, "contracts/workflows", name), "utf8"),

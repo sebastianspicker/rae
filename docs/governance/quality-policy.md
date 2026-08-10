@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-07-31
+last_reviewed: 2026-07-10
 source_of_truth: ../reference/contracts/quality-gates.md
 evidence_links: ../reference/invariants/determinism-contracts.md
 ---
@@ -35,10 +35,6 @@ exclusions.
 
 ## Exact analyzer exceptions
 
-- Bandit `B101` remains enforced for production Python. Codacy findings under
-  `evals/tests/` and `tests/` are classified as `TestCode` because pytest
-  assertions are the executable test contract; Ruff independently enforces
-  `S101` outside those test paths.
 - Bandit `B404` is omitted because it reports imports rather than executable
   sinks; Bandit `B603` remains enabled for every subprocess call site.
 - OpenGrep's Python `dangerous-subprocess-use-audit` rule is omitted because

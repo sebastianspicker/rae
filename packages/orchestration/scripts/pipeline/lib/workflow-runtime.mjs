@@ -18,7 +18,7 @@ import { appendTraceEvent } from "./trace.mjs";
 import { createRuntimeStateGuard, reconcileRuntimeStateGuard } from "./runtime-state-guard.mjs";
 import { scheduleWorkflow } from "./workflow-scheduler.mjs";
 import { applyWorkflowTransform } from "./workflow-transforms.mjs";
-import { resolveExecutionTier } from "./execution-profile.mjs";
+import { resolveExecutionTier, resolveNodeCapabilities } from "./execution-profile.mjs";
 import { validateNodeEnvelope } from "./workflow-envelope.mjs";
 
 const WORKER = resolve(import.meta.dirname, "../workflow-agent-worker.mjs");
@@ -154,7 +154,7 @@ function nodeSchemaPath(context, node) {
   return pathValue;
 }
 
-function promptFor(context, node, inputs, item) {
+function promptFor(context, node, inputs, item, assembledContext = null) {
   const inputPayloads = inputs.map(({ edge, envelope }) => ({
     source_node: edge.from,
     edge_type: edge.type,
@@ -172,8 +172,8 @@ Mutation mode: ${node.access === "write" ? "workspace-write" : "read-only"}
 User task:
 ${context.task}
 
-Typed predecessor envelopes:
-${JSON.stringify(inputPayloads, null, 2)}
+${assembledContext ? "Bounded predecessor context (complete inline artifacts or immutable artifact references):" : "Typed predecessor envelopes:"}
+${JSON.stringify(assembledContext ?? inputPayloads, null, 2)}
 
 ${item === undefined || item === null ? "" : `Mapped item:\n${JSON.stringify(item, null, 2)}\n`}
 
@@ -232,7 +232,7 @@ function providerRequest(
   { schemaPath, eventLogPath, outputPath },
 ) {
   return {
-    provider: context.options.provider ?? "auto",
+    provider: instance.execution?.executor ?? context.options.provider ?? "auto",
     command: context.options["agent-command"],
     commandArgs: context.options.agentArgs,
     phase: node.id,
@@ -241,10 +241,16 @@ function providerRequest(
     schemaPath,
     outputPath,
     eventLogPath,
-    prompt: promptFor(context, node, inputs, instance.item),
+    prompt: promptFor(context, node, inputs, instance.item, instance.context?.prompt_context),
     sandboxMode: node.access === "write" ? "workspace-write" : "read-only",
     model: instance.execution?.model ?? context.options.model,
     reasoningEffort: instance.execution?.reasoning_effort ?? context.options["reasoning-effort"],
+    variant: instance.execution?.variant ?? null,
+    routeId: instance.execution?.route_id ?? null,
+    capabilities: instance.execution?.capabilities ?? null,
+    sourceRoot: context.projectRoot,
+    runDir: context.runDir,
+    inPlace: context.workspaceRoot === context.projectRoot,
     timeoutMs: Number(context.options["timeout-seconds"] ?? 1800) * 1000,
     allowUnsafeCommand: context.options["allow-unsafe-command-provider"] === true,
   };
@@ -300,7 +306,11 @@ function providerResult(node, result, changed, instancePart, attempt) {
     findings: result.artifact.findings ?? [],
     changed_paths: node.access === "write" ? changed : [],
     command_evidence: result.commandEvents ?? [],
-    resource_usage: result.resourceUsage ?? {},
+    resource_usage: {
+      ...(result.resourceUsage ?? {}),
+      capability_surface: result.capabilitySurface ?? null,
+      credential_manifest: result.credentialManifest ?? [],
+    },
     evidence_refs: [`workflow/agent-outputs/${instancePart}.${attempt}.events.jsonl`],
   };
 }
@@ -416,7 +426,14 @@ export async function runGraphWorkflow(context, options) {
     stopRequested: () => readOperatorControl(context.runId, context.workspaceRoot).stop_requested,
     resumeEnvelopes: resumeEnvelopes(context),
     onEvent: event,
-    resolveTier: (tier) => resolveExecutionTier(context.executionProfile, tier),
+    task: context.task,
+    verifiedGraphRecords: context.verifiedGraphRecords ?? [],
+    admittedMemory: context.admittedMemory ?? [],
+    contextPolicy: context.contextPolicy ?? options.contextPolicy ?? {},
+    resolveTier: (tier, nodeId) => ({
+      ...resolveExecutionTier(context.executionProfile, tier, nodeId),
+      capabilities: resolveNodeCapabilities(context.executionProfile, nodeId),
+    }),
     execute: ({ node, inputs, attempt, ...instance }) =>
       ["agent", "map"].includes(node.kind)
         ? providerNode({ ...context, options }, node, inputs, attempt, instance)

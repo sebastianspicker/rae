@@ -882,10 +882,26 @@ def prepared_change_unit(
     if encoded in changed:
         return True
     before, after = baseline.get(encoded), prepared.get(encoded)
-    if before is None or after is None or before["kind"] != "dir" or after["kind"] != "dir":
+    if not prepared_directory_pair(before, after):
         return False
-    rel = decode_path(encoded)
-    return any(decode_path(item) != rel and path_under(decode_path(item), rel) for item in changed)
+    return changed_descendant(encoded, changed)
+
+
+def prepared_directory_pair(before: dict[str, Any] | None, after: dict[str, Any] | None) -> bool:
+    if before is None or after is None:
+        return False
+    return before["kind"] == "dir" and after["kind"] == "dir"
+
+
+def changed_descendant(encoded: str, changed: list[str]) -> bool:
+    relative = decode_path(encoded)
+    for item in changed:
+        child = decode_path(item)
+        if child == relative:
+            continue
+        if path_under(child, relative):
+            return True
+    return False
 
 
 def remove_tree(path: str | bytes | Path) -> None:
@@ -983,53 +999,6 @@ def pointer_path_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _create_mirror_journal(
-    root: bytes,
-    runtime: bytes,
-    metadata_root: bytes,
-    transaction_dir: Path,
-    provider_directory: Path,
-) -> tuple[Path, dict[str, Any]]:
-    baseline_path = transaction_dir / "baseline"
-    baseline_path.mkdir(mode=0o700)
-    mirror_path = provider_directory / WORKSPACE_NAME
-    mirror_path.mkdir(mode=0o700)
-    mirror = os.fsencode(mirror_path)
-    baseline_store = os.fsencode(baseline_path)
-    manifest = make_manifest(root, runtime)
-    copy_manifest(root, baseline_store, manifest)
-    copy_manifest(root, mirror, manifest)
-    transaction_id = str(uuid.uuid4())
-    quarantine_root = os.path.join(runtime, b".fixing-quarantine", os.fsencode(transaction_id))
-    journal = {
-        "format": FORMAT_VERSION,
-        "id": transaction_id,
-        "state": "mirrored",
-        "root": os.fsdecode(root),
-        "runtime": os.fsdecode(runtime),
-        "metadata_root": os.fsdecode(metadata_root),
-        "mirror": os.fsdecode(mirror),
-        "baseline_store": os.fsdecode(baseline_store),
-        "quarantine_root": os.fsdecode(quarantine_root),
-        "root_identity": identity(os.lstat(root)),
-        "runtime_identity": identity(os.lstat(runtime)),
-        "metadata_root_identity": identity(os.lstat(metadata_root)),
-        "mirror_identity": identity(os.lstat(mirror)),
-        "provider_directory_identity": identity(os.lstat(provider_directory)),
-        "baseline_store_identity": identity(os.lstat(baseline_store)),
-        "baseline": manifest,
-        "prepared": None,
-        "changed": [],
-        "promoted": [],
-        "active": None,
-        "active_started": False,
-        "evidence": [],
-    }
-    journal_path = transaction_dir / "journal.json"
-    json_dump_atomic(journal_path, journal)
-    return journal_path, journal
-
-
 def mirror_command(args: argparse.Namespace) -> int:
     root, runtime, metadata_root, pointer = caller_identity(args)
     if os.path.lexists(pointer):
@@ -1043,12 +1012,46 @@ def mirror_command(args: argparse.Namespace) -> int:
         os.path.realpath(tempfile.mkdtemp(prefix="txn-", dir=transaction_parent))
     )
     provider_directory = Path(os.path.realpath(tempfile.mkdtemp(prefix=PROVIDER_DIRECTORY_PREFIX)))
+    mirror_path = provider_directory / WORKSPACE_NAME
+    mirror_path.mkdir(mode=0o700)
     os.chmod(transaction_dir, 0o700)  # nosemgrep
     os.chmod(provider_directory, 0o700)  # nosemgrep
     try:
-        journal_path, journal = _create_mirror_journal(
-            root, runtime, metadata_root, transaction_dir, provider_directory
-        )
+        baseline_path = transaction_dir / "baseline"
+        baseline_path.mkdir(mode=0o700)
+        mirror = os.fsencode(mirror_path)
+        baseline_store = os.fsencode(baseline_path)
+        manifest = make_manifest(root, runtime)
+        copy_manifest(root, baseline_store, manifest)
+        copy_manifest(root, mirror, manifest)
+        transaction_id = str(uuid.uuid4())
+        quarantine_root = os.path.join(runtime, b".fixing-quarantine", os.fsencode(transaction_id))
+        journal = {
+            "format": FORMAT_VERSION,
+            "id": transaction_id,
+            "state": "mirrored",
+            "root": os.fsdecode(root),
+            "runtime": os.fsdecode(runtime),
+            "metadata_root": os.fsdecode(metadata_root),
+            "mirror": os.fsdecode(mirror),
+            "baseline_store": os.fsdecode(baseline_store),
+            "quarantine_root": os.fsdecode(quarantine_root),
+            "root_identity": identity(os.lstat(root)),
+            "runtime_identity": identity(os.lstat(runtime)),
+            "metadata_root_identity": identity(os.lstat(metadata_root)),
+            "mirror_identity": identity(os.lstat(mirror)),
+            "provider_directory_identity": identity(os.lstat(provider_directory)),
+            "baseline_store_identity": identity(os.lstat(baseline_store)),
+            "baseline": manifest,
+            "prepared": None,
+            "changed": [],
+            "promoted": [],
+            "active": None,
+            "active_started": False,
+            "evidence": [],
+        }
+        journal_path = transaction_dir / "journal.json"
+        json_dump_atomic(journal_path, journal)
         json_dump_atomic(
             pointer,
             {
@@ -1292,20 +1295,6 @@ def conflict_message(encoded: str, context: str) -> str:
     return f"live checkout changed during {context}: {os.fsdecode(decode_path(encoded))}"
 
 
-def _quarantine_matches_expected(
-    quarantine: bytes,
-    encoded: str,
-    expected: dict[str, Any],
-    expected_subtree: list[dict[str, Any]] | None,
-) -> bool:
-    if entry_at_absolute(quarantine, encoded) != expected:
-        return False
-    return (
-        expected_subtree is None
-        or subtree_manifest_absolute(quarantine, encoded) == expected_subtree
-    )
-
-
 def quarantine_live_entry(
     path: Path,
     journal: dict[str, Any],
@@ -1342,7 +1331,12 @@ def quarantine_live_entry(
         raise TransactionConflict(conflict_message(encoded, context)) from error
     item["state"] = "quarantined"
     write_evidence(path, journal)
-    if _quarantine_matches_expected(quarantine, encoded, expected, expected_subtree):
+    entry_matches = entry_at_absolute(quarantine, encoded) == expected
+    subtree_matches = (
+        expected_subtree is None
+        or subtree_manifest_absolute(quarantine, encoded) == expected_subtree
+    )
+    if entry_matches and subtree_matches:
         return item
 
     try:
@@ -2003,42 +1997,6 @@ def quarantined_directory(
     return None
 
 
-def _recovery_candidate(
-    journal: dict[str, Any], entry: dict[str, Any], subtree: bool
-) -> bytes | None:
-    candidate = quarantined_baseline(journal, entry["path"], entry)
-    if candidate is None and entry["kind"] == "dir" and not subtree:
-        candidate = quarantined_directory(journal, entry["path"])
-        if candidate is not None:
-            os.chmod(candidate, entry["mode"], follow_symlinks=False)
-            if entry_at_absolute(candidate, entry["path"]) != entry:
-                raise TransactionConflict(
-                    conflict_message(entry["path"], "recovery directory staging")
-                )
-    return candidate
-
-
-def _stage_recovery_entry(
-    path: Path,
-    journal: dict[str, Any],
-    root: bytes,
-    baseline_store: bytes,
-    entry: dict[str, Any],
-    context: str,
-    subtree: bool,
-    candidate: bytes | None,
-) -> dict[str, Any]:
-    if candidate is not None:
-        return stage_existing_entry(
-            path, journal, entry["path"], candidate, context, "recovery", subtree
-        )
-    if subtree and entry["kind"] == "dir":
-        return stage_directory_subtree(
-            path, journal, root, baseline_store, journal["baseline"], entry, context, "recovery"
-        )
-    return stage_manifest_entry(path, journal, root, baseline_store, entry, context, "recovery")
-
-
 def restore_baseline_entry(
     path: Path,
     journal: dict[str, Any],
@@ -2048,10 +2006,47 @@ def restore_baseline_entry(
     context: str,
     subtree: bool = False,
 ) -> None:
-    candidate = _recovery_candidate(journal, entry, subtree)
-    item = _stage_recovery_entry(
-        path, journal, root, baseline_store, entry, context, subtree, candidate
-    )
+    candidate = quarantined_baseline(journal, entry["path"], entry)
+    if candidate is None and entry["kind"] == "dir" and not subtree:
+        candidate = quarantined_directory(journal, entry["path"])
+        if candidate is not None:
+            os.chmod(candidate, entry["mode"], follow_symlinks=False)
+            if entry_at_absolute(candidate, entry["path"]) != entry:
+                raise TransactionConflict(
+                    conflict_message(entry["path"], "recovery directory staging")
+                )
+    if candidate is None:
+        if subtree and entry["kind"] == "dir":
+            item = stage_directory_subtree(
+                path,
+                journal,
+                root,
+                baseline_store,
+                journal["baseline"],
+                entry,
+                context,
+                "recovery",
+            )
+        else:
+            item = stage_manifest_entry(
+                path,
+                journal,
+                root,
+                baseline_store,
+                entry,
+                context,
+                "recovery",
+            )
+    else:
+        item = stage_existing_entry(
+            path,
+            journal,
+            entry["path"],
+            candidate,
+            context,
+            "recovery",
+            subtree,
+        )
     expected_subtree = manifest_subtree(journal["baseline"], entry["path"]) if subtree else None
     install_staged_entry(
         path,
@@ -2203,11 +2198,7 @@ def restore_directory(
             "recovery directory restoration",
             subtree,
         )
-    elif (
-        subtree
-        and current["kind"] == "dir"
-        and subtree_manifest(root, encoded) == manifest_subtree(journal["prepared"] or [], encoded)
-    ):
+    elif current_matches_prepared_subtree(journal, root, encoded, current, subtree):
         replace_recovery_subtree(path, journal, root, context["baseline_store"], entry, current)
     elif current["kind"] == "dir" and current in directory_prepared_entries(
         context["prepared"], encoded
@@ -2217,6 +2208,18 @@ def restore_directory(
         record_recovery_conflict(path, journal, encoded, "recovery directory restoration")
         context["conflicts"].add(encoded)
         raise TransactionConflict(conflict_message(encoded, "recovery directory restoration"))
+
+
+def current_matches_prepared_subtree(
+    journal: dict[str, Any],
+    root: bytes,
+    encoded: str,
+    current: dict[str, Any],
+    subtree: bool,
+) -> bool:
+    if not subtree or current["kind"] != "dir":
+        return False
+    return subtree_manifest(root, encoded) == manifest_subtree(journal["prepared"] or [], encoded)
 
 
 def replace_recovery_subtree(
@@ -2359,20 +2362,23 @@ def discard_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cleanup_missing_terminal_journal(
-    pointer: Path, journal_path: Path, data: dict[str, Any]
-) -> None:
-    if data.get("terminal") not in ("committed", "recovered", "discarded"):
-        raise RuntimeError("nonterminal transaction journal is missing")
-    if os.path.lexists(journal_path.parent):
-        owned_private_directory(journal_path.parent, "transaction directory")
-        remove_tree(journal_path.parent)
-    unlink_pointer_durable(pointer)
-
-
-def _recover_loaded_journal(args: argparse.Namespace, root: bytes) -> None:
+def recover_command(args: argparse.Namespace) -> int:
+    root, runtime, metadata_root, pointer = caller_identity(args)
+    if not os.path.lexists(pointer):
+        return 0
+    data = pointer_data(pointer)
+    journal_path = pointer_journal_path(data, root, runtime, metadata_root)
+    if not os.path.lexists(journal_path):
+        if data.get("terminal") not in ("committed", "recovered", "discarded"):
+            raise RuntimeError("nonterminal transaction journal is missing")
+        if os.path.lexists(journal_path.parent):
+            owned_private_directory(journal_path.parent, "transaction directory")
+            remove_tree(journal_path.parent)
+        unlink_pointer_durable(pointer)
+        return 0
     path, journal, bound_root, _, mirror, bound_pointer = load_bound_journal(
-        args, allow_terminal_cleanup=True
+        args,
+        allow_terminal_cleanup=True,
     )
     if bound_root != root:
         raise RuntimeError("transaction recovery root mismatch")
@@ -2392,18 +2398,6 @@ def _recover_loaded_journal(args: argparse.Namespace, root: bytes) -> None:
         journal["evidence"],
         cleanup_state,
     )
-
-
-def recover_command(args: argparse.Namespace) -> int:
-    root, runtime, metadata_root, pointer = caller_identity(args)
-    if not os.path.lexists(pointer):
-        return 0
-    data = pointer_data(pointer)
-    journal_path = pointer_journal_path(data, root, runtime, metadata_root)
-    if not os.path.lexists(journal_path):
-        _cleanup_missing_terminal_journal(pointer, journal_path, data)
-        return 0
-    _recover_loaded_journal(args, root)
     return 0
 
 

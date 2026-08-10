@@ -5,9 +5,134 @@ import { currentRun, elements, state } from "./state.js";
 const escapeText = (value) => String(value ?? "");
 const base = () => `/projects/${encodeURIComponent(state.projectId)}/workflows`;
 const firstDefined = (...values) => values.find((value) => value !== undefined);
+const WORKFLOW_VIEW_PANELS = Object.freeze({
+  loop: "workflow-loop",
+  graph: "workflow-graph-panel",
+  analyze: "workflow-analysis",
+  json: "workflow-json",
+});
 
 function selectedRevision() {
   return state.workflow?.revisions?.at(-1)?.revision ?? state.workflow?.workflow?.revision ?? null;
+}
+
+function draftDefinition() {
+  return JSON.parse(elements["workflow-definition"].value);
+}
+
+function setDraftDefinition(definition, { render = true } = {}) {
+  const latest = selectedRevision();
+  if (
+    definition?.schema_version === "2.1.0" &&
+    Number.isSafeInteger(latest) &&
+    Number(definition.revision) <= latest
+  ) {
+    definition.revision = latest + 1;
+  }
+  state.workflow.workflow = structuredClone(definition);
+  elements["workflow-definition"].value = JSON.stringify(definition, null, 2);
+  if (render) renderWorkflow();
+}
+
+function selectedNode(definition = state.workflow?.workflow) {
+  return (definition?.nodes ?? []).find((node) => node.id === state.workflowNodeId) ?? null;
+}
+
+function edgeKey(edge) {
+  return `${edge.from}|${edge.to}|${edge.type}|${edge.condition ?? edge.artifact ?? ""}`;
+}
+
+function selectedEdge(definition = state.workflow?.workflow) {
+  return (definition?.edges ?? []).find((edge) => edgeKey(edge) === state.workflowEdgeKey) ?? null;
+}
+
+function updateWorkflowView(view) {
+  state.workflowView = view;
+  for (const [name, panelId] of Object.entries(WORKFLOW_VIEW_PANELS)) {
+    elements[`workflow-view-${name}`].setAttribute("aria-selected", String(name === view));
+    elements[panelId].hidden = name !== view;
+  }
+}
+
+function renderSelectors(definition) {
+  const nodes = definition.nodes ?? [];
+  if (!nodes.some((node) => node.id === state.workflowNodeId))
+    state.workflowNodeId = nodes[0]?.id ?? null;
+  const edges = definition.edges ?? [];
+  if (!edges.some((edge) => edgeKey(edge) === state.workflowEdgeKey)) {
+    state.workflowEdgeKey = edges[0] ? edgeKey(edges[0]) : null;
+  }
+  elements["workflow-node-select"].replaceChildren(
+    ...nodes.map(
+      (node) =>
+        new Option(`${node.id} · ${node.kind}`, node.id, false, node.id === state.workflowNodeId),
+    ),
+  );
+  elements["workflow-edge-select"].replaceChildren(
+    ...edges.map(
+      (edge) =>
+        new Option(
+          `${edge.from} → ${edge.to} · ${edge.type}`,
+          edgeKey(edge),
+          false,
+          edgeKey(edge) === state.workflowEdgeKey,
+        ),
+    ),
+  );
+}
+
+function renderInspector(definition) {
+  const node = selectedNode(definition);
+  const controls = {
+    "workflow-node-guidance": node?.guidance ?? "",
+    "workflow-node-role": node?.role ?? "",
+    "workflow-node-kind": node?.kind ?? "agent",
+    "workflow-node-access": node?.access ?? "read",
+    "workflow-node-tier": node?.tier ?? "",
+    "workflow-node-payload": node?.payload_contract ?? "",
+    "workflow-node-join": node?.join ?? "",
+    "workflow-node-quorum": node?.quorum?.threshold ?? "",
+    "workflow-node-failure": node?.failure_handling?.mode ?? "",
+    "workflow-node-resource": node?.resource ?? "",
+    "workflow-node-loop-mode": node?.loop?.mode ?? "bounded",
+    "workflow-node-loop-bound": node?.loop?.max_iterations ?? 3,
+    "workflow-node-loop-members": (node?.loop?.members ?? []).join(", "),
+  };
+  for (const [id, value] of Object.entries(controls)) elements[id].value = value;
+  elements["workflow-node-verification"].checked = node?.verification === true;
+  elements["workflow-node-checkpoint"].checked = node?.mutation_checkpoint === true;
+  elements["workflow-node-ownership"].checked = node?.ownership_plan === true;
+  elements["workflow-inspector-help"].textContent = node
+    ? `Editing ${node.id}. Use Delete to remove the selected node or edge, and connect two selected nodes in the structured list.`
+    : "Add a node to begin structured workflow authoring.";
+}
+
+function renderLoopSummary(definition) {
+  const loops = (definition.nodes ?? []).filter((node) => node.loop);
+  elements["workflow-loop-summary"].textContent = loops.length
+    ? loops
+        .map(
+          (node) =>
+            `${node.id}: ${node.loop.mode ?? "bounded"}, at most ${node.loop.max_iterations} iterations`,
+        )
+        .join(". ")
+    : "No loop nodes in this revision.";
+}
+
+function isExpertJson(definition) {
+  return ["2.0.0", "2.2.0"].includes(definition?.schema_version);
+}
+
+function updateExpertMode(definition) {
+  const expert = isExpertJson(definition);
+  for (const control of elements["workflow-structured-controls"].querySelectorAll(
+    "button, input, select, textarea",
+  )) {
+    control.disabled = expert || mutationLocked();
+  }
+  elements["workflow-version-help"].textContent = expert
+    ? `Workflow ${definition.schema_version} is an expert-only JSON surface. Structured v2.1 authoring is disabled.`
+    : "JSON is for schema 2.0 and 2.2 experts. Use structured controls for standard graph authoring.";
 }
 
 function neighborIds(edges, nodeId, direction) {
@@ -343,7 +468,17 @@ function updateMutationControls() {
 }
 
 function mutationControls() {
-  return [elements["workflow-draft"], elements["workflow-validate"], elements["workflow-activate"]];
+  return [
+    elements["workflow-draft"],
+    elements["workflow-validate"],
+    elements["workflow-activate"],
+    elements["workflow-add-node"],
+    elements["workflow-delete-node"],
+    elements["workflow-add-edge"],
+    elements["workflow-delete-edge"],
+    elements["workflow-auto-layout"],
+    elements["workflow-propose"],
+  ];
 }
 
 function renderWorkflowBudget(definition) {
@@ -396,6 +531,11 @@ function renderWorkflow() {
   renderWorkflowHistory(workflow);
   renderGraph(definition);
   renderStructure(definition);
+  renderSelectors(definition);
+  renderInspector(definition);
+  renderLoopSummary(definition);
+  updateWorkflowView(state.workflowView);
+  updateExpertMode(definition);
   updateMutationControls();
 }
 
@@ -411,7 +551,11 @@ async function selectWorkflow(id) {
 export async function loadWorkflows() {
   if (!state.projectId) return;
   elements["workflow-status"].textContent = "Loading workflow registry…";
-  const payload = await api(base());
+  const [payload, templatePayload] = await Promise.all([api(base()), api(`${base()}/templates`)]);
+  elements["workflow-template"].replaceChildren(
+    new Option("Keep current workflow", ""),
+    ...(templatePayload.templates ?? []).map((template) => new Option(template.title, template.id)),
+  );
   state.workflows = payload.workflows ?? [];
   elements["workflow-list"].replaceChildren(
     ...state.workflows.map((workflow) => {
@@ -430,8 +574,228 @@ export async function loadWorkflows() {
   updateMutationControls();
 }
 
+function makeNodeId(definition) {
+  const ids = new Set((definition.nodes ?? []).map((node) => node.id));
+  for (let number = 1; number <= 64; number += 1) {
+    const id = `node-${number}`;
+    if (!ids.has(id)) return id;
+  }
+  throw new Error("workflow already has the maximum number of nodes");
+}
+
+function addNode() {
+  const definition = draftDefinition();
+  const id = makeNodeId(definition);
+  definition.nodes = [
+    ...(definition.nodes ?? []),
+    {
+      id,
+      kind: "agent",
+      access: "read",
+      guidance: "Describe the bounded work and required evidence.",
+    },
+  ];
+  state.workflowNodeId = id;
+  setDraftDefinition(definition);
+}
+
+function deleteNode() {
+  const definition = draftDefinition();
+  const node = selectedNode(definition);
+  if (!node) return;
+  if ([definition.entry_node, definition.terminal_node].includes(node.id))
+    throw new Error("entry and terminal nodes cannot be deleted");
+  definition.nodes = definition.nodes.filter((item) => item.id !== node.id);
+  definition.edges = (definition.edges ?? []).filter(
+    (edge) => edge.from !== node.id && edge.to !== node.id,
+  );
+  state.workflowNodeId = definition.nodes[0]?.id ?? null;
+  setDraftDefinition(definition);
+}
+
+function connectSelectedNodes() {
+  const definition = draftDefinition();
+  const from = selectedNode(definition);
+  const target = selectedEdge(definition)?.to ?? definition.terminal_node;
+  if (!from || !target || from.id === target)
+    throw new Error("select a node and an edge whose destination will receive the connection");
+  const edge = { from: from.id, to: target, type: "sequence" };
+  if (!(definition.edges ?? []).some((item) => edgeKey(item) === edgeKey(edge)))
+    definition.edges.push(edge);
+  state.workflowEdgeKey = edgeKey(edge);
+  setDraftDefinition(definition);
+}
+
+function deleteEdge() {
+  const definition = draftDefinition();
+  if (!state.workflowEdgeKey) return;
+  definition.edges = (definition.edges ?? []).filter(
+    (edge) => edgeKey(edge) !== state.workflowEdgeKey,
+  );
+  state.workflowEdgeKey = definition.edges[0] ? edgeKey(definition.edges[0]) : null;
+  setDraftDefinition(definition);
+}
+
+function applyInspector() {
+  const definition = draftDefinition();
+  const node = selectedNode(definition);
+  if (!node) return;
+  node.guidance = elements["workflow-node-guidance"].value.trim();
+  node.kind = elements["workflow-node-kind"].value;
+  if (node.kind !== "map") delete node.map;
+  if (node.kind !== "transform") delete node.transform;
+  for (const [field, id] of [
+    ["role", "workflow-node-role"],
+    ["tier", "workflow-node-tier"],
+    ["payload_contract", "workflow-node-payload"],
+    ["join", "workflow-node-join"],
+    ["resource", "workflow-node-resource"],
+  ]) {
+    const value = elements[id].value.trim();
+    if (value) node[field] = value;
+    else delete node[field];
+  }
+  node.access = elements["workflow-node-access"].value;
+  const failure = elements["workflow-node-failure"].value;
+  if (failure) node.failure_handling = { mode: failure };
+  else delete node.failure_handling;
+  node.verification = elements["workflow-node-verification"].checked;
+  node.mutation_checkpoint = elements["workflow-node-checkpoint"].checked;
+  node.ownership_plan = elements["workflow-node-ownership"].checked;
+  if (node.join === "quorum") {
+    node.quorum = { threshold: Number(elements["workflow-node-quorum"].value || 1) };
+  } else delete node.quorum;
+  if (node.kind === "loop") {
+    const members = elements["workflow-node-loop-members"].value
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    node.loop = {
+      mode: elements["workflow-node-loop-mode"].value,
+      max_iterations: Number(elements["workflow-node-loop-bound"].value || 1),
+      members: members.length ? [...new Set(members)] : [node.id],
+    };
+  } else delete node.loop;
+  setDraftDefinition(definition);
+}
+
+async function applyTemplate(name) {
+  if (!name) return;
+  const definition = draftDefinition();
+  const result = await api(`${base()}/templates`, {
+    method: "POST",
+    body: JSON.stringify({
+      template_id: name,
+      workflow_id: definition.workflow_id,
+      revision: selectedRevision() + 1,
+    }),
+  });
+  state.workflowNodeId = result.workflow.entry_node;
+  setDraftDefinition(result.workflow);
+  elements["workflow-template"].value = "";
+}
+
+async function analyzeDraft() {
+  const result = await api(`${base()}/${encodeURIComponent(state.workflowId)}/analysis`, {
+    method: "POST",
+    body: JSON.stringify({ workflow: draftDefinition() }),
+  });
+  elements["workflow-analysis-output"].textContent = JSON.stringify(result, null, 2);
+  updateWorkflowView("analyze");
+}
+
+async function pollProposal(jobId) {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const result = await api(
+      `${base()}/${encodeURIComponent(state.workflowId)}/proposals/${encodeURIComponent(jobId)}`,
+    );
+    const proposal = result.proposal;
+    if (proposal.state === "completed") {
+      setDraftDefinition(proposal.candidate);
+      elements["workflow-status"].textContent =
+        "Proposal loaded into the unsaved editor. Save and activate remain separate decisions.";
+      return;
+    }
+    if (proposal.state === "failed") throw new Error(proposal.error ?? "workflow proposal failed");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error("workflow proposal timed out in the local console");
+}
+
+async function proposeDraft() {
+  const task = elements["workflow-proposal-task"].value.trim();
+  const profileId = elements["workflow-proposal-profile"].value;
+  const result = await api(`${base()}/${encodeURIComponent(state.workflowId)}/proposals`, {
+    method: "POST",
+    body: JSON.stringify({
+      task,
+      base_revision: selectedRevision(),
+      ...(profileId ? { execution_profile_id: profileId } : {}),
+    }),
+  });
+  elements["workflow-status"].textContent = "Generating an unsaved workflow proposal…";
+  await pollProposal(result.id);
+}
+
 export function bindWorkflowEditor() {
   elements["workflow-refresh"].addEventListener("click", () => loadWorkflows().catch(showError));
+  for (const view of ["loop", "graph", "analyze", "json"]) {
+    elements[`workflow-view-${view}`].addEventListener("click", () => {
+      if (view === "analyze") analyzeDraft().catch(showError);
+      else updateWorkflowView(view);
+    });
+  }
+  elements["workflow-template"].addEventListener("change", (event) => {
+    applyTemplate(event.target.value).catch(showError);
+  });
+  elements["workflow-node-select"].addEventListener("change", (event) => {
+    state.workflowNodeId = event.target.value;
+    renderInspector(state.workflow.workflow);
+  });
+  elements["workflow-edge-select"].addEventListener("change", (event) => {
+    state.workflowEdgeKey = event.target.value;
+  });
+  const structuredActions = {
+    "workflow-add-node": addNode,
+    "workflow-delete-node": deleteNode,
+    "workflow-add-edge": connectSelectedNodes,
+    "workflow-delete-edge": deleteEdge,
+    "workflow-auto-layout": () => renderGraph(draftDefinition()),
+    "workflow-propose": proposeDraft,
+  };
+  for (const [id, action] of Object.entries(structuredActions)) {
+    elements[id].addEventListener("click", () => Promise.resolve(action()).catch(showError));
+  }
+  for (const id of [
+    "workflow-node-guidance",
+    "workflow-node-role",
+    "workflow-node-kind",
+    "workflow-node-access",
+    "workflow-node-tier",
+    "workflow-node-payload",
+    "workflow-node-join",
+    "workflow-node-quorum",
+    "workflow-node-failure",
+    "workflow-node-resource",
+    "workflow-node-verification",
+    "workflow-node-checkpoint",
+    "workflow-node-ownership",
+    "workflow-node-loop-mode",
+    "workflow-node-loop-bound",
+    "workflow-node-loop-members",
+  ]) {
+    elements[id].addEventListener("change", () => applyInspector());
+  }
+  elements["workflow-draft-form"].addEventListener("keydown", (event) => {
+    if (event.altKey && event.key.toLowerCase() === "n") {
+      event.preventDefault();
+      addNode();
+    }
+    if (event.key === "Delete" && document.activeElement?.tagName !== "TEXTAREA") {
+      event.preventDefault();
+      deleteNode();
+    }
+  });
   elements["workflow-draft-form"].addEventListener("submit", async (event) => {
     event.preventDefault();
     try {

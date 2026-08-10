@@ -7,9 +7,13 @@ import { describe, expect, test } from "vitest";
 import { validateWorkflow } from "../lib/workflow-contract.mjs";
 import { scheduleWorkflow } from "../lib/workflow-scheduler.mjs";
 import {
+  assertExecutionProfileCoverage,
+  credentialDigestManifest,
   executionProfileDigest,
   loadExecutionProfile,
+  resolveNodeCapabilities,
   resolveExecutionTier,
+  validateExecutionProfile,
 } from "../lib/execution-profile.mjs";
 import { applyWorkflowTransform, deduplicateDiscovery } from "../lib/workflow-transforms.mjs";
 
@@ -265,6 +269,66 @@ describe("workflow v2.1 contract and transforms", () => {
       model: "codex-judgment",
       reasoning_effort: "high",
     });
+  });
+
+  test("validates exact v2 node capabilities and declared credential digests", () => {
+    const profile = {
+      schema_version: "2.0.0",
+      profile_id: "least-privilege-profile",
+      tiers: {
+        economy: { model: "codex-economy", reasoning_effort: "low" },
+        standard: { model: "codex-standard", reasoning_effort: "medium" },
+        judgment: { model: "codex-judgment", reasoning_effort: "high" },
+      },
+      capability_sets: {
+        sealed: { web_search: "disabled", mcp_servers: [], credential_env_vars: [] },
+        research: {
+          web_search: "disabled",
+          credential_env_vars: ["RESEARCH_MCP_TOKEN"],
+          mcp_servers: [
+            {
+              name: "research",
+              transport: "streamable-http",
+              url: "https://mcp.example.invalid/rae",
+              enabled_tools: ["lookup_claim"],
+              token_env_var: "RESEARCH_MCP_TOKEN",
+            },
+          ],
+        },
+      },
+      default_capability_set: "sealed",
+      node_capability_sets: { source: "research", complete: "sealed" },
+    };
+    const workflow = {
+      schema_version: "2.2.0",
+      nodes: [{ id: "source" }, { id: "complete" }],
+    };
+    expect(validateExecutionProfile(profile)).toEqual(profile);
+    expect(() => assertExecutionProfileCoverage(profile, workflow)).not.toThrow();
+    expect(resolveNodeCapabilities(profile, "source")).toMatchObject({
+      name: "research",
+      web_search: "disabled",
+    });
+    expect(
+      credentialDigestManifest(resolveNodeCapabilities(profile, "source"), {
+        RESEARCH_MCP_TOKEN: "fixture-token",
+      }),
+    ).toEqual([
+      {
+        name: "RESEARCH_MCP_TOKEN",
+        digest: "626a1d7ceeb7422fc2b8a6b83ae81af22f80edc6a4b7f519d9f15678935e57ec",
+      },
+    ]);
+    expect(() =>
+      assertExecutionProfileCoverage(profile, {
+        schema_version: "2.2.0",
+        nodes: [{ id: "source" }],
+      }),
+    ).toThrow(/extras: complete/);
+    const queryCredential = structuredClone(profile);
+    queryCredential.capability_sets.research.mcp_servers[0].url =
+      "https://mcp.example.invalid/rae?token=forbidden";
+    expect(() => validateExecutionProfile(queryCredential)).toThrow(/without a query or fragment/);
   });
 });
 

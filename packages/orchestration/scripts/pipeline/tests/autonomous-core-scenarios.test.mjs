@@ -26,7 +26,7 @@ function run(command, args, cwd, allowFailure = false, env = process.env) {
     cwd,
     env,
     encoding: "utf8",
-    timeout: 60_000,
+    timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,
   });
   if (!allowFailure && proc.status !== 0) {

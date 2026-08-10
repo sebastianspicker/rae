@@ -177,7 +177,18 @@ export function resolveCheckpoint(
   { phase, purpose, status, decisionId, actor, rationale },
   root,
 ) {
-  validateCheckpointDecision({ status, decisionId, actor, rationale });
+  if (!CHECKPOINT_STATUSES.has(status) || status === "pending") {
+    throw badInput("checkpoint status must be approved, rejected, or escalated");
+  }
+  if (typeof decisionId !== "string" || decisionId.length === 0) {
+    throw badInput("decision_id is required");
+  }
+  if (typeof actor !== "string" || actor.length === 0 || actor.length > 128) {
+    throw badInput("checkpoint actor is required and must be at most 128 characters");
+  }
+  if (typeof rationale !== "string" || rationale.trim().length === 0 || rationale.length > 4096) {
+    throw badInput("checkpoint rationale is required and must be at most 4096 characters");
+  }
   const path = getCheckpointPath(runId, phase, purpose, root);
   const lockPath = `${path}.lock`;
   const identity = checkpointIdentity(runId, phase, purpose);
@@ -235,29 +246,6 @@ export function resolveCheckpoint(
       unlinkSync(lockPath);
     }
   });
-}
-
-function validateCheckpointDecision({ status, decisionId, actor, rationale }) {
-  assertCheckpointStatus(status);
-  assertDecisionId(decisionId);
-  assertDecisionActor(actor);
-  assertDecisionRationale(rationale);
-}
-
-function assertCheckpointStatus(status) {
-  if (!CHECKPOINT_STATUSES.has(status) || status === "pending")
-    throw badInput("checkpoint status must be approved, rejected, or escalated");
-}
-function assertDecisionId(value) {
-  if (typeof value !== "string" || value.length === 0) throw badInput("decision_id is required");
-}
-function assertDecisionActor(value) {
-  if (typeof value !== "string" || value.length === 0 || value.length > 128)
-    throw badInput("checkpoint actor is required and must be at most 128 characters");
-}
-function assertDecisionRationale(value) {
-  if (typeof value !== "string" || value.trim().length === 0 || value.length > 4096)
-    throw badInput("checkpoint rationale is required and must be at most 4096 characters");
 }
 
 export function resolveCheckpointById(runId, checkpointIdValue, decision, root) {

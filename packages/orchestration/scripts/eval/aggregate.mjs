@@ -2,7 +2,8 @@
 /**
  * Aggregates pipeline evaluation artifacts into comparable configuration metrics for repeatable analysis.
  */
-import { resolve } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseArgs as parseCliArgs } from "../lib/argv.mjs";
 import { CONFIG_IDS } from "../lib/constants.mjs";
@@ -11,7 +12,6 @@ import {
   readJson,
   resolveWithinRepo,
   toWorkspaceRelative,
-  writeJson,
 } from "../pipeline/lib/state.mjs";
 import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
 
@@ -55,7 +55,7 @@ function p95(values) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const idx = Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1);
-  return sorted.at(idx);
+  return sorted[idx];
 }
 
 function driftScoreFromClaims(claims) {
@@ -84,7 +84,17 @@ export function gatePassRate(gates) {
   );
 }
 
-function loadGateResults(gatesDir) {
+function loadRunMetrics(root, runId) {
+  const runDir = getRunDir(runId, root);
+  if (!existsSync(runDir)) {
+    throw new Error(`run directory not found for run_id=${runId}`);
+  }
+  const gatesDir = resolve(runDir, "gates");
+  const traceSummary = readJson(resolve(runDir, "trace.summary.json"), {});
+  const drift = readJson(resolve(runDir, "drift-reports", "pmatch.json"), {});
+  const review = readJson(resolve(runDir, "review.json"), {});
+  const security = readJson(resolve(runDir, "quality-reports", "security.json"), {});
+
   const gateFiles = [
     "arm-gate.json",
     "design-gate.json",
@@ -97,37 +107,22 @@ function loadGateResults(gatesDir) {
     "postbuild-gate.json",
     "release-readiness-gate.json",
   ];
-  return gateFiles
+  const gateResults = gateFiles
     .map((name) => readJson(resolve(gatesDir, name), null))
     .filter(Boolean)
-    .map((gate) => ({ phase: gate.phase, status: gate.status }));
-}
+    .map((g) => ({ phase: g.phase, status: g.status }));
 
-function reviewMetrics(review) {
+  const success = gateResults.length > 0 && gateResults.every((g) => g.status === "pass");
   const rawFindings = Array.isArray(review.reviewers)
     ? review.reviewers.reduce(
-        (total, reviewer) =>
-          total + (Array.isArray(reviewer.findings) ? reviewer.findings.length : 0),
+        (acc, r) => acc + (Array.isArray(r.findings) ? r.findings.length : 0),
         0,
       )
     : 0;
-  const deduplicatedFindings = Array.isArray(review.deduplicated_findings)
+  const dedupFindings = Array.isArray(review.deduplicated_findings)
     ? review.deduplicated_findings.length
     : 0;
-  return { dedupRatio: deduplicatedFindings > 0 ? rawFindings / deduplicatedFindings : 1 };
-}
-
-function loadRunMetrics(root, runId) {
-  const runDir = getRunDir(runId, root);
-  const gatesDir = resolve(runDir, "gates");
-  const traceSummary = readJson(resolve(runDir, "trace.summary.json"), null);
-  if (!traceSummary) throw new Error(`run directory not found for run_id=${runId}`);
-  const drift = readJson(resolve(runDir, "drift-reports", "pmatch.json"), {});
-  const review = readJson(resolve(runDir, "review.json"), {});
-  const security = readJson(resolve(runDir, "quality-reports", "security.json"), {});
-  const gateResults = loadGateResults(gatesDir);
-  const success = gateResults.length > 0 && gateResults.every((g) => g.status === "pass");
-  const { dedupRatio } = reviewMetrics(review);
+  const dedupRatio = dedupFindings > 0 ? rawFindings / dedupFindings : 1;
 
   return {
     run_id: runId,
@@ -228,7 +223,8 @@ function main() {
   };
 
   const outPath = resolveWithinRepo(output, root);
-  writeJson(outPath, report);
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   process.stdout.write(`${outPath}\n`);
 }
 

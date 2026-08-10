@@ -1,19 +1,20 @@
 /** Pure formatting helpers for the operator console. */
 
 export function phaseLabel(phase) {
-  const labels = new Map([
-    ["arm", "Intake"],
-    ["design", "Design"],
-    ["adversarial-review", "Adversarial review"],
-    ["plan", "Plan"],
-    ["pmatch", "Drift match"],
-    ["build", "Build"],
-    ["quality-static", "Quality static"],
-    ["quality-tests", "Quality tests"],
-    ["post-build", "Post-build"],
-    ["release-readiness", "Release readiness"],
-  ]);
-  return labels.get(phase) ?? humanize(phase);
+  return (
+    {
+      arm: "Intake",
+      design: "Design",
+      "adversarial-review": "Adversarial review",
+      plan: "Plan",
+      pmatch: "Drift match",
+      build: "Build",
+      "quality-static": "Quality static",
+      "quality-tests": "Quality tests",
+      "post-build": "Post-build",
+      "release-readiness": "Release readiness",
+    }[phase] ?? humanize(phase)
+  );
 }
 
 export function humanize(value) {
@@ -105,10 +106,8 @@ export function relativeTime(value) {
   const delta = Date.now() - date.valueOf();
   if (delta < 60_000) return "Now";
   if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m`;
-  const hourMs = 60 * 60 * 1000;
-  const dayMs = 24 * hourMs;
-  if (delta < dayMs) return `${Math.floor(delta / hourMs)}h`;
-  if (delta < 2 * dayMs) return "Yesterday";
+  if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h`;
+  if (delta < 172_800_000) return "Yesterday";
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 

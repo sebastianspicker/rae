@@ -8,6 +8,7 @@ const PACKAGE_ROOT = resolve(import.meta.dirname, "../../..");
 const WORKFLOW_SCHEMAS = new Map([
   ["2.0.0", resolve(PACKAGE_ROOT, "contracts/workflows/workflow-v2.schema.json")],
   ["2.1.0", resolve(PACKAGE_ROOT, "contracts/workflows/workflow-v2.1.schema.json")],
+  ["2.2.0", resolve(PACKAGE_ROOT, "contracts/workflows/workflow-v2.2.schema.json")],
 ]);
 const FORBIDDEN_PAYLOAD_KEYS = new Set([
   "command",
@@ -364,6 +365,7 @@ function validateTopology(workflow) {
   assertEntryAndTerminalTopology(workflow, graph);
   assertJoinTopology(workflow, graph);
   if (workflow.schema_version === "2.1.0") validateV21Topology(workflow, nodes, graph);
+  if (workflow.schema_version === "2.2.0") validateV22Topology(workflow, nodes, graph);
   const dom = dominators(workflow, graph.incoming);
   assertWriterDominance(workflow, dom);
   assertVerificationDominance(workflow, dom);
@@ -502,6 +504,53 @@ function validateV21Topology(workflow, nodes, graph) {
   assertV21Nodes(workflow, nodes, graph);
   assertUntilDryLoops(workflow);
   assertBoundedStreamDepth(streamGraph(workflow, nodes));
+}
+
+function assertV22NodeShape(node, signalContracts) {
+  if (node.kind === "wait" && !node.wait) {
+    throw contractError(`wait ${node.id} must declare a timeout and accepted signals`);
+  }
+  if (node.kind !== "wait" && node.wait) {
+    throw contractError(`non-wait node ${node.id} may not declare wait configuration`);
+  }
+  if (node.kind === "wait" && !signalContracts.has(node.wait.signal_contract)) {
+    throw contractError(
+      `wait ${node.id} references unknown signal contract ${node.wait.signal_contract}`,
+    );
+  }
+  if (node.kind === "join" && !node.join) {
+    throw contractError(`join ${node.id} must declare all or any`);
+  }
+  if (node.kind !== "join" && node.join) {
+    throw contractError(`non-join node ${node.id} may not declare join configuration`);
+  }
+}
+
+function assertV22NodeShapes(workflow) {
+  const signalContracts = new Set(Object.keys(workflow.signal_contracts ?? {}));
+  for (const node of workflow.nodes) {
+    assertV22NodeShape(node, signalContracts);
+  }
+}
+
+function assertV22FailureEdges(workflow, nodes) {
+  for (const edge of workflow.edges.filter((edge) => edge.condition === "failure")) {
+    if (!nodes.has(edge.from) || !nodes.has(edge.to)) {
+      throw contractError(`failure edge ${edge.from} -> ${edge.to} references an unknown node`);
+    }
+  }
+}
+
+/** Enforces the deliberately narrow v2.2 wait contract independently of v2.1. */
+function validateV22Topology(workflow, nodes, graph) {
+  validatePayloadContracts(workflow.signal_contracts);
+  assertV22NodeShapes(workflow);
+  assertV22FailureEdges(workflow, nodes);
+  // Reuse the normal graph analysis so a wait cannot create an unbounded cycle.
+  assertBoundedStreamDepth(new Map());
+  if (graph.incoming.get(workflow.entry_node).length !== 0) {
+    throw contractError("entry node has predecessors");
+  }
 }
 
 export function validateWorkflow(value) {

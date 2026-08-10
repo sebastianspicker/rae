@@ -61,7 +61,7 @@ evidence_links: bibliography.md
 - Dossier: [CLM-008 coordination topology](dossiers/clm-008-coordination-topology.md)
 - Internal anchor: `docs/explanation/science/coordination-cost.md`
 - Internal anchor: `packages/orchestration/docs/ORCHESTRATION_POLICY.md`
-- Internal anchor: `docs/tutorials/graph-engineering-with-codex.md`
+- Internal anchor: `docs/tutorials/graph-engineering-with-rae.md`
 - Internal anchor: `packages/orchestration/scripts/pipeline/lib/workflow-scheduler-v21.mjs`
 - External anchor: [Amdahl 1967](bibliography.md#src-amdahl-1967)
 - External anchor: [Conway 1968](bibliography.md#src-conway-1968)
@@ -111,7 +111,7 @@ evidence_links: bibliography.md
 - Internal anchor: `docs/explanation/science/cognitive-tiering.md`
 - Internal anchor: `docs/explanation/supplementary/design-axioms.md`
 - Internal anchor: `packages/orchestration/contracts/workflows/execution-profile-v1.schema.json`
-- Internal anchor: `docs/tutorials/graph-engineering-with-codex.md`
+- Internal anchor: `docs/tutorials/graph-engineering-with-rae.md`
 - External anchor: [Kahneman](bibliography.md#src-kahneman-fast-slow)
 - External anchor: [Bainbridge automation](bibliography.md#src-bainbridge-automation)
 - External anchor: [Parasuraman and Riley](bibliography.md#src-parasuraman-riley)

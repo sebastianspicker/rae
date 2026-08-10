@@ -1,6 +1,7 @@
 /** Handles autonomous workflow execution and operator control commands. */
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import Ajv2020 from "ajv/dist/2020.js";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 import {
   acquireWorkflowLock,
@@ -29,6 +30,7 @@ import {
 import { ensureRuntimeStateReadable } from "./runtime-state-guard.mjs";
 import { projectGraph, recordRunMemory } from "./graph.mjs";
 import { runGraphWorkflow } from "./workflow-runtime.mjs";
+import { recordWorkflowV22Signal } from "./workflow-v22-reducer.mjs";
 
 const DEFAULT_TIMEOUT_SECONDS = 1800;
 
@@ -92,9 +94,15 @@ function validateOptions(options) {
 }
 
 function validateExecutionProfileOptions(options) {
-  if (options["execution-profile"] && (options.model || options["reasoning-effort"])) {
+  if (
+    options["execution-profile"] &&
+    ((options.provider && options.provider !== "command") ||
+      options.model ||
+      options["reasoning-effort"] ||
+      options.variant)
+  ) {
     throw new Error(
-      "--execution-profile is mutually exclusive with --model and --reasoning-effort",
+      "--execution-profile is mutually exclusive with --provider, --model, --reasoning-effort, and --variant",
     );
   }
 }
@@ -143,10 +151,14 @@ function validateThroughOption(options) {
 
 function validateProviderOptions(options) {
   const provider = options.provider ?? "auto";
-  if (!["auto", "codex", "command"].includes(provider)) {
-    throw new Error("--provider must be auto, codex, or command");
+  if (!["auto", "codex", "opencode", "command"].includes(provider)) {
+    throw new Error("--provider must be auto, codex, opencode, or command");
   }
   if (provider === "command") return validateCommandProvider(options);
+  if (provider === "opencode") {
+    if (!options.model) throw new Error("--provider opencode requires --model <provider/model>");
+    if (options["in-place"]) throw new Error("OpenCode write routes reject --in-place");
+  }
   if (
     options["allow-unsafe-command-provider"] ||
     options["agent-command"] ||
@@ -246,132 +258,170 @@ function emitReadableControlResult(context, result, options) {
 
 export function runControlCommand(command, options) {
   const context = controlCommandContext(options);
-  switch (command) {
-    case "status":
-      return reportControlStatus(context, options);
-    case "stop":
-      return requestControlStop(context, options);
-    case "resolve-checkpoint":
-      return resolveControlCheckpoint(context, options);
-    case "events":
-      return reportControlEvents(context, options);
-    default:
-      throw new Error(`unsupported control command: ${command}`);
+  if (command === "status") {
+    const runDir = getRunDir(context.runId, context.workspaceRoot);
+    emitReadableControlResult(
+      context,
+      {
+        schema_version: "1.0.0",
+        run_id: context.runId,
+        workspace_root: context.workspaceRoot,
+        active_lock: existsSync(resolve(runDir, "autonomous.lock")),
+        completed_gates: context.state.completed_gates ?? [],
+        operator_control: readOperatorControl(context.runId, context.workspaceRoot),
+        checkpoints: listCheckpoints(context.runId, context.workspaceRoot),
+      },
+      options,
+    );
+    return;
   }
-}
-
-function reportControlStatus(context, options) {
-  const runDir = getRunDir(context.runId, context.workspaceRoot);
-  emitReadableControlResult(
-    context,
-    {
-      schema_version: "1.0.0",
-      run_id: context.runId,
-      workspace_root: context.workspaceRoot,
-      active_lock: existsSync(resolve(runDir, "autonomous.lock")),
-      completed_gates: context.state.completed_gates ?? [],
-      operator_control: readOperatorControl(context.runId, context.workspaceRoot),
-      checkpoints: listCheckpoints(context.runId, context.workspaceRoot),
-    },
-    options,
-  );
-}
-
-function requestControlStop(context, options) {
-  const previous = readOperatorControl(context.runId, context.workspaceRoot);
-  const control = requestStop(context.runId, context.workspaceRoot);
-  if (!["stop-requested", "stopped"].includes(previous.status)) {
+  if (command === "stop") {
+    const previous = readOperatorControl(context.runId, context.workspaceRoot);
+    const control = requestStop(context.runId, context.workspaceRoot);
+    if (!["stop-requested", "stopped"].includes(previous.status)) {
+      appendTraceEvent(
+        context.runId,
+        { event: "run_stop_requested", phase: nextRunPhase(context.state), status: "ok" },
+        context.workspaceRoot,
+      );
+    }
+    emitReadableControlResult(
+      context,
+      { success: true, run_id: context.runId, operator_control: control },
+      options,
+    );
+    return;
+  }
+  if (command === "signal") {
+    for (const key of ["node-id", "signal", "idempotency-key"]) {
+      if (!options[key]) throw new Error(`signal requires --${key}`);
+    }
+    const request = readJsonStrict(
+      resolve(getRunDir(context.runId, context.workspaceRoot), "request.json"),
+    );
+    const workflow = request.workflow?.snapshot;
+    if (workflow?.schema_version !== "2.2.0") {
+      throw new Error("signal is available only for a workflow schema 2.2.0 run");
+    }
+    const node = workflow.nodes.find((candidate) => candidate.id === options["node-id"]);
+    if (!node || node.kind !== "wait") throw new Error("--node-id must name a v2.2 wait node");
+    if (!node.wait.signals.includes(options.signal)) {
+      throw new Error(`wait ${node.id} does not accept signal ${options.signal}`);
+    }
+    let payload = null;
+    if (options["payload-json"]) {
+      try {
+        payload = JSON.parse(options["payload-json"]);
+      } catch {
+        throw new Error("--payload-json must be valid JSON");
+      }
+    }
+    const validateSignal = new Ajv2020({ allErrors: true, strict: false }).compile(
+      workflow.signal_contracts[node.wait.signal_contract],
+    );
+    if (!validateSignal(payload)) {
+      const detail = validateSignal.errors
+        .map((error) => `${error.instancePath || "/"} ${error.message}`)
+        .join("; ");
+      throw new Error(`signal payload does not match ${node.wait.signal_contract}: ${detail}`);
+    }
+    const state = recordWorkflowV22Signal({
+      runDir: getRunDir(context.runId, context.workspaceRoot),
+      runId: context.runId,
+      workflowDigest: request.workflow.digest,
+      nodeId: node.id,
+      signal: options.signal,
+      idempotencyKey: options["idempotency-key"],
+      payload,
+    });
     appendTraceEvent(
       context.runId,
-      { event: "run_stop_requested", phase: nextRunPhase(context.state), status: "ok" },
+      {
+        event: "workflow_signal_recorded",
+        phase: node.id,
+        status: "ok",
+        metadata: { signal: options.signal },
+      },
       context.workspaceRoot,
     );
+    emitReadableControlResult(
+      context,
+      { success: true, run_id: context.runId, node_id: node.id, signal: options.signal, state },
+      options,
+    );
+    return;
   }
-  emitReadableControlResult(
-    context,
-    { success: true, run_id: context.runId, operator_control: control },
-    options,
-  );
-}
-
-function requiredCheckpointDecision(options) {
-  const decision = options.decision;
-  if (!["approved", "rejected", "escalated"].includes(decision))
-    throw new Error("--decision must be approved, rejected, or escalated");
-  for (const key of ["checkpoint-id", "decision-id", "actor", "rationale"])
-    if (!options[key]) throw new Error(`resolve-checkpoint requires --${key}`);
-  return decision;
-}
-
-function resolveControlCheckpoint(context, options) {
-  const decision = requiredCheckpointDecision(options);
-  const checkpoint = resolveCheckpointById(
-    context.runId,
-    options["checkpoint-id"],
-    {
-      status: decision,
-      decisionId: options["decision-id"],
-      actor: options.actor,
-      rationale: options.rationale,
-    },
-    context.workspaceRoot,
-  );
-  appendTraceEvent(
-    context.runId,
-    {
-      event: "checkpoint_resolved",
-      phase: checkpoint.phase,
-      status: decision === "approved" ? "ok" : "blocked",
-      metadata: { checkpoint_id: checkpoint.checkpoint_id, outcome: decision },
-    },
-    context.workspaceRoot,
-  );
-  if (decision !== "approved")
+  if (command === "resolve-checkpoint") {
+    const decision = options.decision;
+    if (!["approved", "rejected", "escalated"].includes(decision)) {
+      throw new Error("--decision must be approved, rejected, or escalated");
+    }
+    for (const key of ["checkpoint-id", "decision-id", "actor", "rationale"]) {
+      if (!options[key]) throw new Error(`resolve-checkpoint requires --${key}`);
+    }
+    const checkpoint = resolveCheckpointById(
+      context.runId,
+      options["checkpoint-id"],
+      {
+        status: decision,
+        decisionId: options["decision-id"],
+        actor: options.actor,
+        rationale: options.rationale,
+      },
+      context.workspaceRoot,
+    );
     appendTraceEvent(
       context.runId,
-      { event: "run_blocked", phase: checkpoint.phase, status: "blocked" },
+      {
+        event: "checkpoint_resolved",
+        phase: checkpoint.phase,
+        status: decision === "approved" ? "ok" : "blocked",
+        metadata: { checkpoint_id: checkpoint.checkpoint_id, outcome: decision },
+      },
       context.workspaceRoot,
     );
-  emitReadableControlResult(context, { success: true, run_id: context.runId, checkpoint }, options);
-}
-
-function validEventRange(options) {
-  const afterSeq = Number(options["after-seq"] ?? 0);
-  const limit = Number(options.limit ?? 100);
-  assertEventRange(afterSeq, limit);
-  return { afterSeq, limit };
-}
-
-function assertEventRange(afterSeq, limit) {
-  if (!validAfterSequence(afterSeq)) throw new Error("--after-seq must be a non-negative integer");
-  if (!validEventLimit(limit)) throw new Error("--limit must be an integer between 1 and 1000");
-}
-
-function validAfterSequence(value) {
-  return Number.isInteger(value) && value >= 0;
-}
-function validEventLimit(value) {
-  return Number.isInteger(value) && value >= 1 && value <= 1000;
-}
-
-function reportControlEvents(context, options) {
-  const { afterSeq, limit } = validEventRange(options);
-  const all = projectOperatorEvents(context.runId, context.workspaceRoot).filter(
-    (event) => event.seq > afterSeq,
-  );
-  const events = all.slice(0, limit);
-  emitReadableControlResult(
-    context,
-    {
-      schema_version: "1.0.0",
-      run_id: context.runId,
-      after_seq: afterSeq,
-      next_after_seq: events.at(-1)?.seq ?? afterSeq,
-      has_more: all.length > events.length,
-      events,
-    },
-    { ...options, json: true },
-  );
+    if (decision !== "approved") {
+      appendTraceEvent(
+        context.runId,
+        { event: "run_blocked", phase: checkpoint.phase, status: "blocked" },
+        context.workspaceRoot,
+      );
+    }
+    emitReadableControlResult(
+      context,
+      { success: true, run_id: context.runId, checkpoint },
+      options,
+    );
+    return;
+  }
+  if (command === "events") {
+    const afterSeq = Number(options["after-seq"] ?? 0);
+    const limit = Number(options.limit ?? 100);
+    if (!Number.isInteger(afterSeq) || afterSeq < 0) {
+      throw new Error("--after-seq must be a non-negative integer");
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
+      throw new Error("--limit must be an integer between 1 and 1000");
+    }
+    const all = projectOperatorEvents(context.runId, context.workspaceRoot).filter(
+      (event) => event.seq > afterSeq,
+    );
+    const events = all.slice(0, limit);
+    emitReadableControlResult(
+      context,
+      {
+        schema_version: "1.0.0",
+        run_id: context.runId,
+        after_seq: afterSeq,
+        next_after_seq: events.at(-1)?.seq ?? afterSeq,
+        has_more: all.length > events.length,
+        events,
+      },
+      { ...options, json: true },
+    );
+    return;
+  }
+  throw new Error(`unsupported control command: ${command}`);
 }
 
 function waitingReport(context, provider, runOptions) {
@@ -622,6 +672,25 @@ function prepareGraphRun(command, context) {
 }
 
 function completeGraphRun(context, result, provider, runOptions) {
+  if (result.status === "waiting") {
+    setRunStatus(context.runId, "waiting", context.workspaceRoot, {
+      stop_requested: false,
+      waiting_node_id: result.wait?.node_id ?? null,
+      waiting_deadline_at: result.wait?.deadline_at ?? null,
+    });
+    appendTraceEvent(
+      context.runId,
+      {
+        event: "run_waiting",
+        phase: result.wait?.node_id ?? context.workflow.entry_node,
+        status: "waiting",
+        metadata: { deadline_at: result.wait?.deadline_at ?? null },
+      },
+      context.workspaceRoot,
+    );
+    waitingReport(context, provider, runOptions);
+    return;
+  }
   if (result.status === "stopped") {
     publishStoppedRun(context, provider, context.workflow.terminal_node, runOptions);
     return;

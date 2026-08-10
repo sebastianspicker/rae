@@ -10,6 +10,22 @@ interface TraceOptions {
   schemaRoot?: string;
 }
 
+type ActivityResolution = NonNullable<TraceSummary["activity_resolutions"]>[number];
+type GateResults = TraceSummary["gate_results"];
+
+interface SummaryState {
+  eventsByType: Record<string, number>;
+  gateResults: GateResults;
+  phaseStarts: Map<string, number>;
+  phaseDurations: Record<string, number>;
+  activityResolutions: Map<string, ActivityResolution>;
+  totalTokensIn: number;
+  totalTokensOut: number;
+  totalCostUsd: number;
+  failures: number;
+  retries: number;
+}
+
 export function readJsonlEvents(tracePath: string): TraceEvent[] {
   const raw = readFileSync(tracePath, "utf8");
   const lines = raw
@@ -27,10 +43,117 @@ export function readJsonlEvents(tracePath: string): TraceEvent[] {
   });
 }
 
+function createSummaryState(): SummaryState {
+  return {
+    eventsByType: {},
+    gateResults: { pass: 0, fail: 0, warn: 0 },
+    phaseStarts: new Map<string, number>(),
+    phaseDurations: {},
+    activityResolutions: new Map<string, ActivityResolution>(),
+    totalTokensIn: 0,
+    totalTokensOut: 0,
+    totalCostUsd: 0,
+    failures: 0,
+    retries: 0,
+  };
+}
+
+function resolvedString(
+  directValue: unknown,
+  metadata: Record<string, unknown> | undefined,
+  metadataKey: string,
+): string | undefined {
+  if (typeof directValue === "string") return directValue;
+  const metadataValue = metadata?.[metadataKey];
+  return typeof metadataValue === "string" ? metadataValue : undefined;
+}
+
+function recordActivityResolution(
+  event: TraceEvent,
+  resolutions: Map<string, ActivityResolution>,
+): void {
+  const activityId = resolvedString(event.activity_id, event.metadata, "activity_id");
+  if (!activityId) return;
+  const resolution = resolutions.get(activityId) ?? {
+    activity_id: activityId,
+    tier: resolvedString(event.tier, event.metadata, "cognitive_tier"),
+    model_hint: resolvedString(event.model_hint, event.metadata, "model_hint"),
+    runtime_name: resolvedString(event.runtime_name, event.metadata, "runtime_name"),
+    runtime_version: resolvedString(event.runtime_version, event.metadata, "runtime_version"),
+    count: 0,
+  };
+  resolution.count += 1;
+  resolutions.set(activityId, resolution);
+}
+
+function recordPhaseTiming(event: TraceEvent, state: SummaryState, issues: string[]): void {
+  if (event.event === "phase_start") {
+    const timestamp = Date.parse(event.ts);
+    if (!Number.isNaN(timestamp)) state.phaseStarts.set(event.phase, timestamp);
+    return;
+  }
+  if (event.event !== "phase_end") return;
+
+  const timestamp = Date.parse(event.ts);
+  const start = state.phaseStarts.get(event.phase);
+  if (start === undefined || Number.isNaN(timestamp) || timestamp < start) {
+    issues.push(`phase_end without matching phase_start: ${event.phase}`);
+    return;
+  }
+  state.phaseDurations[event.phase] =
+    (state.phaseDurations[event.phase] ?? 0) + (timestamp - start);
+}
+
+function recordGateResult(event: TraceEvent, gateResults: GateResults): void {
+  if (event.event !== "gate_result") return;
+  if (event.status === "pass") gateResults.pass++;
+  else if (event.status === "fail") gateResults.fail++;
+  else if (event.status === "warn") gateResults.warn++;
+}
+
+function recordEvent(event: TraceEvent, state: SummaryState, issues: string[]): void {
+  state.eventsByType[event.event] = (state.eventsByType[event.event] ?? 0) + 1;
+  recordActivityResolution(event, state.activityResolutions);
+  recordPhaseTiming(event, state, issues);
+  recordGateResult(event, state.gateResults);
+  if (event.event === "error") state.failures++;
+  if (event.event === "retry") state.retries++;
+  if (typeof event.tokens_in === "number") state.totalTokensIn += Math.max(0, event.tokens_in);
+  if (typeof event.tokens_out === "number") state.totalTokensOut += Math.max(0, event.tokens_out);
+  if (typeof event.cost_usd === "number") state.totalCostUsd += Math.max(0, event.cost_usd);
+}
+
+function recordUnmatchedPhaseStarts(state: SummaryState, issues: string[]): void {
+  for (const phase of state.phaseStarts.keys()) {
+    if (!(phase in state.phaseDurations)) {
+      issues.push(`phase_start without matching phase_end: ${phase}`);
+    }
+  }
+}
+
+function wallClockDuration(events: TraceEvent[], issues: string[]): number | undefined {
+  const runStart = events.find((event) => event.event === "run_start");
+  const runEnd = events.find((event) => event.event === "run_end");
+  if (!runStart || !runEnd) return undefined;
+
+  const startTimestamp = Date.parse(runStart.ts);
+  const endTimestamp = Date.parse(runEnd.ts);
+  if (Number.isNaN(startTimestamp) || Number.isNaN(endTimestamp)) {
+    issues.push("invalid run_start or run_end timestamp");
+    return undefined;
+  }
+  if (endTimestamp < startTimestamp) {
+    issues.push("run_end precedes run_start");
+    return undefined;
+  }
+  return endTimestamp - startTimestamp;
+}
+
 export function buildSummary(events: TraceEvent[], issues: string[]): TraceSummary {
   const state = createSummaryState();
-  for (const event of events) recordTraceEvent(event, state, issues);
-  recordUnfinishedPhases(state, issues);
+  for (const event of events) recordEvent(event, state, issues);
+  recordUnmatchedPhaseStarts(state, issues);
+
   const totalDurationMs = Object.values(state.phaseDurations).reduce(
     (acc, value) => acc + value,
     0,
@@ -44,7 +167,7 @@ export function buildSummary(events: TraceEvent[], issues: string[]): TraceSumma
     phase_durations_ms: state.phaseDurations,
     activity_resolutions: [...state.activityResolutions.values()].sort((a, b) =>
       String(a.activity_id).localeCompare(String(b.activity_id)),
-    ) as TraceSummary["activity_resolutions"],
+    ),
     total_tokens_in: state.totalTokensIn,
     total_tokens_out: state.totalTokensOut,
     total_cost_usd: Number(state.totalCostUsd.toFixed(6)),
@@ -61,136 +184,6 @@ export function buildSummary(events: TraceEvent[], issues: string[]): TraceSumma
         ? Number((state.phaseDurations["security-review"] / 1000).toFixed(3))
         : undefined,
   };
-}
-
-function createSummaryState() {
-  return {
-    eventsByType: {} as Record<string, number>,
-    gateResults: { pass: 0, fail: 0, warn: 0 },
-    phaseStarts: new Map<string, number>(),
-    phaseDurations: {} as Record<string, number>,
-    activityResolutions: new Map<string, Record<string, unknown>>(),
-    totalTokensIn: 0,
-    totalTokensOut: 0,
-    totalCostUsd: 0,
-    failures: 0,
-    retries: 0,
-  };
-}
-
-function recordTraceEvent(
-  event: TraceEvent,
-  state: ReturnType<typeof createSummaryState>,
-  issues: string[],
-) {
-  state.eventsByType[event.event] = (state.eventsByType[event.event] ?? 0) + 1;
-  recordActivityResolution(event, state.activityResolutions);
-  recordPhaseDuration(event, state.phaseStarts, state.phaseDurations, issues);
-  const gateStatus = event.status;
-  if (event.event === "gate_result" && gateStatus && gateStatus in state.gateResults)
-    state.gateResults[gateStatus as keyof typeof state.gateResults]++;
-  if (event.event === "error") state.failures++;
-  if (event.event === "retry") state.retries++;
-  state.totalTokensIn += nonNegativeNumber(event.tokens_in);
-  state.totalTokensOut += nonNegativeNumber(event.tokens_out);
-  state.totalCostUsd += nonNegativeNumber(event.cost_usd);
-}
-
-function recordActivityResolution(
-  event: TraceEvent,
-  resolutions: Map<string, Record<string, unknown>>,
-) {
-  const activityId =
-    typeof event.activity_id === "string" ? event.activity_id : event.metadata?.activity_id;
-  if (typeof activityId !== "string") return;
-  const existing = resolutions.get(activityId) ?? activityResolution(event, activityId);
-  existing.count = Number(existing.count ?? 0) + 1;
-  resolutions.set(activityId, existing);
-}
-
-function activityResolution(event: TraceEvent, activityId: string): Record<string, unknown> {
-  return {
-    activity_id: activityId,
-    tier: typeof event.tier === "string" ? event.tier : event.metadata?.cognitive_tier,
-    model_hint:
-      typeof event.model_hint === "string" ? event.model_hint : event.metadata?.model_hint,
-    runtime_name:
-      typeof event.runtime_name === "string" ? event.runtime_name : event.metadata?.runtime_name,
-    runtime_version:
-      typeof event.runtime_version === "string"
-        ? event.runtime_version
-        : event.metadata?.runtime_version,
-    count: 0,
-  };
-}
-
-function recordPhaseDuration(
-  event: TraceEvent,
-  starts: Map<string, number>,
-  durations: Record<string, number>,
-  issues: string[],
-) {
-  if (event.event === "phase_start") recordPhaseStart(event, starts);
-  if (event.event === "phase_end") recordPhaseEnd(event, starts, durations, issues);
-}
-
-function recordPhaseStart(event: TraceEvent, starts: Map<string, number>) {
-  const timestamp = Date.parse(event.ts);
-  if (!Number.isNaN(timestamp)) setPhaseStartTime(starts, event.phase, timestamp);
-}
-
-function setPhaseStartTime(
-  starts: Map<string, number>,
-  phase: TraceEvent["phase"],
-  timestamp: number,
-) {
-  starts.set(phase, timestamp);
-}
-
-function recordPhaseEnd(
-  event: TraceEvent,
-  starts: Map<string, number>,
-  durations: Record<string, number>,
-  issues: string[],
-) {
-  const timestamp = Date.parse(event.ts);
-  const start = starts.get(event.phase);
-  if (start === undefined) return recordUnmatchedPhaseEnd(event, issues);
-  if (Number.isNaN(timestamp)) return recordUnmatchedPhaseEnd(event, issues);
-  if (timestamp < start) return recordUnmatchedPhaseEnd(event, issues);
-  durations[event.phase] = (durations[event.phase] ?? 0) + timestamp - start;
-}
-
-function recordUnmatchedPhaseEnd(event: TraceEvent, issues: string[]) {
-  issues.push(`phase_end without matching phase_start: ${event.phase}`);
-}
-
-function recordUnfinishedPhases(state: ReturnType<typeof createSummaryState>, issues: string[]) {
-  for (const phase of state.phaseStarts.keys()) {
-    if (!(phase in state.phaseDurations))
-      issues.push(`phase_start without matching phase_end: ${phase}`);
-  }
-}
-
-function nonNegativeNumber(value: unknown): number {
-  return typeof value === "number" ? Math.max(0, value) : 0;
-}
-
-function wallClockDuration(events: TraceEvent[], issues: string[]): number | undefined {
-  const runStart = events.find((event) => event.event === "run_start");
-  const runEnd = events.find((event) => event.event === "run_end");
-  if (!runStart || !runEnd) return undefined;
-  const startTimestamp = Date.parse(runStart.ts);
-  const endTimestamp = Date.parse(runEnd.ts);
-  if (Number.isNaN(startTimestamp) || Number.isNaN(endTimestamp)) {
-    issues.push("invalid run_start or run_end timestamp");
-    return undefined;
-  }
-  if (endTimestamp < startTimestamp) {
-    issues.push("run_end precedes run_start");
-    return undefined;
-  }
-  return endTimestamp - startTimestamp;
 }
 
 /**

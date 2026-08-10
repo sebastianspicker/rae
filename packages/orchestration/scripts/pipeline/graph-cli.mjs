@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 /** Exposes local graph projection, query, explanation, and memory lifecycle commands. */
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertSupportedNodeRuntime } from "../lib/node-runtime.mjs";
@@ -15,8 +16,10 @@ import {
   recordRunMemory,
 } from "./lib/graph.mjs";
 import { loadWorkflow } from "./lib/workflow-contract.mjs";
+import { loadExecutionProfile } from "./lib/execution-profile.mjs";
 import { createWorkflowRegistry } from "./lib/workflow-registry.mjs";
 import { proposeWorkflow } from "./lib/workflow-proposal.mjs";
+import { analyzeWorkflow } from "./lib/workflow-designer.mjs";
 
 assertSupportedNodeRuntime();
 
@@ -34,9 +37,10 @@ Usage:
   ./scripts/rae.sh graph workflow list --project-root <path> [--json]
   ./scripts/rae.sh graph workflow show --project-root <path> --workflow <id> [--json]
   ./scripts/rae.sh graph workflow validate --project-root <path> (--workflow-file <path> | --workflow <id> --revision <n>) [--json]
+  ./scripts/rae.sh graph workflow analyze --workflow-file <path> [--execution-profile <path>] [--json]
   ./scripts/rae.sh graph workflow diff --project-root <path> --workflow <id> --from <n> --to <n> [--json]
   ./scripts/rae.sh graph workflow activate --project-root <path> --workflow <id> --revision <n> --digest <sha256> --actor <label> --rationale <text> [--json]
-  ./scripts/rae.sh graph workflow propose --project-root <path> (--task <text> | --task-file <path>) --base-workflow <id|file> --actor <label> --rationale <text> [--json]
+  ./scripts/rae.sh graph workflow propose --project-root <path> (--task <text> | --task-file <path>) --base-workflow <id|file> --actor <label> --rationale <text> [--execution-profile <path>] [--preview] [--json]
 
 Graph execution is opt-in. Projections augment raw evidence and never authorize mutation,
 change gates, alter Git state, or broaden plan ownership.
@@ -70,6 +74,8 @@ function parse(argv) {
     task: undefined,
     taskFile: undefined,
     baseWorkflow: undefined,
+    executionProfile: undefined,
+    preview: false,
   };
   const remaining = [...argv];
   while (remaining.length > 0) {
@@ -94,6 +100,9 @@ function assignBooleanOption(output, option) {
       return true;
     case "--include-model-proposed":
       output.includeModelProposed = true;
+      return true;
+    case "--preview":
+      output.preview = true;
       return true;
     default:
       return false;
@@ -154,6 +163,9 @@ function assignWorkflowFileOption(output, option, value) {
     case "--base-workflow":
       output.baseWorkflow = value;
       return true;
+    case "--execution-profile":
+      output.executionProfile = value;
+      return true;
     case "--revision":
       output.revision = value;
       return true;
@@ -163,21 +175,37 @@ function assignWorkflowFileOption(output, option, value) {
 }
 
 function assignSecondaryOption(output, option, value) {
-  const optionKeys = new Map([
-    ["--project-root", "projectRoot"],
-    ["--rationale", "rationale"],
-    ["--run-id", "runId"],
-    ["--seed", "seed"],
-    ["--source-ref", "sourceRef"],
-    ["--status", "status"],
-    ["--digest", "digest"],
-    ["--from", "from"],
-    ["--to", "to"],
-  ]);
-  const key = optionKeys.get(option);
-  if (!key) return false;
-  Reflect.set(output, key, value);
-  return true;
+  switch (option) {
+    case "--project-root":
+      output.projectRoot = value;
+      return true;
+    case "--rationale":
+      output.rationale = value;
+      return true;
+    case "--run-id":
+      output.runId = value;
+      return true;
+    case "--seed":
+      output.seed = value;
+      return true;
+    case "--source-ref":
+      output.sourceRef = value;
+      return true;
+    case "--status":
+      output.status = value;
+      return true;
+    case "--digest":
+      output.digest = value;
+      return true;
+    case "--from":
+      output.from = value;
+      return true;
+    case "--to":
+      output.to = value;
+      return true;
+    default:
+      return false;
+  }
 }
 
 function emit(value, options) {
@@ -230,20 +258,26 @@ function decideGraphMemory(decision, options) {
 }
 
 function graphCommand(command, options, action) {
-  const handlers = new Map([
-    ["build", () => projectGraph({ projectRoot: projectRoot(options), runId: options.runId })],
-    ["status", () => graphStatus({ projectRoot: projectRoot(options), runId: options.runId })],
-    ["query", () => graphQuery(options)],
-    ["explain", () => explainGraph(options)],
-    ["memory", () => memoryCommand(action ?? "list", options)],
-    ["workflow", () => workflowCommand(action ?? "list", options)],
-  ]);
-  const handler = handlers.get(command);
-  if (!handler) throw new Error(`unknown graph command: ${command}`);
-  return handler();
+  switch (command) {
+    case "build":
+      return projectGraph({ projectRoot: projectRoot(options), runId: options.runId });
+    case "status":
+      return graphStatus({ projectRoot: projectRoot(options), runId: options.runId });
+    case "query":
+      return graphQuery(options);
+    case "explain":
+      return explainGraph(options);
+    case "memory":
+      return memoryCommand(action ?? "list", options);
+    case "workflow":
+      return workflowCommand(action ?? "list", options);
+    default:
+      throw new Error(`unknown graph command: ${command}`);
+  }
 }
 
 function workflowCommand(action, options) {
+  if (action === "analyze") return analyzeWorkflowFile(options);
   const registry = createWorkflowRegistry(projectRoot(options));
   if (action === "list") return registry.list();
   if (action === "show") return registry.show(options.workflow);
@@ -272,6 +306,39 @@ function workflowCommand(action, options) {
     return proposeWorkflow(options);
   }
   throw new Error(`unknown graph workflow command: ${action}`);
+}
+
+function analyzeWorkflowFile(options) {
+  if (!options.workflowFile) throw new Error("workflow analyze requires --workflow-file <path>");
+  let workflow;
+  try {
+    workflow = JSON.parse(readFileSync(resolve(options.workflowFile), "utf8"));
+  } catch (error) {
+    return {
+      valid: false,
+      schema_diagnostics: [{ kind: "parse", message: error.message }],
+      topology_diagnostics: [],
+      unreachable_nodes: [],
+      unsafe_writer_paths: [],
+      missing_verification: {
+        required: true,
+        node_ids: [],
+        terminal_dominated: false,
+        diagnostics: ["workflow could not be parsed"],
+      },
+      estimated_max_attempts: 0,
+      estimated_dynamic_instances: 0,
+      dynamic_instance_limit: 0,
+      concurrency_bound: 0,
+      execution_routes: [],
+      execution_profile_diagnostics: [],
+      monetary_cost: { status: "unavailable" },
+    };
+  }
+  const profile = options.executionProfile
+    ? loadExecutionProfile(resolve(options.executionProfile)).profile
+    : null;
+  return analyzeWorkflow(workflow, { executionProfile: profile });
 }
 
 function graphQuery(options) {

@@ -3,6 +3,7 @@ import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync 
 import { tmpdir } from "node:os";
 import { isAbsolute, relative, resolve } from "node:path";
 import { runAgentPhase } from "./agent-executor.mjs";
+import { loadExecutionProfile, resolveExecutionTier } from "./execution-profile.mjs";
 import { loadWorkflow, validateWorkflow } from "./workflow-contract.mjs";
 import { createWorkflowRegistry } from "./workflow-registry.mjs";
 
@@ -70,9 +71,9 @@ Return a complete schema_version 2.1.0 workflow JSON object. Preserve workflow_i
 ${correction ? `\nThe first proposal failed local validation. Correct only these errors and return a complete replacement:\n${correction}\n` : ""}`;
 }
 
-function runProposal(projectRoot, prompt, temporary, attempt) {
+function runProposal(projectRoot, prompt, temporary, attempt, execution) {
   return runAgentPhase({
-    provider: "codex",
+    provider: execution?.executor ?? "codex",
     phase: `workflow-proposal-${attempt}`,
     runId: `proposal-${process.pid}`,
     workspaceRoot: projectRoot,
@@ -81,20 +82,55 @@ function runProposal(projectRoot, prompt, temporary, attempt) {
     eventLogPath: resolve(temporary, `proposal-${attempt}.events.jsonl`),
     prompt,
     sandboxMode: "read-only",
+    model: execution?.model,
+    reasoningEffort: execution?.reasoning_effort,
+    variant: execution?.variant,
+    sourceRoot: projectRoot,
+    inPlace: true,
     timeoutMs: 30 * 60 * 1000,
   }).artifact;
 }
 
-export function proposeWorkflow(options) {
+function proposalBase(options, registry) {
+  if (options.workflowId) {
+    const shown = registry.show(options.workflowId);
+    if (
+      options.baseRevision !== null &&
+      options.baseRevision !== undefined &&
+      Number(options.baseRevision) !== shown.workflow.revision
+    ) {
+      throw Object.assign(new Error("proposal base revision conflict"), { status: 409 });
+    }
+    return shown.workflow;
+  }
+  return baseWorkflow(options, registry);
+}
+
+function proposalTask(options, projectRoot) {
+  if (options.workflowId) return options.task;
+  return taskText(options, projectRoot);
+}
+
+function generateCandidate(options) {
   const projectRoot = realpathSync(resolve(options.projectRoot ?? process.cwd()));
   const registry = createWorkflowRegistry(projectRoot);
-  const base = baseWorkflow(options, registry);
-  const task = taskText(options, projectRoot).trim();
+  const base = proposalBase(options, registry);
+  const task = String(proposalTask(options, projectRoot) ?? "").trim();
   if (!task || Buffer.byteLength(task, "utf8") > MAX_TASK_BYTES)
     throw new Error(`proposal task must be from 1 to ${MAX_TASK_BYTES} bytes`);
   const temporary = mkdtempSync(resolve(tmpdir(), "rae-workflow-proposal-"));
+  const loadedProfile = options.executionProfile
+    ? loadExecutionProfile(resolve(options.executionProfile))
+    : null;
+  const execution = loadedProfile ? resolveExecutionTier(loadedProfile.profile, "judgment") : null;
   try {
-    let candidate = runProposal(projectRoot, proposalPrompt({ task, base }), temporary, 1);
+    let candidate = runProposal(
+      projectRoot,
+      proposalPrompt({ task, base }),
+      temporary,
+      1,
+      execution,
+    );
     let validationError = null;
     try {
       candidate = validateWorkflow(candidate);
@@ -107,19 +143,54 @@ export function proposeWorkflow(options) {
         proposalPrompt({ task, base, correction: validationError.message }),
         temporary,
         2,
+        execution,
       );
       candidate = validateWorkflow(candidate);
     }
     if (candidate.workflow_id !== base.workflow_id || candidate.revision !== base.revision + 1)
       throw new Error("proposal must preserve workflow id and increment the base revision once");
-    const record = registry.draft(candidate.workflow_id, {
-      expected_revision: base.revision,
-      actor: options.actor,
-      rationale: options.rationale,
-      workflow: candidate,
-    });
-    return { ...record, decision: "drafted", activated: false, executed: false };
+    return {
+      candidate,
+      base,
+      registry,
+      execution_route: execution,
+      execution_profile_digest: loadedProfile?.digest ?? null,
+    };
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
+}
+
+/** Returns one validated candidate without saving or activating it. */
+export function proposeWorkflowCandidate(options) {
+  return generateCandidate(options).candidate;
+}
+
+export function proposeWorkflow(options) {
+  const generated = generateCandidate(options);
+  if (options.preview) {
+    return {
+      decision: "previewed",
+      drafted: false,
+      activated: false,
+      executed: false,
+      workflow: generated.candidate,
+      execution_route: generated.execution_route,
+      execution_profile_digest: generated.execution_profile_digest,
+    };
+  }
+  const record = generated.registry.draft(generated.candidate.workflow_id, {
+    expected_revision: generated.base.revision,
+    actor: options.actor,
+    rationale: options.rationale,
+    workflow: generated.candidate,
+  });
+  return {
+    ...record,
+    decision: "drafted",
+    activated: false,
+    executed: false,
+    execution_route: generated.execution_route,
+    execution_profile_digest: generated.execution_profile_digest,
+  };
 }

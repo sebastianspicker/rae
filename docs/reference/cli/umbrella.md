@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-07-24
+last_reviewed: 2026-08-04
 source_of_truth: scripts/rae.sh
 evidence_links: ../claims/evidence-index.md
 ---
@@ -69,8 +69,11 @@ Provider-backed autonomous work has a separate diagnostic:
 ./scripts/rae.sh agent doctor
 ```
 
-It requires authentication, workspace sandboxing, JSON-schema output, event
-streaming, and ephemeral sessions.
+Without provider options, the command checks Codex authentication, workspace
+sandboxing, JSON-schema output, event streaming, and ephemeral sessions. Use
+`agent doctor --provider opencode --model <provider/model>` to check the exact
+OpenCode binary, merged permission configuration, credential-store presence,
+and macOS containment backend.
 
 ## Autonomous run
 
@@ -111,9 +114,29 @@ tiers:
   --task "Implement and verify the requested change"
 ```
 
-`--execution-profile` is mutually exclusive with `--model` and
-`--reasoning-effort`. The validated profile and canonical digest are stored in
-the run request and remain immutable on resume.
+`--execution-profile` is mutually exclusive with `--provider`, `--model`,
+`--reasoning-effort`, and `--variant`. Execution profile 3.0 resolves logical
+tiers and optional per-node overrides to named Codex or OpenCode routes. The
+validated profile, canonical digest, resolved node routes, models, and exact
+executor versions are stored in the run request and remain immutable on
+resume.
+
+OpenCode is explicit:
+
+```bash
+./scripts/rae.sh agent doctor \
+  --provider opencode \
+  --model opencode/example-model
+
+./scripts/rae.sh agent run \
+  --project-root /path/to/target-repository \
+  --provider opencode \
+  --model openrouter/example-model \
+  --task "Implement and verify the requested change"
+```
+
+OpenCode writes require the isolated macOS worktree backend and reject
+`--in-place`. `auto` never selects OpenCode.
 
 ## Local graph and memory
 
@@ -134,20 +157,32 @@ Workflow revisions use the same graph command family:
 ./scripts/rae.sh graph workflow list --project-root /path/to/target-repository
 ./scripts/rae.sh graph workflow validate --project-root /path/to/target-repository \
   --workflow-file /absolute/path/to/workflow.json
+./scripts/rae.sh graph workflow analyze \
+  --workflow-file /absolute/path/to/workflow.json \
+  --execution-profile /absolute/path/to/execution-profile.json
 ./scripts/rae.sh graph workflow propose --project-root /path/to/target-repository \
   --task "Design a bounded topology" --base-workflow graph-native-default \
-  --actor "operator-name" --rationale "Draft for review"
+  --actor "operator-name" --rationale "Draft for review" \
+  --execution-profile /absolute/path/to/execution-profile.json --preview
 ```
 
+`analyze` reports schema and topology errors, unreachable nodes, writer and
+verification paths, bounded attempts and instances, concurrency, and resolved
+routes. It reports monetary cost as unavailable when provider usage data is not
+present.
+
 `propose` starts one read-only, ephemeral structured-output session and permits
-one correction after local validation. It stores only a valid attributed draft.
-It does not activate or execute the draft.
+one correction after local validation. `--preview` returns a validated candidate
+without saving it; omitting `--preview` stores a valid attributed draft. An
+execution profile supplies the `judgment` route. Neither mode activates or
+executes the result.
 
 ## Operator console
 
 ```bash
 ./scripts/rae.sh operator serve \
-  --project /canonical/path/to/target-repository
+  --project /canonical/path/to/target-repository \
+  --execution-profile /absolute/path/to/execution-profile.json
 ```
 
 Repeat `--project` for additional allowlisted roots. The server binds to

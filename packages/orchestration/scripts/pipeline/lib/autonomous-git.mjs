@@ -284,30 +284,30 @@ export function runtimeNamespaceSnapshot(workspaceRoot, ignoredRefs = []) {
       const pathValue = resolve(directory, entry.name);
       const ref = relative(pipelineRoot, pathValue);
       if (ignored.has(ref)) continue;
-      let stat;
-      try {
-        stat = lstatSync(pathValue);
-      } catch (error) {
-        if (error.code === "ENOENT") continue;
-        throw error;
-      }
-      if (entry.isDirectory()) {
-        snapshot.set(ref, `directory:${stat.mode}`);
-        visit(pathValue);
-      } else if (entry.isFile()) {
-        snapshot.set(
-          ref,
-          `file:${stat.mode}:${createHash("sha256").update(readFileSync(pathValue)).digest("hex")}`,
-        );
-      } else if (entry.isSymbolicLink()) {
-        snapshot.set(ref, `symlink:${stat.mode}:${readlinkSync(pathValue)}`);
-      } else {
-        snapshot.set(ref, `special:${stat.mode}`);
-      }
+      const stat = runtimeEntryStat(pathValue);
+      if (!stat) continue;
+      snapshot.set(ref, runtimeEntryFingerprint(pathValue, entry, stat));
+      if (entry.isDirectory()) visit(pathValue);
     }
   };
   visit(pipelineRoot);
   return snapshot;
+}
+
+function runtimeEntryStat(pathValue) {
+  try {
+    return lstatSync(pathValue);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function runtimeEntryFingerprint(pathValue, entry, stat) {
+  if (entry.isDirectory()) return `directory:${stat.mode}`;
+  if (entry.isFile()) return `file:${stat.mode}:${sha256(readFileSync(pathValue))}`;
+  if (entry.isSymbolicLink()) return `symlink:${stat.mode}:${readlinkSync(pathValue)}`;
+  return `special:${stat.mode}`;
 }
 
 export function sameJson(left, right) {
@@ -341,59 +341,51 @@ export function validateConcurrentOperatorChanges({
 
 export function validateConcurrentControl(beforeControl, afterControl, runId) {
   if (sameJson(beforeControl, afterControl)) return;
-  if (!validConcurrentControlTransition(beforeControl, afterControl, runId)) {
+  const mutable = new Set(["status", "stop_requested", "stop_requested_at", "updated_at"]);
+  const unexpected = Object.keys(afterControl).some(
+    (key) => !Object.hasOwn(beforeControl, key) && !mutable.has(key),
+  );
+  const stableChanged = Object.keys(beforeControl).some(
+    (key) => !mutable.has(key) && !sameJson(beforeControl[key], afterControl[key]),
+  );
+  const invalidTimestamp =
+    typeof afterControl.stop_requested_at !== "string" ||
+    !Number.isFinite(Date.parse(afterControl.stop_requested_at)) ||
+    typeof afterControl.updated_at !== "string" ||
+    !Number.isFinite(Date.parse(afterControl.updated_at));
+  const validTransition = [
+    afterControl.run_id === runId,
+    afterControl.status === "stop-requested",
+    afterControl.stop_requested === true,
+    !invalidTimestamp,
+    !unexpected,
+    !stableChanged,
+  ].every(Boolean);
+  if (!validTransition) {
     throw new Error("provider or concurrent process made an invalid operator-control transition");
   }
 }
 
-function validConcurrentControlTransition(before, after, runId) {
-  const mutable = new Set(["status", "stop_requested", "stop_requested_at", "updated_at"]);
-  const unchanged = Object.keys(before).every(
-    (key) => mutable.has(key) || sameJson(before[key], after[key]),
-  );
-  const noUnexpected = Object.keys(after).every(
-    (key) => Object.hasOwn(before, key) || mutable.has(key),
-  );
-  return (
-    unchanged &&
-    noUnexpected &&
-    after.run_id === runId &&
-    after.status === "stop-requested" &&
-    after.stop_requested === true &&
-    validTransitionTimestamp(after.stop_requested_at) &&
-    validTransitionTimestamp(after.updated_at)
-  );
-}
-
-function validTransitionTimestamp(value) {
-  return typeof value === "string" && Number.isFinite(Date.parse(value));
-}
-
 export function validateConcurrentTraceEvent(line, runId, expectedPhase = null) {
-  const event = parseConcurrentTraceEvent(line);
-  const expectedKeys = ["event", "phase", "run_id", "status", "ts"];
-  if (!validConcurrentTraceEvent(event, expectedKeys, runId, expectedPhase)) {
-    throw new Error("provider or concurrent process appended a non-stop operator trace event");
-  }
-}
-
-function parseConcurrentTraceEvent(line) {
+  let event;
   try {
-    return JSON.parse(line);
+    event = JSON.parse(line);
   } catch {
     throw new Error("provider or concurrent process appended invalid trace JSON");
   }
-}
-function validConcurrentTraceEvent(event, expectedKeys, runId, expectedPhase) {
-  return (
-    JSON.stringify(Object.keys(event).sort()) === JSON.stringify(expectedKeys) &&
-    event.event === "run_stop_requested" &&
-    event.run_id === runId &&
-    event.status === "ok" &&
-    PHASE_ORDER.includes(event.phase) &&
-    (!expectedPhase || event.phase === expectedPhase) &&
-    validTransitionTimestamp(event.ts)
-  );
+  const expectedKeys = ["event", "phase", "run_id", "status", "ts"];
+  const validEvent = [
+    sameJson(Object.keys(event).sort(), expectedKeys),
+    event.event === "run_stop_requested",
+    event.run_id === runId,
+    event.status === "ok",
+    PHASE_ORDER.includes(event.phase),
+    expectedPhase === null || event.phase === expectedPhase,
+    typeof event.ts === "string" && Number.isFinite(Date.parse(event.ts)),
+  ].every(Boolean);
+  if (!validEvent) {
+    throw new Error("provider or concurrent process appended a non-stop operator trace event");
+  }
 }
 
 export function assertRuntimeNamespaceInvariant(before, workspaceRoot, allowedChanges = []) {
