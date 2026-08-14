@@ -62,6 +62,11 @@ REQUIRED_PUBLIC_FILES = (
     "docs/assets/brand/rae-lockup-dark.svg",
     "docs/assets/brand/rae-social-preview.svg",
     "docs/assets/brand/rae-social-preview.png",
+    "docs/assets/diagrams/graph-edge-classification.svg",
+    "docs/assets/diagrams/diamond-versus-pipeline.svg",
+    "docs/assets/diagrams/routing-and-quorum.svg",
+    "docs/assets/diagrams/until-dry-convergence.svg",
+    "docs/assets/diagrams/human-activated-workflow-lifecycle.svg",
     "docs/stylesheets/brand.css",
 )
 REQUIRED_REPOSITORY_FILES = (
@@ -93,6 +98,13 @@ BRAND_SVGS = (
     "docs/assets/brand/rae-lockup-light.svg",
     "docs/assets/brand/rae-lockup-dark.svg",
     "docs/assets/brand/rae-social-preview.svg",
+)
+DIAGRAM_SVGS = (
+    "docs/assets/diagrams/graph-edge-classification.svg",
+    "docs/assets/diagrams/diamond-versus-pipeline.svg",
+    "docs/assets/diagrams/routing-and-quorum.svg",
+    "docs/assets/diagrams/until-dry-convergence.svg",
+    "docs/assets/diagrams/human-activated-workflow-lifecycle.svg",
 )
 SOCIAL_PREVIEW = "docs/assets/brand/rae-social-preview.png"
 FORBIDDEN_SVG_ELEMENTS = {"embed", "foreignobject", "iframe", "image", "object", "script"}
@@ -445,6 +457,13 @@ def validate_brand_assets() -> None:
     validate_social_preview_png((ROOT / SOCIAL_PREVIEW).read_bytes(), SOCIAL_PREVIEW)
 
 
+def validate_diagram_assets() -> None:
+    """Require safe, accessible geometry for maintained explanatory diagrams."""
+    for relative in DIAGRAM_SVGS:
+        path = ROOT / relative
+        validate_brand_svg(path.read_text(encoding="utf-8"), relative)
+
+
 def validate_source_documentation() -> None:
     """Run the source-header contract as part of the public repository gate."""
     # Fixed repository script under the current interpreter; never a shell command.
@@ -507,6 +526,7 @@ def main(argv: list[str] | None = None) -> int:
     validate_no_obsolete_public_artifacts()
     validate_curated_screenshots()
     validate_brand_assets()
+    validate_diagram_assets()
     validate_source_documentation()
     validate_frontmatter()
     validate_links()

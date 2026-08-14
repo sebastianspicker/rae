@@ -92,6 +92,128 @@ it("promotes severity when merging findings", () => {
   expect(result[0]?.severity).toBe("high");
 });
 
+it("retains first-present fields and ordered source and requirement provenance", () => {
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "first",
+      description: "Input parsing lacks a bounded error response",
+      severity: "low",
+      _source: "architect",
+      covers_requirement_ids: ["req-1", "req-2"],
+    }),
+    makeFinding({
+      id: "second",
+      description: "Input parsing lacks a bounded error response",
+      severity: "high",
+      evidence: "First evidence",
+      suggestion: "First suggestion",
+      trace_id: "trace-first",
+      _source: "security",
+      covers_requirement_ids: ["req-2", "req-3"],
+    }),
+    makeFinding({
+      id: "third",
+      description: "Input parsing lacks a bounded error response",
+      severity: "critical",
+      evidence: "Later evidence",
+      suggestion: "Later suggestion",
+      trace_id: "trace-later",
+      _source: "performance",
+      covers_requirement_ids: ["req-1", "req-4"],
+    }),
+    makeFinding({
+      id: "fourth",
+      description: "Input parsing lacks a bounded error response",
+      _source: "security",
+      covers_requirement_ids: ["req-4", "req-5"],
+    }),
+  ];
+
+  const result = deduplicateFindings(findings);
+
+  expect(result).toHaveLength(1);
+  expect(result[0]).toMatchObject({
+    severity: "critical",
+    evidence: "First evidence",
+    suggestion: "First suggestion",
+    trace_id: "trace-first",
+    source_models: ["architect", "security", "performance"],
+    covers_requirement_ids: ["req-1", "req-2", "req-3", "req-4", "req-5"],
+  });
+});
+
+it("uses truthiness when filling optional fields through public deduplication", () => {
+  const nullString = null as unknown as string;
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "initial",
+      description: "The parser needs a bounded failure response",
+      evidence: nullString,
+      suggestion: "",
+      _source: "architect",
+    }),
+    makeFinding({
+      id: "falsy-incoming",
+      description: "The parser needs a bounded failure response",
+      evidence: undefined,
+      suggestion: "",
+      trace_id: nullString,
+      _source: "security",
+    }),
+    makeFinding({
+      id: "first-populated",
+      description: "The parser needs a bounded failure response",
+      evidence: "First evidence",
+      suggestion: "First suggestion",
+      trace_id: "trace-first",
+      _source: "performance",
+    }),
+    makeFinding({
+      id: "later-populated",
+      description: "The parser needs a bounded failure response",
+      evidence: "Later evidence",
+      suggestion: "Later suggestion",
+      trace_id: "trace-later",
+      _source: "reliability",
+    }),
+  ];
+
+  const result = deduplicateFindings(findings);
+
+  expect(result).toHaveLength(1);
+  expect(result[0]).toMatchObject({
+    evidence: "First evidence",
+    suggestion: "First suggestion",
+    trace_id: "trace-first",
+  });
+});
+
+it.each([
+  { label: "undefined", initial: null as unknown as string, terminal: undefined },
+  { label: "null", initial: "", terminal: null as unknown as string },
+  { label: "an empty string", initial: null as unknown as string, terminal: "" },
+])("ignores a terminal $label evidence value", ({ initial, terminal }) => {
+  const findings: TaggedFinding[] = [
+    makeFinding({
+      id: "initial",
+      description: "The parser needs a bounded failure response",
+      evidence: initial,
+      _source: "architect",
+    }),
+    makeFinding({
+      id: "terminal-falsy",
+      description: "The parser needs a bounded failure response",
+      evidence: terminal,
+      _source: "security",
+    }),
+  ];
+
+  const result = deduplicateFindings(findings);
+
+  expect(result).toHaveLength(1);
+  expect(result[0]?.evidence).toBe(initial);
+});
+
 it("groups only within the same category", () => {
   const findings: TaggedFinding[] = [
     makeFinding({

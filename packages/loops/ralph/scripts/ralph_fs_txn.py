@@ -882,10 +882,26 @@ def prepared_change_unit(
     if encoded in changed:
         return True
     before, after = baseline.get(encoded), prepared.get(encoded)
-    if before is None or after is None or before["kind"] != "dir" or after["kind"] != "dir":
+    if not prepared_directory_pair(before, after):
         return False
-    rel = decode_path(encoded)
-    return any(decode_path(item) != rel and path_under(decode_path(item), rel) for item in changed)
+    return changed_descendant(encoded, changed)
+
+
+def prepared_directory_pair(before: dict[str, Any] | None, after: dict[str, Any] | None) -> bool:
+    if before is None or after is None:
+        return False
+    return before["kind"] == "dir" and after["kind"] == "dir"
+
+
+def changed_descendant(encoded: str, changed: list[str]) -> bool:
+    relative = decode_path(encoded)
+    for item in changed:
+        child = decode_path(item)
+        if child == relative:
+            continue
+        if path_under(child, relative):
+            return True
+    return False
 
 
 def remove_tree(path: str | bytes | Path) -> None:
@@ -2182,11 +2198,7 @@ def restore_directory(
             "recovery directory restoration",
             subtree,
         )
-    elif (
-        subtree
-        and current["kind"] == "dir"
-        and subtree_manifest(root, encoded) == manifest_subtree(journal["prepared"] or [], encoded)
-    ):
+    elif current_matches_prepared_subtree(journal, root, encoded, current, subtree):
         replace_recovery_subtree(path, journal, root, context["baseline_store"], entry, current)
     elif current["kind"] == "dir" and current in directory_prepared_entries(
         context["prepared"], encoded
@@ -2196,6 +2208,18 @@ def restore_directory(
         record_recovery_conflict(path, journal, encoded, "recovery directory restoration")
         context["conflicts"].add(encoded)
         raise TransactionConflict(conflict_message(encoded, "recovery directory restoration"))
+
+
+def current_matches_prepared_subtree(
+    journal: dict[str, Any],
+    root: bytes,
+    encoded: str,
+    current: dict[str, Any],
+    subtree: bool,
+) -> bool:
+    if not subtree or current["kind"] != "dir":
+        return False
+    return subtree_manifest(root, encoded) == manifest_subtree(journal["prepared"] or [], encoded)
 
 
 def replace_recovery_subtree(

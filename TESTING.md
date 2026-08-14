@@ -29,7 +29,7 @@ The root gate runs:
 
 ## Test inventory
 
-The current tree contains 128 executable test source files and 11 referenced
+The current tree contains 146 executable test source files and 12 referenced
 runner, helper, fixture, or configuration files.
 
 | Classification | Paths | Count | Runner or owner |
@@ -41,10 +41,11 @@ runner, helper, fixture, or configuration files.
 | Experimental | `evals/fixtures/autonomous-outcomes/*/tests/test_*.py` | 3 | Outcome evaluator fixture manifests |
 | Active | `packages/loops/ralph/tests/ralph_*_test.sh` | 63 | `packages/loops/ralph/scripts/run_tests.sh` |
 | Active support | Ralph test runner and `tests/lib/test_helpers.sh` | 2 | Ralph shell suite |
-| Active | `packages/orchestration/operator/tests/*.test.mjs` | 5 | Node test runner |
-| Active | `packages/orchestration/scripts/pipeline/tests/*.test.mjs` | 25 | Vitest |
-| Active support | Pipeline Vitest config, test helper, and two fixture modules | 4 | Pipeline Vitest suite |
-| Active | `packages/orchestration/skills/dev-tools/*/tests/unit/*.test.ts` | 17 | Package-local Vitest commands |
+| Active | `packages/orchestration/operator/tests/*.test.mjs` | 7 | Node test runner |
+| Active | `packages/orchestration/scripts/pipeline/tests/*.test.mjs` | 38 | Vitest |
+| Experimental source unit | `packages/orchestration/platform/test/platform.test.mjs` | 1 | `npm --prefix packages/orchestration/platform test` |
+| Active support | Pipeline Vitest config, test helper, and three fixture modules | 5 | Pipeline Vitest suite |
+| Active | `packages/orchestration/skills/dev-tools/*/tests/unit/*.test.ts` | 19 | Package-local Vitest commands |
 | Active support | `trace-test-helpers.ts` | 1 | Trace collector tests |
 | Active | `profiles/agent-environments/tests/profile-installation.sh` | 1 | Root verifier |
 | Active | `tools/repo-hygiene/coauthor-trailer-cleaner/tests/test-*.sh` | 2 | Tool test runner |
@@ -80,7 +81,32 @@ Orchestration:
 npm --prefix packages/orchestration run test:operator
 npm --prefix packages/orchestration run test:runner
 npm --prefix packages/orchestration run verify
+npm --prefix packages/orchestration run benchmark:workflow-topology
+npm --prefix packages/orchestration/platform test
 ```
+
+Workflow Designer, execution-profile, and OpenCode boundaries:
+
+```bash
+npm --prefix packages/orchestration run test:runner -- --run \
+  tests/workflow-designer.test.mjs \
+  tests/execution-profile-v3.test.mjs \
+  tests/opencode-adapter.test.mjs \
+  tests/verification-broker.test.mjs
+```
+
+These tests use controlled executables for event parsing, malformed output,
+timeouts, route selection, and resume drift. The macOS integration cases also
+exercise the real Seatbelt and broker boundaries. They do not replace an
+authenticated provider run against a specific OpenCode version and account.
+
+The topology benchmark is a deterministic scheduler fixture for event order,
+critical path, and barrier idle time. It does not measure model quality.
+
+The platform source-unit suite uses the in-memory store. Docker, PostgreSQL,
+OIDC, S3-compatible storage, and remote-worker integration remain separate
+unrun evidence lanes. The workflow 2.2 Vitest coverage is local scheduler
+evidence and does not establish hosted workflow execution.
 
 Ralph:
 

@@ -2,8 +2,40 @@
  * Exercises deterministic risk and remediation-cost ranking used to prioritize review findings.
  */
 import { describe, it, expect } from "vitest";
-import { analyzeCostBenefit } from "../../src/lib/cost-benefit.js";
+import { analyzeCostBenefit, recommend } from "../../src/lib/cost-benefit.js";
 import type { Finding } from "../../src/lib/models/types.js";
+
+type Risk = Parameters<typeof recommend>[0];
+type Cost = Parameters<typeof recommend>[1];
+type Recommendation = ReturnType<typeof recommend>;
+
+const EXPECTED_RECOMMENDATIONS: ReadonlyArray<readonly [Risk, Cost, Recommendation]> = [
+  ["catastrophic", "trivial", "fix-now"],
+  ["catastrophic", "low", "fix-now"],
+  ["catastrophic", "medium", "fix-now"],
+  ["catastrophic", "high", "fix-now"],
+  ["catastrophic", "prohibitive", "fix-now"],
+  ["high", "trivial", "fix-now"],
+  ["high", "low", "fix-now"],
+  ["high", "medium", "fix-before-ship"],
+  ["high", "high", "fix-before-ship"],
+  ["high", "prohibitive", "fix-before-ship"],
+  ["moderate", "trivial", "fix-before-ship"],
+  ["moderate", "low", "fix-before-ship"],
+  ["moderate", "medium", "defer"],
+  ["moderate", "high", "defer"],
+  ["moderate", "prohibitive", "defer"],
+  ["low", "trivial", "accept"],
+  ["low", "low", "accept"],
+  ["low", "medium", "accept"],
+  ["low", "high", "wont-fix"],
+  ["low", "prohibitive", "wont-fix"],
+  ["negligible", "trivial", "accept"],
+  ["negligible", "low", "accept"],
+  ["negligible", "medium", "wont-fix"],
+  ["negligible", "high", "wont-fix"],
+  ["negligible", "prohibitive", "wont-fix"],
+];
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {
@@ -16,6 +48,13 @@ function makeFinding(overrides: Partial<Finding> = {}): Finding {
 }
 
 describe("analyzeCostBenefit", () => {
+  it("uses the exact recommendation for every risk and cost pair", () => {
+    expect(EXPECTED_RECOMMENDATIONS).toHaveLength(25);
+    for (const [risk, cost, recommendation] of EXPECTED_RECOMMENDATIONS) {
+      expect(recommend(risk, cost)).toBe(recommendation);
+    }
+  });
+
   it("maps critical severity to catastrophic risk and fix-now recommendation", () => {
     const findings = [makeFinding({ id: "c-1", severity: "critical" })];
     const result = analyzeCostBenefit(findings);

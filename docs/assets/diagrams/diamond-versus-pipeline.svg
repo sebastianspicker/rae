@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="440" viewBox="0 0 900 440" role="img" aria-labelledby="title desc">
+  <title id="title">RAE diamond barrier compared with a streaming pipeline</title>
+  <desc id="desc">A diamond waits for all parallel reviewers before reduction, while a streaming pipeline advances each mapped item independently.</desc>
+  <rect width="900" height="440" rx="24" fill="#f5f8f7"/>
+  <g font-family="sans-serif" fill="#17324d"><text x="58" y="54" font-size="26" font-weight="700">Barrier diamond</text><text x="510" y="54" font-size="26" font-weight="700">Streaming pipeline</text>
+    <g stroke="#17324d" stroke-width="2" fill="#fff"><rect x="60" y="178" width="110" height="54" rx="9"/><rect x="235" y="95" width="120" height="54" rx="9"/><rect x="235" y="260" width="120" height="54" rx="9"/><rect x="395" y="178" width="110" height="54" rx="9"/></g>
+    <g font-size="15"><text x="93" y="211">Input</text><text x="259" y="128">Lens A</text><text x="259" y="293">Lens B</text><text x="417" y="211">Reduce</text></g>
+    <g stroke="#087c82" stroke-width="4" fill="none"><path d="M170 205 L235 122"/><path d="M170 205 L235 287"/><path d="M355 122 L395 205"/><path d="M355 287 L395 205"/></g>
+    <text x="220" y="360" font-size="15">all join forms a declared barrier</text>
+    <g stroke="#17324d" stroke-width="2" fill="#fff"><rect x="535" y="88" width="120" height="54" rx="9"/><rect x="700" y="88" width="120" height="54" rx="9"/><rect x="535" y="193" width="120" height="54" rx="9"/><rect x="700" y="193" width="120" height="54" rx="9"/><rect x="535" y="298" width="120" height="54" rx="9"/><rect x="700" y="298" width="120" height="54" rx="9"/></g>
+    <g font-size="15"><text x="563" y="121">Map A1</text><text x="728" y="121">Map B1</text><text x="563" y="226">Map A2</text><text x="728" y="226">Map B2</text><text x="563" y="331">Map A3</text><text x="728" y="331">Map B3</text></g>
+    <g stroke="#087c82" stroke-width="4" stroke-dasharray="7 6"><path d="M655 115 H700"/><path d="M655 220 H700"/><path d="M655 325 H700"/></g>
+    <text x="554" y="390" font-size="15">each item advances when its predecessor settles</text>
+  </g>
+</svg>

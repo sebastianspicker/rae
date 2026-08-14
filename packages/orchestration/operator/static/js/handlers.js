@@ -2,9 +2,10 @@
 
 import { api, showError, showToast } from "./api.js";
 import { closeConfirmation, openConfirmation, postAction, submitConfirmation } from "./actions.js";
-import { loadRuns, selectRun, waitForNewRun } from "./data.js";
+import { loadExecutionProfiles, loadRuns, selectRun, waitForNewRun } from "./data.js";
 import { humanize } from "./format.js";
 import { renderRuns, setEvidenceExpanded } from "./render.js";
+import { loadWorkflows } from "./workflows.js";
 import { currentRun, elements, state } from "./state.js";
 
 export function bindHandlers() {
@@ -14,6 +15,8 @@ export function bindHandlers() {
     state.runQuery = "";
     elements["run-search-input"].value = "";
     await loadRuns(false).catch(showError);
+    await loadExecutionProfiles().catch(showError);
+    await loadWorkflows().catch(showError);
   });
 
   elements["toggle-search"].addEventListener("click", () => {
@@ -78,6 +81,9 @@ export function bindHandlers() {
         body: JSON.stringify({
           task: elements["start-task"].value,
           checkpoint_policy: elements["start-checkpoint-policy"].value,
+          ...(elements["start-execution-profile"].value
+            ? { execution_profile_id: elements["start-execution-profile"].value }
+            : {}),
         }),
       });
       elements["start-dialog"].close();

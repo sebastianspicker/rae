@@ -41,6 +41,7 @@ exclude_docs: |
 nav:
   - Home: INDEX.md
   - Tutorials:
+      - Graph Engineering with RAE: tutorials/graph-engineering-with-rae.md
       - Autonomous Code Change: tutorials/autonomous-code-change.md
       - First Pipeline: tutorials/first-pipeline.md
       - First Ralph Run: tutorials/first-ralph-run.md
@@ -52,6 +53,11 @@ nav:
       - Add a Tool: how-to/add-a-tool.md
       - Publish a Sanitized Profile: how-to/publish-a-sanitized-profile.md
       - Reproduce a Result: how-to/reproduce-a-result.md
+      - Use the Experimental Hosted API: how-to/hosted-api.md
+      - Run a Workflow 2.2 Wait: how-to/run-workflow-v2.2-wait.md
+      - Deploy the Experimental Platform: how-to/deploy-experimental-platform.md
+      - Recover a Workflow 2.2 Wait: how-to/recover-workflow-v2.2-wait.md
+      - Test the Experimental Hosted Platform: how-to/test-experimental-hosted-platform.md
   - Reference:
       - Workflow Rubric: reference/workflow-rubric.md
       - Repo Map: reference/repo-map.md
@@ -59,13 +65,17 @@ nav:
       - Architecture:
           - System Overview: reference/architecture/system-overview.md
           - Module Boundaries: reference/architecture/module-boundaries.md
+          - Experimental Hosted Platform: reference/architecture/experimental-hosted-platform.md
       - Contracts:
           - Artifact Schemas: reference/contracts/artifact-schemas.md
+          - Execution Profile 3.0: reference/contracts/execution-profile-v3.md
           - Task Specs: reference/contracts/task-specs.md
           - Human Checkpoints: reference/contracts/human-checkpoints.md
           - Result Ledger: reference/contracts/result-ledger.md
           - Quality Gates: reference/contracts/quality-gates.md
           - Report Types: reference/contracts/report-types.md
+          - Local Graph and Memory: reference/contracts/graph-memory.md
+          - Workflow 2.2: reference/contracts/workflow-v2.2.md
       - CLI:
           - Umbrella CLI: reference/cli/umbrella.md
           - Orchestration CLI: reference/cli/orchestration.md

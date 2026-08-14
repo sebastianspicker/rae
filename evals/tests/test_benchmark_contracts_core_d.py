@@ -120,6 +120,38 @@ def test_release_gate_fails_when_calibration_report_is_missing() -> None:
         assert "judge calibration report missing" in gate_report["issues"]
 
 
+def test_release_gate_fails_when_result_ledger_is_malformed() -> None:
+    benchmark_path = ROOT / "evals/benchmarks/tool-selection-core.benchmark-card.json"
+    benchmark = json.loads(benchmark_path.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="release-gate-bad-ledger-") as tmp:
+        output_dir = pathlib.Path(tmp)
+        _, regression_path, ledger_path, _, run_card_path = write_release_gate_fixture(
+            output_dir,
+            split="dev",
+            run_id="tool-selection-core-dev-malformed-ledger",
+            benchmark=benchmark,
+            calibration_payload=calibration_payload(),
+        )
+        ledger_path.write_text("{not-json}\n", encoding="utf-8")
+        write_release_gate_fixture(
+            output_dir / "held-out-pass",
+            split="held-out",
+            run_id="tool-selection-core-held-out-malformed-ledger",
+            benchmark=benchmark,
+            calibration_payload=calibration_payload(),
+            release_gate_status="pass",
+        )
+        gate_output_path = output_dir / "release-gate-tool-selection-core-dev-malformed-ledger.json"
+
+        completed = run_release_gate(
+            benchmark_path, run_card_path, regression_path, ledger_path, gate_output_path
+        )
+
+        assert completed.returncode != 0
+        gate_report = json.loads(gate_output_path.read_text(encoding="utf-8"))
+        assert "result ledger could not be read" in gate_report["issues"]
+
+
 def test_validate_eval_metadata_rejects_invalid_workflow_verb_in_task_bundle() -> None:
     with tempfile.TemporaryDirectory(
         dir=RESULTS_ROOT, prefix="validate-invalid-workflow-verb-"

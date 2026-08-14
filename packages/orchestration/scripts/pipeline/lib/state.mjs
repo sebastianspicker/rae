@@ -338,27 +338,26 @@ export function parseBooleanFlag(value) {
   return false;
 }
 
-export function resolveWorkspaceRootForRun(runId, root = getRepoRoot()) {
-  const directState = readJson(getPipelineStatePath(root), null);
-  if (directState?.run_id === runId) {
-    return getWorkspaceFromState(directState, root).root;
-  }
-
+function findGitTopLevel(root) {
   let gitTopLevel = resolve(root);
   while (!existsSync(resolve(gitTopLevel, ".git")) && dirname(gitTopLevel) !== gitTopLevel) {
     gitTopLevel = dirname(gitTopLevel);
   }
+  return gitTopLevel;
+}
 
-  const candidateRoots = new Set();
+function addNestedWorktreeRoots(candidateRoots, gitTopLevel) {
   const worktreesDir = resolve(gitTopLevel, ".worktrees");
-  if (existsSync(worktreesDir)) {
-    for (const entry of readdirSync(worktreesDir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        candidateRoots.add(resolve(worktreesDir, entry.name));
-      }
+  if (!existsSync(worktreesDir)) return;
+
+  for (const entry of readdirSync(worktreesDir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      candidateRoots.add(resolve(worktreesDir, entry.name));
     }
   }
+}
 
+function addRegisteredWorktreeRoots(candidateRoots, gitTopLevel) {
   // Custom --worktree-root paths are not descendants of .worktrees. Git's
   // registry is the authoritative source for every linked worktree location.
   const worktreeList = spawnSync(
@@ -366,15 +365,30 @@ export function resolveWorkspaceRootForRun(runId, root = getRepoRoot()) {
     ["-C", gitTopLevel, "worktree", "list", "--porcelain", "-z"],
     { encoding: "utf8" },
   );
-  if (worktreeList.status === 0) {
-    for (const field of worktreeList.stdout.split("\0")) {
-      if (field.startsWith("worktree ")) {
-        candidateRoots.add(resolve(field.slice("worktree ".length)));
-      }
+  if (worktreeList.status !== 0) return;
+
+  for (const field of worktreeList.stdout.split("\0")) {
+    if (field.startsWith("worktree ")) {
+      candidateRoots.add(resolve(field.slice("worktree ".length)));
     }
   }
+}
 
-  for (const candidateRoot of candidateRoots) {
+function discoverWorkspaceCandidateRoots(root) {
+  const gitTopLevel = findGitTopLevel(root);
+  const candidateRoots = new Set();
+  addNestedWorktreeRoots(candidateRoots, gitTopLevel);
+  addRegisteredWorktreeRoots(candidateRoots, gitTopLevel);
+  return candidateRoots;
+}
+
+export function resolveWorkspaceRootForRun(runId, root = getRepoRoot()) {
+  const directState = readJson(getPipelineStatePath(root), null);
+  if (directState?.run_id === runId) {
+    return getWorkspaceFromState(directState, root).root;
+  }
+
+  for (const candidateRoot of discoverWorkspaceCandidateRoots(root)) {
     const candidateState = readJson(
       resolve(candidateRoot, ".pipeline", "pipeline-state.json"),
       null,

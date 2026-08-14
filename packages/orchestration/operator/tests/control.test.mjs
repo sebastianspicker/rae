@@ -43,6 +43,19 @@ test("start input permits only task and checkpoint policy", () => {
   assert.throws(() => validateStartInput({ task: "" }), /task is required/);
 });
 
+test("start input accepts a profile only after server-side resolution", () => {
+  const profile = { source: "/private/operator-profile.json" };
+  assert.equal(
+    validateStartInput({ task: "safe", execution_profile_id: "local-codex" }, profile)
+      .executionProfile,
+    profile,
+  );
+  assert.throws(
+    () => validateStartInput({ task: "safe", execution_profile_id: "../../private" }),
+    /preloaded execution profile/,
+  );
+});
+
 test("typed confirmation must match the exact run id", () => {
   assert.doesNotThrow(() => requireTypedConfirmation({ confirm_run_id: "run-1" }, "run-1"));
   assert.throws(
@@ -80,6 +93,26 @@ test("controller starts fixed Codex argv without a shell and owns only the newly
   discovery = [{ id: "old-run" }, { id: "new-run" }];
   assert.equal(controller.refreshOwnership(), "new-run");
   assert.throws(() => controller.start(project, { task: "second" }), /already active/);
+});
+
+test("controller passes only the resolved execution-profile source to the fixed argv", () => {
+  const child = new FakeChild();
+  const calls = [];
+  const controller = new RunController({
+    spawnFn(command, args) {
+      calls.push({ command, args });
+      return child;
+    },
+    discoverRunsFn: () => [],
+  });
+  controller.start(
+    { id: "project_12345678", root: "/repo" },
+    { task: "Use the bounded profile", execution_profile_id: "local-codex" },
+    { source: "/private/operator-profile.json" },
+  );
+  const index = calls[0].args.indexOf("--execution-profile");
+  assert.equal(calls[0].args[index + 1], "/private/operator-profile.json");
+  assert.equal(calls[0].args.includes("local-codex"), false);
 });
 
 test("interrupt signals only the exact active child and persists interrupted state", (t) => {
@@ -202,8 +235,9 @@ function createCheckpointRun() {
   return { root, runId, checkpoint };
 }
 
-test("checkpoint decisions use opaque ids, durable actor/rationale, idempotence, and conflict status", () => {
+test("checkpoint decisions use opaque ids, durable actor/rationale, idempotence, and conflict status", (t) => {
   const { root, runId, checkpoint } = createCheckpointRun();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   assert.match(checkpoint.checkpoint_id, /^checkpoint-[a-f0-9]{24}$/);
 
   const controller = new RunController();
@@ -219,6 +253,13 @@ test("checkpoint decisions use opaque ids, durable actor/rationale, idempotence,
   assert.equal(resolved.decision.actor, "rae-loopback-operator");
   assert.equal(resolved.decision.rationale, body.rationale);
   assert.deepEqual(controller.decideCheckpoint(project, runId, body), resolved);
+  assert.deepEqual(
+    readFileSync(join(root, ".pipeline", "runs", runId, "trace.jsonl"), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line).event),
+    ["checkpoint_resolved"],
+  );
   assert.throws(
     () =>
       controller.decideCheckpoint(project, runId, {
@@ -227,5 +268,62 @@ test("checkpoint decisions use opaque ids, durable actor/rationale, idempotence,
         decision_id: "decision_87654321",
       }),
     (error) => error.status === 409,
+  );
+
+  const blocked = createCheckpointRun();
+  t.after(() => rmSync(blocked.root, { recursive: true, force: true }));
+  controller.decideCheckpoint(
+    { id: "project_12345678", root: blocked.root, label: blocked.root },
+    blocked.runId,
+    {
+      checkpoint_id: blocked.checkpoint.checkpoint_id,
+      decision: "reject",
+      decision_id: "decision_87654321",
+      rationale: "The release evidence requires remediation.",
+    },
+  );
+  assert.deepEqual(
+    readFileSync(join(blocked.root, ".pipeline", "runs", blocked.runId, "trace.jsonl"), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => {
+        const { event, status } = JSON.parse(line);
+        return { event, status };
+      }),
+    [
+      { event: "checkpoint_resolved", status: "blocked" },
+      { event: "run_blocked", status: "blocked" },
+    ],
+  );
+
+  const revalidated = createCheckpointRun();
+  t.after(() => rmSync(revalidated.root, { recursive: true, force: true }));
+  const workspaceRoots = [revalidated.root, revalidated.root, revalidated.root, "/missing"];
+  const revalidatingController = new RunController({
+    locateRunFn: () => ({
+      id: revalidated.runId,
+      checkpoints: [revalidated.checkpoint],
+      get workspaceRoot() {
+        return workspaceRoots.shift();
+      },
+    }),
+  });
+  assert.throws(
+    () =>
+      revalidatingController.decideCheckpoint(
+        { id: "project_12345678", root: revalidated.root, label: revalidated.root },
+        revalidated.runId,
+        {
+          checkpoint_id: revalidated.checkpoint.checkpoint_id,
+          decision: "approve",
+          decision_id: "decision_23456789",
+          rationale: "The runtime state must remain readable after resolution.",
+        },
+      ),
+    /ENOENT/,
+  );
+  assert.match(
+    readFileSync(join(revalidated.root, ".pipeline", "runs", revalidated.runId, "trace.jsonl"), "utf8"),
+    /"checkpoint_resolved"/,
   );
 });

@@ -14,8 +14,14 @@ from outcome_optimizer_helpers import (
     evaluation,
     optimize_campaign,
     policy,
+    recover_lineage,
     resource_usage_issues,
 )
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
 
 
 def test_optimizer_accepts_only_measurable_improvement_without_auto_promotion() -> None:
@@ -186,3 +192,113 @@ def test_optimizer_rejects_out_of_range_reports_and_standalone_comparisons() -> 
             assert "evidence_type is not accepted" in str(exc)
         else:
             raise AssertionError("standalone comparison evidence was accepted")
+
+
+def test_improvement_campaign_hill_climbs_ten_candidates_with_paired_wins_and_held_out_seal() -> (
+    None
+):
+    baseline = policy()
+    candidates = [policy(f"candidate-{index}") for index in range(10)]
+    for index, candidate in enumerate(candidates):
+        candidate["phase_guidance"]["plan"] = f"bounded guidance {index}"
+
+    def evaluator(evaluated: dict[str, Any]) -> dict[str, Any]:
+        score = 0.5 if evaluated["policy_id"] == "baseline" else 1.0
+        return evaluation(evaluated, score, evidence_type=OUTCOME_REPORT_TYPE)
+
+    with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="rae-improve-ten-") as tmp:
+        output = pathlib.Path(tmp)
+        report = optimize_campaign(
+            baseline_policy=baseline,
+            proposer=lambda _incumbent, lineage: candidates[len(lineage)],
+            evaluator=evaluator,
+            trusted_paths=[TRUSTED_EVALUATOR_PATH],
+            output_dir=output,
+            max_iterations=10,
+            candidate_change_allowlist=[
+                "roles",
+                "guidance",
+                "safe_nodes",
+                "edges",
+                "joins",
+                "loop_bounds",
+            ],
+            sealed_evaluator=lambda evaluated: evaluation(
+                evaluated, 1.0, split="held-out", evidence_type=OUTCOME_REPORT_TYPE
+            ),
+        )
+        lineage = recover_lineage(output / "lineage.jsonl")
+    require(len(lineage) == 10, "campaign did not retain ten lineage events")
+    require(lineage[0]["decision"] == "accepted", "first improvement candidate was not accepted")
+    require(
+        all(event["decision"] in {"accepted", "rejected"} for event in lineage),
+        "lineage contains an unexpected decision",
+    )
+    require(report["recommendation_status"] == "recommended", "campaign was not recommended")
+    require(report["automatic_promotion"] is False, "campaign promoted a policy automatically")
+
+
+def test_improvement_candidate_forbidden_change_is_retained_as_rejection() -> None:
+    baseline, candidate = policy(), policy("candidate")
+    candidate["unexpected_runtime"] = "activate"
+    with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="rae-improve-forbidden-") as tmp:
+        output = pathlib.Path(tmp)
+        optimize_campaign(
+            baseline_policy=baseline,
+            proposer=lambda _incumbent, _lineage: candidate,
+            evaluator=lambda evaluated: evaluation(
+                evaluated, 0.5, evidence_type=OUTCOME_REPORT_TYPE
+            ),
+            trusted_paths=[TRUSTED_EVALUATOR_PATH],
+            output_dir=output,
+            max_iterations=1,
+        )
+        lineage = recover_lineage(output / "lineage.jsonl")
+    require(lineage[0]["decision"] == "rejected", "forbidden candidate was accepted")
+    require("policy" in lineage[0]["reason"], "rejection did not report the policy violation")
+
+
+def test_improvement_lineage_recovery_rejects_partial_records() -> None:
+    with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="rae-improve-recover-") as tmp:
+        lineage_path = pathlib.Path(tmp) / "lineage.jsonl"
+        lineage_path.write_text('{"iteration":1}\n{', encoding="utf-8")
+        try:
+            recover_lineage(lineage_path)
+        except ValueError as exc:
+            require("lineage recovery failed" in str(exc), "partial lineage error was unclear")
+        else:
+            raise AssertionError("partial lineage record was accepted")
+
+
+def test_improvement_rejects_resource_regression_even_with_paired_wins() -> None:
+    baseline, candidate = policy(), policy("candidate")
+    candidate["phase_guidance"]["plan"] = "bounded guidance"
+
+    def evaluator(evaluated: dict[str, Any]) -> dict[str, Any]:
+        score = 0.5 if evaluated["policy_id"] == "baseline" else 1.0
+        report = evaluation(evaluated, score, evidence_type=OUTCOME_REPORT_TYPE)
+        if evaluated["policy_id"] == "candidate":
+            for result in report["repeats"][0]:
+                result["resource_usage"] = {
+                    **result["resource_usage"],
+                    "agent_duration_seconds": 100.0,
+                }
+            report["aggregate"] = aggregate_repeats(report["repeats"])
+        return report
+
+    with tempfile.TemporaryDirectory(dir=RESULTS_ROOT, prefix="rae-improve-resource-") as tmp:
+        output = pathlib.Path(tmp)
+        optimize_campaign(
+            baseline_policy=baseline,
+            proposer=lambda _incumbent, _lineage: candidate,
+            evaluator=evaluator,
+            trusted_paths=[TRUSTED_EVALUATOR_PATH],
+            output_dir=output,
+            max_iterations=1,
+        )
+        lineage = recover_lineage(output / "lineage.jsonl")
+    require(lineage[0]["decision"] == "rejected", "resource regression was accepted")
+    require(
+        lineage[0]["reason"] == "challenger-hard-failure",
+        "resource regression was not classified as a hard failure",
+    )

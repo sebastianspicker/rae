@@ -28,6 +28,22 @@ Current imported schema set includes:
 - quality report
 - release readiness
 - execution trace
+- graph manifest, node, edge, context bundle, and memory decision
+- graph-native workflow 2.0 and immutable node-result envelope 2.0
+- graph-native workflow and node-instance envelope 2.1
+- operator-owned execution profile with economy, standard, and judgment tiers
+- graph-native workflow and immutable node-result envelope 2.2
+
+Version 2.1 adds bounded maps, item streams, allowlisted transforms, threshold
+joins, typed failure collection, until-dry convergence, and immutable instance
+identity. Version 2.0 remains a separate accepted contract for existing run
+snapshots and locally activated revisions. RAE does not rewrite private
+registries or migrate stored runs automatically.
+
+Version 2.2 adds local durable wait nodes, typed signal contracts, bounded
+context manifests, and immutable references for predecessor records that do
+not fit inline. It is experimental and does not connect the local scheduler to
+the hosted platform. See [Workflow 2.2 Contract](workflow-v2.2.md).
 
 Umbrella eval/runtime schemas additionally include:
 

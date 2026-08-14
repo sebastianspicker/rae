@@ -1,112 +1,100 @@
 # Release Status
 
-Evidence cutoff: 2026-07-24
+Evidence cutoff: 2026-08-04
 
-Verdict: DOCUMENTATION AND AVAILABLE FOCUSED GATES PASS; NOT READY TO PUBLISH
+Verdict: LOCAL IMPLEMENTATION GATES PASS; NOT READY TO PUBLISH
 
-## Candidate identity
+## Candidate scope
 
 - Proposed version: `v0.1.0-alpha.1`
-- Branch: `docs-security-badges`
-- Baseline HEAD: `b3a5b635032b996f943749583e93d714dc8e0ae3`
-- Components: Ralph `0.3.0`; coauthor trailer cleaner `3.0.0`
-- Candidate state: 309 modified, 27 deleted, and 154 untracked paths;
-  zero staged files; untagged, uncommitted, and unpublished
-- Branch state: the configured upstream is gone; the cached `origin/main` is
-  14 commits ahead of this baseline
+- Distribution: reviewed source tag and optional source archive
+- Published package, container, hosted service, or stable API: none
+- Current working tree: uncommitted and unsuitable as a release artifact
+
+The candidate scope is the local source toolkit: graph-native repository
+workflows, isolated worktrees, the loopback operator, evaluation tools, Ralph,
+and repository-maintenance utilities. The hosted-platform package and workflow
+2.2 remain experimental.
+
+## Implemented local surface
+
+- Workflow 2.1 supports typed nodes and edges, bounded fan-out, deterministic
+  transforms, first-success and quorum joins, checkpoints, and bounded cycles.
+- The loopback operator provides synchronized Loop, Graph, Analyze, and JSON
+  views. Five guided templates compile directly to workflow 2.1.
+- Workflow analysis reports schema and topology diagnostics, unreachable nodes,
+  writer and verification paths, bounded attempts and dynamic instances,
+  concurrency, and resolved execution routes.
+- Execution profile 3.0 maps logical tiers and optional node overrides to named
+  Codex or OpenCode routes without adding provider configuration to workflows.
+- Workflow proposals remain drafts. Preview, revision saving, validation, diff,
+  and exact-digest activation are separate operator actions. Activation affects
+  future runs only.
+- OpenCode is explicit, never selected by `auto`, and supported only through the
+  documented macOS containment backend. OpenCode writes require an isolated RAE
+  worktree and reject `--in-place`.
 
 ## Verified local evidence
 
-- `python3 -B scripts/verify_repo.py --skip-mkdocs` passes source headers,
-  obsolete-artifact checks, deterministic screenshots, brand assets,
-  frontmatter, local link paths, citation density, and evaluation metadata.
-- `pyright --project pyrightconfig.json` reports zero errors, warnings, or
-  informational diagnostics.
-- Existing candidate Bash entrypoints pass syntax checking and ShellCheck.
-  Candidate Python files compile with bytecode redirected outside the
-  repository.
-- Ralph passes 63 of 63 tests in the current working tree. Its transaction tests
-  cover protected metadata placement, real Codex sandbox denial, native
-  no-clobber promotion and recovery, concurrent-entry preservation, read-only
-  directory subtrees, crash checkpoints, retained conflict evidence,
-  idempotent recovery, and partial terminal cleanup.
-- The coauthor trailer cleaner passes 65 of 65 tests. The public profile
-  transaction suite, root runtime contract, and evaluation metadata validator
-  pass.
-- The authenticated loopback operator console passes 25 of 25 control,
-  security, server, recovery, and UI-contract tests.
-- Focused adversarial regressions reproduce the orchestration recovery race and
-  Ralph transaction overwrite and cleanup cases, and those regressions pass.
-  The remaining boundaries are documented in `SECURITY.md` and the package
-  security files.
-- Orchestration's dependency-free skill validation, stale-reference check,
-  hygiene check, 11-file strict link check, adapter synchronization, package
-  integrity, operator suite, and JavaScript syntax checks pass.
-- All 107 candidate JSON files and 18 YAML/CFF files parse. Every referenced
-  `src-*` bibliography key has a matching explicit bibliography anchor. All
-  versioned root-lock `node_modules` entries include `resolved` and `integrity`.
-- The two deterministic SVG command captures are current, reproducible, and
-  free of private paths. The 1280 by 640 social preview is visually legible and
-  contains no slogan, credential, or private machine content.
-- `./scripts/rae.sh doctor` passes with GNU Bash `5.3.15`, Python `3.14.6`,
-  Node.js `22.23.1`, Git, `rg`, npm, `jq`, ShellCheck, and git-filter-repo.
-  `./scripts/rae.sh agent doctor` confirms the installed Codex path is
-  authenticated and exposes the required sandbox, structured-output, event,
-  and ephemeral-session capabilities.
+- `packages/orchestration/scripts/verify.sh --skip-install` passes the package
+  builds, lint and format checks, runner, operator, shared-runtime,
+  quality-gate, review, and trace-collector suites.
+- The pipeline runner passes 396 tests. The operator passes 42 tests.
+- `python -m pytest evals/tests tests` passes 74 tests under Python 3.14.6.
+- Ruff, Pyright, Lizard, the root runtime contract, evaluation validation,
+  profile installation, Ralph's 63 tests, and the co-author cleaner's 65 tests
+  pass in the current working tree.
+- OpenCode doctor passes locally with OpenCode 1.18.11 and verifies the exact
+  denied-by-default tool surface under macOS Seatbelt.
+- Real Seatbelt checks deny read-node writes and deny write-node access outside
+  the isolated workspace, including `.pipeline`. The verification broker runs
+  its approved Git check under a nested no-network sandbox.
+- `git diff --check` passes.
 
-## Verification limits and publication blockers
+These results apply to the current mutable checkout. They are not evidence for
+an immutable tag, hosted deployment, arbitrary repository, or provider-backed
+task outcome.
 
-- `./scripts/verify.sh --skip-install` stops because `ruff` is not installed.
-  The current environment also lacks `pytest`, `mkdocs`, and `lizard`, so the
-  complete Python suite, strict MkDocs build, complexity gate, and umbrella
-  verifier are not available. No dependency installation was authorized.
-- `packages/orchestration/scripts/verify.sh --skip-install` passes its first six
-  dependency-free gates, then the `_shared` TypeScript build stops because the
-  local installation lacks `ajv`, `ajv-formats`, and Node type declarations.
-  `npm run test:runner` cannot find the local Vitest executable. A clean
-  `npm ci`, package build, and full package test lane remain required.
-- The in-app browser has no available browser, and no Playwright installation
-  is present. The operator console therefore has contract-test coverage but no
-  final live render, console inspection, viewport review, interaction smoke,
-  or sanitized operator screenshot.
-- No clean isolated installation, disposable real-provider outcome run, sealed
-  held-out evaluation, optimizer recommendation, or live release-candidate
-  browser smoke was performed.
-- The project still lacks a private conduct-reporting address. GitHub's content
-  reporting controls cover conduct on GitHub, but a project-specific private
-  route is required before publication.
-- The working-tree secret scan found only a synthetic operator test match. No
-  Gitleaks configuration or history scan is present, so this is working-tree
-  evidence rather than a complete secret-history audit.
-- `python3 -B scripts/verify_repo.py --release-candidate` correctly rejects the
-  dirty worktree. GitHub CI, CodeQL, Scorecard, badges, external links, and the
-  public release page cannot be confirmed until an approved candidate commit
-  exists.
-- The recorded test results describe this mutable working tree, not an immutable
-  release artifact. The final candidate commit and hosted checks must anchor the
-  publication evidence.
-- The candidate must be reconciled onto refreshed `main`; the current branch
-  upstream is gone and cached `origin/main` is ahead.
+## Publication blockers
 
-## Accepted alpha boundaries
+- The root `./scripts/verify.sh --skip-install` gate is not executable in this
+  checkout: it exits before repository validation because `ruff` is not on
+  `PATH`. The deterministic screenshot check itself passes: `agent --help`
+  now loads runtime-only modules after handling help, so the SVG generator does
+  not require the orchestration package dependencies.
+- No authenticated OpenCode proposal or write run has captured a real provider
+  event stream and completed the full designer-to-activation acceptance path.
+- No final browser render, responsive interaction, console, or screenshot smoke
+  was performed. The in-app browser was unavailable and Playwright is not
+  installed in the current environment.
+- `mkdocs.yml` supports a local documentation preview once the pinned MkDocs
+  toolchain is present. No GitHub Pages deployment workflow or publishing
+  configuration exists in this tree, so Pages feasibility is unverified.
+- The working tree contains extensive uncommitted changes. Release-candidate
+  verification requires a reviewed, committed candidate with current hosted CI
+  and security checks.
+- The project still needs a private conduct-reporting address before
+  publication.
 
-This source candidate implements local, experimental autonomous workflows. It
-does not claim a stable API, remote operation, unsandboxed safety, universal
-agent reliability, or provider-backed performance. The custom command provider
-is an explicitly unsafe test surface. Ralph multi-path promotion is recoverable
-but not globally atomic, and its concurrent-entry guarantee assumes stable
-parent directories. These limits are acceptable only when they remain visible
-in the alpha documentation and release notes.
+## Experimental boundaries
 
-No file was staged, committed, tagged, pushed, released, or published during
-this preparation pass.
+The hosted control-plane and worker package is not deployed. Source-unit tests
+do not establish PostgreSQL migration and reconciliation, OIDC issuer
+interoperability, object-storage transfer, remote worker isolation, secret
+handling, hosted recovery, or production operations.
+
+Workflow 2.2 implements local durable waits, typed signals, and bounded context
+assembly. It has no context-efficiency result. A frozen comparison with the
+predefined threshold remains required before making such a claim.
+
+OpenRouter models are supported only through OpenCode provider configuration.
+RAE does not call the OpenRouter API directly. The OpenCode adapter is macOS
+only in this candidate.
 
 ## Next gate
 
-Before publication, provide a private conduct-reporting route, restore the
-pinned Python and Node dependencies in an authorized isolated environment, and
-run the complete commands in `RELEASING.md`. Then perform the browser and
-provider smoke lanes, reconcile the reviewed candidate onto refreshed `main`,
-create the approved candidate commit, run
-`./scripts/verify.sh --release-candidate`, and confirm the hosted workflows.
-Only then should the maintainer create `v0.1.0-alpha.1` and its release.
+Restore the documented local verifier tools, complete the root verification
+gate, and run the authenticated OpenCode and browser acceptance lanes. Then
+review and commit the candidate, run
+`./scripts/verify.sh --release-candidate`, and confirm the hosted checks against
+that exact commit before creating a tag or release.

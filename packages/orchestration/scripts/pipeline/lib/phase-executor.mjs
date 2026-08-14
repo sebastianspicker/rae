@@ -24,12 +24,13 @@ import { appendTraceEvent } from "./trace.mjs";
 import { writeJson } from "./state.mjs";
 import { readOperatorControl } from "./operator-control.mjs";
 import { invokeRunner } from "./autonomous-execution.mjs";
+import { projectGraph, queryGraph, retrieveMemoryContext } from "./graph.mjs";
 
 const PACKAGE_ROOT = resolve(import.meta.dirname, "../../..");
 const DEFAULT_TIMEOUT_SECONDS = 1800;
 
 export function runOnePhase(context, phase, options) {
-  const state = preparePhase(context, phase);
+  const state = preparePhase(context, phase, options);
   const execution = executeProvider(state, context, phase, options);
   validateProviderRuntime(state, context, phase, options, execution);
   throwProviderError(execution.error, context, phase, options, state.sandboxMode);
@@ -37,10 +38,20 @@ export function runOnePhase(context, phase, options) {
   persistArtifact(assessment.artifact, state);
   recordAgentCall(execution.result, assessment, state, context, phase);
   assertGitStateInvariant(context.workspaceRoot, context.initialGitState, phase);
-  return advanceStage(assessment.status, state, context, phase, execution.result.provider);
+  const advanced = advanceStage(
+    assessment.status,
+    state,
+    context,
+    phase,
+    execution.result.provider,
+  );
+  if ((options["graph-memory"] ?? "off") !== "off") {
+    projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
+  }
+  return advanced;
 }
 
-function preparePhase(context, phase) {
+function preparePhase(context, phase, options) {
   const runDir = resolve(context.workspaceRoot, ".pipeline", "runs", context.runId);
   const outputDir = resolve(runDir, "agent-outputs");
   mkdirSync(outputDir, { recursive: true });
@@ -50,6 +61,7 @@ function preparePhase(context, phase) {
   const outputPath = resolve(outputDir, `${phase}.json`);
   const eventLogPath = resolve(outputDir, `${phase}.events.jsonl`);
   const traceRef = `runs/${context.runId}/trace.jsonl`;
+  const graphContext = prepareGraphContext(context, phase, options, inputs);
   const state = {
     inputs,
     approvedPlan,
@@ -58,13 +70,89 @@ function preparePhase(context, phase) {
     traceRef,
     workspaceRoot: context.workspaceRoot,
     schemaPath: resolve(PACKAGE_ROOT, SCHEMAS[phase]),
-    prompt: buildPrompt({ ...context, phase, inputs }),
+    prompt: buildPrompt({ ...context, phase, inputs, graphContext }),
     sandboxMode: mutationPhase(phase) ? "workspace-write" : "read-only",
     runtimeBefore: runtimeSnapshot(context, traceRef),
     controlBefore: readControl(context),
     traceBefore: readTrace(context.workspaceRoot, traceRef),
   };
   return state;
+}
+
+function prepareGraphContext(context, phase, options, inputs) {
+  const mode = options["graph-memory"] ?? "off";
+  if (mode === "off") return null;
+  projectGraph({ projectRoot: context.workspaceRoot, runId: context.runId });
+  let projection = queryGraph({
+    projectRoot: context.workspaceRoot,
+    runId: context.runId,
+    seed: phaseGraphSeed(phase, context.task),
+    phase,
+    maxDepth: 4,
+    maxRecords: 50,
+  });
+  let memory = retrieveMemoryContext({
+    projectRoot: context.workspaceRoot,
+    seed: context.task,
+    limit: 50,
+  });
+  const budget = graphContextBudget(context.workspaceRoot, phase, inputs);
+  if (budget !== null) {
+    const selected = [];
+    let used = 0;
+    for (const record of projection.records) {
+      const size = JSON.stringify(record).length;
+      if (used + size > budget) break;
+      selected.push(record);
+      used += size;
+    }
+    projection = { ...projection, records: selected };
+    memory = memory.filter((record) => {
+      const size = JSON.stringify(record).length;
+      if (used + size > budget) return false;
+      used += size;
+      return true;
+    });
+    const contextPath = resolve(
+      context.workspaceRoot,
+      ".pipeline",
+      "runs",
+      context.runId,
+      "graph",
+      "contexts",
+      `${phase}.json`,
+    );
+    writeJson(contextPath, projection);
+  }
+  return { projection, memory };
+}
+
+function phaseGraphSeed(phase, task) {
+  const terms =
+    {
+      arm: "repository contracts manifests documentation conventions",
+      design: "repository contracts manifests documentation conventions",
+      plan: "requirements design candidate files tests verification commands",
+      build: "requirements design candidate files tests verification commands",
+      "quality-static": "changed files affected tests commands findings gates",
+      "quality-tests": "changed files affected tests commands findings gates",
+      "post-build": "changed files affected tests commands findings gates",
+      "release-readiness": "requirements implementation verification residual conditions gates",
+    }[phase] ?? "requirements evidence";
+  return `${task}\n${terms}`;
+}
+
+function graphContextBudget(workspaceRoot, phase, inputs) {
+  const statePath = resolve(workspaceRoot, ".pipeline", "pipeline-state.json");
+  if (!existsSync(statePath)) return null;
+  const state = JSON.parse(readFileSync(statePath, "utf8"));
+  const configured = state.config?.context_budgets?.[phase];
+  if (configured === undefined) return null;
+  const tokens = Number(
+    typeof configured === "object" ? (configured.token_max ?? configured.max_tokens) : configured,
+  );
+  if (!Number.isFinite(tokens) || tokens <= 0) return 0;
+  return Math.max(0, Math.trunc(tokens * 4) - JSON.stringify(inputs).length);
 }
 
 function requireApprovedPlan(phase, approvedPlan) {
@@ -127,6 +215,10 @@ function providerRequest(state, context, phase, options, tempDir) {
     sandboxMode: state.sandboxMode,
     model: options.model,
     reasoningEffort: options["reasoning-effort"],
+    variant: options.variant,
+    sourceRoot: context.projectRoot,
+    runDir: context.runDir,
+    inPlace: context.workspaceRoot === context.projectRoot,
     timeoutMs: Number(options["timeout-seconds"] ?? DEFAULT_TIMEOUT_SECONDS) * 1000,
     allowUnsafeCommand: options["allow-unsafe-command-provider"] === true,
   };
