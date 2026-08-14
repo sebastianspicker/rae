@@ -23,6 +23,7 @@ Commands:
   compare-outcomes
                 Compare paired outcome reports for optimizer evidence
   optimize      Evaluate a bounded experimental policy campaign from precomputed evidence
+  improve       Evaluate a sealed evaluator-owned RAE v2 improvement campaign
   suite         Execute all frozen benchmark families for dev and held-out splits under evals/results
   calibrate     Run judge calibration
   release-gate  Evaluate release-blocking gates for a run card
@@ -73,6 +74,7 @@ run_doctor() {
   check_file "outcome-runner" "$ROOT_DIR/evals/scripts/run_outcome_benchmark.py" || failed=1
   check_file "outcome-compare" "$ROOT_DIR/evals/scripts/compare_outcome_reports.py" || failed=1
   check_file "policy-optimizer" "$ROOT_DIR/evals/scripts/optimize_harness.py" || failed=1
+  check_file "policy-improvement" "$ROOT_DIR/evals/scripts/improve_harness.py" || failed=1
   check_file "release-gate" "$ROOT_DIR/evals/scripts/release_gate.py" || failed=1
 
   if [[ "$failed" -ne 0 ]]; then
@@ -108,6 +110,9 @@ main() {
     ;;
   optimize)
     "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/optimize_harness.py" "$@"
+    ;;
+  improve)
+    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/improve_harness.py" "$@"
     ;;
   suite)
     "$BASH_BIN" "$ROOT_DIR/evals/harness/run-frozen-suite.sh" "$@"

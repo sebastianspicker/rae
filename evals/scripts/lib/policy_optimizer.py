@@ -6,8 +6,10 @@ live in focused sibling modules so the campaign controller stays reviewable.
 
 from __future__ import annotations
 
+import json
 import pathlib
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, cast
 
 from common import append_jsonl, dump_json, iso_timestamp
 
@@ -25,8 +27,57 @@ from lib.policy_optimizer_policy import (
     policy_digest,
     trusted_manifest,
     validate_campaign,
+    validate_candidate_policy_change,
     validate_policy,
 )
+
+
+@dataclass(frozen=True)
+class _CampaignRun:
+    """Keep campaign controls together after the public keyword boundary."""
+
+    proposer: Proposer
+    evaluator: Evaluator
+    trusted_paths: list[pathlib.Path]
+    output_dir: pathlib.Path
+    max_iterations: int
+    resource_budget: dict[str, float] | None
+    sealed_evaluator: Evaluator | None
+    candidate_change_allowlist: object
+
+
+def _campaign_run(
+    proposer: Proposer,
+    evaluator: Evaluator,
+    trusted_paths: list[pathlib.Path],
+    output_dir: pathlib.Path,
+    controls: dict[str, object],
+) -> _CampaignRun:
+    expected_controls = {
+        "max_iterations",
+        "resource_budget",
+        "sealed_evaluator",
+        "candidate_change_allowlist",
+    }
+    unexpected_controls = sorted(set(controls) - expected_controls)
+    if unexpected_controls:
+        raise TypeError(
+            f"optimize_campaign() got an unexpected keyword argument {unexpected_controls[0]!r}"
+        )
+    if "max_iterations" not in controls:
+        raise TypeError(
+            "optimize_campaign() missing 1 required keyword-only argument: 'max_iterations'"
+        )
+    return _CampaignRun(
+        proposer=proposer,
+        evaluator=evaluator,
+        trusted_paths=trusted_paths,
+        output_dir=output_dir,
+        max_iterations=cast(int, controls["max_iterations"]),
+        resource_budget=cast(dict[str, float] | None, controls.get("resource_budget")),
+        sealed_evaluator=cast(Evaluator | None, controls.get("sealed_evaluator")),
+        candidate_change_allowlist=controls.get("candidate_change_allowlist"),
+    )
 
 
 def _record_event(
@@ -34,6 +85,22 @@ def _record_event(
 ) -> None:
     lineage.append(event)
     append_jsonl(lineage_path, event)
+
+
+def recover_lineage(lineage_path: pathlib.Path) -> list[dict[str, Any]]:
+    """Read append-only lineage without treating a partial record as evidence."""
+    if not lineage_path.exists():
+        return []
+    recovered: list[dict[str, Any]] = []
+    for line_number, line in enumerate(lineage_path.read_text(encoding="utf-8").splitlines(), 1):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"lineage recovery failed at line {line_number}") from exc
+        if not isinstance(event, dict):
+            raise ValueError(f"lineage recovery found a non-object event at line {line_number}")
+        recovered.append(event)
+    return recovered
 
 
 def _campaign_baseline(
@@ -59,11 +126,13 @@ def _candidate_or_rejection(
     lineage: list[dict[str, Any]],
     iteration: int,
     lineage_path: pathlib.Path,
+    candidate_change_allowlist: object,
 ) -> tuple[Policy | None, str]:
     candidate = proposer(incumbent, lineage)
     candidate_id = f"candidate-{iteration:02d}"
     try:
         validate_policy(candidate)
+        validate_candidate_policy_change(incumbent, candidate, candidate_change_allowlist)
     except ValueError as exc:
         _record_event(
             lineage,
@@ -261,25 +330,25 @@ def optimize_campaign(
     evaluator: Evaluator,
     trusted_paths: list[pathlib.Path],
     output_dir: pathlib.Path,
-    max_iterations: int,
-    resource_budget: dict[str, float] | None = None,
-    sealed_evaluator: Evaluator | None = None,
+    **controls: object,
 ) -> dict[str, Any]:
     """Run a bounded single-challenger campaign with fully retained lineage."""
+    campaign = _campaign_run(proposer, evaluator, trusted_paths, output_dir, controls)
     state, lineage_path = _start_campaign(
-        baseline_policy, evaluator, trusted_paths, output_dir, max_iterations
+        baseline_policy,
+        campaign.evaluator,
+        campaign.trusted_paths,
+        campaign.output_dir,
+        campaign.max_iterations,
     )
-    _run_iterations(
+    _run_iterations(state, lineage_path, campaign)
+    return _finish_campaign(
+        baseline_policy,
         state,
-        lineage_path,
-        proposer,
-        evaluator,
-        resource_budget,
-        output_dir,
-        max_iterations,
-        trusted_paths,
+        campaign.trusted_paths,
+        campaign.output_dir,
+        campaign.sealed_evaluator,
     )
-    return _finish_campaign(baseline_policy, state, trusted_paths, output_dir, sealed_evaluator)
 
 
 def _start_campaign(
@@ -312,15 +381,10 @@ def _start_campaign(
 def _run_iterations(
     state: dict[str, Any],
     lineage_path: pathlib.Path,
-    proposer: Proposer,
-    evaluator: Evaluator,
-    resource_budget: dict[str, float] | None,
-    output_dir: pathlib.Path,
-    max_iterations: int,
-    trusted_paths: list[pathlib.Path],
+    campaign: _CampaignRun,
 ) -> None:
-    for iteration in range(1, max_iterations + 1):
-        if trusted_manifest(trusted_paths) != state["initial_manifest"]:
+    for iteration in range(1, campaign.max_iterations + 1):
+        if trusted_manifest(campaign.trusted_paths) != state["initial_manifest"]:
             _record_event(
                 state["lineage"],
                 lineage_path,
@@ -332,13 +396,18 @@ def _run_iterations(
             )
             break
         candidate, candidate_id = _candidate_or_rejection(
-            proposer, state["incumbent"], state["lineage"], iteration, lineage_path
+            campaign.proposer,
+            state["incumbent"],
+            state["lineage"],
+            iteration,
+            lineage_path,
+            campaign.candidate_change_allowlist,
         )
         if candidate is None:
             continue
-        dump_json(output_dir / "candidates" / f"{candidate_id}.policy.json", candidate)
+        dump_json(campaign.output_dir / "candidates" / f"{candidate_id}.policy.json", candidate)
         budget_blocked, evaluation, decision = _evaluate_iteration(
-            state, candidate, evaluator, resource_budget
+            state, candidate, campaign.evaluator, campaign.resource_budget
         )
         if budget_blocked:
             _record_event(
@@ -351,7 +420,7 @@ def _run_iterations(
                     "reason": "budget-exceeded-or-incomplete-measurement",
                 },
             )
-            dump_json(output_dir / "evaluations" / f"{candidate_id}.json", evaluation)
+            dump_json(campaign.output_dir / "evaluations" / f"{candidate_id}.json", evaluation)
             break
         if decision is None:
             raise RuntimeError("policy search did not produce a decision")
@@ -363,13 +432,14 @@ def _run_iterations(
             candidate,
             evaluation,
             decision,
-            output_dir,
+            campaign.output_dir,
         )
 
 
 __all__ = [
     "optimize_campaign",
     "policy_digest",
+    "recover_lineage",
     "trusted_manifest",
     "validate_campaign",
     "validate_policy",

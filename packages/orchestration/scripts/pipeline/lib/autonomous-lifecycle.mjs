@@ -5,6 +5,7 @@ import {
   existsSync,
   fstatSync,
   lstatSync,
+  mkdirSync,
   openSync,
   readSync,
   realpathSync,
@@ -29,6 +30,17 @@ import {
   runProcess,
 } from "./autonomous-git.mjs";
 import { reconcileRuntimeStateGuard } from "./runtime-state-guard.mjs";
+import { loadWorkflow, validateWorkflow, workflowDigest } from "./workflow-contract.mjs";
+import { DEFAULT_WORKFLOW_PATH, resolveActivatedWorkflow } from "./workflow-registry.mjs";
+import {
+  assertExecutionProfileCoverage,
+  executionProfileExecutors,
+  executionProfileDigest,
+  loadExecutionProfile,
+  resolveWorkflowRoutes,
+  validateExecutionProfile,
+} from "./execution-profile.mjs";
+import { providerRuntimeIdentity } from "./agent-executor.mjs";
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const PIPELINE_INIT = resolve(PACKAGE_ROOT, "scripts/pipeline-init.sh");
 const MAX_TASK_BYTES = 128 * 1024;
@@ -268,8 +280,18 @@ export function savedAgentOptions(request) {
     agentArgs: [],
     ...(saved.model ? { model: saved.model } : {}),
     ...(saved.reasoning_effort ? { "reasoning-effort": saved.reasoning_effort } : {}),
+    ...(saved.variant ? { variant: saved.variant } : {}),
+    ...(request.execution_profile ? { "execution-profile-snapshot": true } : {}),
     ...(saved.timeout_seconds ? { "timeout-seconds": String(saved.timeout_seconds) } : {}),
     "checkpoint-policy": request.checkpoint_policy ?? "none",
+    "graph-memory": request.graph_memory ?? "off",
+    ...(request.workflow?.mode === "legacy-linear" ? { "legacy-linear": true } : {}),
+    ...(request.workflow?.max_concurrency
+      ? { "max-concurrency": String(request.workflow.max_concurrency) }
+      : {}),
+    ...(request.workflow?.max_repair_rounds
+      ? { "max-repair-rounds": String(request.workflow.max_repair_rounds) }
+      : {}),
   };
 }
 
@@ -292,6 +314,8 @@ export function mergeResumeOptions(saved, supplied) {
 export function assertResumeCheckpointPolicy(saved, supplied) {
   if (supplied["checkpoint-policy"] && supplied["checkpoint-policy"] !== saved["checkpoint-policy"])
     throw new Error("checkpoint policy is immutable for an existing autonomous run");
+  if (supplied["graph-memory"] && supplied["graph-memory"] !== saved["graph-memory"])
+    throw new Error("graph memory mode is immutable for an existing autonomous run");
 }
 
 function resetProviderOptions(saved) {
@@ -370,7 +394,8 @@ function resumeContext(projectRoot, options) {
       `resume requires the initial Git-state snapshot at ${initialGitStatePath}; start a new run instead`,
     );
   }
-  const storedPolicy = storedRunPolicy(request, options);
+  const restored = restoreRunConfiguration(request, options);
+  const runDir = getRunDir(state.run_id, projectRoot);
   return {
     runId: state.run_id,
     workspaceRoot: projectRoot,
@@ -379,9 +404,125 @@ function resumeContext(projectRoot, options) {
     initialGitState: readJsonStrict(initialGitStatePath),
     resumed: true,
     savedAgentOptions: savedAgentOptions(request),
-    policy: storedPolicy,
-    policyDigest: policyDigest(storedPolicy),
+    ...restored,
+    runDir,
   };
+}
+
+function restoreRunConfiguration(request, options) {
+  assertStoredAgentRuntime(request);
+  const policy = storedRunPolicy(request, options);
+  const workflow = storedRunWorkflow(request, options);
+  const executionProfile = storedRunExecutionProfile(request, options);
+  if (workflow && executionProfile) {
+    assertExecutionProfileCoverage(executionProfile.profile, workflow.workflow);
+  }
+  const workflowConfiguration = workflowConfigurationFields(workflow);
+  return {
+    policy,
+    policyDigest: policyDigest(policy),
+    ...workflowConfiguration,
+    executionProfile: executionProfile?.profile ?? null,
+    executionProfileDigest: executionProfile?.digest ?? null,
+    executionRuntime: request.execution_profile?.runtime ?? null,
+  };
+}
+
+function assertStoredAgentRuntime(request) {
+  if ((request.agent?.provider ?? request.provider) !== "opencode") return;
+  const stored = request.agent?.runtime;
+  if (!stored?.version || !stored?.binary_digest) {
+    throw new Error("resume requires the stored OpenCode version and executable digest");
+  }
+  if (JSON.stringify(runtimeIdentity("opencode")) !== JSON.stringify(stored)) {
+    throw new Error(
+      "resume OpenCode provider version drifted; start a recovery run with the original runtime",
+    );
+  }
+}
+
+function workflowConfigurationFields(resolvedWorkflow) {
+  if (!resolvedWorkflow) {
+    return { workflow: null, workflowDigest: null, workflowMode: "legacy-linear" };
+  }
+  return {
+    workflow: resolvedWorkflow.workflow,
+    workflowDigest: resolvedWorkflow.digest,
+    workflowMode: "graph-native",
+  };
+}
+
+function storedRunExecutionProfile(request, options) {
+  if (!request.execution_profile) {
+    if (options["execution-profile"])
+      throw new Error("cannot add an execution profile when resuming an existing run");
+    return null;
+  }
+  const profile = validateExecutionProfile(request.execution_profile.snapshot);
+  const digest = executionProfileDigest(profile);
+  if (digest !== request.execution_profile.digest)
+    throw new Error("stored execution profile digest does not match its snapshot");
+  if (options.model || options["reasoning-effort"])
+    throw new Error("model settings are immutable when resuming an execution-profile run");
+  if (
+    options["execution-profile"] &&
+    loadExecutionProfile(options["execution-profile"]).digest !== digest
+  ) {
+    throw new Error("resume execution profile digest does not match the stored snapshot");
+  }
+  assertExecutionRuntimeSnapshot(profile, request.execution_profile.runtime);
+  return { profile, digest };
+}
+
+function runtimeIdentity(executor) {
+  const identity = providerRuntimeIdentity(executor);
+  return {
+    executor,
+    version: identity.version,
+    binary_digest: identity.binary_digest ?? null,
+  };
+}
+
+function executionRuntimeSnapshot(profile, workflow) {
+  if (profile?.schema_version !== "3.0.0" || !workflow) return null;
+  const identities = new Map(
+    executionProfileExecutors(profile).map((executor) => [executor, runtimeIdentity(executor)]),
+  );
+  return {
+    routes: resolveWorkflowRoutes(profile, workflow).map((route) => ({
+      ...route,
+      executor_version: identities.get(route.executor)?.version ?? null,
+      executor_binary_digest: identities.get(route.executor)?.binary_digest ?? null,
+    })),
+  };
+}
+
+function assertExecutionRuntimeSnapshot(profile, stored) {
+  if (profile.schema_version !== "3.0.0") return;
+  if (!stored?.routes) {
+    throw new Error("resume requires the stored execution route and provider-version snapshot");
+  }
+  const workflow = {
+    nodes: stored.routes.map((route) => ({ id: route.node_id, kind: "agent", tier: route.tier })),
+  };
+  const current = executionRuntimeSnapshot(profile, workflow);
+  if (JSON.stringify(current) !== JSON.stringify(stored)) {
+    throw new Error(
+      "resume execution route, model, variant, or provider version drifted; start a recovery run with the original runtime",
+    );
+  }
+}
+
+function storedRunWorkflow(request, options) {
+  if (!request.workflow || request.workflow.mode === "legacy-linear") return null;
+  const workflow = validateWorkflow(request.workflow.snapshot);
+  const digest = workflowDigest(workflow);
+  if (digest !== request.workflow.digest)
+    throw new Error("stored workflow digest does not match its snapshot");
+  if (options.workflow && loadWorkflow(options.workflow).digest !== digest) {
+    throw new Error("resume workflow digest does not match the stored workflow snapshot");
+  }
+  return { workflow, digest };
 }
 
 function storedRunPolicy(request, options) {
@@ -403,14 +544,43 @@ function newRunContext(projectRoot, options) {
   // Fail before branch/worktree creation when the policy is malformed or points
   // at protected credential material.
   const resolvedPolicy = loadAutonomousPolicy(options.policy);
+  const resolvedWorkflow = resolveNewWorkflow(projectRoot, options);
+  const resolvedExecutionProfile = options["execution-profile"]
+    ? loadExecutionProfile(options["execution-profile"])
+    : null;
+  if (resolvedWorkflow && resolvedExecutionProfile) {
+    assertExecutionProfileCoverage(resolvedExecutionProfile.profile, resolvedWorkflow.workflow);
+  }
+  if (
+    options["in-place"] === true &&
+    executionProfileExecutors(resolvedExecutionProfile?.profile).includes("opencode")
+  ) {
+    throw new Error("OpenCode routes require an isolated RAE worktree and reject --in-place");
+  }
+  const resolvedExecutionRuntime = executionRuntimeSnapshot(
+    resolvedExecutionProfile?.profile,
+    resolvedWorkflow?.workflow,
+  );
+  const directExecutionRuntime =
+    options.provider === "opencode" ? runtimeIdentity("opencode") : null;
   const initialized = initializeRun(projectRoot, options["in-place"] === true);
   const runDir = resolve(initialized.workspaceRoot, ".pipeline", "runs", initialized.runId);
-  writeJson(
-    resolve(runDir, "request.json"),
-    newRunRequest(task, projectRoot, initialized, options, resolvedPolicy),
-  );
+  const resolvedRun = {
+    task,
+    projectRoot,
+    initialized,
+    options,
+    resolvedPolicy,
+    resolvedWorkflow,
+    resolvedExecutionProfile,
+    resolvedExecutionRuntime,
+    directExecutionRuntime,
+  };
+  writeJson(resolve(runDir, "request.json"), newRunRequest(resolvedRun));
+  if (resolvedWorkflow) writeWorkflowSnapshot(runDir, resolvedWorkflow);
   const gitStatePath = resolve(runDir, "initial-git-state.json");
   writeJson(gitStatePath, gitStateSnapshot(initialized.workspaceRoot));
+  const workflowConfiguration = workflowConfigurationFields(resolvedWorkflow);
   return {
     ...initialized,
     projectRoot,
@@ -419,31 +589,120 @@ function newRunContext(projectRoot, options) {
     resumed: false,
     policy: resolvedPolicy.policy,
     policyDigest: resolvedPolicy.digest,
+    ...workflowConfiguration,
+    executionProfile: resolvedExecutionProfile?.profile ?? null,
+    executionProfileDigest: resolvedExecutionProfile?.digest ?? null,
+    executionRuntime: resolvedExecutionRuntime,
+    runDir,
   };
 }
 
-function newRunRequest(task, projectRoot, initialized, options, resolvedPolicy) {
+function writeWorkflowSnapshot(runDir, resolvedWorkflow) {
+  const directory = resolve(runDir, "workflow");
+  mkdirSync(resolve(directory, "payload-contracts"), { recursive: true, mode: 0o700 });
+  mkdirSync(resolve(directory, "agent-outputs"), { recursive: true, mode: 0o700 });
+  writeJson(resolve(directory, "snapshot.json"), {
+    schema_version: resolvedWorkflow.workflow.schema_version,
+    digest: resolvedWorkflow.digest,
+    workflow: resolvedWorkflow.workflow,
+  });
+  writeJson(
+    resolve(directory, "node-guidance.json"),
+    Object.fromEntries(resolvedWorkflow.workflow.nodes.map((node) => [node.id, node.guidance])),
+  );
+  writeJson(
+    resolve(directory, "payload-contracts.json"),
+    resolvedWorkflow.workflow.payload_contracts ?? {},
+  );
+}
+
+function resolveNewWorkflow(projectRoot, options) {
+  if (options["legacy-linear"] === true || (options.provider === "command" && !options.workflow))
+    return null;
+  if (options.workflow)
+    return { ...loadWorkflow(options.workflow), source: resolve(options.workflow) };
+  const active = resolveActivatedWorkflow(projectRoot);
+  if (active) return active;
+  return { ...loadWorkflow(DEFAULT_WORKFLOW_PATH), source: DEFAULT_WORKFLOW_PATH };
+}
+
+function newRunRequest(context) {
+  const {
+    task,
+    projectRoot,
+    initialized,
+    options,
+    resolvedPolicy,
+    resolvedWorkflow,
+    resolvedExecutionProfile,
+    resolvedExecutionRuntime,
+    directExecutionRuntime,
+  } = context;
   return {
-    schema_version: "1.0.0",
+    schema_version: resolvedWorkflow?.workflow.schema_version ?? "1.0.0",
     task,
     provider: options.provider ?? "auto",
-    agent: requestedAgent(options),
+    agent: requestedAgent(options, directExecutionRuntime),
     requested_at: new Date().toISOString(),
     primary_project_root: projectRoot,
     workspace_root: initialized.workspaceRoot,
     workspace_mode: options["in-place"] ? "main-repo" : "git-worktree",
     mutation_policy: "workspace-only-no-commit-no-push",
     checkpoint_policy: checkpointPolicy(options["checkpoint-policy"]),
+    graph_memory: options["graph-memory"] ?? "off",
     policy: requestedPolicy(resolvedPolicy),
+    execution_profile: requestedExecutionProfile(
+      resolvedExecutionProfile,
+      resolvedExecutionRuntime,
+    ),
+    workflow: requestedWorkflow(resolvedWorkflow, options),
   };
 }
 
-function requestedAgent(options) {
+function requestedExecutionProfile(resolvedExecutionProfile, runtime) {
+  if (!resolvedExecutionProfile) return null;
+  return {
+    profile_id: resolvedExecutionProfile.profile.profile_id,
+    digest: resolvedExecutionProfile.digest,
+    source: resolvedExecutionProfile.source,
+    snapshot: resolvedExecutionProfile.profile,
+    runtime,
+  };
+}
+
+function requestedWorkflow(resolvedWorkflow, options) {
+  if (!resolvedWorkflow) return { mode: "legacy-linear" };
+  const { workflow, digest, source } = resolvedWorkflow;
+  return {
+    mode: "graph-native",
+    workflow_id: workflow.workflow_id,
+    revision: workflow.revision,
+    digest,
+    source,
+    ...requestedWorkflowBounds(workflow, options),
+    snapshot: workflow,
+  };
+}
+
+function requestedWorkflowBounds(workflow, options) {
+  const requestedBound = (name, fallback) => Number(options[name] ?? fallback);
+  return {
+    max_concurrency: requestedBound("max-concurrency", workflow.budgets?.max_concurrency ?? 4),
+    max_repair_rounds: requestedBound(
+      "max-repair-rounds",
+      workflow.budgets?.max_repair_rounds ?? 5,
+    ),
+  };
+}
+
+function requestedAgent(options, runtime = null) {
   return {
     provider: options.provider ?? "auto",
     ...agentCommand(options),
     command_args: options.agentArgs,
     ...agentTuning(options),
+    variant: options.variant ?? null,
+    runtime,
     allow_unsafe_command_provider: options["allow-unsafe-command-provider"] === true,
   };
 }

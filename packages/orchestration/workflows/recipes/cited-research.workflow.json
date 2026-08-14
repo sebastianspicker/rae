@@ -1,0 +1,25 @@
+{
+  "schema_version": "2.1.0",
+  "workflow_id": "cited-research",
+  "revision": 1,
+  "title": "Source-backed research quorum",
+  "entry_node": "claims",
+  "terminal_node": "complete",
+  "budgets": { "max_concurrency": 4, "max_repair_rounds": 5, "max_attempts_per_node": 3, "max_dynamic_instances": 128, "max_pipeline_depth": 4, "max_map_items": 32 },
+  "nodes": [
+    { "id": "claims", "kind": "agent", "access": "read", "tier": "standard", "guidance": "Decompose the task into bounded research claims and required evidence." },
+    { "id": "source-contracts", "kind": "agent", "access": "read", "tier": "judgment", "guidance": "Check the claims against primary contract and specification sources." },
+    { "id": "source-implementation", "kind": "agent", "access": "read", "tier": "judgment", "guidance": "Check the claims against repository implementation and test evidence." },
+    { "id": "source-quorum", "kind": "join", "access": "control", "guidance": "Require both independent source lanes.", "join": "quorum", "quorum": { "threshold": 2 } },
+    { "id": "verify", "kind": "gate", "access": "control", "guidance": "Reject unsupported or contradictory claims.", "verification": true },
+    { "id": "complete", "kind": "terminal", "access": "control", "guidance": "Record cited-research completion." }
+  ],
+  "edges": [
+    { "from": "claims", "to": "source-contracts", "type": "artifact", "artifact": "claims" },
+    { "from": "claims", "to": "source-implementation", "type": "artifact", "artifact": "claims" },
+    { "from": "source-contracts", "to": "source-quorum", "type": "artifact", "artifact": "source-findings" },
+    { "from": "source-implementation", "to": "source-quorum", "type": "artifact", "artifact": "source-findings" },
+    { "from": "source-quorum", "to": "verify", "type": "sequence" },
+    { "from": "verify", "to": "complete", "type": "condition", "condition": "success" }
+  ]
+}

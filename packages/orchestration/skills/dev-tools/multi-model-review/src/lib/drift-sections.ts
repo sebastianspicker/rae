@@ -1,44 +1,106 @@
 /** Parses structured review sections for deterministic drift analysis. */
+import type {
+  DriftClaim,
+  DriftClaimType,
+  DriftFinding,
+  DriftVerificationStatus,
+} from "../types.js";
+
 export interface Section {
   heading: string;
   body: string;
   synthetic?: boolean;
 }
 
+function markdownHeading(line: string): string | undefined {
+  const heading = line.match(/^#{1,6}\s+(.+)/)?.[1];
+  return heading === undefined ? undefined : heading.trim();
+}
+
+function appendSection(
+  sections: Section[],
+  heading: string | undefined,
+  bodyLines: string[],
+): void {
+  if (heading === undefined) return;
+  sections.push({
+    heading,
+    body: bodyLines.length > 0 ? `${bodyLines.join("\n")}\n` : "",
+  });
+}
+
+function prependPreamble(sections: Section[], preambleLines: string[]): void {
+  const preamble = preambleLines.join("\n").trim();
+  if (preamble.length === 0) return;
+  sections.unshift({
+    heading: sections.length > 0 ? "Preamble" : "Document",
+    body: preamble,
+    synthetic: true,
+  });
+}
+
+/**
+ * Splits a document into sections by markdown-style headings.
+ * Lines starting with # are section boundaries.
+ */
 export function parseSections(text: string): Section[] {
   const sections: Section[] = [];
-  let current: Section | null = null;
+  let currentHeading: string | undefined;
+  let currentBodyLines: string[] = [];
   const preambleLines: string[] = [];
+
   for (const line of text.split("\n")) {
-    const match = line.match(/^#{1,6}\s+(.+)/);
-    if (match?.[1]) {
-      if (current) sections.push(current);
-      current = { heading: match[1].trim(), body: "" };
-    } else if (current) current.body += `${line}\n`;
-    else preambleLines.push(line);
+    const heading = markdownHeading(line);
+    if (heading !== undefined) {
+      appendSection(sections, currentHeading, currentBodyLines);
+      currentHeading = heading;
+      currentBodyLines = [];
+      continue;
+    }
+    if (currentHeading === undefined) {
+      preambleLines.push(line);
+      continue;
+    }
+    currentBodyLines.push(line);
   }
-  if (current) sections.push(current);
-  const preamble = preambleLines.join("\n").trim();
-  if (preamble)
-    sections.unshift({
-      heading: sections.length ? "Preamble" : "Document",
-      body: preamble,
-      synthetic: true,
-    });
+  appendSection(sections, currentHeading, currentBodyLines);
+  prependPreamble(sections, preambleLines);
+
   return sections;
 }
 
+export function extractNormalizedHeadings(text: string): Set<string> {
+  const headings = new Set<string>();
+  for (const line of text.split("\n")) {
+    const heading = markdownHeading(line);
+    if (heading !== undefined) headings.add(normalize(heading));
+  }
+  return headings;
+}
+
+/**
+ * Extracts key assertions from a section body.
+ * Looks for: bullet points, bold text, constraint keywords.
+ */
 export function extractAssertions(body: string): string[] {
-  return body
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) =>
-      /^(?:[-*•]\s+|\d+[.)]\s+)|\b(must|shall|should|requires?|constraint|ensures?|guarantees?|limit)\b/i.test(
-        line,
-      ),
-    )
-    .map((line) => line.replace(/^[-*•\d.)]+\s*/, "").trim())
-    .filter((line) => line.length > 5);
+  const assertions: string[] = [];
+  const lines = body.split("\n");
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const isBullet = /^[-*•]\s+/.test(trimmed);
+    const isNumbered = /^\d+[.)]\s+/.test(trimmed);
+    const hasKeyword =
+      /\b(must|shall|should|requires?|constraint|ensures?|guarantees?|limit)\b/i.test(trimmed);
+
+    if (isBullet || isNumbered || hasKeyword) {
+      assertions.push(trimmed.replace(/^[-*•\d.)]+\s*/, "").trim());
+    }
+  }
+
+  return assertions.filter((a) => a.length > 5);
 }
 
 export function normalize(text: string): string {
@@ -55,64 +117,72 @@ export function classifyClaimType(claim: string): DriftClaimType {
     /\b(auth|jwt|csrf|xss|secret|encryption|token|permission|rbac|owasp|vulnerability|security)\b/.test(
       text,
     )
-  )
+  ) {
     return "security";
+  }
   if (
     /\b(latency|throughput|cache|performance|memory|cpu|scale|rate limit|qps|timeout)\b/.test(text)
-  )
+  ) {
     return "performance";
-  if (/\b(readme|docs|documentation|changelog|guide|example)\b/.test(text)) return "docs";
-  if (/\b(api|endpoint|route|schema|contract|interface|payload|request|response)\b/.test(text))
+  }
+  if (/\b(readme|docs|documentation|changelog|guide|example)\b/.test(text)) {
+    return "docs";
+  }
+  if (/\b(api|endpoint|route|schema|contract|interface|payload|request|response)\b/.test(text)) {
     return "interface";
+  }
   return "invariant";
 }
 
 export function toDriftScore(status: DriftVerificationStatus): number {
-  return status === "verified" ? 0 : status === "partial" ? 0.5 : status === "violated" ? 1 : 0.75;
+  if (status === "verified") return 0;
+  if (status === "partial") return 0.5;
+  if (status === "violated") return 1;
+  return 0.75;
 }
 
-export function claimMatchScore(claim: string, target: string): number {
-  const words = normalize(claim)
+/**
+ * Calculates significant keyword overlap score between claim and target.
+ */
+export function claimMatchScore(claim: string, targetText: string): number {
+  const claimWords = normalize(claim)
     .split(" ")
-    .filter((word) => word.length > 2);
-  if (!words.length) return -1;
-  const normalizedTarget = normalize(target);
-  return words.filter((word) => normalizedTarget.includes(word)).length / words.length;
+    .filter((w) => w.length > 2);
+  if (claimWords.length === 0) return -1;
+
+  const targetNorm = normalize(targetText);
+  let hits = 0;
+  for (const w of claimWords) {
+    if (targetNorm.includes(w)) hits++;
+  }
+  return hits / claimWords.length;
 }
 
 export function toVerificationStatus(score: number): DriftVerificationStatus {
-  return score < 0
-    ? "unverifiable"
-    : score >= 0.6
-      ? "verified"
-      : score >= 0.35
-        ? "partial"
-        : "violated";
+  if (score < 0) return "unverifiable";
+  if (score >= 0.6) return "verified";
+  if (score >= 0.35) return "partial";
+  return "violated";
 }
 
 export function findingSeverity(status: DriftVerificationStatus): DriftFinding["severity"] {
-  return status === "violated"
-    ? "high"
-    : status === "partial" || status === "unverifiable"
-      ? "medium"
-      : "low";
+  if (status === "violated") return "high";
+  if (status === "partial" || status === "unverifiable") return "medium";
+  return "low";
 }
 
 export function buildFindingsFromClaims(claims: DriftClaim[]): DriftFinding[] {
-  return claims
-    .filter((claim) => claim.verification_status !== "verified")
-    .map((claim) => ({
+  const findings: DriftFinding[] = [];
+  for (const claim of claims) {
+    if (claim.verification_status === "verified") continue;
+    findings.push({
       description: `Claim is ${claim.verification_status}: "${claim.claim}"`,
       claim_type: claim.claim_type,
       severity: findingSeverity(claim.verification_status),
       claim_ids: [claim.id],
       mitigation:
         "Verify this requirement is addressed in the target artifact and update implementation or plan accordingly.",
-    }));
+    });
+  }
+  return findings;
 }
-import type {
-  DriftClaim,
-  DriftClaimType,
-  DriftFinding,
-  DriftVerificationStatus,
-} from "../types.js";

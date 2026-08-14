@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-08-04
 source_of_truth: editorial
 evidence_links: claims/claims-ledger.md
 ---
@@ -35,6 +35,20 @@ evidence_links: claims/claims-ledger.md
 - `orchestration`
   A staged workflow that separates intake, design, build, and verification into
   bounded phases.
+- `Codex subagent`
+  A delegated collaborator inside one native Codex task. It is distinct from a
+  RAE node, which starts a fresh durable `codex exec` session.
+- `node instance`
+  One immutable execution of a logical workflow node, optionally bound to a
+  stable mapped-item key.
+- `execution tier`
+  A workflow-owned logical request for economy, standard, or judgment work. An
+  operator-owned execution profile resolves it to a named Codex or OpenCode
+  route without placing provider configuration in the workflow.
+- `execution route`
+  An operator-owned executor and model mapping selected by a logical tier or a
+  node-specific override. Routes are stored in execution profile 3.0, not in
+  workflow revisions.
 
 ## Thesis validation
 

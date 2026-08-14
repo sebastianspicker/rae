@@ -3,7 +3,13 @@
  */
 import { randomUUID } from "node:crypto";
 import { resolveWithinWorkspace } from "@coding-agents-space/shared";
-import type { GateResult, GateStatus, Input } from "../types.js";
+import type {
+  CriterionResult,
+  GateResult,
+  GateStatus,
+  Input,
+  SchemaValidationResult,
+} from "../types.js";
 import { evaluateCriteria } from "./criteria.js";
 import { validateInput } from "./input.js";
 import { validateArtifact } from "./validate.js";
@@ -11,6 +17,22 @@ import { validateArtifact } from "./validate.js";
 interface EvaluateGateOptions {
   workspaceRoot?: string;
   now?: Date;
+}
+
+/**
+ * Derives the deterministic gate verdict from completed schema and criterion checks.
+ */
+export function deriveGateVerdict(
+  schemaValidation: SchemaValidationResult,
+  criteriaResults: CriterionResult[],
+): Pick<GateResult, "status" | "blocking_failures"> {
+  const blockingFailures = criteriaResults
+    .filter((result) => !result.passed)
+    .map((result) => result.name);
+  const status: GateStatus =
+    !schemaValidation.valid || blockingFailures.length > 0 ? "fail" : "pass";
+
+  return { status, blocking_failures: blockingFailures };
 }
 
 /**
@@ -34,20 +56,19 @@ export async function evaluateGate(
   }
 
   const criteriaResults = evaluateCriteria(input.artifact, input.criteria);
-  const blockingFailures = criteriaResults.filter((r) => !r.passed).map((r) => r.name);
+  const verdict = deriveGateVerdict(schemaValidation, criteriaResults);
 
-  logs.push(`Criteria evaluated: ${criteriaResults.length}, failures: ${blockingFailures.length}`);
-
-  const status: GateStatus =
-    !schemaValidation.valid || blockingFailures.length > 0 ? "fail" : "pass";
+  logs.push(
+    `Criteria evaluated: ${criteriaResults.length}, failures: ${verdict.blocking_failures.length}`,
+  );
 
   return {
     data: {
       gate_id: randomUUID(),
       phase: input.phase,
-      status,
+      status: verdict.status,
       criteria: criteriaResults,
-      blocking_failures: blockingFailures,
+      blocking_failures: verdict.blocking_failures,
       artifact_ref: input.artifact_ref ?? "inline:artifact",
       schema_validation: schemaValidation,
       timestamp: (opts.now ?? new Date()).toISOString(),

@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/workflows/workflow-v2.2.schema.json",
+  "title": "RAE graph-native workflow v2.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workflow_id", "revision", "entry_node", "terminal_node", "nodes", "edges", "signal_contracts"],
+  "properties": {
+    "schema_version": { "const": "2.2.0" },
+    "workflow_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "entry_node": { "$ref": "#/$defs/nodeId" },
+    "terminal_node": { "$ref": "#/$defs/nodeId" },
+    "nodes": { "type": "array", "minItems": 2, "maxItems": 64, "items": { "$ref": "#/$defs/node" } },
+    "edges": { "type": "array", "minItems": 1, "maxItems": 256, "items": { "$ref": "#/$defs/edge" } },
+    "payload_contracts": { "type": "object", "maxProperties": 64, "additionalProperties": { "type": "object" } },
+    "signal_contracts": { "type": "object", "minProperties": 1, "maxProperties": 32, "additionalProperties": { "type": "object" } },
+    "budgets": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "max_concurrency": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "max_attempts_per_node": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "max_context_bytes": { "type": "integer", "minimum": 16384, "maximum": 262144 }
+      }
+    }
+  },
+  "$defs": {
+    "nodeId": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+    "signalName": { "type": "string", "pattern": "^[a-z][a-z0-9._-]{0,63}$" },
+    "wait": {
+      "type": "object", "additionalProperties": false, "required": ["timeout_seconds", "signals", "signal_contract"],
+      "properties": {
+        "timeout_seconds": { "type": "integer", "minimum": 60, "maximum": 2592000 },
+        "signals": { "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": { "$ref": "#/$defs/signalName" } },
+        "signal_contract": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,63}$" }
+      }
+    },
+    "node": {
+      "type": "object", "additionalProperties": false, "required": ["id", "kind", "access", "guidance"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nodeId" },
+        "kind": { "enum": ["agent", "join", "gate", "checkpoint", "wait", "terminal"] },
+        "access": { "enum": ["read", "write", "control"] },
+        "guidance": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "role": { "type": "string", "maxLength": 128 },
+        "payload_contract": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,63}$" },
+        "tier": { "enum": ["economy", "standard", "judgment"] },
+        "join": { "enum": ["all", "any"] },
+        "resource": { "type": "string", "maxLength": 128 },
+        "ownership_plan": { "type": "boolean" },
+        "mutation_checkpoint": { "type": "boolean" },
+        "verification": { "type": "boolean" },
+        "context": { "type": "object", "additionalProperties": false, "properties": { "include_operational_evidence": { "type": "boolean" } } },
+        "wait": { "$ref": "#/$defs/wait" }
+      }
+    },
+    "edge": {
+      "type": "object", "additionalProperties": false, "required": ["from", "to", "type"],
+      "properties": {
+        "from": { "$ref": "#/$defs/nodeId" },
+        "to": { "$ref": "#/$defs/nodeId" },
+        "type": { "enum": ["sequence", "artifact", "condition"] },
+        "artifact": { "type": "string", "maxLength": 128 },
+        "condition": { "enum": ["success", "failure", "blocking-findings", "budget-available"] }
+      }
+    }
+  }
+}

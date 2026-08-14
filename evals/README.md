@@ -30,6 +30,7 @@ This directory is the umbrella’s measurement layer.
 - `./scripts/rae.sh eval outcome --task-bundle ... --fixture-root ... --policy ... --split ... --output-dir ... --acknowledge-provider-usage`
 - `./scripts/rae.sh eval compare-outcomes --baseline ... --challenger ... --output ...`
 - `./scripts/rae.sh eval optimize --campaign ... --baseline-evaluation ... --candidate-policy ... --candidate-evaluation ... --sealed-evaluation ... --output-dir ...`
+- `./scripts/rae.sh eval improve --campaign evals/campaigns/autonomous-policy-improvement.v2.json ...`
 - `./scripts/rae.sh release-gate --benchmark-card ... --run-card ... --regression-report ... --ledger ... --output ...`
 - `./evals/harness/run-local.sh validate`
 - `./evals/harness/run-local.sh suite <output-root>`
@@ -71,3 +72,10 @@ aggregates and pairs raw challenger reports against the actual incumbent,
 requires an exact evaluator manifest, retains every decision, requires identical
 development task matrices plus a distinct held-out task-matrix digest, and
 cannot promote a policy automatically.
+
+`eval improve` is the v2 evaluator-owned wrapper around that bounded campaign.
+It permits at most ten candidates, freezes task matrices, evaluator and judge
+code, runtime envelope, payload contracts, and the trusted manifest. Candidate
+policies remain data-only and may vary only the declared roles, guidance, safe
+topology nodes and edges, joins, or loop bounds. A recommendation is an
+append-only lineage artifact, never an activation.

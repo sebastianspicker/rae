@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
+  <title id="title">RAE human-activated workflow lifecycle</title>
+  <desc id="desc">Codex proposes a read-only draft, RAE validates and stores it, a human confirms the digest and activates it, then a future run executes the immutable snapshot and records evidence.</desc>
+  <rect width="960" height="420" rx="24" fill="#f5f8f7"/>
+  <g font-family="sans-serif" fill="#17324d"><text x="48" y="54" font-size="27" font-weight="700">Drafts do not execute</text>
+    <g fill="#fff" stroke="#17324d" stroke-width="2"><rect x="45" y="145" width="135" height="64" rx="10"/><rect x="225" y="145" width="135" height="64" rx="10"/><rect x="405" y="145" width="135" height="64" rx="10"/><rect x="585" y="145" width="135" height="64" rx="10"/><rect x="765" y="145" width="150" height="64" rx="10"/></g>
+    <g font-size="16" text-anchor="middle"><text x="112" y="174">Codex proposes</text><text x="112" y="194">read-only</text><text x="292" y="174">RAE validates</text><text x="292" y="194">and drafts</text><text x="472" y="174">Human reviews</text><text x="472" y="194">typed digest</text><text x="652" y="174">Future run</text><text x="652" y="194">snapshots</text><text x="840" y="174">Execute and</text><text x="840" y="194">record evidence</text></g>
+    <g stroke="#087c82" stroke-width="4"><path d="M180 177 H225"/><path d="M360 177 H405"/><path d="M540 177 H585"/><path d="M720 177 H765"/></g>
+    <rect x="396" y="264" width="152" height="54" rx="27" fill="#fff4dc" stroke="#a05a00" stroke-width="2"/><text x="472" y="297" font-size="16" text-anchor="middle">activation boundary</text>
+    <path d="M472 264 V209" stroke="#a05a00" stroke-width="3" stroke-dasharray="7 5"/>
+    <text x="94" y="372" font-size="15">A proposal never activates itself, edits concrete model mappings, or changes an active run.</text>
+  </g>
+</svg>

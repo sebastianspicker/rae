@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/graph/graph-manifest.schema.json",
+  "title": "RAE graph manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "projector", "repository_id", "snapshot_id", "run_id", "transaction_time", "node_count", "edge_count", "nodes_digest", "edges_digest", "canonical_digest", "limits", "validation"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "projector": { "type": "string" },
+    "repository_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "snapshot_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "run_id": { "type": ["string", "null"] },
+    "transaction_time": { "type": "string", "format": "date-time" },
+    "node_count": { "type": "integer", "minimum": 0, "maximum": 250000 },
+    "edge_count": { "type": "integer", "minimum": 0, "maximum": 1000000 },
+    "nodes_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "edges_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "canonical_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "limits": { "type": "object", "additionalProperties": false, "required": ["max_nodes", "max_edges", "max_file_bytes"], "properties": { "max_nodes": { "const": 250000 }, "max_edges": { "const": 1000000 }, "max_file_bytes": { "const": 1048576 } } },
+    "validation": { "type": "object", "additionalProperties": false, "required": ["valid", "issues"], "properties": { "valid": { "type": "boolean" }, "issues": { "type": "array", "items": { "type": "string" } } } }
+  }
+}

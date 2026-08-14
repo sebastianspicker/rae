@@ -171,25 +171,24 @@ function renameClaim(source, target) {
   }
 }
 
-function acquireGuardClaim(paths) {
-  const target = claimantPath(paths);
+function claimActiveGuard(paths, target) {
   try {
     renameSync(paths.active, target);
-    return { found: true, path: target };
+    return true;
   } catch (error) {
-    if (error.code !== "ENOENT") {
-      if (["EEXIST", "ENOTEMPTY"].includes(error.code)) throw guardClaimError();
-      throw error;
-    }
+    if (error.code === "ENOENT") return false;
+    if (["EEXIST", "ENOTEMPTY"].includes(error.code)) throw guardClaimError();
+    throw error;
   }
+}
+
+function acquireGuardClaim(paths) {
+  const target = claimantPath(paths);
+  if (claimActiveGuard(paths, target)) return { found: true, path: target };
 
   const evidence = guardEvidence(paths);
   if (!evidence) return { found: false, path: null };
-  if (evidence.kind === "active") {
-    renameClaim(evidence.path, target);
-    return { found: true, path: target };
-  }
-  if (processAlive(evidence.pid)) throw guardClaimError();
+  if (evidence.kind === "claim" && processAlive(evidence.pid)) throw guardClaimError();
   renameClaim(evidence.path, target);
   return { found: true, path: target };
 }
@@ -260,10 +259,15 @@ function readManifest(activePath) {
   return manifest;
 }
 
+function safeGuardSegment(segment) {
+  return segment.length > 0 && segment !== "." && segment !== "..";
+}
+
 function safeGuardRef(ref, allowRoot = false) {
   if (allowRoot && ref === "") return true;
-  if (typeof ref !== "string" || !ref || ref.includes("\\") || ref.startsWith("/")) return false;
-  return !ref.split("/").some((part) => !part || part === "." || part === "..");
+  if (typeof ref !== "string" || ref.length === 0) return false;
+  if (ref.includes("\\") || ref.startsWith("/")) return false;
+  return ref.split("/").every(safeGuardSegment);
 }
 
 function validFileEntry(entry) {
@@ -422,6 +426,20 @@ function changedEntries(beforeEntries, afterEntries, ignored = new Set()) {
     .sort();
 }
 
+function safePathStat(pathValue) {
+  try {
+    return lstatSync(pathValue);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function isExpectedRuntimeEntry(stat, index, lastIndex) {
+  if (stat.isSymbolicLink()) return false;
+  return index === lastIndex ? stat.isFile() : stat.isDirectory();
+}
+
 function safeRuntimeFile(pipelineRoot, ref) {
   const normalized = ref.replaceAll("\\", "/");
   const segments = normalized.split("/");
@@ -429,19 +447,23 @@ function safeRuntimeFile(pipelineRoot, ref) {
   let current = pipelineRoot;
   for (const [index, segment] of segments.entries()) {
     current = resolve(current, segment);
-    let stat;
-    try {
-      stat = lstatSync(current);
-    } catch (error) {
-      if (error.code === "ENOENT") return null;
-      throw error;
-    }
-    if (stat.isSymbolicLink()) return null;
-    if (index < segments.length - 1 && !stat.isDirectory()) return null;
-    if (index === segments.length - 1 && !stat.isFile()) return null;
+    const stat = safePathStat(current);
+    if (!stat || !isExpectedRuntimeEntry(stat, index, segments.length - 1)) return null;
   }
   const stat = lstatSync(current);
   return { bytes: readFileSync(current), mode: modeOf(stat) };
+}
+
+function assertSnapshotPathEntry(stat, index, lastIndex, ref) {
+  if (stat.isSymbolicLink()) {
+    throw new Error(`pipeline state guard payload contains a symlink: ${ref}`);
+  }
+  if (index < lastIndex && !stat.isDirectory()) {
+    throw new Error(`pipeline state guard payload parent is not a directory: ${ref}`);
+  }
+  if (index === lastIndex && !stat.isFile()) {
+    throw new Error(`pipeline state guard payload is not a file: ${ref}`);
+  }
 }
 
 function snapshotFile(activePath, manifest, ref) {
@@ -449,19 +471,12 @@ function snapshotFile(activePath, manifest, ref) {
   if (entry?.kind !== "file") return null;
   const pathValue = resolve(activePath, "payload", ref);
   const payloadRoot = resolve(activePath, "payload");
+  const segments = ref.split("/");
   let current = payloadRoot;
-  for (const [index, segment] of ref.split("/").entries()) {
+  for (const [index, segment] of segments.entries()) {
     current = resolve(current, segment);
     const stat = lstatSync(current);
-    if (stat.isSymbolicLink()) {
-      throw new Error(`pipeline state guard payload contains a symlink: ${ref}`);
-    }
-    if (index < ref.split("/").length - 1 && !stat.isDirectory()) {
-      throw new Error(`pipeline state guard payload parent is not a directory: ${ref}`);
-    }
-    if (index === ref.split("/").length - 1 && !stat.isFile()) {
-      throw new Error(`pipeline state guard payload is not a file: ${ref}`);
-    }
+    assertSnapshotPathEntry(stat, index, segments.length - 1, ref);
   }
   const bytes = readFileSync(pathValue);
   if (sha256(bytes) !== entry.sha256 || bytes.length !== entry.size) {
@@ -709,6 +724,23 @@ function restoredGuardResult(manifest, recovery, state) {
   };
 }
 
+function runtimeStateWasTampered(runtimeState, recovery) {
+  return (
+    recovery ||
+    Boolean(runtimeState.transitionError) ||
+    Boolean(runtimeState.currentError) ||
+    runtimeState.changed.length > 0
+  );
+}
+
+function releaseFailedClaim(paths, claimPath, error) {
+  try {
+    releaseClaimForRetry(paths, claimPath);
+  } catch (releaseError) {
+    error.guardClaimReleaseError = releaseError.message;
+  }
+}
+
 function restoreGuardedRuntime(claim, manifest, pipelineRoot, state, options) {
   restoreSnapshot(claim.path, manifest, pipelineRoot, options.afterPipelineRemoval);
   const verificationIgnored = restoreRuntimeTransition(pipelineRoot, manifest, state.transition);
@@ -743,11 +775,7 @@ export function reconcileRuntimeStateGuard(workspaceRoot, options = {}) {
     const manifest = claimedManifest(paths, claim, expectedRunId, recovery, afterClaim);
     const pipelineRoot = resolve(paths.identity.workspace, ".pipeline");
     const runtimeState = guardedRuntimeState(claim.path, manifest, pipelineRoot, allowedRefs);
-    const tampered =
-      recovery ||
-      Boolean(runtimeState.transitionError) ||
-      Boolean(runtimeState.currentError) ||
-      runtimeState.changed.length > 0;
+    const tampered = runtimeStateWasTampered(runtimeState, recovery);
     if (!tampered) {
       rmSync(claim.path, { recursive: true, force: true });
       return {
@@ -762,11 +790,7 @@ export function reconcileRuntimeStateGuard(workspaceRoot, options = {}) {
       recovery,
     });
   } catch (error) {
-    try {
-      releaseClaimForRetry(paths, claim.path);
-    } catch (releaseError) {
-      error.guardClaimReleaseError = releaseError.message;
-    }
+    releaseFailedClaim(paths, claim.path, error);
     throw error;
   }
 }

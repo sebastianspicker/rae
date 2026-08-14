@@ -26,7 +26,7 @@ function httpError(status, message) {
 }
 
 function assertAllowedStartFields(body) {
-  const allowed = new Set(["task", "checkpoint_policy"]);
+  const allowed = new Set(["task", "checkpoint_policy", "execution_profile_id"]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) throw httpError(400, `unsupported start field: ${key}`);
   }
@@ -48,11 +48,15 @@ function startCheckpointPolicy(value) {
   return policy;
 }
 
-export function validateStartInput(body) {
+export function validateStartInput(body, executionProfile = null) {
   assertAllowedStartFields(body);
+  if (body.execution_profile_id !== undefined && !executionProfile?.source) {
+    throw httpError(400, "execution_profile_id must name a preloaded execution profile");
+  }
   return {
     task: normalizedStartTask(body.task),
     checkpointPolicy: startCheckpointPolicy(body.checkpoint_policy),
+    ...(executionProfile ? { executionProfile } : {}),
   };
 }
 
@@ -76,6 +80,43 @@ function validateResumeRequest(run) {
   ) {
     throw httpError(409, "command-provider runs cannot be resumed from the operator console");
   }
+}
+
+function computeCheckpoint(run, body, outcomes) {
+  const wasPending = run.checkpoints.some(
+    (item) => item.checkpoint_id === body.checkpoint_id && item.status === "pending",
+  );
+  const checkpoint = resolveCheckpointById(
+    run.id,
+    body.checkpoint_id,
+    {
+      status: outcomes[body.decision],
+      decisionId: typeof body.decision_id === "string" ? body.decision_id : randomUUID(),
+      actor: "rae-loopback-operator",
+      rationale: body.rationale,
+    },
+    run.workspaceRoot,
+  );
+  if (wasPending) {
+    appendTraceEvent(
+      run.id,
+      {
+        event: "checkpoint_resolved",
+        phase: checkpoint.phase,
+        status: checkpoint.status === "approved" ? "ok" : "blocked",
+      },
+      run.workspaceRoot,
+    );
+    if (checkpoint.status !== "approved") {
+      appendTraceEvent(
+        run.id,
+        { event: "run_blocked", phase: checkpoint.phase, status: "blocked" },
+        run.workspaceRoot,
+      );
+    }
+  }
+  ensureRuntimeStateReadable(run.workspaceRoot, { expectedRunId: run.id });
+  return checkpoint;
 }
 
 export class RunController {
@@ -199,8 +240,8 @@ export class RunController {
     return this.ownedRunId;
   }
 
-  start(project, body) {
-    const { task, checkpointPolicy } = validateStartInput(body);
+  start(project, body, executionProfile = null) {
+    const { task, checkpointPolicy } = validateStartInput(body, executionProfile);
     const baselineIds = new Set(this.discoverRunsFn(project).map((run) => run.id));
     this.#spawn(
       project,
@@ -214,6 +255,7 @@ export class RunController {
         "codex",
         "--checkpoint-policy",
         checkpointPolicy,
+        ...(executionProfile ? ["--execution-profile", executionProfile.source] : []),
         "--json",
       ],
       baselineIds,
@@ -344,40 +386,7 @@ export class RunController {
     }
     const outcomes = { approve: "approved", reject: "rejected", escalate: "escalated" };
     try {
-      const wasPending = run.checkpoints.some(
-        (item) => item.checkpoint_id === body.checkpoint_id && item.status === "pending",
-      );
-      const checkpoint = resolveCheckpointById(
-        run.id,
-        body.checkpoint_id,
-        {
-          status: outcomes[body.decision],
-          decisionId: typeof body.decision_id === "string" ? body.decision_id : randomUUID(),
-          actor: "rae-loopback-operator",
-          rationale: body.rationale,
-        },
-        run.workspaceRoot,
-      );
-      if (wasPending) {
-        appendTraceEvent(
-          run.id,
-          {
-            event: "checkpoint_resolved",
-            phase: checkpoint.phase,
-            status: checkpoint.status === "approved" ? "ok" : "blocked",
-          },
-          run.workspaceRoot,
-        );
-        if (checkpoint.status !== "approved") {
-          appendTraceEvent(
-            run.id,
-            { event: "run_blocked", phase: checkpoint.phase, status: "blocked" },
-            run.workspaceRoot,
-          );
-        }
-      }
-      ensureRuntimeStateReadable(run.workspaceRoot, { expectedRunId: run.id });
-      return checkpoint;
+      return computeCheckpoint(run, body, outcomes);
     } catch (error) {
       if (/conflicting terminal decision|being resolved/.test(error.message)) error.status = 409;
       throw error;

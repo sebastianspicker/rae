@@ -1,0 +1,4 @@
+# Copy outside the repository, replace the values, chmod 600, and never upload it.
+[projects.example-project]
+root = "/absolute/canonical/git/root"
+profile = "/absolute/path/to/snapshotted-execution-profile-v2.json"

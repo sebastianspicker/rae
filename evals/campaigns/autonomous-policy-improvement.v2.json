@@ -1,0 +1,63 @@
+{
+  "campaign_id": "autonomous-policy-improvement-v2",
+  "campaign_version": 2,
+  "status": "experimental",
+  "max_iterations": 10,
+  "baseline_policy_path": "packages/orchestration/policies/default.autonomous-policy.json",
+  "frozen_surfaces": [
+    "task_matrices",
+    "evaluator_and_judges",
+    "runtime_envelope",
+    "payload_contracts",
+    "trusted_manifest"
+  ],
+  "candidate_change_allowlist": [
+    "roles",
+    "guidance",
+    "safe_nodes",
+    "edges",
+    "joins",
+    "loop_bounds"
+  ],
+  "trusted_paths": [
+    "evals/schemas/outcome-task-spec.schema.json",
+    "evals/schemas/outcome-task-bundle.schema.json",
+    "evals/schemas/outcome-report.schema.json",
+    "evals/schemas/outcome-comparison.schema.json",
+    "evals/scripts/lib/outcome_eval.py",
+    "evals/scripts/lib/outcome_comparison.py",
+    "evals/scripts/lib/outcome_rae.py",
+    "evals/scripts/lib/outcome_resources.py",
+    "evals/scripts/lib/policy_optimizer.py",
+    "evals/scripts/lib/policy_optimizer_evidence.py",
+    "evals/scripts/lib/policy_optimizer_policy.py",
+    "evals/scripts/lib/policy_improvement_campaign.py",
+    "evals/scripts/run_outcome_benchmark.py",
+    "evals/scripts/compare_outcome_reports.py",
+    "evals/scripts/optimize_harness.py",
+    "evals/scripts/improve_harness.py",
+    "evals/schemas/improvement-campaign.schema.json",
+    "packages/orchestration/contracts/autonomous-policy.schema.json",
+    "packages/orchestration/contracts/workflows/workflow-v2.schema.json",
+    "packages/orchestration/contracts/workflows/node-envelope-v2.schema.json",
+    "packages/orchestration/workflows/graph-native-default.workflow.json",
+    "packages/orchestration/scripts/pipeline/lib/workflow-contract.mjs",
+    "packages/orchestration/scripts/pipeline/lib/workflow-scheduler.mjs",
+    "scripts/lib/runtime.sh",
+    "evals/datasets/autonomous-outcomes/core.task-bundle.json",
+    "evals/fixtures/autonomous-outcomes/compile-repair/README.md",
+    "evals/fixtures/autonomous-outcomes/compile-repair/app.py",
+    "evals/fixtures/autonomous-outcomes/compile-repair/tests/test_app.py",
+    "evals/fixtures/autonomous-outcomes/logic-regression/README.md",
+    "evals/fixtures/autonomous-outcomes/logic-regression/calculator.py",
+    "evals/fixtures/autonomous-outcomes/logic-regression/tests/test_calculator.py",
+    "evals/fixtures/autonomous-outcomes/scope-stress/README.md",
+    "evals/fixtures/autonomous-outcomes/scope-stress/normalizer.py",
+    "evals/fixtures/autonomous-outcomes/scope-stress/tests/test_normalizer.py"
+  ],
+  "resource_budget": {
+    "max_agent_duration_seconds": 7200,
+    "max_total_tokens": 1000000,
+    "max_agent_calls": 80
+  }
+}

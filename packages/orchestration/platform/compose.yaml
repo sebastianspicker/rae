@@ -1,0 +1,45 @@
+# Experimental development only: Postgres and MinIO use cleartext loopback ports.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment: { POSTGRES_USER: rae, POSTGRES_PASSWORD: rae-dev-only, POSTGRES_DB: rae_platform }
+    ports: ["127.0.0.1:5432:5432"]
+    tmpfs: [/tmp]
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address :9001
+    environment: { MINIO_ROOT_USER: "${RAE_DEV_MINIO_ACCESS_KEY:?set RAE_DEV_MINIO_ACCESS_KEY}", MINIO_ROOT_PASSWORD: "${RAE_DEV_MINIO_SECRET_KEY:?set RAE_DEV_MINIO_SECRET_KEY}" }
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+  minio-init:
+    image: minio/mc:latest
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD && mc mb --ignore-existing local/rae-artifacts && mc version enable local/rae-artifacts"]
+    environment: { MINIO_ROOT_USER: "${RAE_DEV_MINIO_ACCESS_KEY:?set RAE_DEV_MINIO_ACCESS_KEY}", MINIO_ROOT_PASSWORD: "${RAE_DEV_MINIO_SECRET_KEY:?set RAE_DEV_MINIO_SECRET_KEY}" }
+    depends_on: [minio]
+  migrate:
+    build: { context: ../../.., dockerfile: packages/orchestration/platform/Dockerfile }
+    command: [migrate]
+    environment: { RAE_PLATFORM_CONFIG: /run/config/platform.toml, AWS_ACCESS_KEY_ID: "${RAE_DEV_MINIO_ACCESS_KEY:?set RAE_DEV_MINIO_ACCESS_KEY}", AWS_SECRET_ACCESS_KEY: "${RAE_DEV_MINIO_SECRET_KEY:?set RAE_DEV_MINIO_SECRET_KEY}" }
+    volumes: ["./dev/platform.toml:/run/config/platform.toml:ro"]
+    depends_on: [postgres]
+    read_only: true
+    tmpfs: [/tmp]
+  control:
+    build: { context: ../../.., dockerfile: packages/orchestration/platform/Dockerfile }
+    environment: { RAE_PLATFORM_CONFIG: /run/config/platform.toml }
+    volumes: ["./dev/platform.toml:/run/config/platform.toml:ro"]
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on: [migrate, minio-init]
+    read_only: true
+    tmpfs: [/tmp]
+  worker:
+    build: { context: ../../.., dockerfile: packages/orchestration/platform/Dockerfile }
+    entrypoint: ["node", "platform/bin/rae-platform-worker.mjs"]
+    command: [run]
+    profiles: [worker]
+    user: "${RAE_DEV_WORKER_UID:?set a non-root RAE_DEV_WORKER_UID}:${RAE_DEV_WORKER_GID:?set RAE_DEV_WORKER_GID}"
+    environment: { HOME: /tmp/worker-home, CODEX_HOME: /tmp/codex-home, RAE_PLATFORM_URL: "http://control:8080", RAE_PLATFORM_ALLOW_INSECURE_DEVELOPMENT: "true", RAE_PLATFORM_TOKEN: replace-with-oidc-token, RAE_WORKER_ID: compose-worker, RAE_PROJECT_MAP_FILE: /run/config/projects.toml, RAE_REPOSITORY_DIGEST: replace-with-repository-digest, RAE_WORKTREE_DIGEST: replace-with-worktree-digest }
+    volumes: ["${RAE_DEV_PROJECT_MAP:?set RAE_DEV_PROJECT_MAP}:/run/config/projects.toml:ro"]
+    depends_on: [control]
+    read_only: true
+    tmpfs: [/tmp]

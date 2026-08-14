@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-07-24
+last_reviewed: 2026-08-04
 source_of_truth: README.md
 evidence_links: reference/claims/evidence-index.md
 ---
@@ -21,6 +21,7 @@ common commands, repository structure, and current limitations.
 
 ## Tutorials
 
+- [Graph engineering with RAE](tutorials/graph-engineering-with-rae.md)
 - [First pipeline](tutorials/first-pipeline.md)
 - [Autonomous code change](tutorials/autonomous-code-change.md)
 - [First Ralph run](tutorials/first-ralph-run.md)
@@ -42,6 +43,9 @@ common commands, repository structure, and current limitations.
 - [Repository hygiene CLI](reference/cli/repo-hygiene.md)
 - [Module boundaries](reference/architecture/module-boundaries.md)
 - [Artifact schemas](reference/contracts/artifact-schemas.md)
+- [Execution profile 3.0](reference/contracts/execution-profile-v3.md)
+- [Local graph and memory](reference/contracts/graph-memory.md)
+- [Workflow 2.2](reference/contracts/workflow-v2.2.md)
 - [Quality gates](reference/contracts/quality-gates.md)
 - [Task specifications](reference/contracts/task-specs.md)
 - [Safety boundaries](reference/invariants/safety-boundaries.md)

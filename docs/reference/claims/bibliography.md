@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: science
-last_reviewed: 2026-04-17
+last_reviewed: 2026-08-04
 source_of_truth: editorial
 evidence_links: evidence-index.md
 ---
@@ -227,6 +227,89 @@ https://doi.org/10.1518/001872095779049543
 
 Kahneman. "Thinking, Fast and Slow." 2011.
 https://us.macmillan.com/books/9780374533557/thinkingfastandslow
+
+## Graph retrieval and memory sources
+
+### SRC-W3C-PROV-O { #src-w3c-prov-o }
+
+W3C. "PROV-O: The PROV Ontology." April 30, 2013.
+https://www.w3.org/TR/prov-o/
+
+### SRC-GRAPHRAG-BENCH { #src-graphrag-bench }
+
+GraphRAG-Bench. "GraphRAG-Bench." Accessed July 29, 2026.
+https://graphrag-bench.github.io/
+
+### SRC-CODEXGRAPH { #src-codexgraph }
+
+CodexGraph. "Bridging Large Language Models and Code Repositories via Code
+Graph Databases." NAACL 2025.
+https://aclanthology.org/2025.naacl-long.7/
+
+### SRC-REPOGRAPH { #src-repograph }
+
+RepoGraph. "Enhancing AI Software Engineering with Repository-level Code
+Graph." 2024.
+https://arxiv.org/abs/2410.14684
+
+### SRC-DOES-MEMORY-NEED-GRAPHS { #src-does-memory-need-graphs }
+
+"Does Memory Need Graphs?" ACL 2026.
+https://aclanthology.org/2026.acl-long.1232/
+
+### SRC-GRAPHITI { #src-graphiti }
+
+"Zep: A Temporal Knowledge Graph Architecture for Agent Memory." 2025.
+https://arxiv.org/abs/2501.13956
+
+### SRC-GRAPHRAG-UNDER-FIRE { #src-graphrag-under-fire }
+
+"GraphRAG under Fire: Probing Robustness of Graph-Based Retrieval-Augmented
+Generation." 2025.
+https://arxiv.org/abs/2501.14050
+
+### SRC-LONGMEMEVAL-V2 { #src-longmemeval-v2 }
+
+"LongMemEval-V2: Benchmarking Memory-Augmented Agents in Long-Horizon
+Interactive Environments." 2026.
+https://arxiv.org/abs/2605.12493
+
+## Execution and containment sources
+
+### SRC-OPENCODE-CLI { #src-opencode-cli }
+
+OpenCode. "CLI." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/cli/
+
+### SRC-OPENCODE-CONFIG { #src-opencode-config }
+
+OpenCode. "Config." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/config
+
+### SRC-OPENCODE-PERMISSIONS { #src-opencode-permissions }
+
+OpenCode. "Permissions." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/permissions/
+
+### SRC-OPENCODE-TOOLS { #src-opencode-tools }
+
+OpenCode. "Tools." Accessed August 4, 2026.
+https://dev.opencode.ai/docs/tools/
+
+### SRC-OPENCODE-PROVIDERS { #src-opencode-providers }
+
+OpenCode. "Providers." Accessed August 4, 2026.
+https://opencode.ai/docs/providers
+
+### SRC-JSON-SCHEMA-2020-12 { #src-json-schema-2020-12 }
+
+JSON Schema. "JSON Schema Draft 2020-12." Accessed August 4, 2026.
+https://json-schema.org/draft/2020-12
+
+### SRC-APPLE-APP-SANDBOX { #src-apple-app-sandbox }
+
+Apple. "Accessing files from the macOS App Sandbox." Accessed August 4, 2026.
+https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox
 
 ## Coverage note
 

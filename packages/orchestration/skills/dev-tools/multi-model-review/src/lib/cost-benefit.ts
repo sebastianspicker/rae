@@ -19,6 +19,44 @@ const SEVERITY_TO_RISK: Record<Finding["severity"], Risk> = {
 
 const HIGH_COST_CATEGORIES = new Set(["architecture", "feasibility", "performance"]);
 
+const RECOMMENDATION_MATRIX: Record<Risk, Record<Cost, Rec>> = {
+  catastrophic: {
+    trivial: "fix-now",
+    low: "fix-now",
+    medium: "fix-now",
+    high: "fix-now",
+    prohibitive: "fix-now",
+  },
+  high: {
+    trivial: "fix-now",
+    low: "fix-now",
+    medium: "fix-before-ship",
+    high: "fix-before-ship",
+    prohibitive: "fix-before-ship",
+  },
+  moderate: {
+    trivial: "fix-before-ship",
+    low: "fix-before-ship",
+    medium: "defer",
+    high: "defer",
+    prohibitive: "defer",
+  },
+  low: {
+    trivial: "accept",
+    low: "accept",
+    medium: "accept",
+    high: "wont-fix",
+    prohibitive: "wont-fix",
+  },
+  negligible: {
+    trivial: "accept",
+    low: "accept",
+    medium: "wont-fix",
+    high: "wont-fix",
+    prohibitive: "wont-fix",
+  },
+};
+
 export function estimateFixCost(finding: Finding): Cost {
   return HIGH_COST_CATEGORIES.has(finding.category.toLowerCase())
     ? highImpactCost(finding.severity)
@@ -45,11 +83,7 @@ export function descriptionCost(description: string): Cost {
  * negligible    accept       accept       wont-fix      wont-fix
  */
 export function recommend(risk: Risk, cost: Cost): Rec {
-  if (risk === "catastrophic") return "fix-now";
-  if (risk === "high") return recommendHighRisk(cost);
-  if (risk === "moderate") return recommendModerateRisk(cost);
-  if (risk === "low") return costly(cost) ? "wont-fix" : "accept";
-  return isCheap(cost) ? "accept" : "wont-fix";
+  return RECOMMENDATION_MATRIX[risk][cost];
 }
 
 export function costly(cost: Cost): boolean {

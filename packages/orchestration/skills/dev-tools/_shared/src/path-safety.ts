@@ -5,6 +5,7 @@ import path from "node:path";
 import { badInput } from "./errors.js";
 import {
   assertSafeRelative,
+  isUnsafeRelativePath,
   resolveExistingAncestor,
   resolveRoot,
   validateNonEmpty,
@@ -19,22 +20,11 @@ export function assertRepoRelativePath(ref: string, label: string): void {
 }
 
 export function requireNonEmptyString(value: string, label: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw badInput(`${label} must be a non-empty string`);
-  }
-  return value.trim();
+  return validateNonEmpty(value, label);
 }
 
 export function isOutsideRelativePath(ref: string): boolean {
-  const normalized = path.normalize(ref);
-  return (
-    path.isAbsolute(ref) ||
-    normalized === "." ||
-    normalized === ".." ||
-    normalized.startsWith(`..${path.sep}`) ||
-    normalized.includes(`${path.sep}..${path.sep}`) ||
-    normalized.endsWith(`${path.sep}..`)
-  );
+  return isUnsafeRelativePath(ref, path.normalize(ref));
 }
 
 /**

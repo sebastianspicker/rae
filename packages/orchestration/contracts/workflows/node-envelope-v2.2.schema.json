@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rae.local/contracts/workflows/node-envelope-v2.2.schema.json",
+  "title": "Immutable workflow node result envelope v2.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "workflow_digest", "node_id", "instance_id", "attempt", "status", "payload", "findings", "evidence_refs", "ownership", "changed_paths", "command_evidence", "resource_usage", "input_digest", "output_digest", "execution_tier", "context_manifest"],
+  "properties": {
+    "schema_version": { "const": "2.2.0" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "workflow_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "node_id": { "type": "string", "minLength": 1 },
+    "instance_id": { "type": "string", "pattern": "^[a-zA-Z0-9._:-]{1,192}$" },
+    "attempt": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "status": { "enum": ["passed", "failed", "blocked", "stopped", "skipped"] },
+    "failure": { "type": ["object", "null"] },
+    "payload": {},
+    "findings": { "type": "array", "maxItems": 1024, "items": { "type": "object" } },
+    "evidence_refs": { "type": "array", "maxItems": 1024, "items": { "type": "string" } },
+    "ownership": { "type": "object" },
+    "changed_paths": { "type": "array", "maxItems": 4096, "uniqueItems": true, "items": { "type": "string" } },
+    "command_evidence": { "type": "array", "maxItems": 1024, "items": { "type": "object" } },
+    "resource_usage": { "type": "object" },
+    "input_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "output_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "execution_tier": { "enum": ["economy", "standard", "judgment", "runtime"] },
+    "context_manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cap_bytes", "assembled_bytes", "artifact_refs", "inline_artifacts", "mandatory_budget_bytes", "optional_budget_bytes", "included", "omitted"],
+      "properties": {
+        "cap_bytes": { "type": "integer", "minimum": 16384, "maximum": 262144 },
+        "assembled_bytes": { "type": "integer", "minimum": 0, "maximum": 262144 },
+        "mandatory_budget_bytes": { "type": "integer", "minimum": 16384, "maximum": 262144 },
+        "optional_budget_bytes": { "type": "integer", "minimum": 0, "maximum": 262144 },
+        "included": { "type": "array", "items": { "type": "object" } },
+        "omitted": { "type": "array", "items": { "type": "object" } },
+        "artifact_refs": { "type": "array", "items": { "type": "object" } },
+        "inline_artifacts": { "type": "array", "items": { "type": "object" } }
+      }
+    }
+  }
+}

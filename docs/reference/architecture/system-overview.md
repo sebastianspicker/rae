@@ -45,6 +45,10 @@ flowchart LR
    environments. The current committed surface defines policy and boundaries;
    sanitized payloads land here only after extraction. Manifest v2 uses
    no-follow filesystem operations and retained recovery evidence.
+7. `packages/orchestration/platform/`
+   Experimental hosted control-plane and worker source. It is separate from
+   the loopback operator and umbrella CLI, and has no production deployment
+   evidence.
 
 ## Integration rule
 
@@ -84,6 +88,9 @@ work is reliable. The important artifact families are:
   gate reports, and result ledgers.
 - `profiles/agent-environments/`
   Sanitized operator profile material and installation regression fixtures.
+- `packages/orchestration/platform/`
+  Experimental PostgreSQL state, OIDC route checks, fenced worker leases,
+  S3-compatible artifact handling, and Streamable HTTP MCP compatibility.
 
 New code should either produce one of these artifacts, validate one of these
 artifacts, or stay inside the package-local runtime that owns the behavior.
@@ -103,6 +110,8 @@ explicitly separated modules, shared publication doctrine, and traceable claims.
 
 - this diagram is explanatory architecture, not empirical proof of universal
   superiority over other designs
+- the hosted-platform source is not evidence of a deployed service or external
+  integration
 
 ## Source note
 

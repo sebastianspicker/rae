@@ -1,11 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1142" height="1232" viewBox="0 0 1142 1232" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="1142" height="1276" viewBox="0 0 1142 1276" role="img" aria-labelledby="title description">
   <title id="title">RAE command map</title>
   <desc id="description">Deterministic terminal capture generated from the live RAE CLI.</desc>
   <style>
     .line { fill: #e6edf3; font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .chrome { fill: #8b949e; font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
-  <rect width="1142" height="1232" rx="14" fill="#0d1117"/>
+  <rect width="1142" height="1276" rx="14" fill="#0d1117"/>
   <rect width="1142" height="44" rx="14" fill="#161b22"/>
   <circle cx="24" cy="22" r="6" fill="#ff5f56"/>
   <circle cx="44" cy="22" r="6" fill="#ffbd2e"/>
@@ -22,45 +22,47 @@
     <text x="32" y="252" class="line">                                       Run umbrella verification</text>
     <text x="32" y="274" class="line">  doctor                               Check runtime prerequisites and entrypoints</text>
     <text x="32" y="296" class="line">  agent &lt;subcommand&gt; [args]            Run the autonomous coding-agent orchestrator</text>
-    <text x="32" y="318" class="line">  operator serve [args]                Serve the authenticated loopback operator console</text>
-    <text x="32" y="340" class="line">  task route [args]                    Route a task spec and emit a planned run card</text>
-    <text x="32" y="362" class="line">  checkpoint &lt;subcommand&gt; [args]       Create or resolve human checkpoint cards</text>
-    <text x="32" y="384" class="line">  orchestrate &lt;subcommand&gt; [args]      Run the phased orchestration package</text>
-    <text x="32" y="406" class="line">  worktree &lt;subcommand&gt; [args]         Run worktree-native orchestration aliases</text>
-    <text x="32" y="428" class="line">  ralph &lt;subcommand&gt; [args]            Run Ralph or bootstrap its embedded template</text>
-    <text x="32" y="450" class="line">  hygiene &lt;tool&gt; [args]                Run narrow maintenance tooling</text>
-    <text x="32" y="472" class="line">  eval &lt;subcommand&gt; [args]             Run eval metadata harness commands</text>
-    <text x="32" y="494" class="line">  release-gate [args]                  Evaluate release-blocking benchmark gates</text>
-    <text x="32" y="516" class="line">  workflow &lt;family&gt; [args]             Run umbrella workflow aliases</text>
-    <text x="32" y="538" class="line">  help                                 Show this help</text>
-    <text x="32" y="560" class="line"></text>
-    <text x="32" y="582" class="line">Examples:</text>
-    <text x="32" y="604" class="line">  ./scripts/rae.sh doctor</text>
-    <text x="32" y="626" class="line">  ./scripts/rae.sh agent doctor</text>
-    <text x="32" y="648" class="line">  ./scripts/rae.sh agent run --task &quot;Add a tested health endpoint and document it&quot;</text>
-    <text x="32" y="670" class="line">  ./scripts/rae.sh operator serve --project /absolute/path/to/repository</text>
-    <text x="32" y="692" class="line">  ./scripts/rae.sh task route --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json --task-id </text>
-    <text x="32" y="714" class="line">    tool-selection-dev-orchestration --output evals/results/planned.json</text>
-    <text x="32" y="736" class="line">  ./scripts/rae.sh orchestrate init</text>
-    <text x="32" y="758" class="line">  ./scripts/rae.sh orchestrate run-stage --run-id &lt;id&gt; --phase arm</text>
-    <text x="32" y="780" class="line">  ./scripts/rae.sh orchestrate record-review-state --run-id &lt;id&gt; --state explain --status completed</text>
-    <text x="32" y="802" class="line">  ./scripts/rae.sh orchestrate summarize-progress --run-id &lt;id&gt;</text>
-    <text x="32" y="824" class="line">  ./scripts/rae.sh ralph --status</text>
-    <text x="32" y="846" class="line">  ./scripts/rae.sh ralph bootstrap-template /tmp/demo-repo</text>
-    <text x="32" y="868" class="line">  ./scripts/rae.sh hygiene coauthor-cleaner --help</text>
-    <text x="32" y="890" class="line">  ./scripts/rae.sh checkpoint create --output evals/results/checkpoint.json --run-id demo --task-id task --gate-id </text>
-    <text x="32" y="912" class="line">    review --title &quot;Review&quot;</text>
-    <text x="32" y="934" class="line">  ./scripts/rae.sh eval validate</text>
-    <text x="32" y="956" class="line">  ./scripts/rae.sh eval run --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json --split dev </text>
-    <text x="32" y="978" class="line">    --output-dir evals/results/tmp</text>
-    <text x="32" y="1000" class="line">  ./scripts/rae.sh eval outcome --task-bundle evals/datasets/autonomous-outcomes/core.task-bundle.json --fixture-root </text>
-    <text x="32" y="1022" class="line">    evals/fixtures/autonomous-outcomes --policy packages/orchestration/policies/default.autonomous-policy.json --split</text>
-    <text x="32" y="1044" class="line">     dev --repeats 2 --output-dir evals/results/outcomes/dev --acknowledge-provider-usage</text>
-    <text x="32" y="1066" class="line">  ./scripts/rae.sh release-gate --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json --run-card </text>
-    <text x="32" y="1088" class="line">    evals/results/tmp/run-card.json --regression-report evals/results/tmp/regression.json --ledger </text>
-    <text x="32" y="1110" class="line">    evals/results/tmp/result-ledger.jsonl --output evals/results/tmp/release-gate.json</text>
-    <text x="32" y="1132" class="line">  ./scripts/rae.sh worktree init .</text>
-    <text x="32" y="1154" class="line">  ./scripts/rae.sh worktree summary --run-id &lt;id&gt;</text>
-    <text x="32" y="1176" class="line">  ./scripts/rae.sh workflow repo-audit bootstrap /tmp/demo-repo</text>
-    <text x="32" y="1198" class="line">  ./scripts/rae.sh workflow long-horizon init</text>
+    <text x="32" y="318" class="line">  graph &lt;subcommand&gt; [args]            Build and query local graph projections and memory</text>
+    <text x="32" y="340" class="line">  operator serve [args]                Serve the authenticated loopback operator console</text>
+    <text x="32" y="362" class="line">  task route [args]                    Route a task spec and emit a planned run card</text>
+    <text x="32" y="384" class="line">  checkpoint &lt;subcommand&gt; [args]       Create or resolve human checkpoint cards</text>
+    <text x="32" y="406" class="line">  orchestrate &lt;subcommand&gt; [args]      Run the phased orchestration package</text>
+    <text x="32" y="428" class="line">  worktree &lt;subcommand&gt; [args]         Run worktree-native orchestration aliases</text>
+    <text x="32" y="450" class="line">  ralph &lt;subcommand&gt; [args]            Run Ralph or bootstrap its embedded template</text>
+    <text x="32" y="472" class="line">  hygiene &lt;tool&gt; [args]                Run narrow maintenance tooling</text>
+    <text x="32" y="494" class="line">  eval &lt;subcommand&gt; [args]             Run eval metadata harness commands</text>
+    <text x="32" y="516" class="line">  release-gate [args]                  Evaluate release-blocking benchmark gates</text>
+    <text x="32" y="538" class="line">  workflow &lt;family&gt; [args]             Run umbrella workflow aliases</text>
+    <text x="32" y="560" class="line">  help                                 Show this help</text>
+    <text x="32" y="582" class="line"></text>
+    <text x="32" y="604" class="line">Examples:</text>
+    <text x="32" y="626" class="line">  ./scripts/rae.sh doctor</text>
+    <text x="32" y="648" class="line">  ./scripts/rae.sh agent doctor</text>
+    <text x="32" y="670" class="line">  ./scripts/rae.sh agent run --task &quot;Add a tested health endpoint and document it&quot;</text>
+    <text x="32" y="692" class="line">  ./scripts/rae.sh graph build --project-root /absolute/path/to/repository</text>
+    <text x="32" y="714" class="line">  ./scripts/rae.sh operator serve --project /absolute/path/to/repository</text>
+    <text x="32" y="736" class="line">  ./scripts/rae.sh task route --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json --task-id </text>
+    <text x="32" y="758" class="line">    tool-selection-dev-orchestration --output evals/results/planned.json</text>
+    <text x="32" y="780" class="line">  ./scripts/rae.sh orchestrate init</text>
+    <text x="32" y="802" class="line">  ./scripts/rae.sh orchestrate run-stage --run-id &lt;id&gt; --phase arm</text>
+    <text x="32" y="824" class="line">  ./scripts/rae.sh orchestrate record-review-state --run-id &lt;id&gt; --state explain --status completed</text>
+    <text x="32" y="846" class="line">  ./scripts/rae.sh orchestrate summarize-progress --run-id &lt;id&gt;</text>
+    <text x="32" y="868" class="line">  ./scripts/rae.sh ralph --status</text>
+    <text x="32" y="890" class="line">  ./scripts/rae.sh ralph bootstrap-template /tmp/demo-repo</text>
+    <text x="32" y="912" class="line">  ./scripts/rae.sh hygiene coauthor-cleaner --help</text>
+    <text x="32" y="934" class="line">  ./scripts/rae.sh checkpoint create --output evals/results/checkpoint.json --run-id demo --task-id task --gate-id </text>
+    <text x="32" y="956" class="line">    review --title &quot;Review&quot;</text>
+    <text x="32" y="978" class="line">  ./scripts/rae.sh eval validate</text>
+    <text x="32" y="1000" class="line">  ./scripts/rae.sh eval run --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json --split dev </text>
+    <text x="32" y="1022" class="line">    --output-dir evals/results/tmp</text>
+    <text x="32" y="1044" class="line">  ./scripts/rae.sh eval outcome --task-bundle evals/datasets/autonomous-outcomes/core.task-bundle.json --fixture-root </text>
+    <text x="32" y="1066" class="line">    evals/fixtures/autonomous-outcomes --policy packages/orchestration/policies/default.autonomous-policy.json --split</text>
+    <text x="32" y="1088" class="line">     dev --repeats 2 --output-dir evals/results/outcomes/dev --acknowledge-provider-usage</text>
+    <text x="32" y="1110" class="line">  ./scripts/rae.sh release-gate --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json --run-card </text>
+    <text x="32" y="1132" class="line">    evals/results/tmp/run-card.json --regression-report evals/results/tmp/regression.json --ledger </text>
+    <text x="32" y="1154" class="line">    evals/results/tmp/result-ledger.jsonl --output evals/results/tmp/release-gate.json</text>
+    <text x="32" y="1176" class="line">  ./scripts/rae.sh worktree init .</text>
+    <text x="32" y="1198" class="line">  ./scripts/rae.sh worktree summary --run-id &lt;id&gt;</text>
+    <text x="32" y="1220" class="line">  ./scripts/rae.sh workflow repo-audit bootstrap /tmp/demo-repo</text>
+    <text x="32" y="1242" class="line">  ./scripts/rae.sh workflow long-horizon init</text>
 </svg>

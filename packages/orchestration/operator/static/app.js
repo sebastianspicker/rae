@@ -2,6 +2,7 @@
 import { setConnection, showError } from "./js/api.js";
 import { loadProjects } from "./js/data.js";
 import { bindHandlers } from "./js/handlers.js";
+import { bindWorkflowEditor } from "./js/workflows.js";
 import { elements, state } from "./js/state.js";
 
 // Contract anchors retained for source-level UI tests and operator safety review.
@@ -15,6 +16,7 @@ void [
 ];
 
 bindHandlers();
+bindWorkflowEditor();
 
 loadProjects().catch((error) => {
   setConnection("error", "Unavailable", "Local session");

@@ -85,9 +85,14 @@ _EVALUATOR_FILES = (
     "evals/scripts/lib/policy_optimizer.py",
     "evals/scripts/lib/policy_optimizer_evidence.py",
     "evals/scripts/lib/policy_optimizer_policy.py",
+    "evals/scripts/lib/policy_improvement_campaign.py",
     "evals/scripts/run_outcome_benchmark.py",
     "evals/scripts/compare_outcome_reports.py",
     "evals/scripts/optimize_harness.py",
+    "evals/scripts/improve_harness.py",
+    "evals/schemas/improvement-campaign.schema.json",
+    "packages/orchestration/contracts/autonomous-policy.schema.json",
+    "scripts/lib/runtime.sh",
 )
 
 

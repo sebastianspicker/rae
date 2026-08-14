@@ -148,38 +148,52 @@ export function checkFieldEmpty(artifact: Record<string, unknown>, path: string)
   };
 }
 
+interface CountBound {
+  invalidEvidence: string;
+  passes(length: number, threshold: number): boolean;
+  evidence(length: number, threshold: number): string;
+}
+
+const MINIMUM_COUNT: CountBound = {
+  invalidEvidence: "count-min value must be a non-negative integer",
+  passes: (length, threshold) => length >= threshold,
+  evidence: (length, threshold) => `has ${length} item(s), minimum required: ${threshold}`,
+};
+
+const MAXIMUM_COUNT: CountBound = {
+  invalidEvidence: "count-max value must be a non-negative integer",
+  passes: (length, threshold) => length <= threshold,
+  evidence: (length, threshold) => `has ${length} item(s), maximum allowed: ${threshold}`,
+};
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return (
+    typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0
+  );
+}
+
+function checkCountBound(
+  artifact: Record<string, unknown>,
+  path: string,
+  threshold: unknown,
+  bound: CountBound,
+): CriterionResult {
+  const value = resolvePath(artifact, path);
+  if (!Array.isArray(value)) return failedCriterion(`Field "${path}" is not an array`);
+  if (!isNonNegativeInteger(threshold)) return failedCriterion(bound.invalidEvidence);
+  return {
+    name: "",
+    passed: bound.passes(value.length, threshold),
+    evidence: `Field "${path}" ${bound.evidence(value.length, threshold)}`,
+  };
+}
+
 export function checkCountMin(
   artifact: Record<string, unknown>,
   path: string,
   minValue: unknown,
 ): CriterionResult {
-  const val = resolvePath(artifact, path);
-  if (!Array.isArray(val)) {
-    return {
-      name: "",
-      passed: false,
-      evidence: `Field "${path}" is not an array`,
-    };
-  }
-  if (
-    typeof minValue !== "number" ||
-    !Number.isFinite(minValue) ||
-    !Number.isInteger(minValue) ||
-    minValue < 0
-  ) {
-    return {
-      name: "",
-      passed: false,
-      evidence: "count-min value must be a non-negative integer",
-    };
-  }
-  const min = minValue;
-  const passed = val.length >= min;
-  return {
-    name: "",
-    passed,
-    evidence: `Field "${path}" has ${val.length} item(s), minimum required: ${min}`,
-  };
+  return checkCountBound(artifact, path, minValue, MINIMUM_COUNT);
 }
 
 export function checkCountMax(
@@ -187,33 +201,7 @@ export function checkCountMax(
   path: string,
   maxValue: unknown,
 ): CriterionResult {
-  const val = resolvePath(artifact, path);
-  if (!Array.isArray(val)) {
-    return {
-      name: "",
-      passed: false,
-      evidence: `Field "${path}" is not an array`,
-    };
-  }
-  if (
-    typeof maxValue !== "number" ||
-    !Number.isFinite(maxValue) ||
-    !Number.isInteger(maxValue) ||
-    maxValue < 0
-  ) {
-    return {
-      name: "",
-      passed: false,
-      evidence: "count-max value must be a non-negative integer",
-    };
-  }
-  const max = maxValue;
-  const passed = val.length <= max;
-  return {
-    name: "",
-    passed,
-    evidence: `Field "${path}" has ${val.length} item(s), maximum allowed: ${max}`,
-  };
+  return checkCountBound(artifact, path, maxValue, MAXIMUM_COUNT);
 }
 
 export function checkNumberMax(
@@ -339,19 +327,42 @@ export function checkRegexMatch(
   const val = resolvePath(artifact, path);
   const invalid = invalidRegexInput(val, path, pattern);
   if (invalid) return invalid;
-  const regexValue = val as string;
-  const regexPattern = pattern as string;
-  let matched: boolean;
-  try {
-    matched = regexValue.match(regexPattern) !== null;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return {
-      name: "",
-      passed: false,
-      evidence: `Invalid regex pattern /${regexPattern}/: ${msg}`,
-    };
+  return matchRegexCriterion(val as string, path, pattern as string);
+}
+
+function matchRegexCriterion(
+  regexValue: string,
+  path: string,
+  regexPattern: string,
+): CriterionResult {
+  const outcome = evaluateRegex(regexValue, regexPattern);
+  if ("error" in outcome) {
+    return failedCriterion(`Invalid regex pattern /${regexPattern}/: ${outcome.error}`);
   }
+  return regexMatchResult(outcome.matched, regexValue, path, regexPattern);
+}
+
+function evaluateRegex(
+  regexValue: string,
+  regexPattern: string,
+): { matched: boolean } | { error: string } {
+  try {
+    return { matched: regexValue.match(regexPattern) !== null };
+  } catch (err: unknown) {
+    return { error: regexErrorMessage(err) };
+  }
+}
+
+function regexErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function regexMatchResult(
+  matched: boolean,
+  regexValue: string,
+  path: string,
+  regexPattern: string,
+): CriterionResult {
   return {
     name: "",
     passed: matched,

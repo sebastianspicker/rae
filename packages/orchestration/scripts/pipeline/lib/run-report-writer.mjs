@@ -1,5 +1,5 @@
 /** Builds durable autonomous run reports from gate and workspace state. */
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { PHASE_ORDER } from "../../lib/constants.mjs";
 import { changedPaths } from "./autonomous-git.mjs";
@@ -16,10 +16,15 @@ export function writeRunReport(context, outcome) {
 function reportData(context, outcome) {
   const runDir = resolve(context.workspaceRoot, ".pipeline", "runs", context.runId);
   const changes = changedPaths(context.workspaceRoot);
-  const gates = gateRows(runDir);
+  const graphNative = context.workflowMode === "graph-native";
+  const gates = graphNative ? graphRows(runDir) : gateRows(runDir);
   const state = readJsonStrict(resolve(context.workspaceRoot, ".pipeline", "pipeline-state.json"));
-  const plan = readPlan(runDir);
-  const docs = documentationAssessment(plan, changes, buildExecuted(gates));
+  const plan = graphNative ? readGraphPlan(context, runDir) : readPlan(runDir);
+  const docs = documentationAssessment(
+    plan,
+    changes,
+    graphNative ? changes.length > 0 : buildExecuted(gates),
+  );
   return {
     context,
     outcome,
@@ -29,9 +34,51 @@ function reportData(context, outcome) {
     state,
     docs,
     cleanupCommand: state.workspace?.cleanup_command ?? null,
-    status: reportStatus(outcome, gates),
-    agentEventLogs: eventLogs(context.workspaceRoot, runDir),
+    status: reportStatus(outcome, gates, graphNative),
+    agentEventLogs: graphNative
+      ? graphEventLogs(context.workspaceRoot, runDir)
+      : eventLogs(context.workspaceRoot, runDir),
+    graphNative,
   };
+}
+
+function workflowEnvelopeFiles(runDir) {
+  const root = resolve(runDir, "workflow", "attempts");
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) =>
+      readdirSync(resolve(root, entry.name))
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => resolve(root, entry.name, name)),
+    );
+}
+
+function readGraphPlan(context, runDir) {
+  const nodeId = context.workflow?.nodes.find((node) => node.ownership_plan === true)?.id;
+  if (!nodeId) return null;
+  const envelopes = workflowEnvelopeFiles(runDir)
+    .map((pathValue) => readJsonStrict(pathValue))
+    .filter((envelope) => envelope.node_id === nodeId && envelope.status === "passed")
+    .sort((left, right) => (left.loop_iteration ?? 1) - (right.loop_iteration ?? 1));
+  return envelopes.at(-1)?.payload ?? null;
+}
+
+function graphRows(runDir) {
+  const latest = new Map();
+  for (const pathValue of workflowEnvelopeFiles(runDir)) {
+    const envelope = readJsonStrict(pathValue);
+    const instanceId = envelope.instance_id ?? envelope.node_id;
+    const prior = latest.get(instanceId);
+    if (!prior || envelope.attempt >= prior.attempt) {
+      latest.set(instanceId, {
+        phase: instanceId,
+        status: envelope.status,
+        artifact_ref: relative(runDir, pathValue),
+      });
+    }
+  }
+  return [...latest.values()].sort((left, right) => left.phase.localeCompare(right.phase));
 }
 
 function readPlan(runDir) {
@@ -47,10 +94,19 @@ function eventLogs(workspaceRoot, runDir) {
     .filter(existsSync)
     .map((pathValue) => relative(workspaceRoot, pathValue));
 }
-function reportStatus(outcome, gates) {
+function graphEventLogs(workspaceRoot, runDir) {
+  const directory = resolve(runDir, "workflow", "agent-outputs");
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory)
+    .filter((name) => name.endsWith(".events.jsonl"))
+    .sort()
+    .map((name) => relative(workspaceRoot, resolve(directory, name)));
+}
+function reportStatus(outcome, gates, graphNative) {
   if (outcome.error) return "blocked";
   if (outcome.status === "waiting") return "waiting-for-human-checkpoint";
   if (outcome.status === "stopped") return "stopped-by-operator";
+  if (graphNative) return "implemented-awaiting-human-release-review";
   return gates.filter((gate) => ["pass", "warn"].includes(gate.status)).length ===
     PHASE_ORDER.length
     ? "implemented-awaiting-human-release-review"
@@ -142,7 +198,7 @@ function taskSection(task) {
 }
 function gateSection(gates) {
   return [
-    "## Phase gates",
+    "## Gates and node instances",
     "",
     "| Phase | Status | Artifact |",
     "| --- | --- | --- |",

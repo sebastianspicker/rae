@@ -3,6 +3,7 @@
 import { api, setConnection, showError } from "./api.js";
 import { elements, state } from "./state.js";
 import { renderEvents, renderRun, renderRuns } from "./render.js";
+import { loadWorkflows } from "./workflows.js";
 
 export async function loadProjects() {
   const data = await api("/projects");
@@ -14,11 +15,37 @@ export async function loadProjects() {
   elements["new-run-button"].disabled = !state.projectId;
   setConnection("connected", "Local session", "No publish controls");
   if (state.projectId) {
+    await loadExecutionProfiles();
     await loadRuns();
+    await loadWorkflows();
   } else {
     elements["runs-loading"].hidden = true;
     renderRuns();
   }
+}
+
+export async function loadExecutionProfiles() {
+  if (!state.projectId) return;
+  const payload = await api(`/projects/${encodeURIComponent(state.projectId)}/execution-profiles`);
+  state.workflowProfiles = payload.profiles ?? [];
+  elements["start-execution-profile"].replaceChildren(
+    new Option("Runtime default", ""),
+    ...state.workflowProfiles.map(
+      (profile) =>
+        new Option(
+          `${profile.id} · ${profile.readiness} · ${Object.entries(profile.models ?? {})
+            .map(([tier, model]) => `${tier}: ${model}`)
+            .join(", ")}`,
+          profile.id,
+        ),
+    ),
+  );
+  elements["workflow-proposal-profile"].replaceChildren(
+    new Option("Runtime default", ""),
+    ...state.workflowProfiles.map(
+      (profile) => new Option(`${profile.id} · ${profile.readiness}`, profile.id),
+    ),
+  );
 }
 
 export async function loadRuns(preserveSelection = true) {

@@ -1,0 +1,26 @@
+{
+  "schema_version": "2.1.0",
+  "workflow_id": "module-migration",
+  "revision": 1,
+  "title": "Mapped module migration with one writer",
+  "entry_node": "inventory",
+  "terminal_node": "complete",
+  "budgets": { "max_concurrency": 4, "max_repair_rounds": 5, "max_attempts_per_node": 3, "max_dynamic_instances": 128, "max_pipeline_depth": 4, "max_map_items": 32 },
+  "nodes": [
+    { "id": "inventory", "kind": "agent", "access": "read", "tier": "economy", "guidance": "Return at most 32 migration modules with stable module_id fields." },
+    { "id": "analyze-module", "kind": "map", "access": "read", "tier": "standard", "guidance": "Analyze one module contract, callers, tests, and migration risks.", "map": { "source_pointer": "/items", "stable_key_pointer": "/module_id", "max_items": 32 } },
+    { "id": "plan", "kind": "agent", "access": "read", "tier": "judgment", "guidance": "Produce one ownership plan for the serialized migration writer.", "ownership_plan": true },
+    { "id": "mutation-checkpoint", "kind": "checkpoint", "access": "control", "guidance": "Require the configured human mutation decision.", "mutation_checkpoint": true },
+    { "id": "migrate", "kind": "agent", "access": "write", "tier": "judgment", "guidance": "Apply only the plan-owned migration and capture verification evidence." },
+    { "id": "verify", "kind": "gate", "access": "control", "guidance": "Fail when migration verification or compatibility evidence is blocking.", "verification": true },
+    { "id": "complete", "kind": "terminal", "access": "control", "guidance": "Record migration completion." }
+  ],
+  "edges": [
+    { "from": "inventory", "to": "analyze-module", "type": "artifact", "artifact": "modules" },
+    { "from": "analyze-module", "to": "plan", "type": "artifact", "artifact": "module-analysis" },
+    { "from": "plan", "to": "mutation-checkpoint", "type": "sequence" },
+    { "from": "mutation-checkpoint", "to": "migrate", "type": "sequence" },
+    { "from": "migrate", "to": "verify", "type": "artifact", "artifact": "migration-result" },
+    { "from": "verify", "to": "complete", "type": "condition", "condition": "success" }
+  ]
+}

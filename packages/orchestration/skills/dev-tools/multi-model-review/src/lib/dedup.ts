@@ -124,16 +124,25 @@ export function promoteSeverity(existing: DedupFinding, incoming: TaggedFinding)
     existing.severity = incoming.severity;
 }
 
+export function fillOnlyIfAbsent<T extends object, K extends keyof T>(
+  existing: T,
+  incoming: Partial<T>,
+  field: K,
+): void {
+  const incomingValue = incoming[field];
+  if (incomingValue && !existing[field]) existing[field] = incomingValue;
+}
+
 export function copyMissingEvidence(existing: DedupFinding, incoming: TaggedFinding): void {
-  if (incoming.evidence && !existing.evidence) existing.evidence = incoming.evidence;
+  fillOnlyIfAbsent(existing, incoming, "evidence");
 }
 
 export function copyMissingSuggestion(existing: DedupFinding, incoming: TaggedFinding): void {
-  if (incoming.suggestion && !existing.suggestion) existing.suggestion = incoming.suggestion;
+  fillOnlyIfAbsent(existing, incoming, "suggestion");
 }
 
 export function copyMissingTraceId(existing: DedupFinding, incoming: TaggedFinding): void {
-  if (incoming.trace_id && !existing.trace_id) existing.trace_id = incoming.trace_id;
+  fillOnlyIfAbsent(existing, incoming, "trace_id");
 }
 
 export function mergeRequirementIds(existing: DedupFinding, incoming?: string[]): void {
