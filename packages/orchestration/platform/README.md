@@ -70,10 +70,18 @@ without exposing the upstream token to browser code.
 
 The documented HTTP surface begins at `/api/v2`. All mutations require an
 `Idempotency-Key`; scopes are `rae.*`. Run envelopes are limited to 256 KiB.
-For an isolated cleartext development stack, review `dev/platform.toml`, set
-`RAE_DEV_MINIO_ACCESS_KEY` and
-`RAE_DEV_MINIO_SECRET_KEY` to disposable local values, and run `docker compose
--f compose.yaml up --build migrate control`. Then `curl
-http://127.0.0.1:8080/readyz` must return `ready`.
+For an isolated cleartext development stack, review `dev/platform.toml` and set
+`RAE_DEV_MINIO_ACCESS_KEY` and `RAE_DEV_MINIO_SECRET_KEY` to disposable local
+values. Start only the loopback-published dependencies with `docker compose -f
+compose.yaml up -d postgres minio minio-init`, then run the migration and
+control process on the host so its anonymous development surface remains bound
+to the host loopback interface:
+
+```bash
+RAE_PLATFORM_CONFIG="$PWD/dev/platform.toml" npm run control -- migrate
+RAE_PLATFORM_CONFIG="$PWD/dev/platform.toml" npm run control -- serve
+```
+
+`curl http://127.0.0.1:8080/readyz` must then return `ready`.
 Production deployments require HTTPS and must not use this development compose
 file or its development credentials.

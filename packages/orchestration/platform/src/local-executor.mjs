@@ -17,6 +17,115 @@ const WORKER = path.resolve(
 );
 const MAX_CHILD_OUTPUT = 16 * 1024 * 1024;
 const SAFE_ID = /^[A-Za-z0-9._-]{1,128}$/;
+const RUNTIME_DIRECTORY_MODE = 0o700;
+const RUNTIME_FILE_MODE = 0o600;
+
+function sameIdentity(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+function assertContainedPath(root, candidate) {
+  const relative = path.relative(root, candidate);
+  if (relative.startsWith("..") || path.isAbsolute(relative))
+    throw new Error("hosted runtime path escapes the project root");
+}
+
+function inspectDirectory(directory, { requirePrivate }) {
+  const stat = fs.lstatSync(directory);
+  if (!stat.isDirectory() || stat.isSymbolicLink())
+    throw new Error(`hosted runtime directory must be a non-symlink directory: ${directory}`);
+  if (requirePrivate && (stat.uid !== process.getuid() || (stat.mode & 0o077) !== 0))
+    throw new Error(`hosted runtime directory must be owner-only: ${directory}`);
+  if (fs.realpathSync(directory) !== directory)
+    throw new Error(`hosted runtime directory must not traverse symlinks: ${directory}`);
+  return { directory, dev: stat.dev, ino: stat.ino, requirePrivate };
+}
+
+function assertStableDirectory(snapshot) {
+  const current = inspectDirectory(snapshot.directory, { requirePrivate: snapshot.requirePrivate });
+  if (!sameIdentity(snapshot, current))
+    throw new Error(`hosted runtime directory changed during claim setup: ${snapshot.directory}`);
+}
+
+function createOrInspectPrivateDirectory(parent, directory) {
+  try {
+    return inspectDirectory(directory, { requirePrivate: true });
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  assertStableDirectory(parent);
+  fs.mkdirSync(directory, { mode: RUNTIME_DIRECTORY_MODE });
+  return inspectDirectory(directory, { requirePrivate: true });
+}
+
+function inspectSchema(schemaPath) {
+  const stat = fs.lstatSync(schemaPath);
+  if (
+    !stat.isFile() ||
+    stat.isSymbolicLink() ||
+    stat.uid !== process.getuid() ||
+    (stat.mode & 0o077) !== 0 ||
+    fs.realpathSync(schemaPath) !== schemaPath
+  ) {
+    throw new Error("hosted runtime schema must be an owner-only non-symlink file");
+  }
+  return { schemaPath, dev: stat.dev, ino: stat.ino };
+}
+
+function writeNewSchema(schemaPath, outputSchema) {
+  try {
+    fs.lstatSync(schemaPath);
+    throw new Error("hosted runtime schema already exists");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const descriptor = fs.openSync(
+    schemaPath,
+    fs.constants.O_WRONLY |
+      fs.constants.O_CREAT |
+      fs.constants.O_EXCL |
+      (fs.constants.O_NOFOLLOW ?? 0),
+    RUNTIME_FILE_MODE,
+  );
+  try {
+    fs.writeFileSync(descriptor, `${JSON.stringify(outputSchema)}\n`, "utf8");
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  return inspectSchema(schemaPath);
+}
+
+/**
+ * Creates a private, non-symlinked artifact directory below a canonical project root.
+ * The returned assertion is intentionally called again immediately before spawning the
+ * model-facing worker, so directory replacement fails closed instead of redirecting output.
+ */
+export function prepareHostedAttempt(projectRoot, runId, attemptId, outputSchema) {
+  if (!SAFE_ID.test(runId) || !SAFE_ID.test(attemptId))
+    throw new Error("hosted runtime run and attempt identifiers are invalid");
+  const root = fs.realpathSync(projectRoot);
+  const directories = [inspectDirectory(root, { requirePrivate: false })];
+  let current = root;
+  for (const segment of [".pipeline", "hosted-worker", runId, attemptId]) {
+    const next = path.join(current, segment);
+    assertContainedPath(root, next);
+    const snapshot = createOrInspectPrivateDirectory(directories.at(-1), next);
+    directories.push(snapshot);
+    current = next;
+  }
+  const schemaPath = path.join(current, "output.schema.json");
+  assertContainedPath(root, schemaPath);
+  for (const directory of directories) assertStableDirectory(directory);
+  const schema = writeNewSchema(schemaPath, outputSchema);
+  const assertIntact = () => {
+    for (const directory of directories) assertStableDirectory(directory);
+    const currentSchema = inspectSchema(schemaPath);
+    if (!sameIdentity(schema, currentSchema))
+      throw new Error("hosted runtime schema changed during claim setup");
+  };
+  assertIntact();
+  return Object.freeze({ attemptRoot: current, schemaPath, assertIntact });
+}
 
 function claimRequest(claim, projects) {
   if (
@@ -46,30 +155,23 @@ function claimRequest(claim, projects) {
     throw new Error("claim node is absent from the execution profile's exact capability map");
   const execution = resolveExecutionTier(loaded.profile, payload.tier || "standard");
   const capabilities = resolveNodeCapabilities(loaded.profile, claim.nodeKey);
-  const attemptRoot = path.join(
+  const runtime = prepareHostedAttempt(
     project.root,
-    ".pipeline",
-    "hosted-worker",
     claim.runId,
     claim.attemptId,
+    payload.outputSchema,
   );
-  fs.mkdirSync(attemptRoot, { recursive: true, mode: 0o700 });
-  const schemaPath = path.join(attemptRoot, "output.schema.json");
-  const outputPath = path.join(attemptRoot, "output.json");
-  const eventLogPath = path.join(attemptRoot, "events.jsonl");
-  fs.writeFileSync(schemaPath, `${JSON.stringify(payload.outputSchema)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-    flag: "wx",
-  });
+  const outputPath = path.join(runtime.attemptRoot, "output.json");
+  const eventLogPath = path.join(runtime.attemptRoot, "events.jsonl");
   return {
     project,
+    assertRuntime: runtime.assertIntact,
     request: {
       provider: "codex",
       phase: claim.nodeKey,
       runId: claim.runId,
       workspaceRoot: project.root,
-      schemaPath,
+      schemaPath: runtime.schemaPath,
       outputPath,
       eventLogPath,
       prompt: payload.prompt,
@@ -89,6 +191,12 @@ export function createLocalClaimExecutor({ projectMapFile }) {
       let prepared;
       try {
         prepared = claimRequest(claim, projects);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      try {
+        prepared.assertRuntime();
       } catch (error) {
         reject(error);
         return;

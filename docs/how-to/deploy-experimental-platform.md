@@ -18,7 +18,9 @@ reuse its credentials.
 Set `RAE_PLATFORM_CONFIG` to a TOML file containing at least a database URL.
 For a local experiment, set `platform.development = true` before enabling
 `platform.allowInsecureAuth` or `platform.allowInsecureHttp`. The checked-in
-Compose file publishes those development services on loopback only.
+Compose file publishes only PostgreSQL and MinIO on loopback. The anonymous
+development control process runs on the host and binds its own loopback
+interface; it is intentionally not exposed from a container.
 
 For any hosted experiment, omit `allowInsecureAuth` and configure `oidc` with
 an exact issuer, audience, JWKS URL, and allowed asymmetric JWS algorithms. Put
@@ -30,10 +32,19 @@ endpoint, and optional path-style addressing.
 
 From `packages/orchestration/platform/`, review the checked-in development-only
 `dev/platform.toml` configuration, set `RAE_DEV_MINIO_ACCESS_KEY` and
-`RAE_DEV_MINIO_SECRET_KEY` to disposable local values, then run:
+`RAE_DEV_MINIO_SECRET_KEY` to disposable local values, then start the
+loopback-published dependencies:
 
 ```bash
-docker compose -f compose.yaml up --build migrate control
+docker compose -f compose.yaml up -d postgres minio minio-init
+```
+
+Run migrations and the control process on the host with the checked-in
+loopback-only configuration:
+
+```bash
+RAE_PLATFORM_CONFIG="$PWD/dev/platform.toml" npm run control -- migrate
+RAE_PLATFORM_CONFIG="$PWD/dev/platform.toml" npm run control -- serve
 ```
 
 The control process never applies migrations automatically. Verify that all
