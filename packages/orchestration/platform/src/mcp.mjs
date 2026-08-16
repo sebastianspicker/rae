@@ -5,6 +5,24 @@ import { z } from "zod";
 import { requireProject, requireScope } from "./auth.mjs";
 const runInput = { run_id: z.string().uuid() };
 const idempotencyKey = z.string().regex(/^[\x21-\x7e]{1,200}$/);
+const runEnvelope = z
+  .object({
+    revision: z.object({
+      digest: z.string().length(64),
+      definition: z.record(z.string(), z.unknown()),
+    }),
+    nodes: z.array(
+      z.object({
+        key: z.string(),
+        payload: z.record(z.string(), z.unknown()).optional(),
+        access: z.enum(["read", "write"]).default("read"),
+      }),
+    ),
+    request: z.record(z.string(), z.unknown()).default({}),
+    repositoryDigest: z.string().length(64).optional(),
+    worktreeDigest: z.string().length(64).optional(),
+  })
+  .strict();
 export async function handleStreamableMcp({ request, response, body, store, principal }) {
   const server = new McpServer({
     name: "rae-experimental-platform",
@@ -22,7 +40,7 @@ export async function handleStreamableMcp({ request, response, body, store, prin
       description: "Submit a project-authorized run",
       inputSchema: {
         project_id: z.string(),
-        envelope: z.record(z.string(), z.unknown()),
+        envelope: runEnvelope,
         idempotency_key: idempotencyKey,
       },
     },
@@ -35,8 +53,8 @@ export async function handleStreamableMcp({ request, response, body, store, prin
             type: "text",
             text: JSON.stringify(
               await store.createRun({
-                projectId: project_id,
                 ...envelope,
+                projectId: project_id,
                 idempotencyKey: idempotency_key,
               }),
             ),
@@ -120,17 +138,21 @@ export async function handleStreamableMcp({ request, response, body, store, prin
     "rae-run",
     new ResourceTemplate("rae://runs/{run_id}", { list: undefined }),
     { mimeType: "application/json" },
-    async (uri, { run_id }) => ({
-      contents: [
-        { uri: uri.href, mimeType: "application/json", text: JSON.stringify(await run(run_id)) },
-      ],
-    }),
+    async (uri, { run_id }) => {
+      requireScope(principal, "rae.run.read");
+      return {
+        contents: [
+          { uri: uri.href, mimeType: "application/json", text: JSON.stringify(await run(run_id)) },
+        ],
+      };
+    },
   );
   server.registerResource(
     "rae-events",
     new ResourceTemplate("rae://runs/{run_id}/events", { list: undefined }),
     { mimeType: "application/json" },
     async (uri, { run_id }) => {
+      requireScope(principal, "rae.run.read");
       await run(run_id);
       return {
         contents: [

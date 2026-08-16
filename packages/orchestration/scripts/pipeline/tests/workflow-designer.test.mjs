@@ -29,6 +29,12 @@ describe("guided workflow designer", () => {
     }
   });
 
+  test("rejects inherited object names through the invalid-template path", () => {
+    for (const templateId of ["toString", "constructor", "__proto__"]) {
+      expect(() => compileWorkflowTemplate(templateId)).toThrow("unknown workflow template");
+    }
+  });
+
   test("reports independent schema and topology diagnostics, including unreachable nodes", () => {
     const workflow = compileWorkflowTemplate("single-agent-verification");
     workflow.nodes.push({ id: "orphan", kind: "agent", access: "read", guidance: "orphan" });

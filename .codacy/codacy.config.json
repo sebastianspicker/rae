@@ -1,15 +1,23 @@
 {
   "version": 1,
   "metadata": {
-    "source": "local-policy",
-    "baseline": "codacy-remote-config.json",
+    "source": "remote",
+    "provider": "gh",
+    "organization": "sebastianspicker",
+    "repositoryId": "879346",
+    "repositoryName": "rae",
+    "createdAt": "2026-08-15T08:32:08.259Z",
+    "updatedAt": "2026-08-15T08:32:08.259Z",
     "languages": [
+      "CSS",
       "Dockerfile",
+      "HTML",
       "Javascript",
       "JSON",
       "Markdown",
       "Python",
       "Shell",
+      "SQL",
       "TypeScript",
       "YAML"
     ]

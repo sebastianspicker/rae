@@ -1,11 +1,11 @@
-# Development-only loopback configuration used by compose.yaml.
+# Development-only loopback configuration for the host control process.
 [server]
-host = "0.0.0.0"
+host = "127.0.0.1"
 port = 8080
 publicBaseUrl = "http://127.0.0.1:8080"
 
 [database]
-url = "postgres://rae:rae-dev-only@postgres:5432/rae_platform"
+url = "postgres://rae:rae-dev-only@127.0.0.1:5432/rae_platform"
 
 [platform]
 development = true
@@ -17,5 +17,5 @@ heartbeatSeconds = 20
 [storage]
 bucket = "rae-artifacts"
 region = "us-east-1"
-endpoint = "http://minio:9000"
+endpoint = "http://127.0.0.1:9000"
 forcePathStyle = true

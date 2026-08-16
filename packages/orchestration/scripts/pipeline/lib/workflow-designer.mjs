@@ -39,8 +39,6 @@ const TEMPLATE_DETAILS = Object.freeze([
   },
 ]);
 
-const TEMPLATE_IDS = new Set(TEMPLATE_DETAILS.map(({ id }) => id));
-
 function integerOption(value, fallback, minimum, maximum) {
   if (value === undefined) return fallback;
   const parsed = Number(value);
@@ -401,13 +399,13 @@ function boundedUntilDryLoop(identity, options) {
   };
 }
 
-const COMPILERS = Object.freeze({
-  "single-agent-verification": singleAgentVerification,
-  "maker-checker-repair": makerCheckerRepair,
-  "parallel-review-quorum": parallelReviewQuorum,
-  "mapped-work": mappedWork,
-  "bounded-until-dry-loop": boundedUntilDryLoop,
-});
+const COMPILERS = new Map([
+  ["single-agent-verification", singleAgentVerification],
+  ["maker-checker-repair", makerCheckerRepair],
+  ["parallel-review-quorum", parallelReviewQuorum],
+  ["mapped-work", mappedWork],
+  ["bounded-until-dry-loop", boundedUntilDryLoop],
+]);
 
 /** Lists the fixed, data-only templates available to an operator. */
 export function listWorkflowTemplates() {
@@ -416,8 +414,9 @@ export function listWorkflowTemplates() {
 
 /** Compiles one guided template to an ordinary, validated workflow v2.1 object. */
 export function compileWorkflowTemplate(templateId, options = {}) {
-  if (!TEMPLATE_IDS.has(templateId)) throw new Error(`unknown workflow template: ${templateId}`);
-  const workflow = COMPILERS[templateId](workflowIdentity(templateId, options), options);
+  const compiler = typeof templateId === "string" ? COMPILERS.get(templateId) : undefined;
+  if (!compiler) throw new Error("unknown workflow template");
+  const workflow = compiler(workflowIdentity(templateId, options), options);
   return validateWorkflow(workflow);
 }
 

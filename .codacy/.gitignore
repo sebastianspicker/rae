@@ -1,4 +1,5 @@
-generated/
-reports/
-tmp/
-configure-codacy-summary.json
+# Codacy CLI
+tools-configs/
+.gitignore
+cli-config.yaml
+logs/

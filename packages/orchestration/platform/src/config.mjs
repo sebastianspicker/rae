@@ -73,6 +73,14 @@ export function classifyHost(hostname) {
   return privateName || privateV4 || privateV6 ? "private" : "public";
 }
 
+/** Identifies bind addresses that cannot resolve to a non-loopback interface. */
+export function isLiteralLoopbackHost(hostname) {
+  const host = String(hostname)
+    .replace(/^\[|\]$/g, "")
+    .toLowerCase();
+  return host === "127.0.0.1" || host === "::1";
+}
+
 /** Rejects OIDC endpoints that could redirect production trust to a private host. */
 export function assertPublicHttpsUrl(value, label) {
   const url = new URL(value);
@@ -86,6 +94,31 @@ function assertInsecureConfigurationIsDevelopment(platform) {
   if ((platform.allowInsecureAuth || platform.allowInsecureHttp) && !platform.development) {
     throw new Error("insecure authentication or HTTP requires platform.development=true");
   }
+}
+
+function assertInsecureConfigurationIsLoopback(config) {
+  if (!config.platform.allowInsecureAuth && !config.platform.allowInsecureHttp) return;
+  if (!isLiteralLoopbackHost(config.server.host))
+    throw new Error("insecure authentication or HTTP requires a literal loopback server.host");
+  if (!config.server.publicBaseUrl)
+    throw new Error("insecure authentication or HTTP requires server.publicBaseUrl");
+  const publicUrl = new URL(config.server.publicBaseUrl);
+  if (
+    !["http:", "https:"].includes(publicUrl.protocol) ||
+    publicUrl.username ||
+    publicUrl.password ||
+    publicUrl.pathname !== "/" ||
+    publicUrl.search ||
+    publicUrl.hash
+  ) {
+    throw new Error(
+      "insecure authentication or HTTP requires a credential-free HTTP(S) origin",
+    );
+  }
+  if (!isLiteralLoopbackHost(publicUrl.hostname))
+    throw new Error(
+      "insecure authentication or HTTP requires a literal loopback server.publicBaseUrl",
+    );
 }
 
 function assertConfigurationTransport(config) {
@@ -108,6 +141,7 @@ export async function loadConfig(path = process.env.RAE_PLATFORM_CONFIG) {
     );
   }
   assertInsecureConfigurationIsDevelopment(parsed.platform);
+  assertInsecureConfigurationIsLoopback(parsed);
   assertConfigurationTransport(parsed);
   return parsed;
 }

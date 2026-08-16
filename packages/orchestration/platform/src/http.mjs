@@ -181,11 +181,18 @@ export async function handlePlatformRequest(
     }
     if (req.method === "POST" && route === "/api/v2/revisions/diff") {
       requireScope(principal, "rae.policy.write");
-      return send(
-        res,
-        200,
-        await store.diffRevisions(z.object({ fromId: uuid, toId: uuid }).parse(input)),
-      );
+      const value = z.object({ fromId: uuid, toId: uuid }).parse(input);
+      const [from, to] = await Promise.all([
+        store.getRevision(value.fromId),
+        store.getRevision(value.toId),
+      ]);
+      if (!from || !to)
+        throw Object.assign(new Error("comparable revisions not found"), { statusCode: 404 });
+      requireProject(principal, from.projectId);
+      requireProject(principal, to.projectId);
+      if (from.projectId !== to.projectId || from.kind !== to.kind)
+        throw Object.assign(new Error("comparable revisions not found"), { statusCode: 404 });
+      return send(res, 200, await store.diffRevisions(value));
     }
     if (req.method === "POST" && route === "/api/v2/runs") {
       requireScope(principal, "rae.run.submit");
