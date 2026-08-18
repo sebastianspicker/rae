@@ -87,6 +87,7 @@ evals/results/verification-baseline/
 .gemini/
 .kilo/
 .repowise/
+/.mcp.json
 /.codacy/*
 !/.codacy/codacy.config.json
 !/.codacy/codacy.yaml
