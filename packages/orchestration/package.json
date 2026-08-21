@@ -22,7 +22,7 @@
     "verify": "./scripts/verify.sh --skip-install"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.8",
+    "@biomejs/biome": "^2.5.9",
     "fast-check": "4.8.0",
     "vitest": "4.1.0"
   }
