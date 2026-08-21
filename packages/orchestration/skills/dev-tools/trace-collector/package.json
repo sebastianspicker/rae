@@ -14,7 +14,7 @@
     "@coding-agents-space/shared": "file:../_shared"
   },
   "devDependencies": {
-    "@types/node": "25.5.0",
+    "@types/node": "26.2.0",
     "@biomejs/biome": "2.5.2",
     "typescript": "5.9.3"
   }
