@@ -117,7 +117,6 @@ as if it were empirical evidence.
 - [CLM-007 information density](../../reference/claims/dossiers/clm-007-information-density.md)
 - [CLM-008 coordination topology](../../reference/claims/dossiers/clm-008-coordination-topology.md)
 - [CLM-014 staged separation](../../reference/claims/dossiers/clm-014-staged-separation.md)
-- [CLM-015 contract-gate distinction](../../reference/claims/dossiers/clm-015-contract-gate-distinction.md)
 - [Workflow State Formalization](../companion/workflow-state-formalization.md)
 
 ## Interpretation limits

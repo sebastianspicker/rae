@@ -51,7 +51,6 @@ This formalizes the distinction between doing work and being allowed to advance.
 ## Related dossiers
 
 - [CLM-014 staged separation](../../reference/claims/dossiers/clm-014-staged-separation.md)
-- [CLM-015 contract-gate distinction](../../reference/claims/dossiers/clm-015-contract-gate-distinction.md)
 
 ## Interpretation limits
 

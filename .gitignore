@@ -68,16 +68,6 @@ __pycache__/
 *.local.db
 *.local.sqlite
 *.local.sqlite3
-evals/results/.tmp-*/
-evals/results/.verify-*/
-evals/results/.plan-*/
-evals/results/local*/
-evals/results/tmp*/
-evals/results/verify.*/
-evals/results/foreign-evidence/
-evals/results/forged-checkpoints/
-evals/results/*-verification/
-evals/results/verification-baseline/
 
 # Local tool, analysis, and editor state
 .agents/
@@ -120,7 +110,6 @@ evals/results/verification-baseline/
 /docs/*-plan.md
 /docs/*-status.md
 !/docs/reference/claims/claims-ledger.md
-!/docs/reference/contracts/result-ledger.md
 docs/assets/screenshots/generated/
 docs/research/deep-audit-*.md
 docs/research/scientific-proofread-notes.md
@@ -159,3 +148,16 @@ id_ed25519.*
 /.netrc
 /.npmrc
 /.pypirc
+
+# Generated test and coverage output (local only)
+/coverage/
+/htmlcov/
+/.coverage
+/.coverage.*
+/.pytest_cache/
+/test-results/
+/playwright-report/
+/blob-report/
+/coverage.xml
+/junit.xml
+/junit-*.xml

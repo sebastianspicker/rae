@@ -1,8 +1,8 @@
 ---
 status: stable
-owner: evals
+owner: core
 last_reviewed: 2026-04-12
-source_of_truth: docs/research
+source_of_truth: editorial
 evidence_links: ../claims/evidence-index.md
 ---
 
@@ -16,26 +16,24 @@ audited later.
 - artifact identifier
 - producing module and command path
 - producing model or runtime version
-- benchmark or task identifier
+- operation or task identifier
 - date or timestamp
-- judge or evaluation method
+- verification method
 - repository commit or file snapshot reference when relevant
 
 ## Strong provenance
 
 Add these when the artifact will be compared across systems or releases:
 
-- scenario split (`dev`, `held-out`, `stress`, `ablation`)
 - cost and latency
 - environment notes
 - operator notes for unusual setup or exceptions
-- link to benchmark card and run card
+- link to the relevant runtime artifact
 
 ## Non-negotiable rule
 
 If provenance is missing, the artifact may still be useful for local debugging,
-but it should not be used as published evidence for a benchmark or science
-claim.
+but it should not be used as published evidence for a public claim.
 
 ## Thesis validation
 
@@ -44,20 +42,17 @@ signal, not publication-grade support.
 
 ## Related dossiers
 
-- [CLM-010 reproducibility layers](../claims/dossiers/clm-010-reproducibility-layers.md)
-- [CLM-019 validity doctrine](../claims/dossiers/clm-019-validity-doctrine.md)
 
 ## Interpretation limits
 
-- provenance improves interpretability but cannot rescue a flawed sampling or
-  judging procedure
+- provenance improves interpretability but cannot rescue a flawed method
 
 ## Source note
 
 - [Model Cards](../claims/bibliography.md#src-model-cards)
 - [Datasheets](../claims/bibliography.md#src-datasheets)
-- [OpenAI evals guidance](../claims/bibliography.md#src-openai-evals)
-- [PaperBench](../claims/bibliography.md#src-openai-paperbench)
 - [NIST GenAI Profile](../claims/bibliography.md#src-nist-genai-profile)
 - [IEEE 1012](../claims/bibliography.md#src-ieee-1012)
 - [Pineau reproducibility report](../claims/bibliography.md#src-pineau-reproducibility)
+- [Diataxis](../claims/bibliography.md#src-diataxis)
+- [Brooks no silver bullet](../claims/bibliography.md#src-brooks-no-silver-bullet)

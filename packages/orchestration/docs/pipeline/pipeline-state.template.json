@@ -131,10 +131,8 @@
     },
     "feature_flags": {
       "trace_v1": false,
-      "evaluation_v1": false,
       "context_budget_v1": false,
       "traceability_v1": false,
-      "drift_benchmark_v1": false,
       "worktree_isolation_v1": false,
       "activity_routing_v1": false
     }

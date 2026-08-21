@@ -85,7 +85,6 @@ claims.
 
 - [CLM-007 information density](../../reference/claims/dossiers/clm-007-information-density.md)
 - [CLM-008 coordination topology](../../reference/claims/dossiers/clm-008-coordination-topology.md)
-- [CLM-010 reproducibility layers](../../reference/claims/dossiers/clm-010-reproducibility-layers.md)
 
 ## Source note
 

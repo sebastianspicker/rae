@@ -74,10 +74,9 @@ After post-build gate pass:
 ### 6. Persist state transitions
 Update `.pipeline/pipeline-state.json` after each stage transition.
 
-### 7. Trace and evaluation artifacts
+### 7. Trace artifacts
 - Append execution events to `.pipeline/runs/<run-id>/trace.jsonl`.
 - Run `trace-collector` to generate `.pipeline/runs/<run-id>/trace.summary.json`.
-- When requested, aggregate matrix evaluations to `.pipeline/evaluations/<eval-id>/evaluation-report.json`.
 
 ### 8. Security exception handling
 Any accepted security risk must be explicit and include:

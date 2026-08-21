@@ -31,13 +31,7 @@ The cleaner rewrites only a private ref pinned to the captured OID, keeps
 recovery data when concurrent state changes, and compare-and-swap verifies the
 final atomic cleanup. Push is opt-in; default operation is local-only.
 
-## Verification entrypoint
-
-```bash
-(cd tools/repo-hygiene/coauthor-trailer-cleaner && bash ./tests/run-tests.sh)
-```
-
-Umbrella smoke path:
+## Verification smoke path
 
 ```bash
 ./scripts/rae.sh hygiene coauthor-cleaner --help

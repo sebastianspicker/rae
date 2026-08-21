@@ -29,8 +29,6 @@ common commands, repository structure, and current limitations.
 
 ## How-to guides
 
-- [Run a benchmark](how-to/run-a-benchmark.md)
-- [Reproduce a result](how-to/reproduce-a-result.md)
 - [Write a contract](how-to/write-a-contract.md)
 - [Add a tool](how-to/add-a-tool.md)
 - [Publish a sanitized profile](how-to/publish-a-sanitized-profile.md)
@@ -47,7 +45,6 @@ common commands, repository structure, and current limitations.
 - [Local graph and memory](reference/contracts/graph-memory.md)
 - [Workflow 2.2](reference/contracts/workflow-v2.2.md)
 - [Quality gates](reference/contracts/quality-gates.md)
-- [Task specifications](reference/contracts/task-specs.md)
 - [Safety boundaries](reference/invariants/safety-boundaries.md)
 - [Terminology](reference/terminology.md)
 
@@ -58,26 +55,14 @@ Package-owned command details:
 - [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/loops/ralph/README.md)
 - [Co-author trailer cleaner](https://github.com/sebastianspicker/rae/blob/main/tools/repo-hygiene/coauthor-trailer-cleaner/README.md)
 
-## Research and evidence
-
-- [Benchmark catalog](research/benchmark-catalog.md)
-- [Benchmark protocol](research/benchmark-protocol.md)
-- [Frozen benchmark results](research/frozen-benchmark-results.md)
-- [Claims ledger](reference/claims/claims-ledger.md)
-- [Evidence index](reference/claims/evidence-index.md)
 - [Assumptions register](reference/claims/assumptions-register.md)
-
-Committed baseline results are scoped to their recorded task set and
-environment. They do not establish behavior on arbitrary repositories.
 
 ## Explanation
 
-- [Autonomous improvement boundary](explanation/autonomous-improvement-boundary.md)
 - [Decision tree](explanation/overview/decision-tree.md)
 - [Contracts and gates](explanation/science/contracts-and-gates.md)
 - [Limitations](explanation/science/limitations.md)
 - [Threats to validity](explanation/science/threats-to-validity.md)
-- [Negative results](explanation/science/negative-results.md)
 
 ## Governance
 

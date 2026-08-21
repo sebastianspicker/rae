@@ -13,7 +13,6 @@ Documentation is part of the product surface and part of the reliability model.
 ## Structural rules
 
 - keep tutorial, how-to, reference, and explanation docs separate
-- use `research/` for benchmark doctrine and results
 - use `governance/` for policy, release, and review rules
 - keep command truth in package-local docs when the package owns the CLI
 
@@ -30,9 +29,6 @@ the interface it describes remains subject to change.
 - `formal`
   Support with definitions, assumptions, derivations, propositions, and linked
   contracts or algorithms where applicable.
-- `empirical`
-  Support with benchmark protocol, run artifacts, judge metadata, uncertainty,
-  and validity discussion.
 - `engineering_heuristic`
   Support with mechanistic argument, strong internal anchors, external
   literature, and explicit scope limits.
@@ -76,8 +72,8 @@ the interface it describes remains subject to change.
 - major cross-page theses should resolve to a claim dossier under
   `docs/reference/claims/dossiers/`
 - provisional claims must be labeled as provisional
-- explanation pages may motivate a design but may not impersonate benchmark
-  results
+- explanation pages may motivate a design but may not impersonate observed
+  runtime behavior
 - formula-bearing pages must distinguish explanatory formalism from validated
   empirical measurement
 

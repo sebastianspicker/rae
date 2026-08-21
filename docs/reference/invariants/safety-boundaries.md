@@ -39,7 +39,6 @@ informal operator caution alone.
 
 ## Related dossiers
 
-- [CLM-015 contract-gate distinction](../claims/dossiers/clm-015-contract-gate-distinction.md)
 - [CLM-017 documentation reliability](../claims/dossiers/clm-017-documentation-reliability.md)
 
 ## Interpretation limits

@@ -11,7 +11,6 @@ CALLER_PWD="$(pwd)"
 ORCH_DIR="$ROOT_DIR/packages/orchestration"
 RALPH_DIR="$ROOT_DIR/packages/loops/ralph"
 COAUTHOR_SCRIPT="$ROOT_DIR/tools/repo-hygiene/coauthor-trailer-cleaner/coauthor-trailer-cleaner.sh"
-EVAL_HARNESS="$ROOT_DIR/evals/harness/run-local.sh"
 AGENT_RUNNER="$ORCH_DIR/scripts/pipeline/autonomous.mjs"
 GRAPH_RUNNER="$ORCH_DIR/scripts/pipeline/graph-cli.mjs"
 OPERATOR_SERVER="$ORCH_DIR/operator/server.mjs"
@@ -29,14 +28,10 @@ Commands:
   agent <subcommand> [args]            Run the autonomous coding-agent orchestrator
   graph <subcommand> [args]            Build and query local graph projections and memory
   operator serve [args]                Serve the authenticated loopback operator console
-  task route [args]                    Route a task spec and emit a planned run card
-  checkpoint <subcommand> [args]       Create or resolve human checkpoint cards
   orchestrate <subcommand> [args]      Run the phased orchestration package
   worktree <subcommand> [args]         Run worktree-native orchestration aliases
   ralph <subcommand> [args]            Run Ralph or bootstrap its embedded template
   hygiene <tool> [args]                Run narrow maintenance tooling
-  eval <subcommand> [args]             Run eval metadata harness commands
-  release-gate [args]                  Evaluate release-blocking benchmark gates
   workflow <family> [args]             Run umbrella workflow aliases
   help                                 Show this help
 
@@ -46,7 +41,6 @@ Examples:
   ./scripts/rae.sh agent run --task "Add a tested health endpoint and document it"
   ./scripts/rae.sh graph build --project-root /absolute/path/to/repository
   ./scripts/rae.sh operator serve --project /absolute/path/to/repository
-  ./scripts/rae.sh task route --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json --task-id tool-selection-dev-orchestration --output evals/results/planned.json
   ./scripts/rae.sh orchestrate init
   ./scripts/rae.sh orchestrate run-stage --run-id <id> --phase arm
   ./scripts/rae.sh orchestrate record-review-state --run-id <id> --state explain --status completed
@@ -54,11 +48,6 @@ Examples:
   ./scripts/rae.sh ralph --status
   ./scripts/rae.sh ralph bootstrap-template /tmp/demo-repo
   ./scripts/rae.sh hygiene coauthor-cleaner --help
-  ./scripts/rae.sh checkpoint create --output evals/results/checkpoint.json --run-id demo --task-id task --gate-id review --title "Review"
-  ./scripts/rae.sh eval validate
-  ./scripts/rae.sh eval run --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json --split dev --output-dir evals/results/tmp
-  ./scripts/rae.sh eval outcome --task-bundle evals/datasets/autonomous-outcomes/core.task-bundle.json --fixture-root evals/fixtures/autonomous-outcomes --policy packages/orchestration/policies/default.autonomous-policy.json --split dev --repeats 2 --output-dir evals/results/outcomes/dev --acknowledge-provider-usage
-  ./scripts/rae.sh release-gate --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json --run-card evals/results/tmp/run-card.json --regression-report evals/results/tmp/regression.json --ledger evals/results/tmp/result-ledger.jsonl --output evals/results/tmp/release-gate.json
   ./scripts/rae.sh worktree init .
   ./scripts/rae.sh worktree summary --run-id <id>
   ./scripts/rae.sh workflow repo-audit bootstrap /tmp/demo-repo
@@ -236,7 +225,6 @@ run_doctor() {
 
   check_file "umbrella-cli" "$ROOT_DIR/scripts/rae.sh" || failed=1
   check_file "verify" "$ROOT_DIR/scripts/verify.sh" || failed=1
-  check_file "eval-harness" "$EVAL_HARNESS" || failed=1
   check_file "orchestrate" "$ORCH_DIR/scripts/pipeline-init.sh" || failed=1
   check_file "agent-runner" "$AGENT_RUNNER" || failed=1
   check_file "graph-runner" "$GRAPH_RUNNER" || failed=1
@@ -247,8 +235,6 @@ run_doctor() {
   printf '\n'
 
   check_entrypoint "umbrella-help" bash "$ROOT_DIR/scripts/rae.sh" --help || failed=1
-  check_entrypoint "eval-help" bash "$EVAL_HARNESS" --help || failed=1
-  check_entrypoint "eval-doctor" bash "$EVAL_HARNESS" doctor || failed=1
   check_entrypoint "orchestrate-help" bash "$ROOT_DIR/scripts/rae.sh" orchestrate help || failed=1
   check_entrypoint "agent-help" bash "$ROOT_DIR/scripts/rae.sh" agent help || failed=1
   check_entrypoint "ralph-help" bash "$RALPH_DIR/ralph.sh" --help || failed=1
@@ -412,61 +398,6 @@ EOF
   esac
 }
 
-run_eval() {
-  local subcommand="${1:-help}"
-  shift || true
-
-  case "$subcommand" in
-  help | -h | --help)
-    "$EVAL_HARNESS" --help
-    ;;
-  validate | doctor | route | run | outcome | compare-outcomes | optimize | improve | calibrate | release-gate)
-    "$EVAL_HARNESS" "$subcommand" "$@"
-    ;;
-  *)
-    die "unknown eval subcommand: $subcommand"
-    ;;
-  esac
-}
-
-run_task() {
-  local subcommand="${1:-help}"
-  shift || true
-
-  case "$subcommand" in
-  route)
-    run_eval route "$@"
-    ;;
-  help | -h | --help)
-    cat <<'EOF'
-Usage: ./scripts/rae.sh task route --task-spec <path> --output <run-card>
-EOF
-    ;;
-  *)
-    die "unknown task subcommand: $subcommand"
-    ;;
-  esac
-}
-
-run_checkpoint() {
-  local subcommand="${1:-help}"
-  shift || true
-
-  case "$subcommand" in
-  create | approve | reject | escalate)
-    "$PYTHON_BIN" "$ROOT_DIR/evals/scripts/checkpoint.py" "$subcommand" "$@"
-    ;;
-  help | -h | --help)
-    cat <<'EOF'
-Usage: ./scripts/rae.sh checkpoint <create|approve|reject|escalate> [args]
-EOF
-    ;;
-  *)
-    die "unknown checkpoint subcommand: $subcommand"
-    ;;
-  esac
-}
-
 run_repo_audit_workflow() {
   local action="${1:-check}"
   shift || true
@@ -590,12 +521,6 @@ main() {
   operator | console)
     run_operator "$@"
     ;;
-  task)
-    run_task "$@"
-    ;;
-  checkpoint)
-    run_checkpoint "$@"
-    ;;
   orchestrate | orchestration)
     run_orchestration "$@"
     ;;
@@ -607,12 +532,6 @@ main() {
     ;;
   hygiene)
     run_hygiene "$@"
-    ;;
-  eval | evals)
-    run_eval "$@"
-    ;;
-  release-gate)
-    run_eval release-gate "$@"
     ;;
   workflow | workflows)
     run_workflow "$@"

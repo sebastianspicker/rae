@@ -31,7 +31,6 @@ RAE currently provides:
 - a loopback-only operator console with synchronized Loop, Graph, Analyze, and JSON workflow views
 - explicit Codex and OpenCode execution routes through operator-owned profiles
 - Ralph audit, linting, and story-scoped fixing modes
-- benchmark validation, execution, comparison, calibration, and release gates
 - opt-in local repository, workflow, evidence, and temporal-memory graph projections
 - an experimental hosted control-plane and self-hosted worker source slice
 - a transactional Git co-author trailer cleaner
@@ -52,8 +51,6 @@ The following limits are part of the current implementation:
   `HEAD` and current-branch reflogs
 - Ralph fixing transactions support macOS and Linux; unsupported platforms
   fail closed
-- evaluation results apply only to the recorded benchmark, configuration, and
-  environment
 
 ## Requirements
 
@@ -100,7 +97,6 @@ The umbrella command forwards arguments to the runtime that owns them:
 | --- | --- |
 | Autonomous runs and operator console | [`packages/orchestration/README.md`](packages/orchestration/README.md) |
 | Ralph | [`packages/loops/ralph/README.md`](packages/loops/ralph/README.md) |
-| Evaluation | [`docs/reference/cli/umbrella.md`](docs/reference/cli/umbrella.md) |
 | Co-author trailer cleaner | [`tools/repo-hygiene/coauthor-trailer-cleaner/README.md`](tools/repo-hygiene/coauthor-trailer-cleaner/README.md) |
 | Environment profiles | [`profiles/agent-environments/README.md`](profiles/agent-environments/README.md) |
 
@@ -190,38 +186,8 @@ Run Ralph health checks or an audit:
 Ralph requires a local `prd.json`. Follow the
 [Ralph setup](packages/loops/ralph/README.md#setup) before the first run.
 
-Route one task specification:
-
-```bash
-./scripts/rae.sh task route \
-  --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json \
-  --task-id tool-selection-dev-orchestration \
-  --output evals/results/local/planned-route.json
-```
-
-Run one benchmark split:
-
-```bash
-./scripts/rae.sh eval run \
-  --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json \
-  --split dev \
-  --output-dir evals/results/local-dev
-```
-
-Evaluate a sealed workflow-improvement campaign without activation:
-
-```bash
-./scripts/rae.sh eval improve \
-  --campaign evals/campaigns/autonomous-policy-improvement.v2.json \
-  --baseline-evaluation evals/results/local/baseline-development.json \
-  --candidate-policy evals/results/local/candidate-policy.json \
-  --candidate-evaluation evals/results/local/candidate-development.json \
-  --sealed-evaluation evals/results/local/candidate-held-out.json \
-  --output-dir evals/results/local/improvement-campaign
-```
-
-Local outputs under `evals/results/local*`, `.pipeline/`, and package runtime
-directories are intentionally ignored.
+Local outputs under `.pipeline/` and package runtime directories are
+intentionally ignored.
 
 ## Repository structure
 
@@ -231,7 +197,6 @@ directories are intentionally ignored.
 | `packages/orchestration/` | Staged runtime, operator console, policies, contracts, and tests |
 | `packages/loops/ralph/` | Audit, linting, and transactional fixing loop |
 | `tools/repo-hygiene/` | Narrow repository-maintenance utilities |
-| `evals/` | Benchmark cards, task specifications, schemas, fixtures, and committed baselines |
 | `profiles/agent-environments/` | Sanitized profile templates and installer tests |
 | `docs/` | Tutorials, how-to guides, reference, explanation, research, and governance |
 | `examples/` | Minimal runnable layouts and command examples |
@@ -277,12 +242,11 @@ Package-level commands:
 npm --prefix packages/orchestration run test:operator
 npm --prefix packages/orchestration run test:runner
 bash packages/loops/ralph/scripts/run_tests.sh
-bash tools/repo-hygiene/coauthor-trailer-cleaner/tests/run-tests.sh
 ```
 
 The umbrella verifier runs repository validation, Python linting and type
-checks, Python tests, shell checks, package tests, benchmark checks, profile
-installer tests, screenshot validation, and documentation checks.
+checks, shell checks, compact package tests, evaluator harness validation, and
+documentation checks.
 
 ## Operation and release
 
@@ -329,7 +293,7 @@ Package-specific recovery procedures are in the
   in-place run is required.
 - Do not enable the custom command provider outside controlled tests.
 - Review all diffs and run reports before making any Git or publication change.
-- Keep local state, benchmark outputs, credentials, and private overlays
+- Keep local state, generated outputs, credentials, and private overlays
   untracked.
 - Back up repositories before using the history-rewrite utility.
 

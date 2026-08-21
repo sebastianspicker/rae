@@ -74,7 +74,6 @@ Useful focused checks:
 npm --prefix packages/orchestration run test:operator
 npm --prefix packages/orchestration run test:runner
 bash packages/loops/ralph/scripts/run_tests.sh
-bash tools/repo-hygiene/coauthor-trailer-cleaner/tests/run-tests.sh
 python3 -B scripts/verify_repo.py --skip-mkdocs
 ```
 

@@ -115,22 +115,11 @@ Example: [coauthor-trailer-cleaner.example.json](coauthor-trailer-cleaner.exampl
 
 Use an external backup or throwaway clone before rewriting shared history.
 
-## Testing
-
-Run the full test suite:
+## Verification smoke path
 
 ```bash
-bash tests/run-tests.sh
+bash coauthor-trailer-cleaner.sh --help
 ```
-
-Run a subset:
-
-```bash
-bash tests/run-tests.sh --filter custom_target
-```
-
-The suite covers URL parsing, target validation, callback behavior, config
-loading, and full rewrite workflows.
 
 ## Files
 
@@ -141,7 +130,6 @@ loading, and full rewrite workflows.
 - `lib/cli.sh`: argument parsing and top-level orchestration
 - `coauthor-trailer-cleaner.schema.json`: JSON schema for config files
 - `coauthor-trailer-cleaner.example.json`: example config
-- `tests/`: unit and integration tests
 
 ## License
 

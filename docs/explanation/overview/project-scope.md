@@ -48,7 +48,6 @@ literature on verification, documentation, and reproducibility.
 ## Related dossiers
 
 - [CLM-017 documentation reliability](../../reference/claims/dossiers/clm-017-documentation-reliability.md)
-- [CLM-019 validity doctrine](../../reference/claims/dossiers/clm-019-validity-doctrine.md)
 
 ## Interpretation limits
 

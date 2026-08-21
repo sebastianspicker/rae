@@ -32,8 +32,6 @@ alpha candidate. Interfaces may change; it is not a published release.
 - `installers/profile_receipts.py`
   Implements guarded quarantine receipts, no-clobber replacement, commit,
   rollback, and retained recovery evidence.
-- `tests/profile-installation.sh`
-  Verifies install/remove behavior and checks for forbidden private markers.
 
 ## Publication rule
 

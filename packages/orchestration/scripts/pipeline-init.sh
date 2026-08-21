@@ -138,7 +138,7 @@ validate_cleanup_contents() {
   # worktree alive.
   while IFS= read -r -d '' untracked_path; do
     case "$untracked_path" in
-      .pipeline/pipeline-state.json | .pipeline/runs/* | .pipeline/evaluations/*) ;;
+      .pipeline/pipeline-state.json | .pipeline/runs/*) ;;
       *)
         echo "ERROR: refusing cleanup: owned worktree has uncommitted changes at: $untracked_path" >&2
         return 1
@@ -280,7 +280,6 @@ run_dir="$pipeline_dir/runs/$run_id"
 mkdir -p "$run_dir/drift-reports"
 mkdir -p "$run_dir/quality-reports"
 mkdir -p "$run_dir/gates"
-mkdir -p "$run_dir/evaluations"
 
 timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 trace_path="$run_dir/trace.jsonl"
@@ -435,10 +434,8 @@ cat > "$pipeline_dir/pipeline-state.json" <<EOF
     },
     "feature_flags": {
       "trace_v1": true,
-      "evaluation_v1": true,
       "context_budget_v1": true,
       "traceability_v1": true,
-      "drift_benchmark_v1": true,
       "worktree_isolation_v1": $use_worktree,
       "activity_routing_v1": true
     }

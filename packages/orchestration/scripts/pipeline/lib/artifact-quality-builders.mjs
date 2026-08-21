@@ -11,7 +11,7 @@ export function buildQualityArtifact(auditType) {
             {
               requirement_id: "REQ-001",
               planned_task_ids: ["task-1"],
-              planned_test_cases: ["runner-stage-smoke"],
+              planned_test_cases: ["runner-contract-smoke"],
               acceptance_criteria: ["trace events emitted", "gate output persisted"],
               missing_task_ids: [],
               missing_test_cases: [],
@@ -97,7 +97,7 @@ export function buildReleaseReadinessArtifact({ now }) {
     changelog: {
       updated: true,
       path: "README.md",
-      entries: ["Runner and evaluation harness upgraded"],
+      entries: ["Runner contract upgraded"],
     },
     migration: {
       required: false,

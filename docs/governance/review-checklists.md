@@ -24,19 +24,6 @@ evidence_links: release-criteria.md
 - uncertainty and interpretation limits are explicit where evidence is partial
 - outdated statements are corrected or downgraded
 
-## Benchmark review
-
-- benchmark question and intent are explicit
-- benchmark card is frozen
-- split and sampling policy are explicit
-- comparison baseline is explicit
-- judge method and calibration summary are explicit
-- contamination risk is discussed
-- failure taxonomy is reported
-- uncertainty or error-analysis notes are present when applicable
-- user-surface probes are attached when the benchmark concerns operator-visible
-  behavior
-
 ## Release review
 
 - verification output is recent
@@ -58,8 +45,8 @@ evidence_links: release-criteria.md
 
 - [IEEE 1012](../reference/claims/bibliography.md#src-ieee-1012)
 - [NIST GenAI Profile](../reference/claims/bibliography.md#src-nist-genai-profile)
-- [OpenAI evals guidance](../reference/claims/bibliography.md#src-openai-evals)
-- [PaperBench](../reference/claims/bibliography.md#src-openai-paperbench)
-- [Artstein and Poesio](../reference/claims/bibliography.md#src-artstein-poesio)
+- [Diataxis](../reference/claims/bibliography.md#src-diataxis)
+- [Model Cards](../reference/claims/bibliography.md#src-model-cards)
+- [Datasheets](../reference/claims/bibliography.md#src-datasheets)
 - [Pineau reproducibility report](../reference/claims/bibliography.md#src-pineau-reproducibility)
 - [Nosek open research culture](../reference/claims/bibliography.md#src-nosek-open-research)

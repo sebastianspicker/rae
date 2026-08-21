@@ -10,7 +10,6 @@
 
 - [PLATFORMS](PLATFORMS.md): adapter and platform support model.
 - [ORCHESTRATION_POLICY](ORCHESTRATION_POLICY.md): explicit boundaries for orchestration parallelism.
-- [Autonomous Improvement Boundary](https://github.com/sebastianspicker/rae/blob/main/docs/explanation/autonomous-improvement-boundary.md): autonomous policy, outcome evaluation, optimizer, and operator trust boundaries.
 
 ## Technical rationale
 

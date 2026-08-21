@@ -84,10 +84,6 @@ export function opencodeSandboxProfile({
       const value = escapeSeatbelt(pathValue);
       rules.push(`(deny file-read* file-write* (literal "${value}") (subpath "${value}"))`);
     }
-  for (const pathValue of ["evals/fixtures", "evals/judges", "evals/policies"])
-    rules.push(
-      `(deny file-write* (subpath "${escapeSeatbelt(resolve(workspaceRoot, pathValue))}"))`,
-    );
   return rules.join("\n");
 }
 export function processFailure(label, proc) {

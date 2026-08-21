@@ -12,7 +12,6 @@ evidence_links: ../claims/assumptions-register.md
 
 - `packages/orchestration/`: multi-stage delivery contracts and runtimes; imported
 - `packages/loops/ralph/`: deterministic story loop execution; imported
-- `evals/`: evidence and benchmark infrastructure
 
 ## Supporting modules
 

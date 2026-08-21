@@ -65,7 +65,6 @@ to block progression or publication when evidence is still weak.
 
 ## Claim dossier
 
-- [CLM-015 contract-gate distinction](../../reference/claims/dossiers/clm-015-contract-gate-distinction.md)
 
 ## Interpretation limits
 

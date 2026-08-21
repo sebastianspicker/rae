@@ -31,7 +31,6 @@ surface inside the umbrella.
 
 ## Related dossiers
 
-- [CLM-010 reproducibility layers](../reference/claims/dossiers/clm-010-reproducibility-layers.md)
 
 ## Interpretation limits
 

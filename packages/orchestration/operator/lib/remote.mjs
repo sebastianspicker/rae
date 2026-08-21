@@ -146,10 +146,6 @@ function remoteError(message, status = 502) {
   return Object.assign(new Error(message), { status });
 }
 
-function isLoopbackHost(hostname) {
-  return hostname === "127.0.0.1" || hostname === "::1";
-}
-
 /** Validates the single upstream origin permitted for a remote console session. */
 export function parseRemoteUrl(value) {
   let url;
@@ -161,9 +157,7 @@ export function parseRemoteUrl(value) {
   if (url.username || url.password || url.search || url.hash || url.pathname !== "/") {
     throw new Error("--remote-url must contain only an origin");
   }
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopbackHost(url.hostname))) {
-    throw new Error("--remote-url must use HTTPS (HTTP is limited to loopback development)");
-  }
+  if (url.protocol !== "https:") throw new Error("--remote-url must use HTTPS");
   return url;
 }
 
