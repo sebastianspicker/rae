@@ -29,9 +29,6 @@ evidence_links: ../reference/claims/bibliography.md
   Preserve the local source of truth and add a source note or companion packet
   with at least seven relevant external sources that justify the broader method,
   documentation, verification, or human-factors framing.
-- empirical claims
-  Cite the benchmark card, run card, result ledger, judge version, and any
-  external method source needed to interpret the result.
 - external literature claims
   Cite the primary publication or official documentation via a stable
   bibliography anchor.
@@ -42,17 +39,14 @@ evidence_links: ../reference/claims/bibliography.md
 ## What must be cited
 
 - scientific claims
-- benchmark interpretation rules
-- result summaries
 - external methodological guidance
 - article-level source notes needed to satisfy the locked seven-source quota
 
 ## Preferred source order
 
 1. code and schemas for implementation claims
-2. frozen benchmark artifacts for empirical claims
-3. official documentation and primary publications for external guidance
-4. editorial summaries only when the stronger sources are unavailable
+2. official documentation and primary publications for external guidance
+3. editorial summaries only when the stronger sources are unavailable
 
 ## Article quota rule
 
@@ -78,8 +72,6 @@ evidence_links: ../reference/claims/bibliography.md
 ## Interpretation rules
 
 - do not present heuristics as settled science
-- cite the benchmark card and run card when discussing a result
-- cite the judge and rubric version when judgment affects the result meaning
 - when evidence is incomplete, state the limit directly
 
 ## Source note

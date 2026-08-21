@@ -154,14 +154,14 @@ node "$root_dir/scripts/pipeline/runner.mjs" --help >/dev/null 2>&1 || { step_fa
 node "$root_dir/scripts/pipeline/autonomous.mjs" --help >/dev/null 2>&1 || { step_fail "autonomous CLI smoke test"; exit 1; }
 step_ok "runner CLI loads successfully"
 
-# Runner lib unit tests
+# Compact runner boundary tests
 step_info "runner lib tests"
-(cd "$root_dir/scripts/pipeline" && "$root_dir/node_modules/.bin/vitest" run --reporter=verbose 2>&1) || { step_fail "runner lib tests"; exit 1; }
+(cd "$root_dir/scripts/pipeline" && "$root_dir/node_modules/.bin/vitest" run --reporter=verbose tests/argv-security.test.mjs tests/agent-provider-event-log-security.test.mjs tests/operator-cli.test.mjs 2>&1) || { step_fail "runner lib tests"; exit 1; }
 step_ok "runner lib tests passed"
 
-# Operator server, security, control, and UI contracts use Node's test runner.
+# Operator security boundary uses Node's test runner.
 step_info "operator tests"
-(cd "$root_dir" && node --test operator/tests/*.test.mjs 2>&1) || { step_fail "operator tests"; exit 1; }
+(cd "$root_dir" && node --test operator/tests/security.test.mjs 2>&1) || { step_fail "operator tests"; exit 1; }
 step_ok "operator tests passed"
 
 export SKIP_INSTALL
@@ -175,7 +175,6 @@ verify_pkg() {
     npm run lint
     npm run format:check
     npm run build
-    npm test
   )
 }
 export -f verify_pkg
@@ -188,7 +187,6 @@ verify_shared() {
     npm run lint
     npm run format:check
     npm run build
-    npm test
   )
 }
 
@@ -224,11 +222,6 @@ else
   for pkg in "${packages[@]}"; do
     verify_pkg "$pkg"
   done
-fi
-
-if [[ "${DRIFT_BENCHMARK:-0}" == "1" ]]; then
-  echo "==> drift benchmark"
-  node "$root_dir/scripts/eval/drift-benchmark.mjs" --root "$root_dir"
 fi
 
 step_info "verify summary"

@@ -10,8 +10,6 @@ The graph-native runtime treats a versioned workflow as executable policy. Requi
 
 The operator is a loopback-only, bearer-authenticated local console. It is used to inspect runs, resolve checkpoints, stop or resume owned work, and author future workflow revisions. Active runs cannot be edited. Workflow activation is an attributed human decision that affects future runs only.
 
-The improvement campaign is evaluator-owned. It compares bounded workflow policy and topology candidates against frozen development and held-out matrices, records append-only lineage, and emits a recommendation. It never activates a candidate.
-
 The experimental hosted-platform source is a separate control-plane and worker
 slice. It stores control-plane state in PostgreSQL, protects routes with OIDC,
 uses fenced worker leases, and can verify S3-compatible artifacts. The local
@@ -26,7 +24,7 @@ Primary users are maintainers who need inspectable repository automation, explic
 
 Product boundaries:
 
-- Runtime code, judges, fixtures, safety invariants, provider selection, model selection, tools, commands, and promotion rules are not candidate-editable.
+- Runtime code, safety invariants, provider selection, model selection, tools, commands, and promotion rules are not candidate-editable.
 - Context graph memory is separately opt-in with `--graph-memory` and cannot authorize mutation.
 - OpenCode writes require the macOS Seatbelt backend and an isolated worktree.
   Codex retains its documented workspace sandbox requirements. Unsupported

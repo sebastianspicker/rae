@@ -433,8 +433,7 @@
       "exclude": [
         "packages/loops/ralph/lib/ralph/core.sh",
         "packages/loops/ralph/lib/ralph/status.sh",
-        "packages/orchestration/scripts/check-orchestration-integrity.sh",
-        "packages/loops/ralph/tests/ralph_version_flag_test.sh"
+        "packages/orchestration/scripts/check-orchestration-integrity.sh"
       ],
       "patterns": [
         {

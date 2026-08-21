@@ -34,7 +34,6 @@ and governance literature.
 - `scripts/verify_repo.py`
 - `docs/INDEX.md`
 - `packages/orchestration/scripts/pipeline/autonomous.mjs`
-- `packages/orchestration/scripts/pipeline/tests/autonomous-checkpoint-scenarios.test.mjs`
 
 ## External anchors
 
@@ -50,9 +49,9 @@ and governance literature.
 
 Documentation review is enforced via `scripts/verify_repo.py`, autonomous
 post-build instructions, emitted `documentation-report.json`, and release
-review checklists. The end-to-end autonomous fixture verifies that a target doc
-change is surfaced in the run report, but no frozen benchmark isolates the
-effect of documentation quality yet.
+review checklists. No retained end-to-end fixture establishes that a target doc
+change is surfaced in a run report, and no frozen benchmark isolates the effect
+of documentation quality.
 
 ## Counterarguments
 

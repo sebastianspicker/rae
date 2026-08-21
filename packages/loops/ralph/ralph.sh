@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
-# Ralph Audit Loop (golden reference template)
+# Ralph Audit Loop (embedded reference template)
 #
 # Usage examples:
 #   MODE=audit   ./ralph.sh 20

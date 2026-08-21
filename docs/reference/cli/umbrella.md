@@ -20,14 +20,10 @@ before dispatching to the package that owns each command.
 | `agent` | orchestration autonomous CLI | Run, inspect, stop, or resume an autonomous workflow |
 | `graph` | orchestration graph CLI | Build and query local projections or manage cross-run memory |
 | `operator serve` | orchestration operator console | Serve the loopback console for allowlisted repositories |
-| `task route` | evaluation router | Select a runtime for one task specification |
-| `checkpoint` | evaluation checkpoint CLI | Create or resolve an operator checkpoint |
 | `orchestrate` | orchestration stage runner | Manage pipeline stages, artifacts, gates, and summaries |
 | `worktree` | orchestration worktree CLI | Create, inspect, resume, or clean isolated runs |
 | `ralph` | Ralph package | Run audit, linting, or story-scoped fixing |
 | `hygiene` | repository hygiene tools | Run an explicitly selected maintenance utility |
-| `eval` | evaluation CLI | Validate, execute, compare, calibrate, or gate benchmark evidence |
-| `release-gate` | evaluation release gate | Check release-blocking regression evidence |
 | `workflow` | umbrella aliases | Use task-oriented aliases for the same package commands |
 
 Run:
@@ -43,7 +39,6 @@ Subcommand options are owned by the selected runtime:
 ./scripts/rae.sh graph --help
 ./scripts/rae.sh orchestrate --help
 ./scripts/rae.sh ralph --help
-./scripts/rae.sh eval --help
 ```
 
 ## Diagnostics
@@ -189,32 +184,6 @@ Repeat `--project` for additional allowlisted roots. The server binds to
 loopback and prints an ephemeral token in the URL fragment. The console starts
 only isolated-worktree runs and does not expose arbitrary commands, environment
 overrides, in-place execution, Git publication, or deployment.
-
-## Task routing and evaluation
-
-Route one task:
-
-```bash
-./scripts/rae.sh task route \
-  --task-spec evals/datasets/tool-selection/tool-selection-core.task-specs.json \
-  --task-id tool-selection-dev-orchestration \
-  --output evals/results/local/planned-route.json
-```
-
-Run one benchmark split:
-
-```bash
-./scripts/rae.sh eval run \
-  --benchmark-card evals/benchmarks/tool-selection-core.benchmark-card.json \
-  --split dev \
-  --output-dir evals/results/local-dev
-```
-
-The evaluation CLI also provides metadata validation, autonomous outcomes,
-paired outcome comparison, policy optimization, suite execution, judge
-calibration, and release gates. Run `./scripts/rae.sh eval --help` before using
-an outcome or optimization command because those commands have explicit
-provider and isolation requirements.
 
 ## Workflow aliases
 

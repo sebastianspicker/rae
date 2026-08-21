@@ -23,7 +23,6 @@ Supported scope for coordinated handling:
 - committed package runtimes under `packages/`
 - committed umbrella scripts under `scripts/`
 - committed tooling under `tools/`
-- committed eval harness and schemas under `evals/`
 - committed public profile lane content under `profiles/agent-environments/`
 
 Out of scope:
@@ -176,7 +175,4 @@ Do not publish:
 - Public agent profiles must remain machine-agnostic.
 - Public profile installers must refuse symlinked managed paths and manifest
   backup paths that escape the target tree.
-- Benchmark artifacts must avoid sensitive repository content.
 - Maintenance tooling examples must avoid destructive defaults.
-- Evaluation and publication gates must reject forged or out-of-bounds
-  evidence.

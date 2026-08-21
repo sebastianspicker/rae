@@ -59,7 +59,6 @@ The repo aims for:
 
 - [CLM-014 staged separation](../../reference/claims/dossiers/clm-014-staged-separation.md)
 - [CLM-017 documentation reliability](../../reference/claims/dossiers/clm-017-documentation-reliability.md)
-- [CLM-019 validity doctrine](../../reference/claims/dossiers/clm-019-validity-doctrine.md)
 
 ## Interpretation limits
 

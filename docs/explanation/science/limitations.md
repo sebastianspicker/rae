@@ -39,8 +39,6 @@ architecture dominates every agent-engineering setting.
 
 ## Related dossiers
 
-- [CLM-010 reproducibility layers](../../reference/claims/dossiers/clm-010-reproducibility-layers.md)
-- [CLM-019 validity doctrine](../../reference/claims/dossiers/clm-019-validity-doctrine.md)
 
 ## Source note
 

@@ -24,8 +24,6 @@ what evidence and limitations are mandatory.
 
 ## Related dossiers
 
-- [CLM-015 contract-gate distinction](../claims/dossiers/clm-015-contract-gate-distinction.md)
-- [CLM-021 negative results](../claims/dossiers/clm-021-negative-results.md)
 
 ## Interpretation limits
 

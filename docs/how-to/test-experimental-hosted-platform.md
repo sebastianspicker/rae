@@ -2,32 +2,22 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/platform/test/platform.test.mjs
+source_of_truth: packages/orchestration/scripts/verify.sh
 evidence_links: ../reference/claims/claims-ledger.md
 ---
 
 # Test the Experimental Hosted Platform
 
-Run the focused source-unit suite from the platform package:
+RAE does not retain a platform-specific automated suite. Run the maintained
+orchestration boundary checks instead:
 
 ```bash
-npm --prefix packages/orchestration/platform test
+npm --prefix packages/orchestration run test:runner
+npm --prefix packages/orchestration run test:operator
 ```
 
-The current suite uses the in-memory store. It verifies canonical revision
-digests, digest mismatch rejection, idempotent run submission, the 256 KiB run
-envelope limit, four-reader writer exclusion, authorization failure, and
-traceparent format.
-
-Run the workflow 2.2 contract suite separately:
-
-```bash
-npm --prefix packages/orchestration run test:runner -- workflow-v22.test.mjs
-```
-
-That suite covers bounded and ordered context, artifact references instead of
-partial predecessor objects, fail-closed context overflow, idempotent signals,
-local resume, and timeout routing.
+These checks cover runner argv, provider-event log, operator CLI, and loopback
+security boundaries. They do not establish hosted-platform behavior.
 
 The focused tests do not start Docker, PostgreSQL, MinIO or another S3 service,
 an OIDC issuer, or a remote worker. They do not prove hosted deployment,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repository-level checks for public hygiene, docs, eval metadata, and MkDocs.
+"""Repository-level checks for public hygiene, docs, and MkDocs.
 
 Package-local regression suites live under their owning runtime. This script
 only checks the umbrella surfaces that make repository claims visible and
@@ -79,8 +79,6 @@ REQUIRED_REPOSITORY_FILES = (
     "scripts/check_source_documentation.py",
     "docs/INDEX.md",
     "docs/reference/claims/claims-ledger.md",
-    "docs/research/benchmark-protocol.md",
-    "evals/README.md",
     "profiles/agent-environments/README.md",
 )
 OBSOLETE_PUBLIC_DIRECTORIES = {
@@ -475,16 +473,6 @@ def validate_source_documentation() -> None:
     )
 
 
-def validate_eval_metadata() -> None:
-    # Fixed repository script under the current interpreter; never a shell command.
-    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-    subprocess.run(  # nosec B603
-        [sys.executable, str(ROOT / "evals/scripts/validate_eval_metadata.py")],
-        cwd=ROOT,
-        check=True,
-    )
-
-
 def run_mkdocs_strict() -> None:
     mkdocs_bin = shutil.which("mkdocs")
     if mkdocs_bin is None:
@@ -531,7 +519,6 @@ def main(argv: list[str] | None = None) -> int:
     validate_frontmatter()
     validate_links()
     validate_doc_source_density()
-    validate_eval_metadata()
     if not args.skip_mkdocs:
         run_mkdocs_strict()
     return 0

@@ -140,22 +140,10 @@ from the operator API. The operator receives only health counts.
 ## Experimental status
 
 The projection and safety contracts have deterministic local tests. Graph-
-informed execution remains experimental until the frozen retrieval benchmark
-shows one of these outcomes without reducing held-out task passes:
-
-- Recall@10 improves by at least 10 percentage points
-- recall is preserved while context tokens fall by at least 25 percent
-
-It must also show zero cross-project or protected-path leakage, p95 query
-latency no greater than 250 ms on the 100,000-node fixture, and projection time
-no greater than 30 seconds on the 10,000-file fixture. No such result is
-claimed by this contract page.
-
-The checked-in 50-task retrieval set and local comparison runner live under
-`evals/datasets/graph-context/` and
-`packages/orchestration/scripts/eval/graph-context-benchmark.mjs`. The runner
-does not execute a provider, so task pass count remains unresolved and its
-result cannot satisfy the experimental exit criteria by itself.
+informed execution remains experimental until it has production-oriented
+integration evidence showing that it preserves repository and protected-path
+boundaries without degrading operator control. No such result is claimed by
+this contract page.
 
 The design is informed by evidence that graph retrieval is useful for
 relational and repository-structure questions but is not uniformly better than

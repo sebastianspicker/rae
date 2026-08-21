@@ -13,7 +13,6 @@ The release artifact is the tagged source tree. It contains:
   authenticated loopback operator console;
 - the Ralph audit, lint, and fixing loop;
 - the coauthor trailer cleaner;
-- evaluation schemas, fixtures, local benchmark runners, and release gates;
 - sanitized agent-environment profile templates and installers;
 - the MkDocs documentation source and deterministic CLI captures.
 

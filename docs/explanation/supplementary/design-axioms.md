@@ -37,7 +37,6 @@ claims.
 ## Related dossiers
 
 - [CLM-014 staged separation](../../reference/claims/dossiers/clm-014-staged-separation.md)
-- [CLM-015 contract-gate distinction](../../reference/claims/dossiers/clm-015-contract-gate-distinction.md)
 - [CLM-017 documentation reliability](../../reference/claims/dossiers/clm-017-documentation-reliability.md)
 
 ## Interpretation limits

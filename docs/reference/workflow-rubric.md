@@ -84,7 +84,6 @@ tradition.
 ## Related dossiers
 
 - [CLM-014 staged separation](claims/dossiers/clm-014-staged-separation.md)
-- [CLM-015 contract-gate distinction](claims/dossiers/clm-015-contract-gate-distinction.md)
 
 ## Interpretation limits
 

@@ -55,9 +55,8 @@ Story:
 ## Output
 
 - Target: `prd.json` in the Ralph template folder.
-- Then ensure schema/runtime validation:
-  - `./tests/ralph_validation_test.sh`
-  - `./tests/ralph_schema_runtime_contract_test.sh`
+- Then run the retained Ralph validation suite:
+  - `./scripts/run_tests.sh`
 
 ## Checklist
 

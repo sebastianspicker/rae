@@ -14,10 +14,8 @@ evidence_links: ../../reference/claims/claims-ledger.md
   use Ralph.
 - Need a one-off maintenance operation with explicit destructive semantics:
   use a tool under `tools/`.
-- Need a comparison or public result:
-  route the work through `evals/` metadata and result reporting.
 - Need to explain or publish the outcome:
-  update the claim, evidence, and governance surfaces before release.
+  update the documentation and governance surfaces before release.
 
 ## Thesis validation
 

@@ -35,8 +35,6 @@ and failure-analysis literature.
 - `docs/explanation/science/drift-and-self-certification.md`
 - `packages/orchestration/scripts/pipeline/runner.mjs`
 - `packages/orchestration/scripts/pipeline/autonomous.mjs`
-- `packages/orchestration/scripts/pipeline/tests/autonomous-core-scenarios.test.mjs`
-- `packages/orchestration/scripts/pipeline/tests/autonomous-checkpoint-scenarios.test.mjs`
 
 ## External anchors
 
@@ -50,9 +48,9 @@ and failure-analysis literature.
 
 ## Benchmark artifacts
 
-The autonomous integration regression proves stage separation, actual target
-mutation, plan-ownership blocking, and independent gate progression on a local
-fixture. Targeted model-quality ablation studies remain pending.
+Staged separation is a design claim grounded in the runner and autonomous
+sources. No retained regression suite independently establishes target mutation
+or gate progression; targeted model-quality ablation studies remain pending.
 
 ## Counterarguments
 

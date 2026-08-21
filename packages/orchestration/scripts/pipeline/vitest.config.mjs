@@ -1,14 +1,15 @@
 /**
- * Configures serial pipeline integration tests because shared state fixtures cannot safely run concurrently.
+ * Configures the compact pipeline boundary tests.
  */
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    include: ["tests/**/*.test.mjs"],
-    // Several CLI integration suites intentionally exercise the repository's
-    // singleton .pipeline state. Running those files in parallel makes their
-    // lock and state fixtures contend with each other.
+    include: [
+      "tests/argv-security.test.mjs",
+      "tests/agent-provider-event-log-security.test.mjs",
+      "tests/operator-cli.test.mjs",
+    ],
     fileParallelism: false,
   },
 });

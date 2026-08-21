@@ -46,7 +46,7 @@ The repo ships:
 - `profiles/agent-environments/templates/codex/config.toml`
 - `profiles/agent-environments/templates/claude/settings.json`
 - `profiles/agent-environments/shared/policy/operator-policy.md`
-- `profiles/agent-environments/tests/profile-installation.sh`
+- `scripts/verify.sh --skip-install`
 
 ## What does not belong here
 
@@ -63,7 +63,6 @@ of private overlays.
 
 ## Related dossiers
 
-- [CLM-010 reproducibility layers](../reference/claims/dossiers/clm-010-reproducibility-layers.md)
 
 ## Interpretation limits
 

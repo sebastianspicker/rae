@@ -259,13 +259,13 @@ function buildFreshExecutionSession(sessionId, sessionKind) {
 
 function buildPlanTestCase(testCoverage) {
   return {
-    name: "runner-stage-smoke",
+    name: "runner-contract-smoke",
     trace_id: "test-trace-1",
     execution_session: buildFreshExecutionSession(
-      "quality-case-runner-stage-smoke",
+      "quality-case-runner-contract-smoke",
       "quality-case",
     ),
-    context_manifest: buildTaskContextManifest("scripts/pipeline/tests/runner-stage.test.mjs"),
+    context_manifest: buildTaskContextManifest("scripts/pipeline/runner.mjs"),
     covers_requirement_ids: testCoverage,
     setup: "Initialize pipeline",
     assertion: "Run stage completes",
@@ -378,7 +378,7 @@ function buildPmatchArtifact({ requirements, runId, configId, stageProfile }) {
         claim_type: "invariant",
         covers_requirement_ids: requirements,
         verification_status: status,
-        evidence: status === "verified" ? "events observed" : "simulated benchmark signal",
+        evidence: status === "verified" ? "events observed" : "simulated development signal",
         extractor: mode === "dual-extractor" ? "dual-adjudicator:a+b" : "rule-based-drift-detector",
         drift_score: driftScore(status),
         confidence: 0.8,

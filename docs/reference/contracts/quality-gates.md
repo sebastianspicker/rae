@@ -62,8 +62,6 @@ failure semantics explicitly.
 
 ## Related dossiers
 
-- [CLM-015 contract-gate distinction](../claims/dossiers/clm-015-contract-gate-distinction.md)
-- [CLM-019 validity doctrine](../claims/dossiers/clm-019-validity-doctrine.md)
 
 ## Interpretation limits
 

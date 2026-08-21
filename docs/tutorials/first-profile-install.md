@@ -45,7 +45,7 @@ bash profiles/agent-environments/installers/uninstall-profile.sh "$TARGET_DIR"
 The shipped regression test is:
 
 ```bash
-bash profiles/agent-environments/tests/profile-installation.sh
+./scripts/verify.sh --skip-install
 ```
 
 ## Thesis validation
@@ -55,7 +55,6 @@ path: portable payload first, private overlays excluded.
 
 ## Related dossiers
 
-- [CLM-010 reproducibility layers](../reference/claims/dossiers/clm-010-reproducibility-layers.md)
 
 ## Interpretation limits
 

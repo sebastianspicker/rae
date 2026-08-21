@@ -13,9 +13,6 @@ packages retain their own changelogs where applicable.
   handoff.
 - Authenticated loopback operator console with allowlisted project roots,
   checkpoint decisions, bounded event projection, and no publish controls.
-- Offline outcome evaluator and bounded policy optimizer with paired runs,
-  sealed held-out evidence, resource regression guards, and append-only
-  lineage. Both remain experimental and require human promotion.
 - Public agent-profile installation and removal with manifest v2 integrity,
   no-follow filesystem transactions, rollback, and retained recovery evidence.
 - Deterministic CLI screenshots produced from the current executable surface.
@@ -29,8 +26,6 @@ packages retain their own changelogs where applicable.
 - Raised the supported runtime floor to GNU Bash 5.3 and Python 3.14.6.
 - Enforced the orchestration dependency contract at Node.js
   `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`.
-- Refactored the Python evaluation harness around typed JSON and
-  repository-contained path handling.
 - Updated Ralph to `0.3.0`: Codex-only execution, bounded subprocess output and
   deadlines, sanitized environments, and transactional fixing-mode writes.
 - Updated the coauthor trailer cleaner to `3.0.0`: private rewrite refs, exact

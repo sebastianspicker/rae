@@ -40,8 +40,7 @@ and repository-maintenance utilities. The hosted-platform package and workflow
   builds, lint and format checks, runner, operator, shared-runtime,
   quality-gate, review, and trace-collector suites.
 - The pipeline runner passes 396 tests. The operator passes 42 tests.
-- `python -m pytest evals/tests tests` passes 74 tests under Python 3.14.6.
-- Ruff, Pyright, Lizard, the root runtime contract, evaluation validation,
+- Ruff, Pyright, Lizard, the root runtime contract,
   profile installation, Ralph's 63 tests, and the co-author cleaner's 65 tests
   pass in the current working tree.
 - OpenCode doctor passes locally with OpenCode 1.18.11 and verifies the exact
@@ -57,16 +56,14 @@ task outcome.
 
 ## Publication blockers
 
-- The root `./scripts/verify.sh --skip-install` gate is not executable in this
-  checkout: it exits before repository validation because `ruff` is not on
-  `PATH`. The deterministic screenshot check itself passes: `agent --help`
-  now loads runtime-only modules after handling help, so the SVG generator does
-  not require the orchestration package dependencies.
+- The root `./scripts/verify.sh --skip-install` gate remains environment-blocked
+  because `lizard` is unavailable offline. The complete orchestration verifier,
+  including builds, Biome, 19 runner-boundary tests, and 5 operator-security
+  tests, passes with installation skipped.
 - No authenticated OpenCode proposal or write run has captured a real provider
   event stream and completed the full designer-to-activation acceptance path.
-- No final browser render, responsive interaction, console, or screenshot smoke
-  was performed. The in-app browser was unavailable and Playwright is not
-  installed in the current environment.
+- No final interactive documentation preview was performed. The maintained
+  checks are source, schema, link, package, runner, and operator boundaries.
 - `mkdocs.yml` supports a local documentation preview once the pinned MkDocs
   toolchain is present. No GitHub Pages deployment workflow or publishing
   configuration exists in this tree, so Pages feasibility is unverified.

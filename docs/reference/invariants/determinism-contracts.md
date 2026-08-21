@@ -33,7 +33,6 @@ semantic outputs, but explicit and auditable control flow around execution.
 
 ## Related dossiers
 
-- [CLM-010 reproducibility layers](../claims/dossiers/clm-010-reproducibility-layers.md)
 
 ## Interpretation limits
 

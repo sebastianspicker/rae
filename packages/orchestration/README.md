@@ -240,8 +240,8 @@ node scripts/pipeline/runner.mjs run-stage \
   --config-id phased_default
 ```
 
-Without `--input-artifact`, `run-stage` writes deterministic fixtures for tests
-and benchmarks. It does not modify application code.
+Without `--input-artifact`, `run-stage` writes deterministic development
+artifacts. It does not modify application code.
 
 Other low-level operations include artifact and gate recording, review-state
 updates, run summaries, progress summaries, and diagnostics:
@@ -325,8 +325,7 @@ The provider process still receives the working directory and schema paths
 needed for execution. Consult the provider's data controls for storage and
 retention behavior.
 
-See the repository [security policy](../../SECURITY.md) and the
-[autonomous boundary](../../docs/explanation/autonomous-improvement-boundary.md).
+See the repository [security policy](../../SECURITY.md).
 
 ## Development and testing
 
@@ -345,16 +344,13 @@ For changed packages only:
 Run the deterministic workflow-topology fixture separately when scheduler
 ordering changes:
 
-```bash
-npm run benchmark:workflow-topology
-```
 
 It reports fixture event order, critical path, and barrier idle time. It makes
 no model-quality or universal speed claim.
 
 The package verifier checks adapters, schemas, stale references, Markdown
-links, repository hygiene, TypeScript builds, Biome, and Vitest suites. The
-root repository gate remains:
+links, repository hygiene, TypeScript builds, Biome, and the compact runner and
+operator boundary suites. The root repository gate remains:
 
 ```bash
 ../../scripts/verify.sh --skip-install

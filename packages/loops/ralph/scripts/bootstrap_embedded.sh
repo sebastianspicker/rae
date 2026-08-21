@@ -16,7 +16,7 @@ usage() {
   cat <<'USAGE'
 Usage: ./scripts/bootstrap_embedded.sh [--force] [--with-tests] <target-repo>
 
-Copies the golden ralph-audit template into:
+Copies the embedded ralph-audit template into:
   <target-repo>/.claude/ralph-audit
 
 Options:

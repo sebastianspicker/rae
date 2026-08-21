@@ -1,154 +1,23 @@
 # Testing
 
-RAE is a monorepo. Tests stay with the component that owns the behavior, while
-the root verifier runs the complete integrated suite. This preserves
-package-relative fixtures, dynamic shell discovery, and independently runnable
-package checks.
+RAE keeps a compact regression suite around execution safety and protocol
+contracts. It avoids fixtures, generated outputs, and grading infrastructure.
 
-## Complete gate
-
-For a checkout with declared dependencies already installed:
+Run the documented local gate after dependencies are installed:
 
 ```bash
 ./scripts/verify.sh --skip-install
 ```
 
-Use `./scripts/verify.sh` when the verifier should install dependencies.
-`--skip-mkdocs` is a partial documentation mode and is not release evidence.
+The retained checks cover the root runtime contract, evaluator validation and
+CLI smoke paths, Ralph scope, transaction, runtime-state, security, and JSON
+contracts, plus orchestration argv, event-log, state, and loopback security
+boundaries.
 
-The root gate runs:
-
-- repository metadata, documentation, screenshot, and hygiene validation
-- Python compilation, Ruff, Pyright, Lizard, and Pytest
-- the root runtime contract
-- evaluation and profile checks
-- orchestration builds and tests
-- Ralph tests
-- repository hygiene tool tests
-- ShellCheck
-
-## Test inventory
-
-The current tree contains 146 executable test source files and 12 referenced
-runner, helper, fixture, or configuration files.
-
-| Classification | Paths | Count | Runner or owner |
-| --- | --- | ---: | --- |
-| Active | `tests/test_*.py` | 2 | `python -m pytest evals/tests tests` |
-| Active | `tests/runtime-contract.sh` | 1 | `scripts/verify.sh` |
-| Active | `evals/tests/test_*.py` | 9 | Pytest through the root verifier |
-| Active support | `evals/tests/benchmark_contracts_helpers.py`, `evals/tests/outcome_optimizer_helpers.py` | 2 | Imported by evaluation tests |
-| Experimental | `evals/fixtures/autonomous-outcomes/*/tests/test_*.py` | 3 | Outcome evaluator fixture manifests |
-| Active | `packages/loops/ralph/tests/ralph_*_test.sh` | 63 | `packages/loops/ralph/scripts/run_tests.sh` |
-| Active support | Ralph test runner and `tests/lib/test_helpers.sh` | 2 | Ralph shell suite |
-| Active | `packages/orchestration/operator/tests/*.test.mjs` | 7 | Node test runner |
-| Active | `packages/orchestration/scripts/pipeline/tests/*.test.mjs` | 38 | Vitest |
-| Experimental source unit | `packages/orchestration/platform/test/platform.test.mjs` | 1 | `npm --prefix packages/orchestration/platform test` |
-| Active support | Pipeline Vitest config, test helper, and three fixture modules | 5 | Pipeline Vitest suite |
-| Active | `packages/orchestration/skills/dev-tools/*/tests/unit/*.test.ts` | 19 | Package-local Vitest commands |
-| Active support | `trace-test-helpers.ts` | 1 | Trace collector tests |
-| Active | `profiles/agent-environments/tests/profile-installation.sh` | 1 | Root verifier |
-| Active | `tools/repo-hygiene/coauthor-trailer-cleaner/tests/test-*.sh` | 2 | Tool test runner |
-| Active support | Hygiene test runner and `helpers.sh` | 2 | Hygiene shell suite |
-
-The three experimental Python tests are committed benchmark fixture source.
-They are intentionally excluded from normal Pytest collection and must remain
-beside their evaluator fixtures.
-
-Three evaluation modules set `__test__ = False` and are imported by
-`test_outcome_optimizer.py`. They split the implementation of that suite
-without creating duplicate Pytest collection:
-
-- `test_outcome_execution_safety.py`
-- `test_outcome_comparison_integrity.py`
-- `test_policy_optimizer_contracts.py`
-
-No current test source is classified as obsolete, duplicated, incomplete, or
-no longer relevant. No current test source is machine-produced.
-
-## Focused commands
-
-Root Python and runtime tests:
-
-```bash
-python -m pytest evals/tests tests
-bash tests/runtime-contract.sh
-```
-
-Orchestration:
-
-```bash
-npm --prefix packages/orchestration run test:operator
-npm --prefix packages/orchestration run test:runner
-npm --prefix packages/orchestration run verify
-npm --prefix packages/orchestration run benchmark:workflow-topology
-npm --prefix packages/orchestration/platform test
-```
-
-Workflow Designer, execution-profile, and OpenCode boundaries:
-
-```bash
-npm --prefix packages/orchestration run test:runner -- --run \
-  tests/workflow-designer.test.mjs \
-  tests/execution-profile-v3.test.mjs \
-  tests/opencode-adapter.test.mjs \
-  tests/verification-broker.test.mjs
-```
-
-These tests use controlled executables for event parsing, malformed output,
-timeouts, route selection, and resume drift. The macOS integration cases also
-exercise the real Seatbelt and broker boundaries. They do not replace an
-authenticated provider run against a specific OpenCode version and account.
-
-The topology benchmark is a deterministic scheduler fixture for event order,
-critical path, and barrier idle time. It does not measure model quality.
-
-The platform source-unit suite uses the in-memory store. Docker, PostgreSQL,
-OIDC, S3-compatible storage, and remote-worker integration remain separate
-unrun evidence lanes. The workflow 2.2 Vitest coverage is local scheduler
-evidence and does not establish hosted workflow execution.
-
-Ralph:
+Focused commands:
 
 ```bash
 bash packages/loops/ralph/scripts/run_tests.sh
+npm --prefix packages/orchestration run test:operator
+npm --prefix packages/orchestration run test:runner
 ```
-
-Profile installation:
-
-```bash
-bash profiles/agent-environments/tests/profile-installation.sh
-```
-
-Repository hygiene tool:
-
-```bash
-bash tools/repo-hygiene/coauthor-trailer-cleaner/tests/run-tests.sh
-```
-
-## Test artifacts
-
-The repository ignores test outputs rather than test source. Existing rules
-cover:
-
-- `coverage/`, `htmlcov/`, `.coverage*`, and `coverage.xml`
-- `junit.xml` and `reports/`
-- `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `.vitest/`, and
-  `__pycache__/`
-- `.venv/`, `.tox/`, `.nox/`, `node_modules/`, and package-manager caches
-- `playwright-report/` and `test-results/`
-- local evaluation results, `.pipeline/`, and `.runtime/`
-
-Do not add `tests/`, package test directories, committed benchmark fixtures, or
-committed baselines to `.gitignore`.
-
-## Adding tests
-
-- Put repository-wide Python and shell contract tests in `tests/`.
-- Put package tests in the owning package's `tests/` directory.
-- Keep TypeScript unit tests under the owning workspace's `tests/unit/`.
-- Keep evaluator-only tests beside the fixture they execute.
-- Update the owning runner, package script, and root verifier when a new test
-  pattern is introduced.
-- Keep temporary output outside the source tree or under an ignored
-  framework-specific artifact directory.

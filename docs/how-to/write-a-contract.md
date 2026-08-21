@@ -34,7 +34,6 @@ progression gates, and release approval.
 
 ## Related dossiers
 
-- [CLM-015 contract-gate distinction](../reference/claims/dossiers/clm-015-contract-gate-distinction.md)
 
 ## Interpretation limits
 

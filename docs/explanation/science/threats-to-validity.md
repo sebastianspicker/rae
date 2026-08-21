@@ -56,7 +56,6 @@ Any strong claim about reliability should be read together with this page and
 
 ## Claim dossier
 
-- [CLM-019 validity doctrine](../../reference/claims/dossiers/clm-019-validity-doctrine.md)
 
 ## Source note
 

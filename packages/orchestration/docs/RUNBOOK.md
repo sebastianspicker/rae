@@ -77,7 +77,7 @@ This runs:
    - `npm run lint` (Biome)
    - `npm run format:check` (Biome)
    - `npm run build` (tsc)
-   - `npm test` (vitest)
+8. Compact Vitest runner-boundary and Node operator-security contracts
 
 ## Fast changed-only verification
 Use this for PR/local fast feedback:
@@ -104,7 +104,6 @@ npm ci
 npm run lint
 npm run format:check
 npm run build
-npm test
 ```
 ```bash
 cd skills/dev-tools/multi-model-review
@@ -112,7 +111,6 @@ npm ci
 npm run lint
 npm run format:check
 npm run build
-npm test
 ```
 ```bash
 cd skills/dev-tools/trace-collector
@@ -120,7 +118,6 @@ npm ci
 npm run lint
 npm run format:check
 npm run build
-npm test
 ```
 
 ## Worktree-backed isolated runs
@@ -173,7 +170,8 @@ Cleanup is explicit and idempotent:
 - Same as typecheck: `npm run build` per package.
 
 ## Tests
-- `npm test` (per package, runs `vitest run`).
+- `npm run test:runner` protects runner argv, provider-event, and operator CLI boundaries.
+- `npm run test:operator` protects the operator security boundary.
 
 ## Security (minimum baseline)
 ### Secret scanning
