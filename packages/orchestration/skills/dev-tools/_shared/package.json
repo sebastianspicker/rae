@@ -17,7 +17,7 @@
     "ajv-formats": "3.0.1"
   },
   "devDependencies": {
-    "@types/node": "25.5.0",
+    "@types/node": "26.3.0",
     "@biomejs/biome": "2.5.2",
     "typescript": "5.9.3"
   }
