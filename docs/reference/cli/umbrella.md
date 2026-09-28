@@ -192,9 +192,9 @@ source of truth.
 
 ## Exit behavior
 
-`rae.sh` rejects unknown command families and propagates the selected runtime's
-exit status. A command that cannot establish its required safety boundary fails
-closed.
+`npm run rae --` rejects unknown command families and propagates the selected
+runtime's exit status. A command that cannot establish its required safety
+boundary fails closed.
 
 ## Related documentation
 

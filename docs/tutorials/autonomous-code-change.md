@@ -78,8 +78,9 @@ verified completed-run outcomes and quarantines model-proposed candidates. The
 default `off` mode performs no graph read or memory write. Graph context cannot
 broaden the plan's owned paths or change a gate or checkpoint.
 
-![Deterministic output from `rae.sh agent --help` showing the isolated-worktree
-default, sandbox modes, prohibited actions, and command-provider opt-in.](../assets/screenshots/rae-agent-safety.svg)
+![Deterministic output from `npm run rae -- agent --help` showing the
+isolated-worktree default, sandbox modes, prohibited actions, and
+command-provider opt-in.](../assets/screenshots/rae-agent-safety.svg)
 
 Provider-backed Codex runs also write a redacted JSONL event log for each phase
 under `agent-outputs/`. Build and quality phases must contain captured

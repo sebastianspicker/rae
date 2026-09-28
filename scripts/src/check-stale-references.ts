@@ -19,10 +19,7 @@ export function staleReferences(): string[] {
     if (
       /^(?:_archive\/|\.codex\/skills-archive\/)/.test(path) ||
       /(?:^|\/)(?:node_modules|dist|\.git|\.pipeline)\//.test(path) ||
-      [
-        "scripts/checks/check_stale_references.sh",
-        "scripts/src/check-stale-references.ts",
-      ].includes(path)
+      path === "scripts/src/check-stale-references.ts"
     )
       continue;
     const bytes = readFileSync(resolve(repositoryRoot, path));

@@ -16,11 +16,6 @@ This repository is a reusable template. Changes should improve one or more of th
 Required tools:
 
 - Node.js 24 or newer and npm
-- Bash 5.3 or newer
-- Python 3.14.6 or newer
-- `jq`
-- `mktemp`
-- `shellcheck`
 
 Optional but useful:
 
@@ -31,7 +26,6 @@ Optional but useful:
 
 - Give every TypeScript source file a short opening comment that states its purpose.
 - Keep TypeScript strict and avoid `any`, `@ts-ignore`, and `@ts-nocheck` escapes.
-- Use Bash 5.3 features where they make safety boundaries explicit.
 - Prefer explicit failure handling over silent fallback.
 - Avoid broad refactors mixed with behavior changes.
 - Preserve deterministic behavior of the story loop.
@@ -39,7 +33,7 @@ Optional but useful:
 
 ## CI
 
-On push and pull requests, GitHub Actions runs shellcheck and the full test suite. See [../../.github/workflows/ci.yml](../../.github/workflows/ci.yml).
+On push and pull requests, GitHub Actions runs the full repository verification gate, which includes this package's test suite. See [../../.github/workflows/ci.yml](../../.github/workflows/ci.yml).
 
 ## Testing Requirements
 
@@ -52,19 +46,7 @@ npm test
 npm run typecheck
 ```
 
-2. Run shell linting:
-
-```bash
-shellcheck -x ralph.sh scripts/*.sh lib/ralph/*.sh tests/*.sh tests/lib/*.sh
-```
-
-3. Run the standalone compatibility suite:
-
-```bash
-bash scripts/run_tests.sh
-```
-
-4. If behavior changes, add or update tests in `tests/`.
+2. If behavior changes, add or update tests in `tests/`.
 
 ## Documentation Requirements
 
@@ -93,13 +75,6 @@ In PR description include:
 - implemented fix
 - test evidence
 - any backward compatibility impact
-
-## Function Naming Conventions
-
-- Public functions: no prefix (`log`, `fail`, `mark_story_passed`)
-- Internal or shared helpers: underscore prefix (`_update_story_in_prd`)
-- Compatibility and initialization functions: `ralph_` prefix
-  (`ralph_mktemp_init`, `ralph_iso_utc`)
 
 ## Backward Compatibility
 
