@@ -1,6 +1,12 @@
 /** The sole supported import boundary for RAE engine consumers. */
-import { resolve } from "node:path";
-import { engineRuntimeRoot, pipelineInitEntrypoint } from "../primitives/installation-paths.js";
+import {
+  cliAutonomousEntrypoint,
+  cliGraphEntrypoint,
+  cliRunnerEntrypoint,
+  cliWorkflowAgentWorkerEntrypoint,
+  engineRuntimeRoot,
+  pipelineInitEntrypoint,
+} from "../primitives/installation-paths.js";
 
 export { assertSupportedNodeRuntime, NODE_RUNTIME_RANGE } from "../primitives/node-runtime.js";
 export { appendTraceEvent, projectOperatorEvents } from "../run/trace.js";
@@ -48,19 +54,19 @@ export {
 } from "../workflow/workflow-designer.js";
 
 export function autonomousEntrypoint(): string {
-  return resolve(import.meta.dirname, "../cli/autonomous.js");
+  return cliAutonomousEntrypoint();
 }
 
 export function graphCliEntrypoint(): string {
-  return resolve(import.meta.dirname, "../cli/graph-cli.js");
+  return cliGraphEntrypoint();
 }
 
 export function workflowAgentWorkerPath(): string {
-  return resolve(import.meta.dirname, "../cli/workflow-agent-worker.js");
+  return cliWorkflowAgentWorkerEntrypoint();
 }
 
 export function stagedEntrypoint(): string {
-  return resolve(import.meta.dirname, "../cli/runner.js");
+  return cliRunnerEntrypoint();
 }
 
 export function executionRuntimeCwd(): string {

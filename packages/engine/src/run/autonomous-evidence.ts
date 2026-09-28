@@ -1,5 +1,6 @@
 /** Enforces recorded Codex command evidence against the approved verification plan. */
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isContainedRelative } from "../primitives/paths.js";
 
 const EVIDENCE_PHASES = new Set(["build", "quality-static", "quality-tests", "post-build"]);
 interface VerificationCommand extends Record<string, unknown> {
@@ -44,16 +45,12 @@ function normalizeCommand(command: unknown): string {
   return String(command ?? "").trim();
 }
 
-function containedPath(value: string): boolean {
-  return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute(value);
-}
-
 function normalizeWorkingDirectory(value: unknown, workspaceRoot: string): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   const base = resolve(workspaceRoot ?? process.cwd());
   const relativePath = relative(base, isAbsolute(value) ? resolve(value) : resolve(base, value));
   if (!relativePath) return ".";
-  return containedPath(relativePath) ? relativePath.split(sep).join("/") : null;
+  return isContainedRelative(relativePath) ? relativePath.split(sep).join("/") : null;
 }
 
 function plannedCommands(plan: unknown, phase: string): VerificationCommand[] {

@@ -5,10 +5,10 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, test } from "node:test";
-import { projectGraph } from "../src/graph/graph/projection.js";
-import { canonicalJson, jsonl, sha256 } from "../src/graph/graph/core.js";
-import { graphCacheDiagnostics, loadGraph, queryGraph } from "../src/graph/graph/query.js";
-import { hasDependencyCycle } from "../src/graph/graph/validation.js";
+import { projectGraph } from "../src/graph/projection.js";
+import { canonicalJson, jsonl, sha256 } from "../src/graph/core.js";
+import { graphCacheDiagnostics, loadGraph, queryGraph } from "../src/graph/query.js";
+import { hasDependencyCycle } from "../src/graph/validation.js";
 
 const roots: string[] = [];
 

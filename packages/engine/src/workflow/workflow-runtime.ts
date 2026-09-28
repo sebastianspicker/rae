@@ -23,6 +23,7 @@ import { canonicalJson } from "./workflow-contract.js";
 import { applyWorkflowTransform } from "./workflow-transforms.js";
 import { resolveExecutionTier, resolveNodeCapabilities } from "./execution-profile.js";
 import type { CapabilitySet } from "./execution-profile.js";
+import { cliWorkflowAgentWorkerEntrypoint } from "../primitives/installation-paths.js";
 import { validateNodeEnvelope } from "./workflow-envelope.js";
 import type { WorkflowContract } from "./workflow-contract.js";
 import type {
@@ -41,7 +42,7 @@ import type {
 } from "../agents/agent-executor.js";
 import type { GitStateSnapshot } from "../run/autonomous-git.js";
 
-const WORKER = resolve(import.meta.dirname, "../cli/workflow-agent-worker.js");
+const WORKER = cliWorkflowAgentWorkerEntrypoint();
 type WorkflowEnvelope =
   | WorkflowsNodeEnvelopeV2
   | WorkflowsNodeEnvelopeV21

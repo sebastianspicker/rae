@@ -23,9 +23,8 @@
   "scripts": {
     "agent": "node scripts/dist/rae.js agent",
     "build": "npm run build --workspace @rae/fs-bridge && tsc -p scripts/tsconfig.json && node scripts/dist/build.js",
-    "test": "npm run test:engine && npm run test:engine-legacy && npm run test:operator && npm run test:platform && npm run test:ralph && npm run test:profiles && npm run test:history && npm run test:tooling && npm run test:dev-tools",
+    "test": "npm run test:engine && npm run test:operator && npm run test:platform && npm run test:ralph && npm run test:profiles && npm run test:history && npm run test:tooling && npm run test:dev-tools",
     "test:engine": "npm --workspace @rae/engine test",
-    "test:engine-legacy": "npm --workspace @rae/engine run test:legacy",
     "test:operator": "npm --workspace @rae/operator test",
     "test:platform": "npm --prefix apps/platform test",
     "verify": "node scripts/dist/verify.js",

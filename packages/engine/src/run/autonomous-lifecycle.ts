@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import type { BigIntStats } from "node:fs";
-import { basename, extname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 import {
   loadAutonomousPolicy,
   policyDigest,
@@ -53,6 +53,7 @@ import {
 } from "../workflow/execution-profile.js";
 import { providerRuntimeIdentity } from "../agents/agent-executor.js";
 import { engineRuntimeRoot, pipelineInitEntrypoint } from "../primitives/installation-paths.js";
+import { isContainedRelative } from "../primitives/paths.js";
 const PIPELINE_INIT = pipelineInitEntrypoint();
 const MAX_TASK_BYTES = 128 * 1024;
 const DEFAULT_TIMEOUT_SECONDS = 1800;
@@ -311,12 +312,7 @@ function taskPathSegments(pathValue: string): string[] {
 
 function resolvesBelowRoot(canonicalRoot: string, candidate: string): boolean {
   const withinRoot = relative(canonicalRoot, candidate);
-  return !(
-    !withinRoot ||
-    withinRoot.startsWith(`..${sep}`) ||
-    withinRoot === ".." ||
-    isAbsolute(withinRoot)
-  );
+  return withinRoot !== "" && isContainedRelative(withinRoot);
 }
 
 function validateTaskCandidate(pathValue: string, candidate: string, io: TaskFileIo): BigIntStats {

@@ -1,6 +1,7 @@
 /** Defines prompts, gates, ownership, and documentation contracts for autonomous phases. */
 import { existsSync } from "node:fs";
-import { basename, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, isAbsolute, relative, resolve } from "node:path";
+import { isContainedRelative } from "../primitives/paths.js";
 import { fileURLToPath } from "node:url";
 import type {
   ArtifactsBrief,
@@ -131,10 +132,7 @@ function repositoryPromptPath(pathValue: string, workspaceRoot?: string | null):
   const canonicalRoot = resolve(workspaceRoot);
   const absolutePath = resolve(pathValue);
   const relation = relative(canonicalRoot, absolutePath);
-  if (
-    relation === "" ||
-    (!relation.startsWith(`..${sep}`) && relation !== ".." && !isAbsolute(relation))
-  ) {
+  if (relation === "" || isContainedRelative(relation)) {
     return relation ? relation.replaceAll("\\", "/") : ".";
   }
   return "<absolute-path-omitted>";

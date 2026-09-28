@@ -19,7 +19,8 @@ import {
 } from "node:fs";
 import type { Stats } from "node:fs";
 import { tmpdir, userInfo } from "node:os";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import { isWithinRoot } from "../primitives/paths.js";
 import { gitOutput, sha256, validateConcurrentOperatorChanges } from "./autonomous-git.js";
 
 const GUARD_SCHEMA = "1.0.0";
@@ -142,14 +143,6 @@ function repositoryIdentity(workspaceRoot: string): RepositoryIdentity {
   };
 }
 
-function isWithin(pathValue: string, root: string): boolean {
-  const relation = relative(root, pathValue);
-  return (
-    relation === "" ||
-    (!relation.startsWith(`..${sep}`) && relation !== ".." && !isAbsolute(relation))
-  );
-}
-
 function canonicalPlannedPath(pathValue: string): string {
   let existing = resolve(pathValue);
   const missing: string[] = [];
@@ -179,7 +172,7 @@ function writableRoots(identity: RepositoryIdentity): string[] {
 
 function assertGuardOutsideWritableRoots(pathValue: string, identity: RepositoryIdentity): void {
   const writable = writableRoots(identity);
-  const containing = writable.find((root) => isWithin(pathValue, root));
+  const containing = writable.find((root) => isWithinRoot(root, pathValue));
   if (containing) {
     throw new Error(
       `pipeline state guard has no runner-only location outside provider-writable root: ${containing}`,

@@ -10,7 +10,7 @@ const packages = [
   ["quality-gate-skill", "build"],
   ["multi-model-review-skill", "build"],
   ["trace-collector-skill", "build"],
-  ["@rae/engine", "build:typescript"],
+  ["@rae/engine", "build"],
   ["@rae/operator", "build:typescript"],
   ["@rae/ralph", "build"],
   ["@rae/agent-profiles", "build"],

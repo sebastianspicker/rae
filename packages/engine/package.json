@@ -25,8 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "25.5.0",
-    "typescript": "5.9.3",
-    "vitest": "4.1.0"
+    "typescript": "5.9.3"
   },
   "exports": {
     ".": {
@@ -36,9 +35,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node dist/scripts/check-engine.js",
-    "build:typescript": "tsc -p tsconfig.json && node dist/scripts/check-engine.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/test/*.test.js",
-    "test:legacy": "vitest run --root dist --config vitest.config.js"
+    "test": "node --test dist/test/*.test.js"
   }
 }

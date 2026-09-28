@@ -9,8 +9,8 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
-import { projectGraph } from "../src/graph/graph/projection.js";
-import * as current from "../src/graph/graph/query.js";
+import { projectGraph } from "../src/graph/projection.js";
+import * as current from "../src/graph/query.js";
 interface QueryModule {
   queryGraph: typeof current.queryGraph;
   graphCacheDiagnostics(options?: { reset?: boolean }): Record<string, number>;
