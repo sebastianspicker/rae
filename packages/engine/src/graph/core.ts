@@ -24,7 +24,7 @@ import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ValidateFunction } from "ajv";
 import type { GraphGraphEdge, GraphGraphNode } from "@rae/contracts";
 import { contractsRoot } from "../primitives/installation-paths.js";
-import { isWithinRoot } from "../primitives/paths.js";
+import { isContainedRelative, isWithinRoot } from "../primitives/paths.js";
 
 export const GRAPH_PROJECTOR = "rae-local-graph-v1";
 export const GRAPH_LIMITS = Object.freeze({
@@ -232,9 +232,10 @@ export function credentialLike(path: string): boolean {
     );
 }
 
+/** Strictly below `root`: the root itself does not count. */
 export function contained(path: string, root: string): boolean {
   const rel = relative(resolve(root), resolve(path));
-  return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+  return rel !== "" && isContainedRelative(rel);
 }
 
 export function graphRunPaths(root: string, runId: string): { runDir: string; graphDir: string } {

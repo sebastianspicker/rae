@@ -53,10 +53,21 @@ test("engineLayerViolations passes the current repository engine sources", () =>
   assert.deepEqual(engineLayerViolations(engineFiles), []);
 });
 
-test("nonTypescriptSourceViolations rejects .mjs source under maintained trees", () => {
+test("nonTypescriptSourceViolations rejects non-TypeScript source under maintained trees", () => {
   assert.deepEqual(
-    nonTypescriptSourceViolations(["scripts/benchmarks/example.mjs", "scripts/src/example.ts"]),
-    ["Source must be TypeScript, not .mjs: scripts/benchmarks/example.mjs"],
+    nonTypescriptSourceViolations([
+      "scripts/benchmarks/example.mjs",
+      "packages/ralph/ralph.sh",
+      "integrations/agent-adapters/scripts/generate.py",
+      "apps/operator/static/app.js",
+      "scripts/src/example.ts",
+    ]),
+    [
+      "Source must be TypeScript: scripts/benchmarks/example.mjs",
+      "Source must be TypeScript: packages/ralph/ralph.sh",
+      "Source must be TypeScript: integrations/agent-adapters/scripts/generate.py",
+      "Source must be TypeScript: apps/operator/static/app.js",
+    ],
   );
 });
 

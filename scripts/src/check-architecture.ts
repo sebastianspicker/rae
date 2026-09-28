@@ -32,13 +32,14 @@ function isEngineLayer(value: string): value is EngineLayer {
   return (ENGINE_LAYERS as readonly string[]).includes(value);
 }
 
-const MJS_SOURCE_PATTERN = /^(?:packages|apps|integrations|profiles|tools|scripts)\/.*\.mjs$/;
+const NON_TYPESCRIPT_SOURCE_PATTERN =
+  /^(?:packages|apps|integrations|profiles|tools|scripts)\/.*\.(?:mjs|cjs|js|sh|py|jq)$/;
 
-/** Rejects .mjs source under maintained trees; dist and node_modules are excluded upstream. */
+/** Rejects JavaScript, shell, Python and jq source under maintained trees; build output is excluded upstream. */
 export function nonTypescriptSourceViolations(files: readonly string[]): string[] {
   return files
-    .filter((path) => MJS_SOURCE_PATTERN.test(path))
-    .map((path) => `Source must be TypeScript, not .mjs: ${path}`);
+    .filter((path) => NON_TYPESCRIPT_SOURCE_PATTERN.test(path))
+    .map((path) => `Source must be TypeScript: ${path}`);
 }
 
 /** Enforces one-way engine layering from relative imports in packages/engine/src. */
