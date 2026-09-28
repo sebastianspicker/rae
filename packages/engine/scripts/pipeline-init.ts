@@ -333,7 +333,10 @@ function pipelineState(
 }
 
 function initialize(options: InitOptions): void {
-  let projectRoot = realpathSync(resolve(options.projectRoot));
+  const requestedRoot = resolve(options.projectRoot);
+  // A plain bootstrap creates a missing target, as the shell implementation did; worktree mode needs a repository.
+  if (!options.useWorktree) mkdirSync(requestedRoot, { recursive: true });
+  let projectRoot = realpathSync(requestedRoot);
   let workspaceRoot = projectRoot;
   let primaryRoot = projectRoot;
   let mode = "main-repo";

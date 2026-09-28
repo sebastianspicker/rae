@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { git, rewriteRepository, type RewriteOptions } from "../git.js";
 import { transformCommit } from "../objects.js";
@@ -356,3 +357,13 @@ test("missing Git guard capability fails before creating recovery or changing br
       "",
     );
   }));
+
+test("ref guard passes the pre-lock preparing phase through and still rejects unknown phases", () => {
+  const guard = new URL("../ref-guard.js", import.meta.url).pathname;
+  const run = (phase: string) =>
+    spawnSync(process.execPath, [guard, phase], { input: "", encoding: "utf8", env: {} });
+  assert.equal(run("preparing").status, 0);
+  const unknown = run("reticulating");
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stderr, /Unknown reference-transaction phase/);
+});

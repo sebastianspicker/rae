@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -52,4 +53,23 @@ test("Node bootstrap creates a readable state and replaces a leaf symlink withou
   );
   assert.equal(trace.run_id, state.run_id);
   assert.equal(trace.event, "run_start");
+});
+
+test("plain bootstrap creates a missing target directory", (t) => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "rae-init-missing-")));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const root = join(base, "nested", "target");
+  const child = spawnSync(process.execPath, [cli, root], { encoding: "utf8" });
+  assert.equal(child.status, 0, child.stderr);
+  const state = JSON.parse(readFileSync(join(root, ".pipeline/pipeline-state.json"), "utf8"));
+  assert.equal(state.workspace.root, root);
+});
+
+test("worktree bootstrap still refuses a missing target", (t) => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "rae-init-missing-wt-")));
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const root = join(base, "absent");
+  const child = spawnSync(process.execPath, [cli, root, "--use-worktree"], { encoding: "utf8" });
+  assert.notEqual(child.status, 0);
+  assert.equal(existsSync(root), false);
 });

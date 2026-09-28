@@ -16,7 +16,8 @@ function regularFile(path: string): number {
 }
 try {
   const phase = process.argv[2];
-  if (!["prepared", "committed", "aborted"].includes(phase ?? ""))
+  // Git 2.48+ also reports "preparing" before refs are locked; the attachment check belongs to "prepared".
+  if (!["preparing", "prepared", "committed", "aborted"].includes(phase ?? ""))
     throw new Error("Unknown reference-transaction phase");
   const input = readFileSync(0);
   if (phase === "prepared") {

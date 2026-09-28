@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Run compiled repository gates, preserving explicit partial and release-candidate modes. */
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -116,6 +116,7 @@ export async function verify(options: VerificationOptions): Promise<void> {
     if (!existsSync(join(engineTarget, ".pipeline/pipeline-state.json")))
       throw new Error("Workflow bootstrap did not write pipeline-state.json");
     const ralphTarget = join(temporary, "ralph");
+    mkdirSync(ralphTarget);
     await node("scripts/dist/rae.js", "workflow", "repo-audit", "bootstrap", ralphTarget);
     if (!existsSync(join(ralphTarget, ".claude/ralph-audit/package.json")))
       throw new Error("Ralph bootstrap did not write package.json");
