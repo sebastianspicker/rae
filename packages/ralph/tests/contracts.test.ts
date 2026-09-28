@@ -1,6 +1,7 @@
 /** Characterizes Ralph's PRD, prompt, state, scope, and CLI compatibility contracts. */
 import assert from "node:assert/strict";
 import {
+  copyFileSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -14,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { EXIT, RalphError } from "../src/errors.js";
+import { bootstrap } from "../src/helper.js";
 import { buildPrompt } from "../src/prompt.js";
 import { loadPrd, pathMatchesScope } from "../src/prd.js";
 import { exportState, fingerprints, importState } from "../src/state.js";
@@ -184,27 +186,48 @@ test("imports only state whose project and story definitions still match", () =>
   }
 });
 
-test("compiled CLI keeps help, version, JSON query, config, and general-error behavior", () => {
-  const cli = join(packageRoot, "dist", "src", "cli.js");
-  const help = spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8" });
+test("compiled CLI keeps help, version, JSON query, config, and general-error behavior", (t) => {
+  // Never depend on the source checkout's untracked prd.json: from source, bootstrap a disposable
+  // installation with the example PRD; an embedded test run already is such an installation.
+  const packageName = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).name;
+  let installation = packageRoot;
+  if (packageName !== "ralph-audit") {
+    const target = realpathSync(mkdtempSync(join(tmpdir(), "ralph-cli-contract-")));
+    t.after(() => rmSync(target, { recursive: true, force: true }));
+    assert.equal(spawnSync("git", ["init", "-q", target]).status, 0);
+    installation = bootstrap(target);
+    copyFileSync(join(installation, "prd.json.example"), join(installation, "prd.json"));
+  }
+  const cli = join(installation, "dist", "src", "cli.js");
+  // Run from the target repository as users do; a cwd holding prd.json would select standalone mode.
+  const cwd = resolve(installation, "../..");
+  const help = spawnSync(process.execPath, [cli, "--help"], { cwd, encoding: "utf8" });
   assert.equal(help.status, 0);
   assert.match(help.stdout, /^Usage: ralph/u);
-  const version = spawnSync(process.execPath, [cli, "--version"], { encoding: "utf8" });
+  const version = spawnSync(process.execPath, [cli, "--version"], { cwd, encoding: "utf8" });
   assert.equal(version.status, 0);
   assert.match(version.stdout, /^ralph 0\.4\.0$/mu);
-  const status = spawnSync(process.execPath, [cli, "--json", "--status"], { encoding: "utf8" });
-  assert.equal(status.status, 0);
+  const status = spawnSync(process.execPath, [cli, "--json", "--status"], {
+    cwd,
+    encoding: "utf8",
+  });
+  assert.equal(status.status, 0, status.stderr);
   assert.equal(JSON.parse(status.stdout).command, "status");
   const stories = spawnSync(process.execPath, [cli, "--json", "--list-stories"], {
+    cwd,
     encoding: "utf8",
   });
-  assert.equal(stories.status, 0);
+  assert.equal(stories.status, 0, stories.stderr);
   assert.equal(Array.isArray(JSON.parse(stories.stdout)), true);
   const config = spawnSync(process.execPath, [cli, "--json", "--validate-config"], {
+    cwd,
     encoding: "utf8",
   });
-  assert.equal(config.status, 0);
+  assert.equal(config.status, 0, config.stderr);
   assert.equal(JSON.parse(config.stdout).checks.fs_bridge, "ok");
-  const invalid = spawnSync(process.execPath, [cli, "--not-a-real-option"], { encoding: "utf8" });
+  const invalid = spawnSync(process.execPath, [cli, "--not-a-real-option"], {
+    cwd,
+    encoding: "utf8",
+  });
   assert.equal(invalid.status, EXIT.general);
 });
