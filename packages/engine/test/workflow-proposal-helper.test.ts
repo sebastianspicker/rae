@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, resolve } from "node:path";
+import { delimiter, dirname, resolve } from "node:path";
 import test from "node:test";
 import { runBoundedProcess } from "../src/agents/bounded-process.js";
 import { workflowsRoot } from "../src/primitives/installation-paths.js";
@@ -67,6 +67,31 @@ test("proposal helper fails closed without writing provider diagnostics to stder
       success: false,
       error: { message: "Codex CLI is not available on PATH" },
     });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("proposal candidate rejects protected task file path components", () => {
+  const root = temporaryDirectory("rae-proposal-protected-task-");
+  const basePath = resolve(workflowsRoot, "recipes/route-audit.workflow.json");
+  const protectedPaths = [
+    ".ssh/task.md",
+    "notes/TOKEN-token-token.md",
+    "notes/private-key-plan.txt",
+  ];
+  try {
+    const init = spawnSync("git", ["init", "--quiet", root], { encoding: "utf8" });
+    assert.equal(init.status, 0, init.stderr);
+    for (const taskFile of protectedPaths) {
+      const taskPath = resolve(root, taskFile);
+      mkdirSync(dirname(taskPath), { recursive: true });
+      writeFileSync(taskPath, "Never read this task file");
+      assert.throws(
+        () => proposeWorkflowCandidate({ projectRoot: root, taskFile, baseWorkflow: basePath }),
+        /protected credential material/,
+      );
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

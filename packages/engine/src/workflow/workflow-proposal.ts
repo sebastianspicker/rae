@@ -15,6 +15,19 @@ import type { ProposalHelperRequest } from "./workflow-proposal-helper.js";
 
 const V21_SCHEMA = resolve(contractsRoot, "workflows/workflow-v2.1.schema.json");
 const MAX_TASK_BYTES = 128 * 1024;
+const PROTECTED_TASK_DIRECTORIES = new Set([
+  "aws",
+  ".aws",
+  "azure",
+  ".azure",
+  "gnupg",
+  ".gnupg",
+  "kube",
+  ".kube",
+  "ssh",
+  ".ssh",
+]);
+const PROTECTED_TASK_NAME_FRAGMENTS = ["credential", "password", "private-key", "secret", "token"];
 
 interface ProposalOptions {
   projectRoot?: string;
@@ -64,13 +77,13 @@ function taskFilePath(
 }
 
 function assertSafeTaskFilePath(rel: string): void {
-  const protectedPath = rel
-    .split(/[\\/]/)
-    .some((part) =>
-      /^(?:[.]?(?:aws|azure|gnupg|kube|ssh)|.*(?:credential|password|private-key|secret|token).*)$/i.test(
-        part,
-      ),
+  const protectedPath = rel.split(/[\\/]/).some((part) => {
+    const normalized = part.toLowerCase();
+    return (
+      PROTECTED_TASK_DIRECTORIES.has(normalized) ||
+      PROTECTED_TASK_NAME_FRAGMENTS.some((fragment) => normalized.includes(fragment))
     );
+  });
   if (protectedPath) throw new Error("task file path may not name protected credential material");
 }
 
