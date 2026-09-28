@@ -42,7 +42,7 @@
     "typecheck:docs": "tsc -p docs/.vitepress/tsconfig.json"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.2",
+    "@biomejs/biome": "2.5.14",
     "typescript": "5.9.3",
     "@types/node": "25.5.0",
     "vitepress": "1.6.4",
