@@ -41,8 +41,7 @@ Public profile material must be:
 
 The repo ships:
 
-- `profiles/agent-environments/installers/install-profile.sh`
-- `profiles/agent-environments/installers/uninstall-profile.sh`
+- `profiles/agent-environments/src/cli.ts`
 - `profiles/agent-environments/templates/codex/config.toml`
 - `profiles/agent-environments/templates/claude/settings.json`
 - `profiles/agent-environments/shared/policy/operator-policy.md`

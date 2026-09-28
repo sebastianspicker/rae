@@ -24,8 +24,7 @@ rewrite a remote.
 ## Verification
 
 ```bash
-bash coauthor-trailer-cleaner.sh --help
-shellcheck -x -P . coauthor-trailer-cleaner.sh lib/*.sh
+npm run rae -- hygiene coauthor-cleaner --help
 ```
 
 Run mutation scenarios only in isolated temporary repositories. Update

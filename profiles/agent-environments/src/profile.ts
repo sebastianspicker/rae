@@ -5,7 +5,10 @@ import { openRoot } from "@rae/fs-bridge";
 import { fileState, openTarget, assertNodeTarget, type FileState } from "./io.js";
 import { transact, type Hook, type Mutation } from "./receipts.js";
 
-const installer = "profiles/agent-environments/installers/install-profile.sh";
+// Persisted identity stored in every manifest-v2 receipt (`.rae-profile-install.json`).
+// This string is not a live file path: it must stay byte-for-byte stable so existing
+// receipts remain recoverable even though the referenced installer script is retired.
+const manifestInstallerId = "profiles/agent-environments/installers/install-profile.sh";
 const manifestPath = ".rae-profile-install.json";
 const files = [
   [
@@ -49,7 +52,7 @@ function parseManifest(data: Buffer): Map<string, Entry> {
   ]);
   if (
     value.manifest_version !== 2 ||
-    value.installer !== installer ||
+    value.installer !== manifestInstallerId ||
     !Array.isArray(value.installed_files) ||
     value.installed_files.length !== files.length
   )
@@ -165,7 +168,11 @@ export async function install(
       relative: manifestPath,
       expected: state(manifestPath),
       replacement: Buffer.from(
-        JSON.stringify({ manifest_version: 2, installer, installed_files: entries }, null, 2) +
+        JSON.stringify(
+          { manifest_version: 2, installer: manifestInstallerId, installed_files: entries },
+          null,
+          2,
+        ) +
           "\n",
       ),
     });

@@ -21,12 +21,8 @@ release.
 
 ## Requirements
 
-- GNU Bash 5.3 or newer
-- Python 3.14.6 or newer
-- Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`, with npm
-- Git, `jq`, `rg`, and ShellCheck
-- the hash-pinned Python dependencies in `requirements-ci.txt`, or
-  `requirements-macos.txt` on macOS with Python 3.14
+- Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`, with npm and Git
+- CMake and a C compiler for the native filesystem bridge
 - the workspace dependencies installed from the root `package-lock.json`
 - an installed and authenticated Codex CLI only for provider-backed agent runs
 

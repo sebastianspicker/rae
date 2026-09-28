@@ -27,8 +27,7 @@ sanitized templates and filesystem-mutating installers for RAE-shaped targets.
 From the repository root:
 
 ```bash
-profiles/agent-environments/installers/install-profile.sh --help
-profiles/agent-environments/installers/uninstall-profile.sh --help
+npm run rae -- profile --help
 npm run verify -- --skip-install
 ```
 

@@ -29,10 +29,6 @@ updates:
     directory: /apps/platform
     schedule:
       interval: weekly
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: weekly
   - package-ecosystem: docker
     directory: /packages/dev-tools/multi-model-review/sandbox
     schedule:

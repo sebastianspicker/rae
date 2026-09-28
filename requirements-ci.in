@@ -1,6 +1,0 @@
---only-binary :all:
-
-ruff==0.15.20
-defusedxml==0.7.1
-pyright==1.1.411
-lizard==1.23.0

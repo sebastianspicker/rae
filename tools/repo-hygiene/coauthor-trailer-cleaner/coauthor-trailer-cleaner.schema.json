@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "description": "Config for coauthor-trailer-cleaner.sh",
+  "description": "Config for coauthor-trailer-cleaner",
   "type": "object",
   "additionalProperties": false,
   "properties": {

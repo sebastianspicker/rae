@@ -55,8 +55,8 @@ Story:
 ## Output
 
 - Target: `prd.json` in the Ralph template folder.
-- Then run the retained Ralph validation suite:
-  - `./scripts/run_tests.sh`
+- Then validate it with the compiled Ralph runtime:
+  - `node dist/src/cli.js --validate-prd`
 
 ## Checklist
 

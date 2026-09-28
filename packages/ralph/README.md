@@ -15,8 +15,6 @@ paths, state transitions, deadlines, output limits, and fixing transactions.
 
 - Node.js 24 or newer and npm for the TypeScript runtime
 - the repository-built `@rae/fs-bridge` native module
-- GNU Bash 5.3, Python 3.14.6, `jq`, and `mktemp` only for the retained
-  compatibility launcher and its reference suite
 - Codex CLI resolved to an absolute executable outside the target repository
 - optional `git` for root discovery and branch synchronization
 
@@ -30,9 +28,6 @@ npm run build
 node dist/src/cli.js --validate-prd
 node dist/src/cli.js --check
 ```
-
-The Bash/Python launchers remain as reference-only compatibility sources. New
-standalone and embedded installations use the compiled Node runtime.
 
 `prd.json` is local runtime state and is ignored by Git. Embedded installations
 use:
@@ -211,13 +206,6 @@ Run the package suite:
 
 ```bash
 npm test
-```
-
-In the source checkout, run the retained compatibility suite and shell checks:
-
-```bash
-bash ./scripts/run_tests.sh
-shellcheck ralph.sh scripts/*.sh lib/ralph/*.sh
 ```
 
 The repository umbrella gate also runs this package:

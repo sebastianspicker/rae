@@ -16,8 +16,7 @@ MODE=fixing  node dist/src/cli.js 10
 ```
 
 Ralph is Codex-only. The TypeScript runtime requires Node.js >=24 and the
-repository-built native filesystem bridge. The retained compatibility sources
-require Bash >=5.3 and Python >=3.14.6 when their reference suite is run.
+repository-built native filesystem bridge.
 
 Quick checks: `--validate-prd`, `--validate-config`, `--status`, `--list-stories`, `--export-state`, `--import-state <file>`. Use `--dry-run N` to preview story runs without executing the tool. Use `--version` to print the version. Exit codes 0–6 (e.g. 2=PRD, 5=lock): see `README.md` CLI Reference.
 
@@ -25,7 +24,7 @@ Quick checks: `--validate-prd`, `--validate-config`, `--status`, `--list-stories
 
 - Story source of truth: `prd.json`
 - Runtime policy: `INSTRUCTIONS.md`
-- Validation: `prd.schema.json` + `prd.validate.jq`
+- Validation: `prd.schema.json`
 - Runtime artifacts: `.runtime/`
 - Derived progress snapshot: `progress.txt`
 - Append-only long-term knowledge: `learnings.md`
@@ -66,8 +65,6 @@ See `prd.json.example` for a compact, schema-valid starter PRD.
 - `node dist/src/helper-cli.js bootstrap <target>`: create the self-contained embedded Node runtime.
 - `npm test [-- filter]`: build and run the compiled Node suite with an optional filename filter.
 
-The `.sh` and `.py` files are retained as reference-only compatibility
-sources. They are excluded from generated embedded installations.
 - Optional strict modes:
   - `RALPH_MODEL_PREFLIGHT=true`
   - `RALPH_AUTO_ARCHIVE_ON_PROJECT_CHANGE=true`

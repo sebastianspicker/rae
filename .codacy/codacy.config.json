@@ -430,11 +430,6 @@
     },
     {
       "toolId": "Semgrep",
-      "exclude": [
-        "packages/ralph/lib/ralph/core.sh",
-        "packages/ralph/lib/ralph/status.sh",
-        "scripts/check_architecture.py"
-      ],
       "patterns": [
         {
           "patternId": "Semgrep_ai.python.detect-openai.detect-openai"
