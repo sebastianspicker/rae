@@ -16,9 +16,7 @@ import {
   icon,
   phaseLabel,
   relativeTime,
-  runStateWord,
   runTone,
-  shortId,
   shortRef,
   tone,
 } from "./format.js";
@@ -86,24 +84,42 @@ export function visibleRuns(): OperatorRun[] {
   });
 }
 
+function runRowState(run: OperatorRun): { state: string; word: string } {
+  if (run.checkpoints?.some((item) => item.status === "pending"))
+    return { state: "hold", word: "Needs decision" };
+  // Summaries omit checkpoints; the engine records "waiting" when it pauses for a human.
+  if (run.status === "waiting") return { state: "hold", word: "Waiting" };
+  return { state: tone(run.status), word: humanize(run.status || "unknown") };
+}
+
 function runRow(run: OperatorRun): HTMLButtonElement {
-  const stateWord = runStateWord(run);
-  const top = node("span", { className: "run-row__top" }, [
-    node("span", { className: "run-row__id mono", text: shortId(run.id) }),
-    node("span", { className: `run-row__state state-${stateWord}`, text: stateWord }),
-  ]);
-  const meta = node("span", { className: "run-row__meta" }, [
-    node("span", { text: phaseLabel(run.current_phase) }),
-    node("span", { className: "mono", text: relativeTime(run.updated_at || run.started_at) }),
+  const { state: rowState, word } = runRowState(run);
+  const status = node("span", { className: "run-row__state" }, [
+    node("span", { className: "sq", attrs: { "aria-hidden": "true" } }),
+    word,
   ]);
   return node(
     "button",
     {
       className: "run-row",
-      attrs: { type: "button", role: "option", "aria-selected": String(run.id === state.runId) },
+      attrs: {
+        type: "button",
+        role: "option",
+        "aria-selected": String(run.id === state.runId),
+        "data-state": rowState,
+      },
       dataset: { runId: run.id, tone: runTone(run) },
     },
-    [top, node("span", { className: "run-row__task", text: run.task || run.id }), meta],
+    [
+      status,
+      node("span", { className: "run-row__task", text: run.task || run.id }),
+      node("span", { className: "run-row__id mono", text: run.id, attrs: { title: run.id } }),
+      node("span", { className: "run-row__phase", text: phaseLabel(run.current_phase) }),
+      node("span", {
+        className: "run-row__time",
+        text: relativeTime(run.updated_at || run.started_at),
+      }),
+    ],
   );
 }
 
@@ -341,7 +357,7 @@ export function renderCheckpoint(run: OperatorRun | null): void {
   elements["checkpoint-title"].textContent =
     checkpoint.purpose === "ship"
       ? "Release checkpoint"
-      : `${phaseLabel(checkpoint.phase)} may continue?`;
+      : `${phaseLabel(checkpoint.phase)} checkpoint`;
   elements["checkpoint-message"].textContent = checkpoint.message ?? "";
   if (checkpointChanged) {
     elements["checkpoint-rationale"].value = "";

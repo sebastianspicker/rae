@@ -1,6 +1,6 @@
 /** Presents the task journey using only sanitized, recorded run evidence. */
 import type { OperatorEvent, OperatorRun } from "./types.js";
-import { formatTime, humanize } from "./format.js";
+import { formatTime, humanize, tone } from "./format.js";
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -52,12 +52,8 @@ function evidenceRows(run: OperatorRun): Array<[string, string]> {
 function evidenceTable(run: OperatorRun): HTMLElement {
   const rows = evidenceRows(run);
   if (!rows.length)
-    return element(
-      "p",
-      "No workflow outcomes or gate records have been projected yet.",
-      "terminal-note",
-    );
-  const table = element("table", "", "terminal-table");
+    return element("p", "No workflow outcomes or gate records have been projected yet.", "note");
+  const table = element("table", "", "record-table");
   const head = element("thead");
   const header = element("tr");
   for (const title of ["Evidence", "State"]) {
@@ -77,7 +73,7 @@ function evidenceTable(run: OperatorRun): HTMLElement {
 }
 function checkpointRecord(run: OperatorRun): HTMLElement {
   const region = element("section", "", "checkpoint-record");
-  region.append(element("h4", "[ Checkpoint record ]"));
+  region.append(element("h4", "Checkpoint record"));
   const decisions = (run.checkpoints ?? []).filter((item) => item.status !== "pending");
   if (!decisions.length) region.append(element("p", "No checkpoint decision has been recorded."));
   for (const checkpoint of decisions) {
@@ -91,21 +87,69 @@ function checkpointRecord(run: OperatorRun): HTMLElement {
   }
   return region;
 }
+type JourneyState = "done" | "current" | "hold" | "halted" | "skipped" | "todo";
+
+const JOURNEY: Array<{ label: string; notes: Partial<Record<JourneyState, string>> }> = [
+  { label: "Task", notes: { done: "written" } },
+  {
+    label: "Checkpoint",
+    notes: {
+      done: "decided",
+      hold: "your decision",
+      skipped: "none recorded",
+      todo: "not reached",
+    },
+  },
+  { label: "Execution", notes: { done: "recorded", current: "in progress", todo: "not started" } },
+  { label: "Hand-off", notes: { current: "review locally", todo: "after completion" } },
+];
+
+function journeyState(
+  run: OperatorRun,
+  index: number,
+  active: number,
+  done: boolean,
+  pending: boolean,
+): JourneyState {
+  if (done) return "done";
+  if (index < active) return "skipped";
+  if (index !== active) return "todo";
+  if (pending && index === 1) return "hold";
+  // A stopped or interrupted run that can resume is paused, not failed.
+  if (run.controls?.resume) return "current";
+  return index === 2 && !run.runtime_active && ["error", "muted"].includes(tone(run.status))
+    ? "halted"
+    : "current";
+}
+
+function journeyNote(run: OperatorRun, index: number, stepState: JourneyState): string {
+  if (stepState === "halted") return humanize(run.status ?? "stopped").toLowerCase();
+  if (index === 2 && stepState === "current" && run.controls?.resume) return "ready to resume";
+  return JOURNEY[index]?.notes[stepState] ?? "";
+}
+
+/** Draws the run journey as the mark's stepped trace; state comes only from recorded run data. */
 function journey(run: OperatorRun): void {
   const steps = document.getElementById("task-steps");
   if (!steps) return;
-  const pending = run.checkpoints?.some((item) => item.status === "pending");
-  const active = taskCompleted(run) ? 3 : pending || run.controls?.resume ? 1 : 2;
+  const pending = Boolean(run.checkpoints?.some((item) => item.status === "pending"));
+  const completed = taskCompleted(run);
+  const active = completed ? 3 : pending ? 1 : 2;
   const reviewed = run.checkpoints?.some((item) =>
     ["approved", "approve"].includes(item.status ?? ""),
   );
   steps.replaceChildren(
-    ...["Describe", "Review decision", "Execute", "Inspect result"].map((label, index) => {
+    ...JOURNEY.map(({ label }, index) => {
       const step = element("li");
       const done =
-        index === 0 || (index === 1 && reviewed && !pending) || (index === 2 && taskCompleted(run));
-      const marker = done ? "✓" : String(index + 1).padStart(2, "0");
-      step.append(element("span", `[${marker}]`), element("span", label));
+        index === 0 || (index === 1 && reviewed && !pending) || (index === 2 && completed);
+      const stepState = journeyState(run, index, active, Boolean(done), pending);
+      const note = journeyNote(run, index, stepState);
+      const mark = element("span", "", "trace__mark");
+      mark.setAttribute("aria-hidden", "true");
+      step.dataset.state = stepState;
+      step.append(mark, element("span", label, "trace__label"));
+      if (note) step.append(element("span", note, "trace__note"));
       if (index === active) step.setAttribute("aria-current", "step");
       return step;
     }),
@@ -140,7 +184,7 @@ function renderEvidence(run: OperatorRun): void {
   const status = element(
     "p",
     pending ? "waiting for decision" : humanize(run.status ?? "Unknown"),
-    "terminal-status",
+    "record-status",
   );
   status.dataset.tone = evidenceTone(run, Boolean(pending));
   target.replaceChildren(
@@ -148,11 +192,11 @@ function renderEvidence(run: OperatorRun): void {
     status,
     element("p", copy),
     evidenceTable(run),
-    element("p", "Recorded evidence is not a pass verdict.", "terminal-note"),
+    element("p", "Recorded evidence is not a pass verdict.", "note"),
   );
   target.append(
     reference(`.pipeline/runs/${run.id}/`, "Copy reference"),
-    element("p", "References only. Open artifact contents locally.", "terminal-note"),
+    element("p", "References only. Open artifact contents locally.", "note"),
   );
   if (!pending) target.append(checkpointRecord(run));
   const label = document.getElementById("task-evidence-label");
@@ -189,7 +233,7 @@ function renderHandoff(run: OperatorRun): void {
       element("p", "Completion applies to this workflow run. Human release review remains."),
     ]),
   );
-  const back = element("button", "Return to all runs", "return-runs");
+  const back = element("button", "Return to all runs", "btn btn--wide return-runs");
   back.type = "button";
   back.dataset.allRuns = "";
   target.replaceChildren(list, back);
@@ -266,11 +310,7 @@ export function renderRecentEvents(events: OperatorEvent[], error: string | null
   if (!target) return;
   if (error || !events.length) {
     target.replaceChildren(
-      element(
-        "p",
-        error ? `Evidence unavailable: ${error}` : "No projected events yet.",
-        "terminal-note",
-      ),
+      element("p", error ? `Evidence unavailable: ${error}` : "No projected events yet.", "note"),
     );
     return;
   }

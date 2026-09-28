@@ -91,15 +91,10 @@ const EVENTS = Object.freeze([
 
 const CAPTURE_STYLE = `
   <style id="docs-capture-style">
-    .ident, .ledger, .run-heading, .phase-region, .proof-band, .hold, .detail,
-    .task-sheet, .task-steps, .task-footer, #run-details { display: none !important; }
-    .page { padding-top: 1rem; }
-    .workflow-editor { margin-top: 0; }
+    .ident, .trace, .task-sheet, .task-footer, #run-details { display: none !important; }
+    .body { padding-top: 1.5rem; }
+    #workflow-section { margin-top: 0; }
     .workflow-structure { max-height: 17rem; }
-    @media (max-width: 900px) {
-      .page { padding-top: .75rem; }
-      .workflow-editor { padding: 1rem; }
-    }
   </style>
 `;
 function installCaptureProbe(): void {
@@ -133,6 +128,7 @@ const MIME_TYPES = new Map([
   [".html", "text/html; charset=utf-8"],
   [".js", "text/javascript; charset=utf-8"],
   [".svg", "image/svg+xml"],
+  [".woff2", "font/woff2"],
 ]);
 
 function instance(

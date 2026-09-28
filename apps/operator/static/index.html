@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#0c1210">
+    <meta name="theme-color" content="#0e171c">
     <meta name="color-scheme" content="light dark">
     <meta
       name="description"
-      content="RAE Operator — local forensic ledger for autonomous repository runs."
+      content="RAE Operator: the local record of autonomous repository runs, their evidence, and your checkpoint decisions."
     >
     <title>RAE Operator</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -18,343 +18,477 @@
     <p id="demo-disclaimer" class="demo-disclaimer" role="status" hidden>
       Mock-only demo. No backend or repository access, and no live or publish controls.
     </p>
-    <!-- Symbols referenced by app.js evidence rendering (icon()). -->
+    <!-- Symbols referenced by evidence rendering (icon()). -->
     <svg class="icon-sprite" aria-hidden="true">
       <symbol id="icon-arrow" viewBox="0 0 24 24">
-        <path d="M5 12h14M14 7l5 5-5 5"></path>
+        <path d="M9 6l6 6-6 6"></path>
       </symbol>
       <symbol id="icon-check" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9"></circle>
-        <path d="m8 12 2.5 2.5L16 9"></path>
+        <rect x="5" y="5" width="14" height="14" fill="currentColor" stroke="none"></rect>
       </symbol>
       <symbol id="icon-reject" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9"></circle>
-        <path d="m9 9 6 6M15 9l-6 6"></path>
+        <path d="M6 6l12 12M18 6L6 18"></path>
       </symbol>
       <symbol id="icon-info" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9"></circle>
-        <path d="M12 10v6M12 7h.01"></path>
+        <rect x="6" y="6" width="12" height="12"></rect>
       </symbol>
     </svg>
 
-    <a class="skip" href="#workspace">Skip to task</a>
+    <a class="skip" href="#workspace">Skip to run</a>
 
-    <div class="runboard app">
-      <header class="topbar head">
-        <div class="head__left brand" aria-label="RAE Operator">
-          <svg class="mark" viewBox="0 0 11 9" aria-hidden="true"><path fill="currentColor" stroke="none" d="M2 0h1v1H2zm6 0h1v1H8zM3 1h1v1H3zm4 0h1v1H7zM2 2h7v1H2zM1 3h9v1H1zM0 4h3v1H0zm4 0h3v1H4zm4 0h3v1H8zM0 5h11v2H0zM0 7h1v1H0zm2 0h2v1H2zm5 0h2v1H7zm3 0h1v1h-1zM3 8h2v1H3zm3 0h2v1H6z"/></svg>
-          <span class="head__brand brand__name">RAE</span>
-          <span class="head__surface brand__product" aria-hidden="true">▮</span>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand" aria-label="RAE Operator">
+          <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="1" y="1" width="62" height="62" rx="9" fill="#14232B" stroke="#F4F7F8" stroke-width="3"></rect>
+            <path d="M10 17h13v15h17v15h14" fill="none" stroke="#7DA2FF" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter"></path>
+            <rect x="19" y="13" width="9" height="9" fill="#14232B" stroke="#F4F7F8" stroke-width="2.5"></rect>
+            <rect x="36" y="28" width="9" height="9" fill="#14232B" stroke="#F0926B" stroke-width="2.5"></rect>
+            <rect x="49" y="42" width="10" height="10" fill="#54C9AB" stroke="#F4F7F8" stroke-width="2.5"></rect>
+          </svg>
+          <span class="brand__name">RAE</span>
+          <span class="brand__product">Operator</span>
         </div>
 
-        <div class="topbar-center">
+        <div class="topbar__find">
           <label class="project-switcher" for="project-select">
-            <span class="visually-hidden">Allowlisted project</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            </svg>
-            <select id="project-select" aria-label="Allowlisted project"></select>
+            <span class="project-switcher__k" aria-hidden="true">repo</span>
+            <select id="project-select" aria-label="Allowlisted repository"></select>
           </label>
           <button id="toggle-search" class="command-search" type="button" aria-expanded="false" aria-controls="run-search">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7"></circle>
-              <path d="m21 21-4.3-4.3"></path>
+              <circle cx="11" cy="11" r="6.5"></circle>
+              <path d="M16 16l4.5 4.5"></path>
             </svg>
-            <span>Search runs</span><kbd>⌘K</kbd>
+            <span class="command-search__label">Search runs</span><kbd>⌘K</kbd>
           </button>
         </div>
 
-        <div class="topbar-right">
+        <div class="topbar__session">
           <div id="connection-status" class="session-state" data-state="connecting" role="status">
             <span class="session-state__dot" aria-hidden="true"></span>
             <span><strong>Connecting</strong><small>Local session</small></span>
           </div>
-          <button id="all-runs-button" class="all-runs-link" type="button">All runs</button>
-          <button id="theme-toggle" class="icon-button" type="button" aria-label="Use dark theme" aria-pressed="false">
+          <button id="theme-toggle" class="icon-btn" type="button" aria-label="Use light theme" aria-pressed="true">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"></path>
+              <circle cx="12" cy="12" r="7.5"></circle>
+              <path d="M12 4.5v15" ></path>
+              <path class="theme-half" d="M12 4.5a7.5 7.5 0 0 1 0 15z" fill="currentColor" stroke="none"></path>
             </svg>
           </button>
-          <button id="new-run-button" class="primary-action" type="button" disabled>
+        </div>
+
+        <nav class="topbar__nav" aria-label="Runs">
+          <button id="all-runs-button" class="nav-link" type="button">All runs</button>
+          <button id="new-run-button" class="btn btn--primary new-run" type="button" disabled>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14"></path>
             </svg>
-            New run
+            <span>New run</span>
           </button>
-        </div>
+        </nav>
       </header>
 
       <div class="body">
         <nav id="run-index" class="index" aria-labelledby="runs-heading">
-          <div class="index__heading">
-            <h1 id="runs-heading">Runs</h1>
-            <div class="rail-tools">
-              <button id="cycle-filter" type="button" aria-label="Filter runs: all">
-                <span id="filter-label">All</span>
-              </button>
+          <header class="index__head">
+            <div>
+              <p class="eyebrow">Run catalogue</p>
+              <h1 id="runs-heading">Runs</h1>
             </div>
-          </div>
+            <button id="cycle-filter" class="filter-chip" type="button" aria-label="Filter runs: all">
+              <span class="filter-chip__k" aria-hidden="true">show</span>
+              <span id="filter-label">All</span>
+            </button>
+          </header>
 
           <div class="run-search" id="run-search" hidden>
-            <label for="run-search-input">Filter runs</label>
-            <input id="run-search-input" type="search" placeholder="Task, branch, or state">
+            <label for="run-search-input">Filter by task, run ID, branch or state</label>
+            <input id="run-search-input" type="search" placeholder="e.g. release, pipeline/…, waiting" autocomplete="off" spellcheck="false">
           </div>
 
-          <div id="runs-loading" class="state-line" role="status">
-            Loading runs…
+          <div id="runs-loading" class="state-line index__state" role="status">
+            Reading run records…
           </div>
-          <div id="runs-list" class="run-list index__list" role="listbox" aria-label="Autonomous runs"></div>
-          <button id="runs-load-more" class="button button--secondary" type="button" hidden>Load more runs</button>
-          <div id="runs-empty" class="empty-state" hidden>
+          <div id="runs-list" class="run-list" role="listbox" aria-label="Autonomous runs"></div>
+          <button id="runs-load-more" class="btn btn--quiet index__more" type="button" hidden>Load more runs</button>
+          <div id="runs-empty" class="index__empty" hidden>
             <strong>No runs yet</strong>
             <span>Start a bounded run for this project.</span>
+            <button class="btn btn--primary" type="button" data-new-run>Describe a new task</button>
           </div>
 
           <p class="index__foot">
-            Allowlisted roots only.<br>
-            <span class="session-policy">No publish controls</span>
+            Allowlisted repositories only.
+            <span class="session-policy">This console cannot commit, push or publish.</span>
           </p>
         </nav>
 
-        <main class="page workspace" id="workspace">
+        <main class="workspace" id="workspace">
           <section class="workspace-empty" id="workspace-empty">
-            <span class="workspace-empty__mark" aria-hidden="true"></span>
-
-            <h1>Select a task to continue</h1>
+            <svg class="workspace-empty__trace" viewBox="0 0 64 40" aria-hidden="true">
+              <path d="M2 8h16v12h20v12h24"></path>
+              <rect x="13" y="4" width="8" height="8"></rect>
+              <rect x="33" y="16" width="8" height="8"></rect>
+              <rect x="53" y="28" width="8" height="8"></rect>
+            </svg>
+            <h1>Select a run to continue</h1>
             <p>
-              Choose a durable run to inspect its phases, projected evidence, resources, and human
-              decisions.
+              Open a durable run to read its evidence, resources and any decision waiting for you.
             </p>
-            <button class="primary-button" type="button" data-new-run>Describe a new task</button>
+            <button class="btn btn--primary" type="button" data-new-run>Describe a new task</button>
           </section>
 
           <div id="run-content" hidden>
             <header class="ident">
-              <div class="ident__ids">
-                <h1 class="task" id="run-task" tabindex="-1"></h1>
-                <p class="ident__line"><span id="run-title"></span><span aria-hidden="true"> · </span><span id="run-branch"></span></p>
-                <p class="ident__line" id="run-workflow"></p>
-                <button class="mobile-review-jump" type="button" id="review-jump" hidden>Review checkpoint</button>
-              </div>
+              <p class="eyebrow ident__eyebrow">Task, as written</p>
+              <h1 class="task human" id="run-task" tabindex="-1"></h1>
+              <p class="ident__line">
+                <span class="ident__k">run</span><span id="run-title"></span>
+                <span class="ident__k">branch</span><span id="run-branch"></span>
+              </p>
+              <p class="ident__line ident__line--workflow"><span class="ident__k">workflow</span><span id="run-workflow"></span></p>
+              <button class="btn review-jump" type="button" id="review-jump" hidden>
+                <span class="sq" aria-hidden="true"></span> Your decision is required
+              </button>
             </header>
-            <ol id="task-steps" class="task-steps" aria-label="Task progress"></ol>
+
+            <ol id="task-steps" class="trace" aria-label="Run journey"></ol>
+
             <div class="task-sheet">
-              <section class="terminal-panel task-evidence" aria-labelledby="task-evidence-label">
-                <h2 class="panel-label" id="task-evidence-label">Evidence</h2>
-                <div id="task-evidence"></div>
-                <section class="recent-events" aria-labelledby="recent-heading">
-                  <h3 id="recent-heading">[ Recent events ]</h3>
+              <section class="panel record" aria-labelledby="task-evidence-label">
+                <header class="panel__head">
+                  <h2 class="panel__label" id="task-evidence-label">Evidence</h2>
+                  <span class="panel__voice">Machine record</span>
+                </header>
+                <div id="task-evidence" class="record__body"></div>
+                <section class="recent" aria-labelledby="recent-heading">
+                  <h3 id="recent-heading" class="eyebrow">Recent events</h3>
                   <div id="recent-events"></div>
                 </section>
               </section>
-              <section class="terminal-panel hold" aria-labelledby="checkpoint-heading">
-                <h2 class="panel-label" id="checkpoint-heading">Decision</h2>
-                <div id="completion-handoff" hidden></div>
-                <div id="decision-panel" class="decision-panel">
-                  <h3 class="decision-title">Your decision</h3>
-                  <div id="checkpoint-empty" class="checkpoint-empty">
+
+              <section class="panel decision" aria-labelledby="checkpoint-heading">
+                <header class="panel__head">
+                  <h2 class="panel__label" id="checkpoint-heading">Decision</h2>
+                  <span class="panel__voice">Human record</span>
+                </header>
+                <div id="completion-handoff" class="handoff" hidden></div>
+                <div id="decision-panel" class="decision__body">
+                  <div id="checkpoint-empty" class="checkpoint-empty" tabindex="-1">
                     <h3>No pending checkpoint</h3>
-                  <p id="checkpoint-empty-copy">Select a run to inspect its decision state.</p>
-                  <dl id="saved-decision" class="saved-decision" hidden></dl>
+                    <p id="checkpoint-empty-copy">Select a run to inspect its decision state.</p>
+                    <dl id="saved-decision" class="saved-decision" hidden></dl>
                   </div>
                   <div id="checkpoint-content" hidden>
-                    <h3 id="checkpoint-title" class="visually-hidden"></h3>
+                    <h3 id="checkpoint-title" class="decision__title"></h3>
                     <form class="decision-form" id="decision-form">
-                      <label class="hold__field" for="checkpoint-rationale">Rationale <span>(required)</span></label>
-                      <textarea id="checkpoint-rationale" name="rationale" rows="4" maxlength="4096" aria-describedby="rationale-help rationale-count" placeholder="Explain your decision after reviewing the local evidence." required></textarea>
-                      <div class="rationale-notes"><p class="field-help" id="rationale-help">Recorded with your decision.</p><output id="rationale-count" for="checkpoint-rationale">0 / 4096</output></div>
+                      <div class="signed">
+                        <label class="signed__label" for="checkpoint-rationale">Rationale <span>required</span></label>
+                        <textarea id="checkpoint-rationale" class="human" name="rationale" rows="5" maxlength="4096" aria-describedby="rationale-help rationale-count" placeholder="What did you check, and why does it justify this decision?" required></textarea>
+                        <div class="rationale-notes">
+                          <p class="field-help" id="rationale-help">Saved verbatim with your decision.</p>
+                          <output id="rationale-count" for="checkpoint-rationale">0 / 4096</output>
+                        </div>
+                      </div>
                       <p id="decision-error" class="field-error" role="alert" hidden></p>
-                      <fieldset class="hold__actions">
-                        <legend class="visually-hidden">Decision actions</legend>
-                        <button class="decision-action decision-action--approve act act--go" type="button" data-decision="approve"><span aria-hidden="true">✓</span> Approve checkpoint</button>
-                        <button class="decision-action act act--no" type="button" data-decision="reject">Reject</button>
-                        <button class="decision-action act act--quiet" type="button" data-decision="escalate">Escalate</button>
+                      <fieldset class="decision-actions">
+                        <legend class="visually-hidden">Decision</legend>
+                        <button class="btn btn--primary btn--lg decision-action decision-action--approve" type="button" data-decision="approve">Approve checkpoint</button>
+                        <button class="btn btn--danger decision-action" type="button" data-decision="reject">Reject</button>
+                        <button class="btn decision-action" type="button" data-decision="escalate">Escalate</button>
                       </fieldset>
                     </form>
-                    <p class="terminal-note">Reject and escalate are terminal decisions.</p>
-                    <details class="checkpoint-metadata"><summary>Checkpoint message &amp; identity</summary><p id="checkpoint-message"></p><p id="checkpoint-meta" class="checkpoint-meta"></p></details>
+                    <p class="note decision__terminal">Reject and escalate are terminal. The console cannot resume the run afterwards.</p>
+                    <details class="checkpoint-metadata">
+                      <summary>Checkpoint message and identity</summary>
+                      <p id="checkpoint-message"></p>
+                      <p id="checkpoint-meta" class="checkpoint-meta"></p>
+                    </details>
                   </div>
-                  <div class="resume-action"><button id="resume-button" type="button" disabled>Resume run</button><p id="resume-help">Available after approval and runtime exit.</p></div>
-
+                  <div class="resume-action">
+                    <button id="resume-button" class="btn btn--wide" type="button" disabled>Resume run</button>
+                    <p id="resume-help" class="note">Available after approval, once the runtime has exited.</p>
+                  </div>
                 </div>
               </section>
             </div>
-            <footer class="task-footer"><span id="task-footer-status"></span><span>RAE · LOCAL EVIDENCE</span></footer>
-            <details class="secondary-section" id="run-details"><summary>Run details · gates, resources &amp; controls</summary>
-                  <section class="next-step hold__limits" aria-labelledby="next-step-heading">
-                    <h3 id="next-step-heading">Operator boundary</h3>
+
+            <footer class="task-footer">
+              <span id="task-footer-status"></span>
+              <span class="task-footer__colophon">Recorded locally · no publish controls</span>
+            </footer>
+
+            <details class="appendix" id="run-details">
+              <summary>
+                <span class="appendix__letter" aria-hidden="true">A</span>
+                <span class="appendix__title">Run details</span>
+                <span class="appendix__hint">Gates, resources, event log and run controls</span>
+              </summary>
+              <div class="appendix__body">
+                <div class="appendix__controls">
+                  <nav class="run-controls" aria-label="Run controls">
+                    <button id="stop-button" class="btn" type="button" disabled>Stop at next boundary</button>
+                    <button id="interrupt-button" class="btn btn--danger" type="button" disabled>Interrupt…</button>
+                    <button id="cleanup-button" class="btn btn--danger" type="button" disabled>Clean up worktree…</button>
+                  </nav>
+                  <section class="next-step" aria-labelledby="next-step-heading">
+                    <h3 id="next-step-heading" class="eyebrow">Operator boundary</h3>
                     <p id="next-step-copy">This console exposes no commit, push, publish, or deploy action.</p>
                   </section>
-              <dl class="ident__facts run-facts"><div><dt>Workspace</dt><dd id="run-workspace"></dd></div><div><dt>Status</dt><dd id="run-terminal" class="status-value"></dd></div></dl>
-              <dl class="run-context"><div><dt>Run ID</dt><dd id="context-run">Not selected</dd></div><div><dt>Workspace</dt><dd id="context-workspace">Not selected</dd></div><div><dt>Started</dt><dd id="context-started">Unavailable</dd></div><div><dt>Mode</dt><dd>Local session</dd></div></dl>
-            <section class="proof-band" aria-label="Run evidence summary">
-              <article>
-                <div><strong id="gate-count">0 / 0</strong><span>gates passed</span></div>
-              </article>
-              <article>
-                <div><strong id="artifact-count">0</strong><span>projected artifacts</span></div>
-              </article>
-              <article>
-                <div><strong id="agent-count">0</strong><span>agent calls</span></div>
-              </article>
-              <article>
-                <div><strong id="input-count">—</strong><span>input tokens</span></div>
-              </article>
-            </section>
-
-            <section class="ledger" aria-labelledby="progress-heading">
-              <header class="ledger__head">
-                <h2 id="progress-heading">Bound ledger</h2>
-                <p>Stage · artifact · gate · claim binding</p>
-              </header>
-              <div class="docket-wrap">
-                <table class="docket phase-spine">
-                  <thead>
-                    <tr>
-                      <th scope="col">#</th>
-                      <th scope="col">Stage</th>
-                      <th scope="col">Artifact</th>
-                      <th scope="col">Gate</th>
-                      <th scope="col">Claim</th>
-                    </tr>
-                  </thead>
-                  <tbody id="phase-list" class="phase-spine"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="detail" aria-labelledby="events-heading">
-              <div class="ledger-heading detail__tabs">
-                <div>
-                  <h2 id="events-heading">Evidence log</h2>
-                  <span id="event-count">Loading…</span>
                 </div>
-                <div class="ledger-state">
-                  <span id="stream-status" role="status"></span>
-                  <div class="ledger-actions">
-                    <button type="button" id="expand-all">Expand all</button>
-                    <button type="button" id="collapse-all">Collapse all</button>
+
+                <div class="facts">
+                  <dl class="run-facts">
+                    <div><dt>Workspace</dt><dd id="run-workspace"></dd></div>
+                    <div><dt>Status</dt><dd id="run-terminal" class="status-value"></dd></div>
+                  </dl>
+                  <dl class="run-context">
+                    <div><dt>Run ID</dt><dd id="context-run">Not selected</dd></div>
+                    <div><dt>Worktree</dt><dd id="context-workspace">Not selected</dd></div>
+                    <div><dt>Started</dt><dd id="context-started">Unavailable</dd></div>
+                    <div><dt>Mode</dt><dd>Local session</dd></div>
+                  </dl>
+                </div>
+
+                <section class="figures" aria-label="Run evidence summary">
+                  <article><strong id="gate-count">0 / 0</strong><span>gates passed</span></article>
+                  <article><strong id="artifact-count">0</strong><span>projected artifacts</span></article>
+                  <article><strong id="agent-count">0</strong><span>agent calls</span></article>
+                  <article><strong id="input-count">—</strong><span>input tokens</span></article>
+                </section>
+
+                <section class="ledger" aria-labelledby="progress-heading">
+                  <header class="section-head">
+                    <h3 id="progress-heading">Phase ledger</h3>
+                    <p>Each phase with its artifact, gate and claim binding.</p>
+                  </header>
+                  <div class="table-wrap">
+                    <table class="docket">
+                      <thead>
+                        <tr>
+                          <th scope="col">#</th>
+                          <th scope="col">Phase</th>
+                          <th scope="col">Artifact</th>
+                          <th scope="col">Gate</th>
+                          <th scope="col">Claim</th>
+                        </tr>
+                      </thead>
+                      <tbody id="phase-list"></tbody>
+                    </table>
                   </div>
-                </div>
+                </section>
+
+                <section class="event-log" aria-labelledby="events-heading">
+                  <header class="section-head section-head--split">
+                    <div>
+                      <h3 id="events-heading">Event log</h3>
+                      <p><span id="event-count">Loading…</span> <span id="stream-status" role="status"></span></p>
+                    </div>
+                    <div class="section-head__actions">
+                      <button type="button" class="btn btn--quiet" id="expand-all">Expand all</button>
+                      <button type="button" class="btn btn--quiet" id="collapse-all">Collapse all</button>
+                    </div>
+                  </header>
+                  <div class="table-wrap">
+                    <table class="evidence-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Time (local)</th>
+                          <th scope="col">Phase</th>
+                          <th scope="col">Event</th>
+                          <th scope="col">Evidence reference</th>
+                          <th scope="col">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody id="event-list"></tbody>
+                    </table>
+                  </div>
+                  <dl class="resource-strip" aria-label="Resource summary">
+                    <div><dt>Output tokens</dt><dd id="output-count">Unavailable</dd></div>
+                    <div><dt>Estimated cost</dt><dd id="cost-count">Unavailable</dd></div>
+                    <div><dt>Last update</dt><dd id="updated-value">Unavailable</dd></div>
+                    <div><dt>Run ID</dt><dd id="run-id-value">Unavailable</dd></div>
+                  </dl>
+                </section>
               </div>
-
-              <div class="evidence-table-wrap">
-                <table class="evidence-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Time (local)</th>
-                      <th scope="col">Phase</th>
-                      <th scope="col">Event</th>
-                      <th scope="col">Evidence reference</th>
-                      <th scope="col">Result</th>
-                    </tr>
-                  </thead>
-                  <tbody id="event-list"></tbody>
-                </table>
-              </div>
-
-              <dl class="resource-strip" aria-label="Resource summary">
-                <div><dt>Output tokens</dt><dd id="output-count">Unavailable</dd></div>
-                <div><dt>Estimated cost</dt><dd id="cost-count">Unavailable</dd></div>
-                <div><dt>Last update</dt><dd id="updated-value">Unavailable</dd></div>
-                <div><dt>Run ID</dt><dd id="run-id-value">Unavailable</dd></div>
-              </dl>
-
-              <nav class="run-controls" aria-label="Run controls">
-                <button id="stop-button" type="button" disabled>
-                  Stop at boundary
-                </button>
-                <button id="interrupt-button" class="control--warning" type="button" disabled>
-                  Interrupt
-                </button>
-                <button id="cleanup-button" class="control--danger" type="button" disabled>
-                  Cleanup
-                </button>
-              </nav>
-            </section>
-
             </details>
-            <details class="secondary-section" id="workflow-section"><summary>Workflow editor · registry &amp; systems map</summary>
-            <section class="workflow-editor" aria-labelledby="workflow-heading">
-              <header class="workflow-editor__head">
-                <div><p class="eyebrow">Revision-controlled</p><h2 id="workflow-heading">Workflow systems map</h2></div>
-                <button id="workflow-refresh" type="button">Refresh registry</button>
-              </header>
-              <div class="workflow-editor__grid">
-                <aside class="workflow-rail" aria-label="Workflow registry">
-                  <h3>Registry</h3>
-                  <div id="workflow-list" role="listbox" aria-label="Workflows"></div>
-                  <p id="workflow-empty" class="state-line">Loading workflows…</p>
-                </aside>
-                <div class="workflow-canvas">
-                  <div class="workflow-views" role="tablist" aria-label="Workflow views">
-                    <button id="workflow-view-loop" role="tab" type="button" aria-selected="false" aria-controls="workflow-loop">Loop</button>
-                    <button id="workflow-view-graph" role="tab" type="button" aria-selected="true" aria-controls="workflow-graph-panel">Graph</button>
-                    <button id="workflow-view-analyze" role="tab" type="button" aria-selected="false" aria-controls="workflow-analysis">Analyze</button>
-                    <button id="workflow-view-json" role="tab" type="button" aria-selected="false" aria-controls="workflow-json">JSON</button>
+
+            <details class="appendix" id="workflow-section">
+              <summary>
+                <span class="appendix__letter" aria-hidden="true">B</span>
+                <span class="appendix__title">Workflow editor</span>
+                <span class="appendix__hint">Revision registry, systems map and activation</span>
+              </summary>
+              <section class="workflow-editor appendix__body" aria-labelledby="workflow-heading">
+                <header class="section-head section-head--split">
+                  <div>
+                    <p class="eyebrow">Revision-controlled</p>
+                    <h3 id="workflow-heading">Workflow systems map</h3>
                   </div>
-                  <section id="workflow-loop" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-loop" hidden>
-                    <h3>Loop controls</h3><p id="workflow-loop-summary">No loop nodes in this revision.</p>
-                  </section>
-                  <section id="workflow-graph-panel" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-graph">
-                  <svg id="workflow-graph" viewBox="0 0 640 250" role="img" aria-labelledby="workflow-graph-title workflow-graph-desc">
-                    <title id="workflow-graph-title">Workflow stage map</title>
-                    <desc id="workflow-graph-desc">A topologically layered workflow map. Color and line style distinguish data, stream, condition, sequence, and loop-back edges. The tables after the map provide the complete equivalent structure and live instance state.</desc>
-                    <defs><marker id="workflow-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>
-                    <g id="workflow-graph-content"></g>
-                  </svg>
-                  </section>
-                  <section id="workflow-analysis" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-analyze" hidden>
-                    <h3>Static analysis</h3><pre id="workflow-analysis-output" tabindex="0">Select Analyze to inspect the unsaved workflow.</pre>
-                  </section>
-                  <form id="workflow-draft-form" class="workflow-form">
-                    <section id="workflow-json" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-json" hidden>
-                    <label for="workflow-definition">Draft definition (JSON, expert)</label>
-                    <textarea id="workflow-definition" rows="8" maxlength="32768" spellcheck="false" required aria-describedby="workflow-version-help"></textarea>
-                    <p id="workflow-version-help" class="field-help">JSON is for schema 2.0 and 2.2 experts. Use structured controls for standard graph authoring.</p>
+                  <button id="workflow-refresh" class="btn btn--quiet" type="button">Refresh registry</button>
+                </header>
+                <div class="workflow-editor__grid">
+                  <aside class="workflow-rail" aria-label="Workflow registry">
+                    <h4 class="eyebrow">Registry</h4>
+                    <div id="workflow-list" class="workflow-list" role="listbox" aria-label="Workflows"></div>
+                    <p id="workflow-empty" class="state-line">Loading workflows…</p>
+                  </aside>
+
+                  <div class="workflow-canvas">
+                    <div class="workflow-views" role="tablist" aria-label="Workflow views">
+                      <button id="workflow-view-loop" role="tab" type="button" aria-selected="false" aria-controls="workflow-loop">Loop</button>
+                      <button id="workflow-view-graph" role="tab" type="button" aria-selected="true" aria-controls="workflow-graph-panel">Graph</button>
+                      <button id="workflow-view-analyze" role="tab" type="button" aria-selected="false" aria-controls="workflow-analysis">Analyze</button>
+                      <button id="workflow-view-json" role="tab" type="button" aria-selected="false" aria-controls="workflow-json">JSON</button>
+                    </div>
+                    <section id="workflow-loop" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-loop" hidden>
+                      <h4 class="eyebrow">Loop controls</h4>
+                      <p id="workflow-loop-summary">No loop nodes in this revision.</p>
                     </section>
-                    <section id="workflow-structured-controls" class="workflow-structured-controls" aria-labelledby="workflow-controls-heading">
-                      <h3 id="workflow-controls-heading">Structured authoring</h3>
-                      <label for="workflow-template">Guided loop template</label>
-                      <select id="workflow-template"><option value="">Keep current workflow</option></select>
-                      <div class="workflow-control-row"><button id="workflow-add-node" type="button">Add node</button><button id="workflow-delete-node" type="button">Delete selected node</button><button id="workflow-add-edge" type="button">Connect selected nodes</button><button id="workflow-delete-edge" type="button">Delete selected edge</button><button id="workflow-auto-layout" type="button">Auto layout</button></div>
-                      <label for="workflow-node-select">Selected node</label><select id="workflow-node-select"></select>
-                      <label for="workflow-edge-select">Selected edge</label><select id="workflow-edge-select"></select>
-                      <label for="workflow-proposal-task">Proposal task</label><textarea id="workflow-proposal-task" rows="2" maxlength="32768" placeholder="Describe the topology change to propose."></textarea>
-                      <label for="workflow-proposal-profile">Proposal execution profile</label><select id="workflow-proposal-profile"><option value="">Runtime default</option></select>
-                      <button id="workflow-propose" type="button">Generate unsaved proposal</button>
+                    <section id="workflow-graph-panel" class="workflow-view workflow-view--graph" role="tabpanel" aria-labelledby="workflow-view-graph">
+                      <div class="graph-scroll">
+                        <svg id="workflow-graph" viewBox="0 0 640 250" role="img" aria-labelledby="workflow-graph-title workflow-graph-desc">
+                          <title id="workflow-graph-title">Workflow stage map</title>
+                          <desc id="workflow-graph-desc">A topologically layered workflow map. Color and line style distinguish data, stream, condition, sequence, and loop-back edges. The tables after the map provide the complete equivalent structure and live instance state.</desc>
+                          <defs><marker id="workflow-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>
+                          <g id="workflow-graph-content"></g>
+                        </svg>
+                      </div>
+                      <p class="graph-legend" aria-hidden="true">
+                        <span class="graph-legend__item graph-legend__item--sequence">sequence</span>
+                        <span class="graph-legend__item graph-legend__item--data">artifact</span>
+                        <span class="graph-legend__item graph-legend__item--stream">stream</span>
+                        <span class="graph-legend__item graph-legend__item--condition">condition</span>
+                        <span class="graph-legend__item graph-legend__item--loop-back">loop-back</span>
+                      </p>
                     </section>
-                    <label for="workflow-actor">Actor</label>
-                    <input id="workflow-actor" maxlength="128" required>
-                    <label for="workflow-rationale">Revision or activation rationale</label>
-                    <textarea id="workflow-rationale" rows="3" maxlength="4096" required></textarea>
-                    <p id="workflow-budget" class="field-help">Revision budget unavailable</p>
-                    <div><button id="workflow-draft" type="submit">Save draft revision</button><button id="workflow-validate" type="button">Validate draft</button></div>
-                  </form>
-                  <section aria-labelledby="workflow-structure-heading">
-                    <h3 id="workflow-structure-heading">Structured nodes and edges</h3>
-                    <div id="workflow-structure" class="workflow-structure"></div>
-                  </section>
+                    <section id="workflow-analysis" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-analyze" hidden>
+                      <h4 class="eyebrow">Static analysis</h4>
+                      <pre id="workflow-analysis-output" class="output" tabindex="0">Select Analyze to inspect the unsaved workflow.</pre>
+                    </section>
+
+                    <form id="workflow-draft-form" class="workflow-form">
+                      <section id="workflow-json" class="workflow-view" role="tabpanel" aria-labelledby="workflow-view-json" hidden>
+                        <label for="workflow-definition">Draft definition (JSON, expert)</label>
+                        <textarea id="workflow-definition" class="code-input" rows="14" maxlength="32768" spellcheck="false" required aria-describedby="workflow-version-help"></textarea>
+                        <p id="workflow-version-help" class="field-help">JSON is for schema 2.0 and 2.2 experts. Use structured controls for standard graph authoring.</p>
+                      </section>
+
+                      <section id="workflow-structured-controls" class="workflow-block" aria-labelledby="workflow-controls-heading">
+                        <h4 id="workflow-controls-heading" class="workflow-block__title">Structured authoring</h4>
+                        <div class="field">
+                          <label for="workflow-template">Guided loop template</label>
+                          <select id="workflow-template"><option value="">Keep current workflow</option></select>
+                        </div>
+                        <div class="field-pair">
+                          <div class="field">
+                            <label for="workflow-node-select">Selected node</label>
+                            <select id="workflow-node-select"></select>
+                          </div>
+                          <div class="field">
+                            <label for="workflow-edge-select">Selected edge</label>
+                            <select id="workflow-edge-select"></select>
+                          </div>
+                        </div>
+                        <div class="workflow-control-row">
+                          <button id="workflow-add-node" class="btn" type="button">Add node</button>
+                          <button id="workflow-add-edge" class="btn" type="button">Connect selected</button>
+                          <button id="workflow-auto-layout" class="btn" type="button">Auto layout</button>
+                          <button id="workflow-delete-node" class="btn btn--danger" type="button">Delete node</button>
+                          <button id="workflow-delete-edge" class="btn btn--danger" type="button">Delete edge</button>
+                        </div>
+                        <div class="workflow-proposal">
+                          <h4 class="workflow-block__title">Proposal</h4>
+                          <div class="field">
+                            <label for="workflow-proposal-task">Topology change to propose</label>
+                            <textarea id="workflow-proposal-task" class="human" rows="2" maxlength="32768" placeholder="Describe the change, for example: add a quorum review before verify."></textarea>
+                          </div>
+                          <div class="field-pair field-pair--action">
+                            <div class="field">
+                              <label for="workflow-proposal-profile">Execution profile</label>
+                              <select id="workflow-proposal-profile"><option value="">Runtime default</option></select>
+                            </div>
+                            <button id="workflow-propose" class="btn" type="button">Generate unsaved proposal</button>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section class="workflow-block" aria-labelledby="workflow-revision-heading">
+                        <h4 id="workflow-revision-heading" class="workflow-block__title">Revision</h4>
+                        <div class="field">
+                          <label for="workflow-actor">Actor</label>
+                          <input id="workflow-actor" maxlength="128" required autocomplete="off">
+                        </div>
+                        <div class="field">
+                          <label for="workflow-rationale">Revision or activation rationale</label>
+                          <textarea id="workflow-rationale" class="human" rows="3" maxlength="4096" required></textarea>
+                        </div>
+                        <p id="workflow-budget" class="field-help">Revision budget unavailable</p>
+                        <div class="workflow-control-row">
+                          <button id="workflow-draft" class="btn btn--primary" type="submit">Save draft revision</button>
+                          <button id="workflow-validate" class="btn" type="button">Validate draft</button>
+                        </div>
+                      </section>
+                    </form>
+
+                    <section class="workflow-block" aria-labelledby="workflow-structure-heading">
+                      <h4 id="workflow-structure-heading" class="workflow-block__title">Nodes and edges</h4>
+                      <div id="workflow-structure" class="workflow-structure"></div>
+                    </section>
+                  </div>
+
+                  <aside class="workflow-inspector" aria-label="Workflow inspector">
+                    <h4 class="eyebrow">Inspector</h4>
+                    <p id="workflow-inspector-help" class="field-help">Select a node to configure its safe, data-only workflow fields.</p>
+                    <div class="field">
+                      <label for="workflow-node-guidance">Guidance</label>
+                      <textarea id="workflow-node-guidance" class="human" rows="3" maxlength="12000"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="workflow-node-role">Role</label>
+                      <input id="workflow-node-role" maxlength="128">
+                    </div>
+                    <div class="workflow-inspector-grid">
+                      <label>Kind<select id="workflow-node-kind"><option>agent</option><option>map</option><option>transform</option><option>join</option><option>gate</option><option>checkpoint</option><option>loop</option><option>terminal</option></select></label>
+                      <label>Access<select id="workflow-node-access"><option>read</option><option>write</option><option>control</option></select></label>
+                      <label>Tier<select id="workflow-node-tier"><option value="">default</option><option>economy</option><option>standard</option><option>judgment</option></select></label>
+                      <label>Payload<input id="workflow-node-payload" maxlength="64"></label>
+                      <label>Join<select id="workflow-node-join"><option value="">none</option><option>all</option><option>any</option><option>quorum</option></select></label>
+                      <label>Quorum<input id="workflow-node-quorum" type="number" min="1" max="64"></label>
+                      <label>Failure<select id="workflow-node-failure"><option value="">default</option><option>fail-workflow</option><option>collect</option></select></label>
+                      <label>Resource<input id="workflow-node-resource" maxlength="128"></label>
+                      <label>Loop mode<select id="workflow-node-loop-mode"><option value="bounded">bounded</option><option value="until-dry">until dry</option></select></label>
+                      <label>Loop bound<input id="workflow-node-loop-bound" type="number" min="1" max="5"></label>
+                      <label class="span-2">Loop members<input id="workflow-node-loop-members" maxlength="512" placeholder="make, check"></label>
+                    </div>
+                    <div class="workflow-checks">
+                      <label><input id="workflow-node-verification" type="checkbox"> Verification</label>
+                      <label><input id="workflow-node-checkpoint" type="checkbox"> Mutation checkpoint</label>
+                      <label><input id="workflow-node-ownership" type="checkbox"> Ownership plan</label>
+                    </div>
+                    <dl id="workflow-details" class="workflow-details"><div><dt>Selection</dt><dd>Choose a registry entry</dd></div></dl>
+                    <div class="inspector-block">
+                      <div class="field-pair field-pair--action">
+                        <div class="field">
+                          <label for="workflow-diff-base">Compare from revision</label>
+                          <input id="workflow-diff-base" inputmode="numeric" autocomplete="off">
+                        </div>
+                        <button id="workflow-diff" class="btn" type="button">Show diff</button>
+                      </div>
+                      <pre id="workflow-diff-output" class="output" tabindex="0">No revision diff loaded.</pre>
+                    </div>
+                    <div class="inspector-block inspector-block--activate">
+                      <label for="workflow-digest-confirmation">Type the validated digest to activate</label>
+                      <input id="workflow-digest-confirmation" class="mono" autocomplete="off" spellcheck="false">
+                      <button id="workflow-activate" class="btn btn--primary btn--wide" type="button">Activate validated revision</button>
+                    </div>
+                    <h4 class="eyebrow">Activation history</h4>
+                    <ol id="workflow-history" class="workflow-history"></ol>
+                  </aside>
                 </div>
-                <aside class="workflow-inspector" aria-label="Workflow inspector">
-                  <h3>Inspector</h3>
-                  <p id="workflow-inspector-help" class="field-help">Select a node to configure its safe, data-only workflow fields.</p>
-                  <label for="workflow-node-guidance">Guidance</label><textarea id="workflow-node-guidance" rows="3" maxlength="12000"></textarea>
-                  <label for="workflow-node-role">Role</label><input id="workflow-node-role" maxlength="128">
-                  <div class="workflow-inspector-grid"><label>Kind<select id="workflow-node-kind"><option>agent</option><option>map</option><option>transform</option><option>join</option><option>gate</option><option>checkpoint</option><option>loop</option><option>terminal</option></select></label><label>Access<select id="workflow-node-access"><option>read</option><option>write</option><option>control</option></select></label><label>Tier<select id="workflow-node-tier"><option value="">default</option><option>economy</option><option>standard</option><option>judgment</option></select></label><label>Payload<input id="workflow-node-payload" maxlength="64"></label><label>Join<select id="workflow-node-join"><option value="">none</option><option>all</option><option>any</option><option>quorum</option></select></label><label>Quorum threshold<input id="workflow-node-quorum" type="number" min="1" max="64"></label><label>Failure<select id="workflow-node-failure"><option value="">default</option><option>fail-workflow</option><option>collect</option></select></label><label>Resource<input id="workflow-node-resource" maxlength="128"></label><label>Loop mode<select id="workflow-node-loop-mode"><option value="bounded">bounded</option><option value="until-dry">until dry</option></select></label><label>Loop bound<input id="workflow-node-loop-bound" type="number" min="1" max="5"></label><label>Loop members<input id="workflow-node-loop-members" maxlength="512" placeholder="make, check"></label></div>
-                  <div class="workflow-checks"><label><input id="workflow-node-verification" type="checkbox"> Verification</label><label><input id="workflow-node-checkpoint" type="checkbox"> Mutation checkpoint</label><label><input id="workflow-node-ownership" type="checkbox"> Ownership plan</label></div>
-                  <dl id="workflow-details"><div><dt>Selection</dt><dd>Choose a registry entry</dd></div></dl>
-                  <label for="workflow-diff-base">Compare from revision</label><input id="workflow-diff-base" inputmode="numeric">
-                  <button id="workflow-diff" type="button">Show diff</button>
-                  <pre id="workflow-diff-output" tabindex="0">No revision diff loaded.</pre>
-                  <label for="workflow-digest-confirmation">Type validated digest to activate</label>
-                  <input id="workflow-digest-confirmation" class="mono" autocomplete="off" spellcheck="false">
-                  <button id="workflow-activate" class="primary-button" type="button">Activate validated revision</button>
-                  <h3>Activation history</h3><ol id="workflow-history"></ol>
-                </aside>
-              </div>
-              <p id="workflow-status" class="state-line" role="status" aria-live="polite">Drafts cannot change while a run is active.</p>
-            </section>
+                <p id="workflow-status" class="state-line workflow-status" role="status" aria-live="polite">Drafts cannot change while a run is active.</p>
+              </section>
             </details>
           </div>
         </main>
@@ -363,69 +497,87 @@
 
     <dialog id="start-dialog" class="app-dialog" aria-labelledby="start-heading">
       <form id="start-form">
-        <header>
+        <header class="app-dialog__head">
           <div>
-            <p>Isolated worktree</p>
+            <p class="eyebrow">Isolated worktree</p>
             <h2 id="start-heading">Start a bounded run</h2>
           </div>
-          <button id="start-close" type="button" aria-label="Close new run dialog">×</button>
+          <button id="start-close" class="icon-btn" type="button" aria-label="Close new run dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
         </header>
-        <label for="start-task">Task and acceptance criteria</label>
-        <textarea
-          id="start-task"
-          rows="8"
-          aria-describedby="start-task-help"
-          maxlength="32768"
-          required
-          placeholder="Describe one repository-scoped outcome and how it will be verified."
-        ></textarea>
-        <p id="start-task-help" class="field-help">Describe the intended change and its acceptance checks. Maximum 32 KiB of UTF-8 text.</p>
-        <p id="start-error" class="field-error" role="alert" hidden></p>
-        <p id="start-pending" role="status" hidden>Starting the task…</p>
-        <label for="start-checkpoint-policy">Human checkpoints</label>
-        <select id="start-checkpoint-policy">
-          <option value="before-mutation-and-ship" selected>Before mutation and release</option>
-          <option value="before-mutation">Before mutation</option>
-          <option value="none">No automatic checkpoint</option>
-        </select>
-        <label for="start-execution-profile">Execution profile</label>
-        <select id="start-execution-profile"><option value="">Runtime default</option></select>
-        <p class="dialog-note">
-          Pauses occur at checkpoints defined by the workflow. Runs use the selected local execution profile in a dedicated Git worktree. The console cannot commit, push, publish,
-          deploy, or force cleanup.
-        </p>
-        <footer>
-          <button id="start-cancel" type="button">Cancel</button>
-          <button id="start-submit" class="primary-button" type="submit">Start run</button>
+        <div class="app-dialog__body">
+          <div class="signed">
+            <label class="signed__label" for="start-task">Task and acceptance criteria</label>
+            <textarea
+              id="start-task"
+              class="human"
+              rows="7"
+              aria-describedby="start-task-help"
+              maxlength="32768"
+              required
+              placeholder="Describe one repository-scoped outcome and how it will be verified."
+            ></textarea>
+            <p id="start-task-help" class="field-help">State the change and the checks that prove it. Up to 32 KiB of UTF-8 text.</p>
+          </div>
+          <p id="start-error" class="field-error" role="alert" hidden></p>
+          <p id="start-pending" class="state-line" role="status" hidden>Starting the run…</p>
+          <div class="field-pair">
+            <div class="field">
+              <label for="start-checkpoint-policy">Human checkpoints</label>
+              <select id="start-checkpoint-policy">
+                <option value="before-mutation-and-ship" selected>Before mutation and release</option>
+                <option value="before-mutation">Before mutation</option>
+                <option value="none">No automatic checkpoint</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="start-execution-profile">Execution profile</label>
+              <select id="start-execution-profile"><option value="">Runtime default</option></select>
+            </div>
+          </div>
+          <p class="note dialog-note">
+            The run works in a dedicated Git worktree and pauses at the checkpoints its workflow defines.
+            This console cannot commit, push, publish, deploy or force cleanup.
+          </p>
+        </div>
+        <footer class="app-dialog__foot">
+          <button id="start-cancel" class="btn btn--quiet" type="button">Cancel</button>
+          <button id="start-submit" class="btn btn--primary" type="submit">Start run</button>
         </footer>
       </form>
     </dialog>
 
-    <dialog id="confirm-dialog" class="app-dialog confirm-dialog" aria-labelledby="confirm-heading">
+    <dialog id="confirm-dialog" class="app-dialog app-dialog--confirm" aria-labelledby="confirm-heading">
       <form id="confirm-form">
-        <header>
+        <header class="app-dialog__head">
           <div>
-            <p id="confirm-kicker">Destructive action</p>
+            <p id="confirm-kicker" class="eyebrow">Destructive action</p>
             <h2 id="confirm-heading">Confirm action</h2>
           </div>
-          <button id="confirm-close" type="button" aria-label="Close confirmation dialog">×</button>
+          <button id="confirm-close" class="icon-btn" type="button" aria-label="Close confirmation dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
         </header>
-        <p id="confirm-message" class="dialog-message"></p>
-        <label for="confirm-run-id">Type <code id="confirm-expected-id"></code> to continue</label>
-        <input
-          id="confirm-run-id"
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
-          aria-describedby="confirm-help"
-          required
-        >
-        <p id="confirm-help" class="dialog-note">
-          The action stays disabled until the run ID matches exactly.
-        </p>
-        <footer>
-          <button id="confirm-cancel" type="button">Cancel</button>
-          <button id="confirm-submit" class="danger-button" type="submit" disabled>Confirm</button>
+        <div class="app-dialog__body">
+          <p id="confirm-message" class="dialog-message"></p>
+          <div class="field">
+            <label for="confirm-run-id">Type <code id="confirm-expected-id"></code> to continue</label>
+            <input
+              id="confirm-run-id"
+              class="mono"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="confirm-help"
+              required
+            >
+          </div>
+          <p id="confirm-help" class="note">The action stays disabled until the run ID matches exactly.</p>
+        </div>
+        <footer class="app-dialog__foot">
+          <button id="confirm-cancel" class="btn btn--quiet" type="button">Cancel</button>
+          <button id="confirm-submit" class="btn btn--danger btn--solid" type="submit" disabled>Confirm</button>
         </footer>
       </form>
     </dialog>

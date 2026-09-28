@@ -11,7 +11,8 @@ function preferredTheme(): OperatorTheme {
   } catch {
     /* A blocked storage area must not block the interface. */
   }
-  return "dark";
+  // Without a stored choice, follow the OS; dark remains the default when it states none.
+  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 function applyTheme(theme: OperatorTheme, toggle: HTMLElement): void {
@@ -20,7 +21,7 @@ function applyTheme(theme: OperatorTheme, toggle: HTMLElement): void {
   toggle.setAttribute("aria-label", `Use ${theme === "dark" ? "light" : "dark"} theme`);
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", theme === "dark" ? "#0c1210" : "#f1f4ed");
+    ?.setAttribute("content", theme === "dark" ? "#0e171c" : "#f2f5f6");
 }
 
 export function bindThemeToggle(): void {

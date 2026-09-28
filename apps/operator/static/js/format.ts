@@ -44,15 +44,6 @@ export function runTone(run: OperatorRun | null | undefined): string {
   return "muted";
 }
 
-export function runStateWord(run: OperatorRun | null | undefined): string {
-  if (run?.checkpoints?.some((item) => item.status === "pending")) return "hold";
-  const statusTone = tone(run?.status);
-  if (statusTone === "pass") return "pass";
-  if (statusTone === "active") return "live";
-  if (statusTone === "error") return "stop";
-  return "stop";
-}
-
 export function icon(name: string): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
@@ -117,11 +108,6 @@ export function relativeTime(value: string | null | undefined): string {
   if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h`;
   if (delta < 172_800_000) return "Yesterday";
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
-}
-
-export function shortId(id: unknown): string {
-  const value = String(id ?? "");
-  return value.length > 8 ? value.slice(0, 8) : value;
 }
 
 export function shortRef(value: unknown): string {

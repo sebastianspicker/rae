@@ -632,6 +632,7 @@ export async function loadWorkflows(): Promise<void> {
     ...state.workflows.map((workflow) => {
       const button = document.createElement("button");
       button.type = "button";
+      button.setAttribute("role", "option");
       button.dataset.workflowId = workflow.workflow_id;
       button.textContent = `${workflow.workflow_id} · r${workflow.latest_revision ?? "—"}${workflow.active ? " · active" : ""}`;
       button.addEventListener("click", () => selectWorkflow(workflow.workflow_id).catch(showError));
