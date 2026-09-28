@@ -23,7 +23,7 @@ export function isoUtc(date = new Date()): string {
 }
 
 export function isoUtcCompact(date = new Date()): string {
-  return isoUtc(date).replaceAll("-", "").replaceAll(":", "").replace("T", "-").replace("Z", "Z");
+  return isoUtc(date).replaceAll("-", "").replaceAll(":", "").replace("T", "-");
 }
 
 export function boolEnv(name: string, fallback: boolean): boolean {
