@@ -1,0 +1,215 @@
+/* Shared forensic-ledger tokens and accessible element defaults. */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef1f3;
+  --surface: #fff;
+  --surface-2: #f7f9fa;
+  --surface-3: #eef2f4;
+  --ink: #152228;
+  --ink-soft: #3d4f58;
+  --mute: #63757e;
+  --faint: #8b9aa2;
+  --line: #d8dfe3;
+  --line-soft: #e6ebed;
+  --line-hard: #b9c4ca;
+  --trace: #1d55e0;
+  --trace-ink: #1743b4;
+  --trace-soft: #e8eefc;
+  --proof: #0a7059;
+  --proof-soft: #e2f0ec;
+  --hold: #9a4a1f;
+  --hold-soft: #f8ece4;
+  --danger: #b03225;
+  --danger-soft: #f9e9e6;
+  --shadow-1: 0 1px 2px rgb(21 34 40 / 6%), 0 4px 16px -4px rgb(21 34 40 / 10%);
+  --shadow-2: 0 2px 6px rgb(21 34 40 / 8%), 0 12px 40px -8px rgb(21 34 40 / 18%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0c1114;
+  --surface: #131a1f;
+  --surface-2: #182127;
+  --surface-3: #1e2930;
+  --ink: #e4ebee;
+  --ink-soft: #b8c5cb;
+  --mute: #8b9ba3;
+  --faint: #63747d;
+  --line: #27333b;
+  --line-soft: #1f2a31;
+  --line-hard: #3a4a54;
+  --trace: #6f93f5;
+  --trace-ink: #93affa;
+  --trace-soft: #1a2740;
+  --proof: #4cb89a;
+  --proof-soft: #12302a;
+  --hold: #d98a5c;
+  --hold-soft: #332216;
+  --danger: #e0755f;
+  --danger-soft: #381d18;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px -4px rgb(0 0 0 / 50%);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / 50%), 0 16px 48px -8px rgb(0 0 0 / 60%);
+}
+
+:root {
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --t-micro: 0.6875rem;
+  --t-label: 0.75rem;
+  --t-body: 0.8125rem;
+  --t-text: 0.9375rem;
+  --t-h3: 1.0625rem;
+  --t-h1: 1.375rem;
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+  --topbar-height: 3rem;
+  --index-w: 17rem;
+  --radius: 4px;
+  --pad: clamp(1rem, 3vw, 2rem);
+
+  /* Compatibility aliases used by the existing concept-owned modules. */
+  --paper: var(--bg);
+  --sheet: var(--surface);
+  --panel: var(--surface);
+  --rule: var(--line);
+  --rule-soft: var(--line-soft);
+
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  color: var(--ink);
+  background: var(--bg);
+  font-size: var(--t-body);
+}
+
+button,
+input,
+textarea,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+button,
+[role="option"] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  position: relative;
+  z-index: 3;
+  outline: 2px solid var(--trace);
+  outline-offset: 2px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid var(--trace);
+  outline-offset: 0;
+  border-color: var(--trace);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.65;
+}
+
+code,
+.mono {
+  font-family: var(--mono);
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+.icon-sprite,
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.eyebrow {
+  margin: 0 0 var(--s2);
+  color: var(--faint);
+  font: 550 var(--t-micro) / 1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.skip {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 40;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line-hard);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  transform: translateY(calc(-100% - 0.75rem));
+}
+
+.skip:focus-visible {
+  transform: translateY(0);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,17 @@
+.git
+.repowise
+.repowise-workspace
+.pipeline
+.runtime
+.cache
+.venv
+**/node_modules
+**/dist
+site
+**/build
+**/tools-dist
+.codacy/reports
+.codacy/tmp
+**/.pipeline
+**/.runtime
+**/.characterization

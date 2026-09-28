@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "stage_order": [
+    "arm",
+    "design",
+    "adversarial-review",
+    "plan",
+    "pmatch",
+    "build",
+    "quality-static",
+    "quality-tests",
+    "post-build",
+    "release-readiness"
+  ],
+  "expected_gates": {
+    "arm": "arm-gate.json",
+    "design": "design-gate.json",
+    "adversarial-review": "adversarial-review-gate.json",
+    "plan": "plan-gate.json",
+    "pmatch": "pmatch-gate.json",
+    "build": "build-gate.json",
+    "quality-static": "quality-static-gate.json",
+    "quality-tests": "quality-tests-gate.json",
+    "post-build": "postbuild-gate.json",
+    "release-readiness": "release-readiness-gate.json"
+  },
+  "pmatch": {
+    "required_tokens": ["drift_config.mode = \"dual-extractor\"", "extractor_claim_sets"]
+  },
+  "activity_slots": [
+    "arm_briefing",
+    "design_synthesis",
+    "adversarial_review_lead",
+    "plan_synthesis",
+    "pmatch_adjudicator",
+    "build_worker",
+    "quality_static",
+    "quality_tests_case",
+    "post_build",
+    "release_readiness"
+  ],
+  "generation": {
+    "template_root": "integrations/agent-adapters/content/templates",
+    "legacy_mirrors": {
+      "cursor_skills_root": ".cursor/skills",
+      "codex_playbook": ".codex/skills/orchestration/SKILL.md",
+      "root_entries": {
+        "codex": "CODEX.md",
+        "cursor": "CURSOR.md",
+        "claude": "CLAUDE.md",
+        "gemini": "GEMINI.md",
+        "kilo": "KILO.md"
+      }
+    }
+  },
+  "runners": [
+    {
+      "name": "codex",
+      "title": "Codex",
+      "default_runtime_version": "v1",
+      "skills_root": "integrations/agent-adapters/content/codex/skills",
+      "pipeline_skill": "integrations/agent-adapters/content/codex/skills/orchestration-pipeline/SKILL.md",
+      "stage_adapters": {
+        "arm": "integrations/agent-adapters/content/codex/skills/orchestration-arm/SKILL.md",
+        "design": "integrations/agent-adapters/content/codex/skills/orchestration-design/SKILL.md",
+        "adversarial-review": "integrations/agent-adapters/content/codex/skills/orchestration-ar/SKILL.md",
+        "plan": "integrations/agent-adapters/content/codex/skills/orchestration-plan/SKILL.md",
+        "pmatch": "integrations/agent-adapters/content/codex/skills/orchestration-pmatch/SKILL.md",
+        "build": "integrations/agent-adapters/content/codex/skills/orchestration-build/SKILL.md",
+        "quality-static": "integrations/agent-adapters/content/codex/skills/orchestration-quality-static/SKILL.md",
+        "quality-tests": "integrations/agent-adapters/content/codex/skills/orchestration-quality-tests/SKILL.md",
+        "post-build": "integrations/agent-adapters/content/codex/skills/orchestration-postbuild/SKILL.md",
+        "release-readiness": "integrations/agent-adapters/content/codex/skills/orchestration-release-readiness/SKILL.md"
+      }
+    },
+    {
+      "name": "cursor",
+      "title": "Cursor",
+      "default_runtime_version": "v1",
+      "skills_root": "integrations/agent-adapters/content/cursor/skills",
+      "pipeline_skill": "integrations/agent-adapters/content/cursor/skills/orchestration-pipeline/SKILL.md",
+      "stage_adapters": {
+        "arm": "integrations/agent-adapters/content/cursor/skills/orchestration-arm/SKILL.md",
+        "design": "integrations/agent-adapters/content/cursor/skills/orchestration-design/SKILL.md",
+        "adversarial-review": "integrations/agent-adapters/content/cursor/skills/orchestration-ar/SKILL.md",
+        "plan": "integrations/agent-adapters/content/cursor/skills/orchestration-plan/SKILL.md",
+        "pmatch": "integrations/agent-adapters/content/cursor/skills/orchestration-pmatch/SKILL.md",
+        "build": "integrations/agent-adapters/content/cursor/skills/orchestration-build/SKILL.md",
+        "quality-static": "integrations/agent-adapters/content/cursor/skills/orchestration-quality-static/SKILL.md",
+        "quality-tests": "integrations/agent-adapters/content/cursor/skills/orchestration-quality-tests/SKILL.md",
+        "post-build": "integrations/agent-adapters/content/cursor/skills/orchestration-postbuild/SKILL.md",
+        "release-readiness": "integrations/agent-adapters/content/cursor/skills/orchestration-release-readiness/SKILL.md"
+      }
+    },
+    {
+      "name": "claude",
+      "title": "Claude",
+      "default_runtime_version": "v1",
+      "skills_root": "integrations/agent-adapters/content/claude/skills",
+      "pipeline_skill": "integrations/agent-adapters/content/claude/skills/orchestration-pipeline/SKILL.md",
+      "stage_adapters": {
+        "arm": "integrations/agent-adapters/content/claude/skills/orchestration-arm/SKILL.md",
+        "design": "integrations/agent-adapters/content/claude/skills/orchestration-design/SKILL.md",
+        "adversarial-review": "integrations/agent-adapters/content/claude/skills/orchestration-ar/SKILL.md",
+        "plan": "integrations/agent-adapters/content/claude/skills/orchestration-plan/SKILL.md",
+        "pmatch": "integrations/agent-adapters/content/claude/skills/orchestration-pmatch/SKILL.md",
+        "build": "integrations/agent-adapters/content/claude/skills/orchestration-build/SKILL.md",
+        "quality-static": "integrations/agent-adapters/content/claude/skills/orchestration-quality-static/SKILL.md",
+        "quality-tests": "integrations/agent-adapters/content/claude/skills/orchestration-quality-tests/SKILL.md",
+        "post-build": "integrations/agent-adapters/content/claude/skills/orchestration-postbuild/SKILL.md",
+        "release-readiness": "integrations/agent-adapters/content/claude/skills/orchestration-release-readiness/SKILL.md"
+      }
+    },
+    {
+      "name": "gemini",
+      "title": "Gemini",
+      "default_runtime_version": "v1",
+      "skills_root": "integrations/agent-adapters/content/gemini/skills",
+      "pipeline_skill": "integrations/agent-adapters/content/gemini/skills/orchestration-pipeline/SKILL.md",
+      "stage_adapters": {
+        "arm": "integrations/agent-adapters/content/gemini/skills/orchestration-arm/SKILL.md",
+        "design": "integrations/agent-adapters/content/gemini/skills/orchestration-design/SKILL.md",
+        "adversarial-review": "integrations/agent-adapters/content/gemini/skills/orchestration-ar/SKILL.md",
+        "plan": "integrations/agent-adapters/content/gemini/skills/orchestration-plan/SKILL.md",
+        "pmatch": "integrations/agent-adapters/content/gemini/skills/orchestration-pmatch/SKILL.md",
+        "build": "integrations/agent-adapters/content/gemini/skills/orchestration-build/SKILL.md",
+        "quality-static": "integrations/agent-adapters/content/gemini/skills/orchestration-quality-static/SKILL.md",
+        "quality-tests": "integrations/agent-adapters/content/gemini/skills/orchestration-quality-tests/SKILL.md",
+        "post-build": "integrations/agent-adapters/content/gemini/skills/orchestration-postbuild/SKILL.md",
+        "release-readiness": "integrations/agent-adapters/content/gemini/skills/orchestration-release-readiness/SKILL.md"
+      }
+    },
+    {
+      "name": "kilo",
+      "title": "Kilo",
+      "default_runtime_version": "v1",
+      "skills_root": "integrations/agent-adapters/content/kilo/skills",
+      "pipeline_skill": "integrations/agent-adapters/content/kilo/skills/orchestration-pipeline/SKILL.md",
+      "stage_adapters": {
+        "arm": "integrations/agent-adapters/content/kilo/skills/orchestration-arm/SKILL.md",
+        "design": "integrations/agent-adapters/content/kilo/skills/orchestration-design/SKILL.md",
+        "adversarial-review": "integrations/agent-adapters/content/kilo/skills/orchestration-ar/SKILL.md",
+        "plan": "integrations/agent-adapters/content/kilo/skills/orchestration-plan/SKILL.md",
+        "pmatch": "integrations/agent-adapters/content/kilo/skills/orchestration-pmatch/SKILL.md",
+        "build": "integrations/agent-adapters/content/kilo/skills/orchestration-build/SKILL.md",
+        "quality-static": "integrations/agent-adapters/content/kilo/skills/orchestration-quality-static/SKILL.md",
+        "quality-tests": "integrations/agent-adapters/content/kilo/skills/orchestration-quality-tests/SKILL.md",
+        "post-build": "integrations/agent-adapters/content/kilo/skills/orchestration-postbuild/SKILL.md",
+        "release-readiness": "integrations/agent-adapters/content/kilo/skills/orchestration-release-readiness/SKILL.md"
+      }
+    }
+  ]
+}

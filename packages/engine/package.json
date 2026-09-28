@@ -1,0 +1,44 @@
+{
+  "name": "@rae/engine",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "@rae/contracts": "file:../contracts",
+    "@rae/fs-bridge": "file:../fs-bridge",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1"
+  },
+  "peerDependencies": {
+    "quality-gate-skill": "*",
+    "trace-collector-skill": "*"
+  },
+  "peerDependenciesMeta": {
+    "quality-gate-skill": {
+      "optional": true
+    },
+    "trace-collector-skill": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "25.5.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.0"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/public/index.d.ts",
+      "import": "./dist/src/public/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node dist/scripts/check-engine.js",
+    "build:typescript": "tsc -p tsconfig.json && node dist/scripts/check-engine.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/test/*.test.js",
+    "test:legacy": "vitest run --root dist --config vitest.config.js"
+  }
+}

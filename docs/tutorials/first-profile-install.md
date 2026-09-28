@@ -8,20 +8,14 @@ evidence_links: ../reference/repo-map.md
 
 # First Profile Install
 
-This repo ships a minimal public profile payload for RAE-shaped targets. Start
-by creating a minimal target with `scripts/verify.sh`, then install the public
-payload and verify the installed files.
+Build RAE, then install the sanitized profile into a canonical RAE checkout
+that defines `npm run verify` and contains its TypeScript or compiled verifier.
+For a disposable demonstration, use the profile transaction test suite.
 
-## Install into a clean target
+## Install into a prepared target
 
-```bash
-TARGET_DIR="$(mktemp -d)"
-mkdir -p "$TARGET_DIR/scripts"
-printf '#!/usr/bin/env bash\nexit 0\n' > "$TARGET_DIR/scripts/verify.sh"
-chmod +x "$TARGET_DIR/scripts/verify.sh"
-
-bash profiles/agent-environments/installers/install-profile.sh "$TARGET_DIR"
-find "$TARGET_DIR" -type f | sort
+```sh
+npm run rae -- profile install /canonical/path/to/rae-checkout
 ```
 
 The installed payload should include:
@@ -37,7 +31,7 @@ retains recovery evidence if a concurrent change prevents a guarded rollback.
 ## Remove the installed payload
 
 ```bash
-bash profiles/agent-environments/installers/uninstall-profile.sh "$TARGET_DIR"
+npm run rae -- profile uninstall /canonical/path/to/rae-checkout
 ```
 
 ## Verification rule
@@ -45,21 +39,18 @@ bash profiles/agent-environments/installers/uninstall-profile.sh "$TARGET_DIR"
 The shipped regression test is:
 
 ```bash
-./scripts/verify.sh --skip-install
+npm run verify -- --skip-install
 ```
 
 ## Thesis validation
 
-This tutorial demonstrates the public-profile thesis on a minimal install/remove
-path: portable payload first, private overlays excluded.
-
-## Related dossiers
-
+The install path keeps the payload portable and excludes private overlays, so a
+public profile can be installed and removed without workstation-specific state.
 
 ## Interpretation limits
 
 - successful installation proves payload portability only for the tested public
-  surface on an RAE-shaped target with `scripts/verify.sh`
+  surface on an RAE-shaped target with a Node verification command
 
 ## Source note
 

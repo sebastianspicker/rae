@@ -10,8 +10,8 @@ evidence_links: ../../reference/claims/dossiers/clm-008-coordination-topology.md
 
 ## Purpose
 
-This companion page isolates the topology argument behind the coordination-cost
-claim.
+The coordination-cost claim depends on topology. This companion works through
+that argument.
 
 ## Edge-count comparison
 

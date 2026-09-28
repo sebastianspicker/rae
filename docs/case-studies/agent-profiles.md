@@ -8,8 +8,8 @@ evidence_links: ../reference/repo-map.md
 
 # Case Study: Agent Profiles
 
-The profile lane is where private operator-environment knowledge becomes public
-only after sanitization.
+The profile lane turns private operator-environment knowledge into a public
+payload only after sanitization.
 
 ## Why it matters
 
@@ -18,9 +18,9 @@ private machine history.
 
 ## Current state
 
-The umbrella ships a baseline public payload under
-`profiles/agent-environments/`: generic templates, install/remove scripts, and
-a regression test that checks for forbidden private markers.
+RAE ships a baseline public payload under `profiles/agent-environments/`:
+generic templates, install/remove scripts, and a regression test that checks for
+forbidden private markers.
 
 The current installer uses manifest v2, descriptor-relative no-follow file
 operations, complete prevalidation, and recovery records for interrupted or
@@ -28,12 +28,8 @@ concurrently changed transactions.
 
 ## Thesis validation
 
-This case study validates the claim that public operator environments need a
-sanitized publication lane rather than direct leakage from private workstation
-state.
-
-## Related dossiers
-
+Public operator environments need a sanitized publication lane. A direct copy of
+private workstation state is neither portable nor safe to share.
 
 ## Interpretation limits
 

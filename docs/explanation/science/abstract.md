@@ -36,8 +36,6 @@ RAE takes five linked positions:
 
 ## Contributions of the science layer
 
-This section provides:
-
 - formal definitions and notation for the workflow model
 - mechanistic explanations for why long context and uncontrolled fan-out can
   degrade engineering quality

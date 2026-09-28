@@ -1,0 +1,21 @@
+{
+  "name": "@rae/contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./v1/*": "./v1/schemas/*"
+  },
+  "files": [
+    "v1/schemas", "dist"
+  ],
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "build:generator": "tsc -p tsconfig.tools.json",
+    "generate:types": "node tools-dist/generate-types.js",
+    "check:generated": "node tools-dist/generate-types.js --check",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": { "ajv": "8.18.0", "ajv-formats": "3.0.1" }
+}

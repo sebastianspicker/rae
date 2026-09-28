@@ -1,23 +1,27 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-08-04
+last_reviewed: 2026-09-02
 source_of_truth: README.md
 evidence_links: reference/claims/evidence-index.md
 ---
 
-# Documentation index
+# Documentation guide
 
 Use the root [README](https://github.com/sebastianspicker/rae/blob/main/README.md) for purpose, requirements, installation,
 common commands, repository structure, and current limitations.
 
+Start with the pages below; the site navigation covers the complete maintained
+corpus. This is a curated path, not a file listing.
+
 ## Start here
 
 1. [Project scope](explanation/overview/project-scope.md)
-2. [System overview](reference/architecture/system-overview.md)
-3. [Repository map](reference/repo-map.md)
-4. [Umbrella CLI](reference/cli/umbrella.md)
-5. [Choose an execution model](how-to/choose-an-execution-model.md)
+2. [Architecture](ARCHITECTURE.md)
+3. [System overview](reference/architecture/system-overview.md)
+4. [Repository map](reference/repo-map.md)
+5. [Umbrella CLI](reference/cli/umbrella.md)
+6. [Choose an execution model](how-to/choose-an-execution-model.md)
 
 ## Tutorials
 
@@ -47,15 +51,14 @@ common commands, repository structure, and current limitations.
 - [Quality gates](reference/contracts/quality-gates.md)
 - [Safety boundaries](reference/invariants/safety-boundaries.md)
 - [Terminology](reference/terminology.md)
+- [Assumptions register](reference/claims/assumptions-register.md)
 
 Package-owned command details:
 
-- [Orchestration package](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/README.md)
-- [Orchestration runbook](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/RUNBOOK.md)
-- [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/loops/ralph/README.md)
+- [Workflow engine](https://github.com/sebastianspicker/rae/blob/main/packages/engine/README.md)
+- [Engine runbook](https://github.com/sebastianspicker/rae/blob/main/docs/how-to/engine-runbook.md)
+- [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/ralph/README.md)
 - [Co-author trailer cleaner](https://github.com/sebastianspicker/rae/blob/main/tools/repo-hygiene/coauthor-trailer-cleaner/README.md)
-
-- [Assumptions register](reference/claims/assumptions-register.md)
 
 ## Explanation
 

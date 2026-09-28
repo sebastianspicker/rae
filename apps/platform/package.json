@@ -1,0 +1,41 @@
+{
+  "name": "@rae/experimental-platform",
+  "version": "0.1.0-experimental",
+  "private": true,
+  "type": "module",
+  "description": "Experimental hosted control-plane and worker boundary for RAE.",
+  "bin": {
+    "rae-platform": "dist/bin/rae-platform.js",
+    "rae-platform-worker": "dist/bin/rae-platform-worker.js"
+  },
+  "scripts": {
+    "test": "node --test dist/test/*.test.js",
+    "test:boundary": "node --test dist/test/engine-boundary.test.js",
+    "test:integration": "node --test dist/test/postgres-store.integration.test.js",
+    "control": "node dist/bin/rae-platform.js",
+    "worker": "node dist/bin/rae-platform-worker.js",
+    "build:typescript": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:typescript": "node --test dist/test/*.test.js",
+    "control:typescript": "node dist/bin/rae-platform.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@rae/contracts": "file:../../packages/contracts",
+    "@rae/engine": "file:../../packages/engine",
+    "@aws-sdk/client-s3": "3.1102.0",
+    "@aws-sdk/s3-request-presigner": "3.1102.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@openai/codex": "0.146.0",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1",
+    "jose": "6.2.8",
+    "pg": "8.22.0",
+    "smol-toml": "1.7.1",
+    "zod": "4.4.3",
+    "@rae/fs-bridge": "file:../../packages/fs-bridge"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

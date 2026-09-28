@@ -1,2 +1,2 @@
+# macOS reuses the pinned CI lock; no macOS-specific source builds are required.
 -r requirements-ci.txt
---no-binary watchdog

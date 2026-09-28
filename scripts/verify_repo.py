@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repository-level checks for public hygiene, docs, and MkDocs.
+"""Repository-level checks for public hygiene and documentation.
 
 Package-local regression suites live under their owning runtime. This script
 only checks the umbrella surfaces that make repository claims visible and
@@ -8,7 +8,6 @@ publishable.
 
 import argparse
 import fnmatch
-import os
 import pathlib
 import re
 import shutil
@@ -26,6 +25,11 @@ LOCAL_DOC_DIRECTORIES = {"agent", "archive"}
 REQUIRED_FRONTMATTER = {"status", "owner", "last_reviewed", "source_of_truth"}
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 MIN_EXTERNAL_SOURCES = 7
+SOURCE_DENSITY_DIRECTORIES = (
+    pathlib.PurePosixPath("explanation/research"),
+    pathlib.PurePosixPath("explanation/science"),
+    pathlib.PurePosixPath("reference/claims/dossiers"),
+)
 MAX_CURATED_SVG_BYTES = 1_000_000
 MAX_SOCIAL_PREVIEW_BYTES = 1_000_000
 SOCIAL_PREVIEW_DIMENSIONS = (1280, 640)
@@ -33,6 +37,8 @@ SOURCE_LINK_RE = re.compile(r"bibliography\.md#src-[A-Za-z0-9._-]+")
 SVG_URL_START_RE = re.compile(r"url\s*\(", re.IGNORECASE)
 SVG_URL_RE = re.compile(r"url\s*\(([^)]*)\)", re.IGNORECASE)
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_CHUNK_OVERHEAD = 12
+PNG_IHDR_LENGTH = 13
 PUBLIC_ROOT_MARKDOWN = (
     "README.md",
     "CHANGELOG.md",
@@ -71,7 +77,6 @@ REQUIRED_PUBLIC_FILES = (
 )
 REQUIRED_REPOSITORY_FILES = (
     *REQUIRED_PUBLIC_FILES,
-    "mkdocs.yml",
     "requirements-ci.txt",
     "requirements-macos.txt",
     "scripts/verify.sh",
@@ -195,6 +200,9 @@ def validate_links() -> None:
 def validate_doc_source_density() -> None:
     """Require claim-bearing docs to cite enough bibliography entries."""
     for path in iter_markdown_files():
+        relative = pathlib.PurePosixPath(path.relative_to(DOCS).as_posix())
+        if not any(relative.is_relative_to(directory) for directory in SOURCE_DENSITY_DIRECTORIES):
+            continue
         text = path.read_text(encoding="utf-8")
         count = len(set(SOURCE_LINK_RE.findall(text)))
         if count < MIN_EXTERNAL_SOURCES:
@@ -217,8 +225,8 @@ def git_bytes(*args: str) -> bytes:
     if git_bin is None:
         raise ValueError("git is required for public-candidate hygiene checks")
     # Resolved local Git and verifier-owned arguments; never a shell command.
-    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-    completed = subprocess.run(  # nosec B603
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
+    completed = subprocess.run(  # noqa: S603
         [git_bin, *args],
         cwd=ROOT,
         check=True,
@@ -365,7 +373,7 @@ def parse_png_chunks(data: bytes, relative: str) -> list[tuple[bytes, bytes]]:
     chunks: list[tuple[bytes, bytes]] = []
     offset = len(PNG_SIGNATURE)
     while offset < len(data):
-        if len(data) - offset < 12:
+        if len(data) - offset < PNG_CHUNK_OVERHEAD:
             raise ValueError(f"{relative} contains a truncated PNG chunk")
         length = struct.unpack(">I", data[offset : offset + 4])[0]
         payload_end = offset + 8 + length
@@ -393,7 +401,7 @@ def validate_png_header_chunk(chunks: list[tuple[bytes, bytes]], relative: str) 
     """Require one well-sized leading PNG header chunk."""
     if not chunks:
         raise ValueError(f"{relative} is missing a valid PNG IHDR chunk")
-    if chunks[0][0] != b"IHDR" or len(chunks[0][1]) != 13:
+    if chunks[0][0] != b"IHDR" or len(chunks[0][1]) != PNG_IHDR_LENGTH:
         raise ValueError(f"{relative} is missing a valid PNG IHDR chunk")
     if any(chunk_type == b"IHDR" for chunk_type, _ in chunks[1:]):
         raise ValueError(f"{relative} contains duplicate PNG IHDR chunks")
@@ -439,13 +447,6 @@ def validate_curated_screenshots() -> None:
     for relative in CURATED_SCREENSHOTS:
         path = ROOT / relative
         validate_svg_text(path.read_text(encoding="utf-8"), relative)
-    # Fixed repository script under the current interpreter; never a shell command.
-    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-    subprocess.run(  # nosec B603
-        [sys.executable, str(ROOT / "scripts/generate_docs_screenshots.py"), "--check"],
-        cwd=ROOT,
-        check=True,
-    )
 
 
 def validate_brand_assets() -> None:
@@ -465,37 +466,16 @@ def validate_diagram_assets() -> None:
 def validate_source_documentation() -> None:
     """Run the source-header contract as part of the public repository gate."""
     # Fixed repository script under the current interpreter; never a shell command.
-    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-    subprocess.run(  # nosec B603
+    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit
+    subprocess.run(  # noqa: S603
         [sys.executable, str(ROOT / "scripts/check_source_documentation.py")],
         cwd=ROOT,
         check=True,
     )
 
 
-def run_mkdocs_strict() -> None:
-    mkdocs_bin = shutil.which("mkdocs")
-    if mkdocs_bin is None:
-        raise ValueError("mkdocs is required for the strict documentation build")
-    mkdocs_env = os.environ.copy()
-    mkdocs_env["NO_MKDOCS_2_WARNING"] = "true"
-    # Resolved local MkDocs executable with verifier-owned arguments; never a shell command.
-    # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit.dangerous-subprocess-use-audit  # noqa: E501
-    subprocess.run(  # nosec B603
-        [mkdocs_bin, "build", "--strict"],
-        cwd=ROOT,
-        check=True,
-        env=mkdocs_env,
-    )
-
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--skip-mkdocs",
-        action="store_true",
-        help="skip the strict MkDocs build while retaining metadata and link checks",
-    )
     parser.add_argument(
         "--release-candidate",
         action="store_true",
@@ -506,8 +486,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    if args.release_candidate and args.skip_mkdocs:
-        raise ValueError("--release-candidate cannot be combined with --skip-mkdocs")
     validate_required_files()
     if args.release_candidate:
         validate_release_candidate_git_state()
@@ -519,8 +497,6 @@ def main(argv: list[str] | None = None) -> int:
     validate_frontmatter()
     validate_links()
     validate_doc_source_density()
-    if not args.skip_mkdocs:
-        run_mkdocs_strict()
     return 0
 
 

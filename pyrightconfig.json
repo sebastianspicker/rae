@@ -1,7 +1,6 @@
 {
   "include": [
-    "packages/loops/ralph/scripts",
-    "packages/orchestration/scripts",
+    "packages/ralph/scripts",
     "profiles/agent-environments/installers",
     "scripts",
     "tests"

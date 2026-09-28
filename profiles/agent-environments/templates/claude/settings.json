@@ -1,7 +1,7 @@
 {
   "profile": "rae-public",
   "verification": {
-    "command": "./scripts/verify.sh",
+    "command": "npm run verify",
     "required": true
   },
   "publishing": {

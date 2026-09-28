@@ -8,9 +8,9 @@ evidence_links: ../../reference/claims/assumptions-register.md
 
 # Limitations
 
-RAE is a public reference system with explicit scope boundaries; it should be
-read as an evidence-bearing engineering umbrella, not as a universal proof of
-agent reliability.
+RAE is a public reference system with explicit scope boundaries. Read it as
+evidence-bearing engineering guidance, not as proof that agents are reliable in
+general.
 
 ## Current limits
 
@@ -36,9 +36,6 @@ agent reliability.
 You can use the repo for public release, local verification, and benchmarked
 operator workflows. You should not treat it as a complete proof that one single
 architecture dominates every agent-engineering setting.
-
-## Related dossiers
-
 
 ## Source note
 

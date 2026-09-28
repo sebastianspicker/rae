@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: science
-last_reviewed: 2026-04-17
+last_reviewed: 2026-09-02
 source_of_truth: ../claims-ledger.md
 evidence_links: ../evidence-index.md
 ---
@@ -41,4 +41,3 @@ than one article.
 - [IEEE 1012](../bibliography.md#src-ieee-1012)
 - [Amdahl 1967](../bibliography.md#src-amdahl-1967)
 - [Brooks no silver bullet](../bibliography.md#src-brooks-no-silver-bullet)
-- [IEEE 1012](../bibliography.md#src-ieee-1012)

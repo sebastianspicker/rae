@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/scripts/pipeline/autonomous.mjs
+source_of_truth: packages/engine/src/cli/autonomous.ts
 evidence_links: ../reference/claims/claims-ledger.md
 ---
 
@@ -16,7 +16,7 @@ surface.
 Start a run with the workflow path:
 
 ```bash
-./scripts/rae.sh agent run \
+npm run rae -- agent run \
   --project-root /path/to/target-repository \
   --task "Perform the approved task" \
   --workflow /path/to/workflow-v2.2.json
@@ -30,7 +30,7 @@ Record an accepted signal with a stable retry key and a JSON payload matching
 the workflow's signal contract:
 
 ```bash
-node packages/orchestration/scripts/pipeline/autonomous.mjs signal \
+npm run rae -- agent signal \
   --project-root /path/from/run-output \
   --run-id <run-id> \
   --node-id <wait-node> \
@@ -43,7 +43,7 @@ node packages/orchestration/scripts/pipeline/autonomous.mjs signal \
 Resume the same run using the workspace root printed by the original command:
 
 ```bash
-./scripts/rae.sh agent resume \
+npm run rae -- agent resume \
   --project-root /path/from/run-output \
   --run-id <run-id>
 ```

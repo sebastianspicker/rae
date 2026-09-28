@@ -431,9 +431,9 @@
     {
       "toolId": "Semgrep",
       "exclude": [
-        "packages/loops/ralph/lib/ralph/core.sh",
-        "packages/loops/ralph/lib/ralph/status.sh",
-        "packages/orchestration/scripts/check-orchestration-integrity.sh"
+        "packages/ralph/lib/ralph/core.sh",
+        "packages/ralph/lib/ralph/status.sh",
+        "scripts/check_architecture.py"
       ],
       "patterns": [
         {
@@ -6334,19 +6334,19 @@
         }
       ],
       "useLocalConfigurationFile": true,
-      "localConfigurationFile": "packages/orchestration/biome.json"
+      "localConfigurationFile": "biome.json"
     }
   ],
   "exclude": [
-    "packages/orchestration/adapters/claude/skills/orchestration-build/SKILL.md",
-    "packages/orchestration/adapters/claude/skills/orchestration-postbuild/SKILL.md",
-    "packages/orchestration/adapters/codex/skills/orchestration-build/SKILL.md",
-    "packages/orchestration/adapters/codex/skills/orchestration-postbuild/SKILL.md",
-    "packages/orchestration/adapters/cursor/skills/orchestration-build/SKILL.md",
-    "packages/orchestration/adapters/cursor/skills/orchestration-postbuild/SKILL.md",
-    "packages/orchestration/adapters/gemini/skills/orchestration-build/SKILL.md",
-    "packages/orchestration/adapters/gemini/skills/orchestration-postbuild/SKILL.md",
-    "packages/orchestration/adapters/kilo/skills/orchestration-build/SKILL.md",
-    "packages/orchestration/adapters/kilo/skills/orchestration-postbuild/SKILL.md"
+    "integrations/agent-adapters/content/claude/skills/orchestration-build/SKILL.md",
+    "integrations/agent-adapters/content/claude/skills/orchestration-postbuild/SKILL.md",
+    "integrations/agent-adapters/content/codex/skills/orchestration-build/SKILL.md",
+    "integrations/agent-adapters/content/codex/skills/orchestration-postbuild/SKILL.md",
+    "integrations/agent-adapters/content/cursor/skills/orchestration-build/SKILL.md",
+    "integrations/agent-adapters/content/cursor/skills/orchestration-postbuild/SKILL.md",
+    "integrations/agent-adapters/content/gemini/skills/orchestration-build/SKILL.md",
+    "integrations/agent-adapters/content/gemini/skills/orchestration-postbuild/SKILL.md",
+    "integrations/agent-adapters/content/kilo/skills/orchestration-build/SKILL.md",
+    "integrations/agent-adapters/content/kilo/skills/orchestration-postbuild/SKILL.md"
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "name": "@rae/fs-bridge",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {"node": ">=24.0.0"},
+  "exports": {".": {"types": "./dist/index.d.ts", "import": "./dist/index.js"}},
+  "scripts": {
+    "build": "cmake-js compile && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/test/*.test.js"
+  },
+  "devDependencies": {"cmake-js": "8.0.0"}
+}

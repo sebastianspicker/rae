@@ -13,17 +13,12 @@ CACHE_DIR=""
 TMP_DIR=""
 VERDICT="PASS"
 SKIP_INSTALL=0
-SKIP_MKDOCS=0
 RELEASE_CANDIDATE=0
 
 for arg in "$@"; do
   case "$arg" in
   --skip-install)
     SKIP_INSTALL=1
-    ;;
-  --skip-mkdocs)
-    SKIP_MKDOCS=1
-    VERDICT="PARTIAL"
     ;;
   --release-candidate)
     RELEASE_CANDIDATE=1
@@ -35,7 +30,7 @@ for arg in "$@"; do
   esac
 done
 
-if [[ "$RELEASE_CANDIDATE" -eq 1 && ( "$SKIP_INSTALL" -eq 1 || "$SKIP_MKDOCS" -eq 1 ) ]]; then
+if [[ "$RELEASE_CANDIDATE" -eq 1 && "$SKIP_INSTALL" -eq 1 ]]; then
   printf 'ERROR: --release-candidate cannot be combined with partial verification modes\n' >&2
   exit 2
 fi
@@ -77,8 +72,7 @@ collect_tracked_shell_files() {
 
 run_python_quality_gates() {
   PYTHONPYCACHEPREFIX="$CACHE_DIR" "$PYTHON_BIN" -m compileall -q \
-    "$ROOT_DIR/packages/loops/ralph/scripts" \
-    "$ROOT_DIR/packages/orchestration/scripts" \
+    "$ROOT_DIR/packages/ralph/scripts" \
     "$ROOT_DIR/profiles/agent-environments/installers" \
     "$ROOT_DIR/scripts"
   ruff check "$ROOT_DIR"
@@ -87,8 +81,7 @@ run_python_quality_gates() {
   # Lizard warns at the argument limit, so use 9 to enforce the policy maximum of 8.
   lizard -l python -C 12 -L 80 -a 9 -w \
     -x '*/tests/*' \
-    "$ROOT_DIR/packages/loops/ralph/scripts" \
-    "$ROOT_DIR/packages/orchestration/scripts" \
+    "$ROOT_DIR/packages/ralph/scripts" \
     "$ROOT_DIR/profiles/agent-environments/installers" \
     "$ROOT_DIR/scripts"
 }
@@ -102,27 +95,27 @@ run_shell_quality_gate() {
   fi
   shellcheck -x \
     -P "$ROOT_DIR" \
-    -P "$ROOT_DIR/packages/loops/ralph" \
-    -P "$ROOT_DIR/packages/orchestration" \
+    -P "$ROOT_DIR/packages/ralph" \
+    -P "$ROOT_DIR/packages/engine" \
     -P "$ROOT_DIR/profiles/agent-environments" \
     -P "$ROOT_DIR/tools/repo-hygiene/coauthor-trailer-cleaner" \
     "${shell_files[@]}"
 }
 
-require_command bash git rg node npm jq shellcheck ruff pyright lizard
-if [[ "$SKIP_MKDOCS" -eq 0 ]]; then
-  require_command mkdocs
-fi
+require_command bash git git-filter-repo rg node npm jq shellcheck ruff pyright lizard
 CACHE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rae-verify-pycache.XXXXXX")"
 
 verify_repo_args=()
-if [[ "$SKIP_MKDOCS" -eq 1 ]]; then
-  verify_repo_args+=("--skip-mkdocs")
-fi
 if [[ "$RELEASE_CANDIDATE" -eq 1 ]]; then
   verify_repo_args+=("--release-candidate")
 fi
 "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_repo.py" "${verify_repo_args[@]}"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/check_architecture.py"
+"$PYTHON_BIN" "$ROOT_DIR/packages/dev-tools/scripts/validate_skills.py" \
+  --manifest "$ROOT_DIR/integrations/agent-adapters/content/spec/adapter-manifest.json"
+"$BASH_BIN" "$ROOT_DIR/integrations/agent-adapters/scripts/check_sync.sh"
+"$BASH_BIN" "$ROOT_DIR/scripts/checks/check_stale_references.sh"
+"$BASH_BIN" "$ROOT_DIR/scripts/checks/check_repository_hygiene.sh"
 run_python_quality_gates
 "$BASH_BIN" "$ROOT_DIR/tests/runtime-contract.sh"
 "$BASH_BIN" "$ROOT_DIR/scripts/rae.sh" --help >/dev/null
@@ -137,21 +130,30 @@ mkdir -p "$TMP_DIR/ralph-target"
 test -f "$TMP_DIR/ralph-target/.claude/ralph-audit/ralph.sh"
 "$BASH_BIN" "$ROOT_DIR/scripts/rae.sh" hygiene coauthor-cleaner --help >/dev/null
 
-ORCH_DIR="$ROOT_DIR/packages/orchestration"
-RALPH_DIR="$ROOT_DIR/packages/loops/ralph"
+RALPH_DIR="$ROOT_DIR/packages/ralph"
 
-if [ "${SKIP_ORCHESTRATION_VERIFY:-0}" != "1" ] && [ -f "$ORCH_DIR/package.json" ]; then
-  (
-    cd "$ORCH_DIR"
-    if [[ "$SKIP_INSTALL" -eq 1 ]]; then
-      ./scripts/verify.sh --skip-install
-    else
-      ./scripts/verify.sh
-    fi
-  )
-else
-  VERDICT="PARTIAL"
+if [[ "$SKIP_INSTALL" -eq 0 ]]; then
+  npm ci --prefix "$ROOT_DIR"
+  npm ci --prefix "$ROOT_DIR/apps/platform" --ignore-scripts
 fi
+
+npm --prefix "$ROOT_DIR" run build
+npm --prefix "$ROOT_DIR" run test:engine
+npm --prefix "$ROOT_DIR" run test:engine-legacy
+npm --prefix "$ROOT_DIR" run test:operator
+npm --prefix "$ROOT_DIR/apps/platform" test
+node --test "$ROOT_DIR"/packages/dev-tools/tests/*.test.mjs
+"$BASH_BIN" "$ROOT_DIR/profiles/agent-environments/tests/transaction-fixtures.sh"
+"$BASH_BIN" "$ROOT_DIR/tools/repo-hygiene/coauthor-trailer-cleaner/tests/transaction-fixtures.sh"
+
+for package_dir in \
+  packages/dev-tools/_shared \
+  packages/dev-tools/quality-gate \
+  packages/dev-tools/multi-model-review \
+  packages/dev-tools/trace-collector; do
+  npm --prefix "$ROOT_DIR/$package_dir" run lint
+  npm --prefix "$ROOT_DIR/$package_dir" run format:check
+done
 
 if [ "${SKIP_RALPH_VERIFY:-0}" != "1" ] && [ -f "$RALPH_DIR/ralph.sh" ]; then
   (

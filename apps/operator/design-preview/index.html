@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAE Operator — 2026 Design Preview</title>
+<style>
+/* ============================================================
+   RAE Operator Console — 2026 design direction: "Forensic Ledger"
+   Character: precise · forensic · calm · technical
+   Self-contained preview. System fonts only (CSP-compatible).
+   ============================================================ */
+
+:root {
+  /* Type */
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Scale (1.25-ish, tuned for dense technical UI) */
+  --t-micro: 0.6875rem;  /* 11 — eyebrows, table meta */
+  --t-label: 0.75rem;    /* 12 — labels, buttons */
+  --t-body:  0.8125rem;  /* 13 — dense body / data */
+  --t-text:  0.9375rem;  /* 15 — reading text */
+  --t-h3:    1.0625rem;  /* 17 — section titles */
+  --t-h1:    1.375rem;   /* 22 — page identity */
+
+  /* Spacing rhythm (4px base) */
+  --s1: 0.25rem; --s2: 0.5rem; --s3: 0.75rem; --s4: 1rem;
+  --s5: 1.5rem; --s6: 2rem; --s7: 3rem;
+
+  --r-ctl: 3px;   /* controls */
+  --r-panel: 4px; /* floating surfaces only */
+
+  --top-h: 3rem;
+  --rail-w: 17rem;
+}
+
+/* ---- Light theme (default) ---- */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --bg:        #eef1f3;
+  --surface:   #ffffff;
+  --surface-2: #f7f9fa;
+  --surface-3: #eef2f4;
+  --ink:       #152228;
+  --ink-2:     #3d4f58;
+  --mute:      #63757e;
+  --faint:     #8b9aa2;
+  --line:      #d8dfe3;
+  --line-soft: #e6ebed;
+  --line-hard: #b9c4ca;
+
+  --trace:      #1d55e0;  /* primary action / selection  (4.6:1 on white) */
+  --trace-ink:  #1743b4;
+  --trace-soft: #e8eefc;
+  --proof:      #0a7059;  /* pass / verified             (5.0:1) */
+  --proof-soft: #e2f0ec;
+  --hold:       #9a4a1f;  /* checkpoint / attention      (4.6:1) */
+  --hold-soft:  #f8ece4;
+  --danger:     #b03225;  /* destructive                 (5.2:1) */
+  --danger-soft:#f9e9e6;
+  --warn:       #8a6512;
+  --warn-soft:  #f5efdc;
+
+  --shadow-1: 0 1px 2px rgb(21 34 40 / 0.06), 0 4px 16px -4px rgb(21 34 40 / 0.10);
+  --shadow-2: 0 2px 6px rgb(21 34 40 / 0.08), 0 12px 40px -8px rgb(21 34 40 / 0.18);
+}
+
+/* ---- Dark theme (intentional, not inverted) ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:        #0c1114;
+  --surface:   #131a1f;
+  --surface-2: #182127;
+  --surface-3: #1e2930;
+  --ink:       #e4ebee;
+  --ink-2:     #b8c5cb;
+  --mute:      #8b9ba3;
+  --faint:     #63747d;
+  --line:      #27333b;
+  --line-soft: #1f2a31;
+  --line-hard: #3a4a54;
+
+  --trace:      #6f93f5;  /* lifted for contrast on dark (5.1:1 on surface) */
+  --trace-ink:  #93affa;
+  --trace-soft: #1a2740;
+  --proof:      #4cb89a;
+  --proof-soft: #12302a;
+  --hold:       #d98a5c;
+  --hold-soft:  #332216;
+  --danger:     #e0755f;
+  --danger-soft:#381d18;
+  --warn:       #d3ac4e;
+  --warn-soft:  #2e2712;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px -4px rgb(0 0 0 / 0.5);
+  --shadow-2: 0 2px 6px rgb(0 0 0 / 0.5), 0 16px 48px -8px rgb(0 0 0 / 0.6);
+}
+
+* { box-sizing: border-box; margin: 0; }
+
+html { font-size: 16px; }
+
+body {
+  font-family: var(--sans);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.mono { font-family: var(--mono); font-feature-settings: "tnum" 1; font-size: 0.94em; letter-spacing: -0.01em; }
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+button:disabled { cursor: not-allowed; opacity: 0.45; }
+:focus-visible { outline: 2px solid var(--trace); outline-offset: 2px; border-radius: 2px; }
+
+::selection { background: color-mix(in srgb, var(--trace) 22%, transparent); }
+
+/* ============ SHELL ============ */
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+/* Topbar: identity left · context center · session + action right */
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  height: var(--top-h);
+  display: flex; align-items: center; gap: var(--s4);
+  padding: 0 var(--s4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: var(--s2); flex: none; }
+.brand svg { width: 1.25rem; height: 1.25rem; }
+.brand-name { font: 600 var(--t-label)/1 var(--mono); letter-spacing: 0.14em; }
+.brand-product { color: var(--mute); font-size: var(--t-label); font-weight: 500; }
+
+.topbar-center {
+  flex: 1; display: flex; justify-content: center; gap: var(--s3); min-width: 0;
+}
+.project-switcher {
+  display: flex; align-items: center; gap: var(--s2);
+  height: 2rem; padding: 0 var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  background: var(--surface-2);
+  font-size: var(--t-label); color: var(--ink-2);
+  max-width: 16rem;
+}
+.project-switcher:hover { border-color: var(--line-hard); }
+.project-switcher svg { width: 0.875rem; height: 0.875rem; color: var(--faint); flex: none; }
+
+.cmdk {
+  display: flex; align-items: center; gap: var(--s2);
+  height: 2rem; padding: 0 var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  background: var(--surface-2);
+  color: var(--faint); font-size: var(--t-label);
+  width: 15rem;
+}
+.cmdk:hover { border-color: var(--line-hard); color: var(--mute); }
+.cmdk svg { width: 0.875rem; height: 0.875rem; }
+.cmdk kbd {
+  margin-left: auto;
+  font: 500 0.625rem/1 var(--mono);
+  color: var(--mute);
+  border: 1px solid var(--line); border-radius: 3px;
+  padding: 2px 5px;
+  background: var(--surface);
+}
+
+.topbar-right { display: flex; align-items: center; gap: var(--s3); flex: none; margin-left: auto; }
+
+.session {
+  display: flex; align-items: center; gap: var(--s2);
+  font-size: var(--t-micro); line-height: 1.3;
+}
+.session strong { display: block; font-size: var(--t-micro); font-weight: 600; }
+.session small { color: var(--faint); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
+.dot--ok { background: var(--proof); box-shadow: 0 0 0 3px color-mix(in srgb, var(--proof) 18%, transparent); }
+
+.icon-btn {
+  width: 2rem; height: 2rem; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  color: var(--mute); background: var(--surface);
+}
+.icon-btn:hover { color: var(--ink); border-color: var(--line-hard); background: var(--surface-2); }
+.icon-btn svg { width: 1rem; height: 1rem; }
+
+/* Buttons — real, unambiguous hierarchy */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  height: 2rem; padding: 0 var(--s3);
+  border-radius: var(--r-ctl);
+  font-size: var(--t-label); font-weight: 550;
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.btn svg { width: 0.875rem; height: 0.875rem; }
+.btn--primary { background: var(--trace); color: #fff; }
+.btn--primary:hover:not(:disabled) { background: var(--trace-ink); }
+:root[data-theme="dark"] .btn--primary { color: #0c1114; }
+:root[data-theme="dark"] .btn--primary:hover:not(:disabled) { background: var(--trace-ink); }
+.btn--ghost { border-color: var(--line); color: var(--ink-2); background: var(--surface); }
+.btn--ghost:hover:not(:disabled) { border-color: var(--line-hard); background: var(--surface-2); color: var(--ink); }
+.btn--quiet { color: var(--mute); padding: 0 var(--s2); }
+.btn--quiet:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); }
+.btn--approve { background: var(--proof); color: #fff; }
+.btn--approve:hover:not(:disabled) { filter: brightness(0.92); }
+:root[data-theme="dark"] .btn--approve { color: #0c1114; }
+.btn--danger-outline { border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--danger); background: var(--surface); }
+.btn--danger-outline:hover:not(:disabled) { background: var(--danger-soft); border-color: var(--danger); }
+.btn--sm { height: 1.625rem; padding: 0 var(--s2); font-size: var(--t-micro); }
+
+/* ============ BODY GRID ============ */
+
+.body { flex: 1; display: grid; grid-template-columns: var(--rail-w) minmax(0,1fr); min-height: 0; }
+
+/* ---- Run rail ---- */
+.rail {
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.rail__head {
+  padding: var(--s4) var(--s4) var(--s3);
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.rail__head h1 { font-size: var(--t-text); font-weight: 600; letter-spacing: -0.01em; }
+.rail__tools { display: flex; gap: var(--s1); }
+
+.seg {
+  display: flex; gap: 2px;
+  padding: 2px; margin: 0 var(--s4) var(--s3);
+  background: var(--surface-3); border-radius: var(--r-ctl);
+}
+.seg button {
+  flex: 1; height: 1.5rem; border-radius: 2px;
+  font-size: var(--t-micro); font-weight: 550; color: var(--mute);
+}
+.seg button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
+
+.rail__list { flex: 1; overflow-y: auto; padding: 0 var(--s2) var(--s4); }
+.run-card {
+  width: 100%; text-align: left;
+  display: block;
+  padding: var(--s3) var(--s3);
+  border-radius: var(--r-panel);
+  border: 1px solid transparent;
+  margin-bottom: 2px;
+  position: relative;
+}
+.run-card:hover { background: var(--surface-2); }
+.run-card[aria-selected="true"] { background: var(--surface-2); border-color: var(--line); box-shadow: var(--shadow-1); }
+.run-card[aria-selected="true"]::before {
+  content: ""; position: absolute; left: -1px; top: 8px; bottom: 8px;
+  width: 2px; background: var(--trace); border-radius: 1px;
+}
+.run-card__row { display: flex; align-items: baseline; gap: var(--s2); }
+.run-card__id { font: 600 var(--t-label)/1.3 var(--mono); letter-spacing: -0.01em; }
+.run-card__task {
+  margin-top: 3px;
+  color: var(--ink-2); font-size: var(--t-body); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.run-card__meta { margin-top: var(--s1); display: flex; gap: var(--s2); align-items: center; color: var(--faint); font-size: var(--t-micro); }
+
+/* Status chip: color + text + shape cue (never color-only) */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 600 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.02em;
+  padding: 3px 7px 3px 6px;
+  border-radius: 3px;
+}
+.chip i { width: 6px; height: 6px; flex: none; font-style: normal; }
+.chip--pass { color: var(--proof); background: var(--proof-soft); }
+.chip--pass i { background: var(--proof); border-radius: 50%; }
+.chip--hold { color: var(--hold); background: var(--hold-soft); }
+.chip--hold i { background: var(--hold); clip-path: polygon(50% 0, 100% 100%, 0 100%); } /* triangle = attention */
+.chip--fail { color: var(--danger); background: var(--danger-soft); }
+.chip--fail i { background: var(--danger); } /* square = stop */
+.chip--run  { color: var(--trace); background: var(--trace-soft); }
+.chip--run i  { background: var(--trace); border-radius: 50%; animation: pulse 1.6s ease-in-out infinite; }
+.chip--muted{ color: var(--mute); background: var(--surface-3); }
+.chip--muted i { background: var(--faint); border-radius: 50%; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .chip--run i { animation: none; } * { transition: none !important; } }
+
+.rail__foot {
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--line-soft);
+  color: var(--faint); font-size: var(--t-micro); line-height: 1.5;
+}
+
+/* ---- Workspace ---- */
+.workspace { overflow-y: auto; min-width: 0; background: var(--bg); }
+.sheet {
+  max-width: 72rem; margin: 0 auto;
+  padding: var(--s5) var(--s6) var(--s7);
+}
+
+/* Run identity header */
+.ident { display: flex; justify-content: space-between; gap: var(--s5); align-items: flex-start; margin-bottom: var(--s5); }
+.eyebrow {
+  font: 550 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: var(--s2);
+}
+.ident h1 { font-size: var(--t-h1); font-weight: 650; letter-spacing: -0.02em; line-height: 1.2; }
+.ident .sub { margin-top: var(--s1); color: var(--mute); font-size: var(--t-body); display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; }
+.ident .sub .mono { color: var(--ink-2); }
+.ident__facts { display: flex; gap: var(--s5); flex: none; padding-top: var(--s2); }
+.ident__facts dt { font-size: var(--t-micro); color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; font-family: var(--mono); }
+.ident__facts dd { margin: 2px 0 0; font-size: var(--t-label); font-weight: 550; }
+
+/* Section pattern: eyebrow + rule, no boxes */
+.section { margin-top: var(--s6); }
+.section__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 0;
+}
+.section__head h2 { font-size: var(--t-h3); font-weight: 600; letter-spacing: -0.01em; }
+.section__head .meta { color: var(--faint); font-size: var(--t-micro); font-family: var(--mono); }
+.section__tools { display: flex; gap: var(--s1); align-items: center; }
+
+/* Proof band: stat row, typography does the work */
+.stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line); border-radius: var(--r-panel);
+  background: var(--surface);
+  margin-top: var(--s5);
+}
+.stat { padding: var(--s3) var(--s4); border-left: 1px solid var(--line-soft); }
+.stat:first-child { border-left: 0; }
+.stat strong { display: block; font: 600 1.25rem/1.2 var(--mono); letter-spacing: -0.02em; }
+.stat strong em { font-style: normal; color: var(--faint); font-size: 0.85rem; }
+.stat span { color: var(--mute); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--mono); }
+.stat--ok strong { color: var(--proof); }
+
+/* Ledger table */
+table { width: 100%; border-collapse: collapse; }
+.docket th, .docket td { text-align: left; padding: var(--s2) var(--s3); }
+.docket thead th {
+  font: 550 var(--t-micro)/1 var(--mono);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.docket tbody tr { border-bottom: 1px solid var(--line-soft); }
+.docket tbody tr:last-child { border-bottom: 0; }
+.docket tbody tr:hover { background: var(--surface-2); }
+.docket { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); overflow: hidden; }
+.docket td { font-size: var(--t-body); vertical-align: middle; }
+.docket .stage { font-weight: 550; }
+.docket .idx { color: var(--faint); font-family: var(--mono); font-size: var(--t-micro); }
+
+/* Checkpoint — in-flow, warm-tinted band, the one place color leads */
+.hold {
+  margin-top: var(--s6);
+  border: 1px solid color-mix(in srgb, var(--hold) 35%, var(--line));
+  border-left: 3px solid var(--hold);
+  border-radius: var(--r-panel);
+  background: linear-gradient(to right, var(--hold-soft), var(--surface) 40%);
+  padding: var(--s4) var(--s5);
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--s6);
+}
+.hold__kicker { font: 600 var(--t-micro)/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--hold); margin-bottom: var(--s2); display: flex; align-items: center; gap: var(--s2); }
+.hold__kicker i { width: 8px; height: 8px; background: var(--hold); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.hold h2 { font-size: var(--t-h3); font-weight: 600; letter-spacing: -0.01em; margin-bottom: var(--s1); }
+.hold__why { color: var(--ink-2); font-size: var(--t-body); max-width: 52ch; }
+.hold__field { display: block; margin-top: var(--s4); }
+.hold__field label { display: block; font-size: var(--t-label); font-weight: 550; margin-bottom: var(--s1); }
+.hold__field label span { color: var(--faint); font-weight: 400; }
+textarea, input[type="text"], select {
+  width: 100%;
+  font: inherit; font-size: var(--t-body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line-hard);
+  border-radius: var(--r-ctl);
+  padding: var(--s2) var(--s3);
+}
+textarea { resize: vertical; line-height: 1.5; }
+textarea:focus, input:focus, select:focus { outline: 2px solid var(--trace); outline-offset: 0; border-color: var(--trace); }
+.field-meta { display: flex; justify-content: space-between; margin-top: var(--s1); color: var(--faint); font-size: var(--t-micro); }
+.hold__actions { display: flex; gap: var(--s2); margin-top: var(--s4); }
+.hold__aside dl { display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s4); font-size: var(--t-label); }
+.hold__aside dt { color: var(--faint); font-family: var(--mono); font-size: var(--t-micro); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.hold__aside dd { margin: 0; color: var(--ink-2); }
+.hold__boundary {
+  margin-top: var(--s4); padding: var(--s3);
+  border: 1px dashed var(--line-hard); border-radius: var(--r-ctl);
+  color: var(--mute); font-size: var(--t-label); line-height: 1.5;
+  display: flex; gap: var(--s2); align-items: flex-start;
+}
+.hold__boundary svg { width: 1rem; height: 1rem; flex: none; margin-top: 1px; color: var(--faint); }
+
+/* Evidence log */
+.evrow td { font-size: var(--t-body); border-bottom: 1px solid var(--line-soft); }
+.evrow[open] td { border-bottom: 0; }
+.ev-toggle { color: var(--faint); width: 1.25rem; }
+.ev-toggle svg { width: 0.75rem; height: 0.75rem; transition: transform 120ms ease; }
+tr[open] .ev-toggle svg { transform: rotate(90deg); }
+.ev-detail td { background: var(--surface-2); border-bottom: 1px solid var(--line-soft); padding: var(--s3) var(--s4); }
+.ev-detail pre {
+  font: 400 var(--t-label)/1.6 var(--mono);
+  color: var(--ink-2);
+  white-space: pre-wrap;
+}
+.result-ok { color: var(--proof); font-weight: 550; }
+.result-bad { color: var(--danger); font-weight: 550; }
+
+/* Resource strip: inline dl, no boxes */
+.resource-strip {
+  display: flex; gap: var(--s6); flex-wrap: wrap;
+  margin-top: var(--s4); padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.resource-strip div { display: flex; gap: var(--s2); align-items: baseline; }
+.resource-strip dt { color: var(--faint); font-size: var(--t-micro); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
+.resource-strip dd { margin: 0; font-size: var(--t-label); font-weight: 550; font-family: var(--mono); }
+
+/* Run controls: contextual toolbar */
+.run-controls { display: flex; gap: var(--s2); margin-top: var(--s4); }
+
+/* ============ WORKFLOW SECTION ============ */
+.workflow { margin-top: var(--s7); }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
+.tabs button {
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-label); font-weight: 550; color: var(--mute);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: var(--trace); border-bottom-color: var(--trace); }
+
+.wf-grid { display: grid; grid-template-columns: minmax(0,1fr) 19rem; gap: var(--s5); margin-top: var(--s4); align-items: start; }
+
+.canvas {
+  border: 1px solid var(--line); border-radius: var(--r-panel);
+  background:
+    radial-gradient(circle, var(--line) 1px, transparent 1px) 0 0 / 20px 20px,
+    var(--surface);
+  padding: var(--s5);
+  overflow-x: auto;
+}
+.canvas svg { display: block; min-width: 560px; width: 100%; height: auto; }
+
+/* Inspector: grouped accordions instead of a form wall */
+.inspector { display: flex; flex-direction: column; gap: var(--s3); }
+.insp-group { border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); overflow: hidden; }
+.insp-group > summary {
+  list-style: none; cursor: pointer;
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-label); font-weight: 600;
+  display: flex; align-items: center; gap: var(--s2);
+  user-select: none;
+}
+.insp-group > summary::-webkit-details-marker { display: none; }
+.insp-group > summary::before {
+  content: ""; width: 0; height: 0;
+  border-left: 4px solid var(--faint);
+  border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+  transition: transform 120ms ease;
+}
+.insp-group[open] > summary::before { transform: rotate(90deg); }
+.insp-group__body { padding: var(--s3); border-top: 1px solid var(--line-soft); display: grid; gap: var(--s3); }
+.frow { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2) var(--s3); }
+.frow label, .fstack label { display: block; font-size: var(--t-micro); color: var(--mute); font-weight: 550; margin-bottom: 3px; }
+.frow input, .frow select, .fstack input, .fstack textarea { height: 1.75rem; font-size: var(--t-label); padding: 0 var(--s2); }
+.fstack textarea { height: auto; padding: var(--s2); }
+.digest-box {
+  font-family: var(--mono); font-size: var(--t-micro); color: var(--ink-2);
+  background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: var(--r-ctl);
+  padding: var(--s2) var(--s3); word-break: break-all; line-height: 1.6;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: var(--s5); left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg);
+  font-size: var(--t-label); font-weight: 550;
+  padding: var(--s2) var(--s4);
+  border-radius: var(--r-panel);
+  box-shadow: var(--shadow-2);
+  display: flex; align-items: center; gap: var(--s2);
+  animation: toast-in 200ms ease;
+  z-index: 50;
+}
+.toast .dot { background: var(--proof); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+/* Theme toggle in preview header */
+.preview-note {
+  background: var(--warn-soft); color: var(--warn);
+  font-size: var(--t-micro); font-family: var(--mono);
+  text-align: center; padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 1100px) {
+  .wf-grid { grid-template-columns: 1fr; }
+  .hold { grid-template-columns: 1fr; }
+}
+@media (max-width: 820px) {
+  .body { grid-template-columns: 1fr; }
+  .rail { border-right: 0; border-bottom: 1px solid var(--line); }
+  .rail__list { max-height: 16rem; }
+  .cmdk { display: none; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stat:nth-child(3) { border-left: 0; }
+  .stat { border-top: 1px solid var(--line-soft); }
+  .stat:nth-child(-n+2) { border-top: 0; }
+  .ident { flex-direction: column; }
+  .sheet { padding: var(--s4); }
+}
+</style>
+</head>
+<body>
+
+<div class="preview-note">DESIGN PREVIEW — 2026 “Forensic Ledger” direction · fixture data · not production</div>
+
+<div class="app">
+  <!-- ============ TOPBAR ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <!-- RAE evidence trace mark -->
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="1" y="1" width="62" height="62" rx="9" fill="#14232B"/>
+        <path d="M10 17h13v15h17v15h14" fill="none" stroke="#6f93f5" stroke-width="4" stroke-linecap="square" stroke-linejoin="miter"/>
+        <rect x="19" y="13" width="9" height="9" fill="#14232B" stroke="#F4F7F8" stroke-width="2"/>
+        <rect x="36" y="28" width="9" height="9" fill="#14232B" stroke="#d98a5c" stroke-width="2"/>
+        <rect x="49" y="42" width="10" height="10" fill="#0a7059" stroke="#F4F7F8" stroke-width="2"/>
+      </svg>
+      <span class="brand-name">RAE</span>
+      <span class="brand-product">Operator</span>
+    </div>
+
+    <div class="topbar-center">
+      <button class="project-switcher" type="button" aria-label="Allowlisted project">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <span class="mono">sebastianspicker/rae</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <button class="cmdk" type="button" id="cmdk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        Search or command
+        <kbd>⌘K</kbd>
+      </button>
+    </div>
+
+    <div class="topbar-right">
+      <div class="session" role="status">
+        <span class="dot dot--ok" aria-hidden="true"></span>
+        <span><strong>Local session</strong><small>Loopback · no publish controls</small></span>
+      </div>
+      <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle dark theme" title="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+      </button>
+      <button class="btn btn--primary" type="button" id="new-run">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+        New run
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- ============ RUN RAIL ============ -->
+    <nav class="rail" aria-label="Runs">
+      <div class="rail__head">
+        <h1>Runs</h1>
+        <div class="rail__tools">
+          <button class="btn btn--quiet btn--sm" type="button">Search</button>
+        </div>
+      </div>
+      <div class="seg" role="tablist" aria-label="Filter runs">
+        <button role="tab" aria-selected="true">All</button>
+        <button role="tab" aria-selected="false">Active</button>
+        <button role="tab" aria-selected="false">Held</button>
+        <button role="tab" aria-selected="false">Done</button>
+      </div>
+
+      <div class="rail__list" role="listbox" aria-label="Autonomous runs" id="run-list">
+        <button class="run-card" role="option" aria-selected="true" data-run="2026">
+          <span class="run-card__row">
+            <span class="run-card__id">run-2026</span>
+            <span style="margin-left:auto"><span class="chip chip--pass"><i></i>pass</span></span>
+          </span>
+          <span class="run-card__task">Update the operator graph designer and verify the public documentation.</span>
+          <span class="run-card__meta"><span class="mono">release-readiness</span>·<span>3h ago</span></span>
+        </button>
+
+        <button class="run-card" role="option" aria-selected="false" data-run="2025">
+          <span class="run-card__row">
+            <span class="run-card__id">run-2025</span>
+            <span style="margin-left:auto"><span class="chip chip--hold"><i></i>hold</span></span>
+          </span>
+          <span class="run-card__task">Migrate evidence envelopes to schema 2.1 and re-project the run graph.</span>
+          <span class="run-card__meta"><span class="mono">envelope-2.1</span>·<span>1d ago</span>·<span>checkpoint pending</span></span>
+        </button>
+
+        <button class="run-card" role="option" aria-selected="false" data-run="2024">
+          <span class="run-card__row">
+            <span class="run-card__id">run-2024</span>
+            <span style="margin-left:auto"><span class="chip chip--run"><i></i>running</span></span>
+          </span>
+          <span class="run-card__task">Add a tested health endpoint and document its behavior.</span>
+          <span class="run-card__meta"><span class="mono">health-endpoint</span>·<span>started 12m ago</span></span>
+        </button>
+
+        <button class="run-card" role="option" aria-selected="false" data-run="2023">
+          <span class="run-card__row">
+            <span class="run-card__id">run-2023</span>
+            <span style="margin-left:auto"><span class="chip chip--fail"><i></i>fail</span></span>
+          </span>
+          <span class="run-card__task">Repair Ralph lint findings across the story backlog.</span>
+          <span class="run-card__meta"><span class="mono">ralph-lint</span>·<span>2d ago</span>·<span>gate: verify</span></span>
+        </button>
+      </div>
+
+      <p class="rail__foot">Allowlisted roots only.<br>Console cannot commit, push, publish, or deploy.</p>
+    </nav>
+
+    <!-- ============ WORKSPACE ============ -->
+    <main class="workspace" id="workspace">
+      <div class="sheet">
+
+        <!-- Run identity -->
+        <header class="ident">
+          <div>
+            <p class="eyebrow">Selected run</p>
+            <h1 class="mono" id="run-title">run-2026</h1>
+            <div class="sub">
+              <span class="mono">release-readiness</span>
+              <span id="run-task">Update the operator graph designer and verify the public documentation.</span>
+            </div>
+          </div>
+          <dl class="ident__facts">
+            <div><dt>Workspace</dt><dd class="mono">.git/rae-worktrees/run-2026</dd></div>
+            <div><dt>Status</dt><dd id="run-status"><span class="chip chip--pass"><i></i>pass</span></dd></div>
+          </dl>
+        </header>
+
+        <!-- Proof band -->
+        <div class="stats" aria-label="Run evidence summary">
+          <div class="stat stat--ok"><strong>4<em> / 4</em></strong><span>gates passed</span></div>
+          <div class="stat"><strong>12</strong><span>projected artifacts</span></div>
+          <div class="stat"><strong>7</strong><span>agent calls</span></div>
+          <div class="stat"><strong>48.2k</strong><span>input tokens</span></div>
+        </div>
+
+        <!-- Bound ledger -->
+        <section class="section" aria-labelledby="ledger-h">
+          <div class="section__head">
+            <h2 id="ledger-h">Bound ledger</h2>
+            <span class="meta">stage · artifact · gate · claim binding</span>
+          </div>
+          <table class="docket">
+            <thead><tr><th>#</th><th>Stage</th><th>Artifact</th><th>Gate</th><th>Claim</th></tr></thead>
+            <tbody>
+              <tr><td class="idx">01</td><td class="stage">plan</td><td class="mono">plan.json</td><td><span class="chip chip--pass"><i></i>pass</span></td><td class="mono">sha256:9f2c…e1</td></tr>
+              <tr><td class="idx">02</td><td class="stage">apply</td><td class="mono">diff.patch</td><td><span class="chip chip--pass"><i></i>pass</span></td><td class="mono">sha256:44ab…07</td></tr>
+              <tr><td class="idx">03</td><td class="stage">verify</td><td class="mono">verify-report.md</td><td><span class="chip chip--pass"><i></i>pass</span></td><td class="mono">sha256:c718…3d</td></tr>
+              <tr><td class="idx">04</td><td class="stage">review</td><td class="mono">checkpoint.json</td><td><span class="chip chip--pass"><i></i>approved</span></td><td class="mono">sha256:0d52…9a</td></tr>
+              <tr><td class="idx">05</td><td class="stage">ship</td><td class="mono">run-report.md</td><td><span class="chip chip--muted"><i></i>not requested</span></td><td class="mono">—</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Human checkpoint -->
+        <section class="hold" aria-labelledby="hold-h" id="hold-panel">
+          <div>
+            <p class="hold__kicker"><i aria-hidden="true"></i>Decision required</p>
+            <h2 id="hold-h">Approve mutation in run-2025?</h2>
+            <p class="hold__why">The envelope migration rewrites projected evidence for 14 historical runs. The diff is confined to <span class="mono">.pipeline/</span> and passes static validation.</p>
+            <div class="hold__field">
+              <label for="rationale">Rationale <span>(required, recorded with the outcome)</span></label>
+              <textarea id="rationale" rows="4" maxlength="4096" placeholder="Record why this decision is safe and appropriate. Note residual risks or follow-up actions."></textarea>
+              <div class="field-meta"><span>Stored in the checkpoint evidence envelope.</span><output id="rcount">0 / 4096</output></div>
+            </div>
+            <div class="hold__actions">
+              <button class="btn btn--approve" type="button" data-decide="approved">Approve</button>
+              <button class="btn btn--danger-outline" type="button" data-decide="rejected">Reject</button>
+              <button class="btn btn--ghost" type="button" data-decide="escalated">Escalate</button>
+            </div>
+          </div>
+          <div class="hold__aside">
+            <dl>
+              <dt>Run</dt><dd class="mono">run-2025</dd>
+              <dt>Policy</dt><dd>before-mutation-and-ship</dd>
+              <dt>Requested</dt><dd>2026-09-01 18:42 local</dd>
+              <dt>Worktree</dt><dd class="mono">.git/rae-worktrees/run-2025</dd>
+            </dl>
+            <p class="hold__boundary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+              <span><strong>Operator boundary.</strong> Approving continues the run inside its isolated worktree. This console exposes no commit, push, publish, or deploy action.</span>
+            </p>
+          </div>
+        </section>
+
+        <!-- Evidence log -->
+        <section class="section" aria-labelledby="log-h">
+          <div class="section__head">
+            <div style="display:flex;align-items:baseline;gap:var(--s3)">
+              <h2 id="log-h">Evidence log</h2>
+              <span class="meta">128 events · streaming</span>
+            </div>
+            <div class="section__tools">
+              <button class="btn btn--quiet btn--sm" type="button" id="expand-all">Expand all</button>
+              <button class="btn btn--quiet btn--sm" type="button" id="collapse-all">Collapse</button>
+            </div>
+          </div>
+          <table class="docket" id="evidence-table">
+            <thead><tr><th style="width:1.5rem"></th><th>Time (local)</th><th>Phase</th><th>Event</th><th>Evidence reference</th><th>Result</th></tr></thead>
+            <tbody>
+              <tr class="evrow" data-ev="1">
+                <td><button class="ev-toggle" aria-label="Expand event"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 6 6 6-6 6"/></svg></button></td>
+                <td class="mono">11:20:04</td><td>plan</td><td>Plan envelope sealed</td><td class="mono">.pipeline/runs/run-2026/plan.json</td><td class="result-ok">pass</td>
+              </tr>
+              <tr class="ev-detail" data-ev-detail="1" hidden><td colspan="6"><pre>{
+  "envelope": "plan",
+  "schema": "2.1",
+  "claim": "sha256:9f2c…e1",
+  "producer": "engine/graph@2.1",
+  "sealed_at": "2026-09-02T09:20:04Z"
+}</pre></td></tr>
+
+              <tr class="evrow" data-ev="2">
+                <td><button class="ev-toggle" aria-label="Expand event"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 6 6 6-6 6"/></svg></button></td>
+                <td class="mono">11:31:47</td><td>verify</td><td>Gate passed: repository verifier</td><td class="mono">verify-report.md</td><td class="result-ok">pass</td>
+              </tr>
+              <tr class="ev-detail" data-ev-detail="2" hidden><td colspan="6"><pre>$ ./scripts/verify.sh --skip-install
+engine tests ..... 214 passed
+operator tests ... 38 passed
+architecture ..... ok</pre></td></tr>
+
+              <tr class="evrow" data-ev="3">
+                <td><button class="ev-toggle" aria-label="Expand event"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 6 6 6-6 6"/></svg></button></td>
+                <td class="mono">11:32:10</td><td>review</td><td>Checkpoint approved by operator</td><td class="mono">checkpoint.json</td><td class="result-ok">approved</td>
+              </tr>
+              <tr class="ev-detail" data-ev-detail="3" hidden><td colspan="6"><pre>decision: approved
+rationale: "Diff confined to graph-designer package;
+docs regenerated and link-checked."</pre></td></tr>
+            </tbody>
+          </table>
+
+          <dl class="resource-strip" aria-label="Resource summary">
+            <div><dt>Output tokens</dt><dd>6.1k</dd></div>
+            <div><dt>Estimated cost</dt><dd>$0.42</dd></div>
+            <div><dt>Last update</dt><dd>11:32:10</dd></div>
+            <div><dt>Run ID</dt><dd>run-2026</dd></div>
+          </dl>
+
+          <div class="run-controls">
+            <button class="btn btn--ghost" type="button" disabled>Stop at boundary</button>
+            <button class="btn btn--ghost" type="button" disabled style="color:var(--warn)">Interrupt</button>
+            <button class="btn btn--ghost" type="button" disabled>Resume</button>
+            <button class="btn btn--danger-outline" type="button" disabled>Cleanup</button>
+            <span style="flex:1"></span>
+            <span class="meta" style="align-self:center;color:var(--faint);font-size:var(--t-micro)">Controls arm only when the run state allows them.</span>
+          </div>
+        </section>
+
+        <!-- Workflow -->
+        <section class="workflow" aria-labelledby="wf-h">
+          <div class="section__head">
+            <div>
+              <p class="eyebrow" style="margin-bottom:4px">Revision-controlled</p>
+              <h2 id="wf-h">Workflow systems map</h2>
+            </div>
+            <div class="section__tools">
+              <span class="meta">release-discovery · r3 · active</span>
+              <button class="btn btn--ghost btn--sm" type="button">Refresh registry</button>
+            </div>
+          </div>
+
+          <div class="tabs" role="tablist" aria-label="Workflow views" style="margin-top:var(--s3)">
+            <button role="tab" aria-selected="false" data-view="loop">Loop</button>
+            <button role="tab" aria-selected="true" data-view="graph">Graph</button>
+            <button role="tab" aria-selected="false" data-view="analyze">Analyze</button>
+            <button role="tab" aria-selected="false" data-view="json">JSON</button>
+          </div>
+
+          <div class="wf-grid">
+            <div class="canvas" role="img" aria-label="Workflow stage map: discovery-loop feeds discover, assess, verify, then complete">
+              <svg viewBox="0 0 640 200" id="wf-svg">
+                <defs>
+                  <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--faint)"/></marker>
+                </defs>
+                <g font-family="var(--mono)">
+                  <!-- loop-back edge -->
+                  <path d="M100 96 C 100 150, 430 150, 460 110" fill="none" stroke="var(--hold)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+                  <text x="270" y="162" text-anchor="middle" font-size="9" fill="var(--hold)">until dry · bound 5</text>
+                  <!-- forward edges -->
+                  <line x1="150" y1="80" x2="212" y2="80" stroke="var(--faint)" stroke-width="1.5" marker-end="url(#arr)"/>
+                  <line x1="282" y1="80" x2="344" y2="80" stroke="var(--faint)" stroke-width="1.5" marker-end="url(#arr)"/>
+                  <line x1="414" y1="80" x2="476" y2="80" stroke="var(--faint)" stroke-width="1.5" marker-end="url(#arr)"/>
+                  <text x="181" y="72" text-anchor="middle" font-size="9" fill="var(--faint)">sequence</text>
+                  <text x="313" y="72" text-anchor="middle" font-size="9" fill="var(--faint)">sequence</text>
+                  <text x="445" y="72" text-anchor="middle" font-size="9" fill="var(--faint)">stream</text>
+                  <!-- nodes -->
+                  <g>
+                    <rect x="30" y="60" width="120" height="40" rx="4" fill="var(--surface)" stroke="var(--hold)" stroke-width="1.5"/>
+                    <rect x="30" y="60" width="4" height="40" rx="2" fill="var(--hold)"/>
+                    <text x="44" y="77" font-size="11" font-weight="600" fill="var(--ink)">discovery-loop</text>
+                    <text x="44" y="92" font-size="9" fill="var(--mute)">loop · control</text>
+                  </g>
+                  <g>
+                    <rect x="212" y="60" width="70" height="40" rx="4" fill="var(--surface)" stroke="var(--line-hard)" stroke-width="1.5"/>
+                    <rect x="212" y="60" width="4" height="40" rx="2" fill="var(--trace)"/>
+                    <text x="226" y="77" font-size="11" font-weight="600" fill="var(--ink)">discover</text>
+                    <text x="226" y="92" font-size="9" fill="var(--mute)">agent · read</text>
+                  </g>
+                  <g>
+                    <rect x="344" y="60" width="70" height="40" rx="4" fill="var(--surface)" stroke="var(--line-hard)" stroke-width="1.5"/>
+                    <rect x="344" y="60" width="4" height="40" rx="2" fill="var(--trace)"/>
+                    <text x="358" y="77" font-size="11" font-weight="600" fill="var(--ink)">assess</text>
+                    <text x="358" y="92" font-size="9" fill="var(--mute)">agent · judgment</text>
+                  </g>
+                  <g>
+                    <rect x="476" y="60" width="70" height="40" rx="4" fill="var(--surface)" stroke="var(--proof)" stroke-width="1.5"/>
+                    <rect x="476" y="60" width="4" height="40" rx="2" fill="var(--proof)"/>
+                    <text x="490" y="77" font-size="11" font-weight="600" fill="var(--ink)">verify</text>
+                    <text x="490" y="92" font-size="9" fill="var(--mute)">gate · control</text>
+                  </g>
+                  <g>
+                    <rect x="576" y="60" width="58" height="40" rx="4" fill="var(--surface-3)" stroke="var(--line-hard)" stroke-width="1.5"/>
+                    <text x="586" y="77" font-size="11" font-weight="600" fill="var(--ink-2)">complete</text>
+                    <text x="586" y="92" font-size="9" fill="var(--mute)">terminal</text>
+                  </g>
+                </g>
+              </svg>
+            </div>
+
+            <aside class="inspector" aria-label="Workflow inspector">
+              <details class="insp-group" open>
+                <summary>Node · discovery-loop</summary>
+                <div class="insp-group__body">
+                  <div class="fstack"><label for="i-guid">Guidance</label><textarea id="i-guid" rows="2">Track globally seen discovery keys and stop on dry output.</textarea></div>
+                  <div class="frow">
+                    <div><label for="i-kind">Kind</label><select id="i-kind"><option>loop</option><option>agent</option><option>gate</option></select></div>
+                    <div><label for="i-access">Access</label><select id="i-access"><option>control</option><option>read</option><option>write</option></select></div>
+                    <div><label for="i-mode">Loop mode</label><select id="i-mode"><option>until dry</option><option>bounded</option></select></div>
+                    <div><label for="i-bound">Bound</label><input id="i-bound" type="text" value="5"></div>
+                  </div>
+                </div>
+              </details>
+              <details class="insp-group">
+                <summary>Safety flags</summary>
+                <div class="insp-group__body" style="gap:var(--s2)">
+                  <label style="display:flex;gap:8px;align-items:center;font-size:var(--t-label)"><input type="checkbox" checked style="width:auto"> Verification required</label>
+                  <label style="display:flex;gap:8px;align-items:center;font-size:var(--t-label)"><input type="checkbox" checked style="width:auto"> Mutation checkpoint</label>
+                  <label style="display:flex;gap:8px;align-items:center;font-size:var(--t-label)"><input type="checkbox" style="width:auto"> Ownership plan</label>
+                </div>
+              </details>
+              <details class="insp-group">
+                <summary>Revision &amp; activation</summary>
+                <div class="insp-group__body">
+                  <div class="digest-box">active r3 · 21311e4f90e59962d316a341df9578375f8eee0a…</div>
+                  <div class="fstack"><label for="i-digest">Type validated digest to activate</label><input id="i-digest" type="text" class="mono" placeholder="sha256 digest" spellcheck="false"></div>
+                  <button class="btn btn--primary btn--sm" type="button" style="justify-self:start">Activate validated revision</button>
+                </div>
+              </details>
+            </aside>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden><span class="dot"></span><span id="toast-msg"></span></div>
+
+<script>
+// Theme toggle (intentional dark theme, not an inversion)
+const root = document.documentElement;
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+// Toast helper
+const toast = document.getElementById('toast');
+const toastMsg = document.getElementById('toast-msg');
+let toastTimer;
+function showToast(msg) {
+  toastMsg.textContent = msg;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.hidden = true), 2600);
+}
+
+// Run selection
+const runs = {
+  2026: { task: 'Update the operator graph designer and verify the public documentation.', status: '<span class="chip chip--pass"><i></i>pass</span>' },
+  2025: { task: 'Migrate evidence envelopes to schema 2.1 and re-project the run graph.', status: '<span class="chip chip--hold"><i></i>hold</span>' },
+  2024: { task: 'Add a tested health endpoint and document its behavior.', status: '<span class="chip chip--run"><i></i>running</span>' },
+  2023: { task: 'Repair Ralph lint findings across the story backlog.', status: '<span class="chip chip--fail"><i></i>fail</span>' },
+};
+document.getElementById('run-list').addEventListener('click', (e) => {
+  const card = e.target.closest('.run-card');
+  if (!card) return;
+  document.querySelectorAll('.run-card').forEach((c) => c.setAttribute('aria-selected', 'false'));
+  card.setAttribute('aria-selected', 'true');
+  const r = runs[card.dataset.run];
+  document.getElementById('run-title').textContent = 'run-' + card.dataset.run;
+  document.getElementById('run-task').textContent = r.task;
+  document.getElementById('run-status').innerHTML = r.status;
+});
+
+// Checkpoint decisions
+document.querySelectorAll('[data-decide]').forEach((b) =>
+  b.addEventListener('click', () => showToast('Checkpoint ' + b.dataset.decide + ' — rationale recorded in evidence envelope.'))
+);
+
+// Rationale counter
+const rat = document.getElementById('rationale');
+rat.addEventListener('input', () => (document.getElementById('rcount').textContent = rat.value.length + ' / 4096'));
+
+// Evidence expand/collapse
+document.querySelectorAll('.evrow .ev-toggle').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const row = btn.closest('tr');
+    const detail = document.querySelector('[data-ev-detail="' + row.dataset.ev + '"]');
+    const open = detail.hidden;
+    detail.hidden = !open;
+    if (open) row.setAttribute('open', ''); else row.removeAttribute('open');
+  });
+});
+document.getElementById('expand-all').addEventListener('click', () => {
+  document.querySelectorAll('.ev-detail').forEach((d) => (d.hidden = false));
+  document.querySelectorAll('.evrow').forEach((r) => r.setAttribute('open', ''));
+});
+document.getElementById('collapse-all').addEventListener('click', () => {
+  document.querySelectorAll('.ev-detail').forEach((d) => (d.hidden = true));
+  document.querySelectorAll('.evrow').forEach((r) => r.removeAttribute('open'));
+});
+
+// Workflow tabs (visual selection only in preview)
+document.querySelectorAll('.tabs button').forEach((t) =>
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tabs button').forEach((x) => x.setAttribute('aria-selected', 'false'));
+    t.setAttribute('aria-selected', 'true');
+    if (t.dataset.view !== 'graph') showToast(t.textContent + ' view — same model, alternate projection.');
+  })
+);
+
+document.getElementById('cmdk').addEventListener('click', () => showToast('Command palette — jump to runs, workflows, actions.'));
+document.getElementById('new-run').addEventListener('click', () => showToast('New run dialog — isolated worktree, checkpoint policy, execution profile.'));
+
+// ⌘K
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    showToast('Command palette — jump to runs, workflows, actions.');
+  }
+});
+</script>
+</body>
+</html>

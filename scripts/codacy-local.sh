@@ -128,12 +128,13 @@ print("\n".join(sorted(MANAGER.plugins_by_id)))
     checkov --directory . --quiet --compact \
       --skip-path '^\\.git($|/)' \
       --skip-path '^\\.worktrees($|/)' \
-      --skip-path '^packages/orchestration/node_modules($|/)'
+      --skip-path '^node_modules($|/)' \
+      --skip-path '^apps/platform/node_modules($|/)'
   )
 
   printf 'Running native Biome analysis...\n'
   (
-    cd "$ROOT_DIR/packages/orchestration"
+    cd "$ROOT_DIR"
     ./node_modules/.bin/biome check .
   )
 }
@@ -144,7 +145,7 @@ require_native_version Ruff 0.15.20 ruff --version
 require_native_version Bandit 1.9.4 bandit --version
 require_native_version Checkov 3.3.7 checkov --version
 require_native_version Biome 2.5.2 \
-  "$ROOT_DIR/packages/orchestration/node_modules/.bin/biome" --version
+  "$ROOT_DIR/node_modules/.bin/biome" --version
 
 run_native_policy_analysis
 

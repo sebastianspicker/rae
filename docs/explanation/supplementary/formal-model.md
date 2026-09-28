@@ -8,8 +8,8 @@ evidence_links: ../../reference/claims/claims-ledger.md
 
 # Formal Model
 
-The repo’s scientific layer uses a modest formal model: enough structure to
-reason about failure propagation, coordination, and evidence quality, without
+The repository's scientific layer uses a modest formal model: enough structure
+to reason about failure propagation, coordination, and evidence quality, without
 pretending the full socio-technical system is analytically solved.
 
 ## Problem statement

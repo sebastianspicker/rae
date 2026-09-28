@@ -17,21 +17,14 @@ alpha candidate. Interfaces may change; it is not a published release.
   Provides a sanitized Codex profile template for RAE-shaped targets.
 - `templates/claude/settings.json`
   Provides a sanitized Claude profile template for RAE-shaped targets.
-- `installers/install-profile.sh`
-  Installs the public profile payload only into an RAE-shaped target directory
-  with `scripts/verify.sh`, refuses overwrites unless forced, and commits all
-  targets plus the manifest as one rollback-capable transaction.
-- `installers/uninstall-profile.sh`
-  Removes only unmodified files from a validated manifest v2 transaction,
-  restores hash-verified original backups, and reports a truthful no-op when
-  nothing is installed.
-- `installers/profile_transaction.py`
-  Keeps the stable install/uninstall CLI and manifest orchestration.
-- `installers/profile_io.py`
-  Provides descriptor-relative, no-follow filesystem and test-hook primitives.
-- `installers/profile_receipts.py`
-  Implements guarded quarantine receipts, no-clobber replacement, commit,
-  rollback, and retained recovery evidence.
+- `src/cli.ts` and `src/profile.ts`
+  Implement the Node install/uninstall CLI and manifest orchestration.
+- `src/io.ts` and `src/receipts.ts`
+  Preserve descriptor-relative no-follow transactions, guarded quarantine,
+  hash-verified backups, rollback and retained recovery evidence.
+
+From a built RAE checkout, run `npm run rae -- profile install /canonical/target`
+or `npm run rae -- profile uninstall /canonical/target`.
 
 ## Publication rule
 
@@ -43,7 +36,7 @@ public repo until they have been reduced to a reusable public core.
 
 The published installer is intentionally narrow.
 
-- Supported target: an RAE-shaped repository that already contains `scripts/verify.sh`
+- Supported target: an RAE-shaped repository with a Node verifier and a `package.json` `verify` script
 - Unsupported target: a generic empty directory or unrelated repo shape
 
 Install success now means the shipped templates can point at a real target-side
@@ -58,3 +51,17 @@ no-follow directory descriptors through the transaction; if a concurrent edit
 prevents a guarded rollback, it leaves the competing edit untouched and retains
 the original material in `.rae-profile-recovery-*/RECOVERY.json` for manual,
 reviewed recovery.
+
+Run the disposable transaction fixtures from the repository root:
+
+```bash
+npm run test:profiles
+```
+
+The repository gate includes these fixtures. They do not mutate personal
+repositories; simulated remote Git operations use a local bare repository.
+
+New installs require `scripts/src/verify.ts` or `scripts/dist/verify.js` and a
+package verification command. Uninstall still accepts legacy verifier layouts
+so existing manifest-v2 receipts remain recoverable. The historical installer
+identifier stored in those receipts is unchanged.

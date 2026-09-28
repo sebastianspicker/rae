@@ -1,7 +1,9 @@
 # Coauthor Trailer Cleaner
 
-`coauthor-trailer-cleaner.sh` removes configured `Co-authored-by: Name <email>`
-trailers from git commit history using `git-filter-repo`.
+The compiled TypeScript cleaner removes configured `Co-authored-by: Name <email>`
+trailers using Git object plumbing. It preserves trees, ordered parent topology
+and byte-exact identity metadata. Message transformation preserves the existing
+trailer matching and repeated-blank-line cleanup without decoding message bytes.
 
 The cleaner accepts one or more co-author identities through CLI flags or a
 JSON configuration file. Its default target is
@@ -9,23 +11,24 @@ JSON configuration file. Its default target is
 
 ## Requirements
 
-- Bash 5.3 or newer
-- `git`
-- `git-filter-repo`
-- Python 3.14.6 or newer (`PYTHON_BIN` may select a compatible interpreter)
+- Node.js 24 or newer
+- Git with the `reference-transaction` hook capability
 
-Install `git-filter-repo` on macOS:
+Build from the repository root:
 
-```bash
-brew install git-filter-repo
+```text
+npm --prefix tools/repo-hygiene/coauthor-trailer-cleaner run build
 ```
+
+The cleaner probes Git hook support before changing refs and fails closed if
+the attachment guard is unavailable.
 
 ## Usage
 
 ```text
-coauthor-trailer-cleaner.sh [OPTIONS] [<github_repo_url> <absolute_local_repo_path> ...]
-coauthor-trailer-cleaner.sh [OPTIONS] --repos-file <file>
-coauthor-trailer-cleaner.sh [OPTIONS] --config <config.json>
+npm run rae -- hygiene coauthor-cleaner [OPTIONS] [<github_repo_url> <absolute_local_repo_path> ...]
+npm run rae -- hygiene coauthor-cleaner [OPTIONS] --repos-file <file>
+npm run rae -- hygiene coauthor-cleaner [OPTIONS] --config <config.json>
 ```
 
 Key options:
@@ -33,7 +36,7 @@ Key options:
 - `--target "Name <email>"`: remove this co-author identity; repeatable
 - `--push`: push rewritten history with an exact pre-rewrite upstream OID lease
 - `--no-push`: rewrite locally only (default)
-- `--dry-run`: show commands without changing history
+- `--dry-run`: inspect the selected repository without changing history
 - `--validate-only`: validate inputs only
 - `--config <file>`: load defaults, targets, and optionally repos from JSON
 - `--repos-file <file>`: load `url path` pairs or a JSON array of repos
@@ -57,7 +60,7 @@ If no targets are provided, the script defaults to:
 You can override that with repeated CLI flags:
 
 ```bash
-./coauthor-trailer-cleaner.sh \
+npm run rae -- hygiene coauthor-cleaner \
   --target "Pair Bot <pairbot@example.com>" \
   --target "Example Contributor <contributor@example.com>" \
   --no-push \
@@ -93,10 +96,10 @@ Example: [coauthor-trailer-cleaner.example.json](coauthor-trailer-cleaner.exampl
 - captures the exact upstream commit before rewriting and pushes only with
   `--force-with-lease=<upstream-ref>:<captured-OID>`
 - requires an absolute local path
-- restores remote URLs after `git-filter-repo`
+- leaves remote configuration unchanged
 - creates a uniquely named local recovery branch for the current run
-- filters only a private ref pinned to the captured original OID; the checked-out
-  branch is promoted to the mapped rewritten OID only by an exact compare-and-swap
+- transforms raw commit objects and keeps a private ref pinned to the captured
+  original OID; the branch is promoted only by an exact compare-and-swap
 - revalidates the branch, HEAD, index, and worktree immediately before the
   recovery/rewrite boundary and before a remote update
 - records the rewritten HEAD and refuses automatic rollback if the branch,
@@ -113,24 +116,46 @@ Example: [coauthor-trailer-cleaner.example.json](coauthor-trailer-cleaner.exampl
   recovery branches are never wildcard-deleted
 - supports `--validate-only` for a no-mutation preflight pass
 
+A private prepared-phase Git hook checks the captured HEAD attachment while
+Git holds the ref locks. Existing reference-transaction hooks still receive
+their phases and input. A concurrent branch switch aborts promotion, rollback
+or cleanup and retains recovery refs.
+
+Signatures on changed commits cannot remain valid. The cleaner strips those
+invalid signatures, reports their count, and leaves signatures on unchanged
+objects intact. Unrelated branches and tags retain their original objects.
+
 Use an external backup or throwaway clone before rewriting shared history.
 
 ## Verification smoke path
 
 ```bash
-bash coauthor-trailer-cleaner.sh --help
+npm run rae -- hygiene coauthor-cleaner --help
 ```
 
 ## Files
 
-- `coauthor-trailer-cleaner.sh`: main history rewrite CLI
-- `lib/common.sh`: shared logging, target, JSON, and command helpers
-- `lib/config.sh`: config and repository-list validation/loading
-- `lib/git-workflow.sh`: repository validation, rewrite, leased push, and cleanup
-- `lib/cli.sh`: argument parsing and top-level orchestration
+- `src/cli.ts`: argument parsing, configuration validation and orchestration
+- `src/objects.ts`: byte-preserving message and parent transformation
+- `src/git.ts`: object plumbing, leased pushes and recovery transactions
+- `src/ref-guard.ts`: prepared-phase HEAD attachment guard
 - `coauthor-trailer-cleaner.schema.json`: JSON schema for config files
 - `coauthor-trailer-cleaner.example.json`: example config
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Run the disposable transaction fixtures from the repository root:
+
+```bash
+npm --prefix tools/repo-hygiene/coauthor-trailer-cleaner test
+```
+
+The repository gate includes these fixtures. They do not mutate personal
+repositories; simulated remote Git operations use a local bare repository.
+
+Identity deduplication uses the vendored Unicode 16 full case-folding table to
+preserve the former Python 3.14 behavior. The first spelling of each identity
+still controls raw-byte trailer matching. The table and its license are in
+`data/`; its checksum is verified when the CLI loads.

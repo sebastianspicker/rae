@@ -52,9 +52,8 @@ evidence_links: claims/claims-ledger.md
 
 ## Thesis validation
 
-Shared terminology is part of the repo's control surface: stable vocabulary
-reduces ambiguity between runtime behavior, benchmark interpretation, and
-governance claims.
+Terms are part of the control surface. Stable vocabulary keeps runtime behavior,
+benchmark interpretation, and governance claims from drifting apart.
 
 ## Related dossiers
 

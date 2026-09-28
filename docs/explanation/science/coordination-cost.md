@@ -13,9 +13,8 @@ coordination tax they create.
 
 ## Claim
 
-This page supports the formal claim that coordination overhead depends on
-communication topology, so architecture determines whether extra contributors
-help or harm.
+Coordination overhead depends on communication topology, so architecture decides
+whether extra contributors help or hurt.
 
 ## Definitions
 
@@ -95,7 +94,7 @@ Without explicit topology and fan-out limits, systems can:
 
 ## Repo implication
 
-The umbrella favors:
+RAE favors:
 
 - hub-and-spoke orchestration
 - bounded reviewer and builder counts

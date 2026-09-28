@@ -23,9 +23,8 @@ revisited when the corresponding trigger fires.
 
 ## Thesis validation
 
-The register supports publication discipline by separating accepted scope
-dependencies from claims that are already evidenced strongly enough to be
-adopted without caveat.
+The register keeps publication honest: it separates accepted scope dependencies
+from claims that are already supported well enough to adopt without a caveat.
 
 ## Interpretation limits
 

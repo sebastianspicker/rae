@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-07-19
+last_reviewed: 2026-09-02
 source_of_truth: editorial
 evidence_links: ../reference/claims/claims-ledger.md
 ---
@@ -37,9 +37,8 @@ the interface it describes remains subject to change.
   policy surfaces that enforce the rule.
 - `implementation_reference`
   Support with code, schema, command surface, or package-local documentation.
-  Under the locked Option B contract these pages still need seven external
-  sources, but those sources belong in source notes or companion pages rather
-  than replacing repo-local truth.
+  External sources are optional unless the page also makes a claim that
+  depends on external evidence.
 
 ## Scholarly writing rules
 
@@ -56,13 +55,13 @@ the interface it describes remains subject to change.
 
 ## Article contract
 
-- every page in `docs/` is subject to the locked minimum of seven real external
-  sources
-- every claim-bearing page must also preserve the strongest available internal
-  anchors for repo-local truth
-- narrow operational or policy pages may satisfy most of the external-source
-  burden through a linked companion proof page or source note, but they may not
-  drop the quota from the published article set
+- research pages, science pages, and claim dossiers require at least seven
+  relevant bibliography sources; the repository verifier enforces this scope
+- every claim-bearing page must preserve the strongest available internal
+  anchors for repository-local truth
+- tutorials, operational guides, and implementation references should cite the
+  owning source, schema, command, or package documentation rather than add
+  unrelated external sources to satisfy a quota
 - claim-bearing pages should include a scope or thesis statement, assumptions,
   limitations, and links to the relevant claim dossier or evidence surface
 

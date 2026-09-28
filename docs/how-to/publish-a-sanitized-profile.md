@@ -28,7 +28,7 @@ Public profile material must be:
 
 4. Add or update explanatory docs so the public lane states exactly what is
    shipped and what remains private.
-5. Re-run `./scripts/verify.sh` before publication.
+5. Re-run `npm run verify --` before publication.
 
 ## What belongs here
 
@@ -46,7 +46,7 @@ The repo ships:
 - `profiles/agent-environments/templates/codex/config.toml`
 - `profiles/agent-environments/templates/claude/settings.json`
 - `profiles/agent-environments/shared/policy/operator-policy.md`
-- `scripts/verify.sh --skip-install`
+- `scripts/src/verify.ts --skip-install`
 
 ## What does not belong here
 
@@ -57,12 +57,8 @@ The repo ships:
 
 ## Thesis validation
 
-This page operationalizes the claim that operator-environment publication is
-only reliable when the public payload is machine-agnostic, auditable, and free
-of private overlays.
-
-## Related dossiers
-
+Publish a payload only when it is machine-agnostic, auditable, and free of
+private overlays. Anything else is not safe to share.
 
 ## Interpretation limits
 

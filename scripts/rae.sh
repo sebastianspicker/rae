@@ -8,12 +8,14 @@ source "$ROOT_DIR/scripts/lib/runtime.sh"
 rae_require_bash || exit 1
 
 CALLER_PWD="$(pwd)"
-ORCH_DIR="$ROOT_DIR/packages/orchestration"
-RALPH_DIR="$ROOT_DIR/packages/loops/ralph"
+ENGINE_DIR="$ROOT_DIR/packages/engine"
+RALPH_DIR="$ROOT_DIR/packages/ralph"
 COAUTHOR_SCRIPT="$ROOT_DIR/tools/repo-hygiene/coauthor-trailer-cleaner/coauthor-trailer-cleaner.sh"
-AGENT_RUNNER="$ORCH_DIR/scripts/pipeline/autonomous.mjs"
-GRAPH_RUNNER="$ORCH_DIR/scripts/pipeline/graph-cli.mjs"
-OPERATOR_SERVER="$ORCH_DIR/operator/server.mjs"
+AGENT_RUNNER="$ENGINE_DIR/src/cli/autonomous.mjs"
+GRAPH_RUNNER="$ENGINE_DIR/src/cli/graph-cli.mjs"
+PIPELINE_RUNNER="$ENGINE_DIR/src/cli/runner.mjs"
+PIPELINE_INIT="$ENGINE_DIR/scripts/pipeline-init.sh"
+OPERATOR_SERVER="$ROOT_DIR/apps/operator/server.mjs"
 
 usage() {
   cat <<'EOF'
@@ -22,13 +24,13 @@ Usage: ./scripts/rae.sh <command> [args]
 RAE umbrella CLI.
 
 Commands:
-  verify [--skip-install] [--skip-mkdocs] [--release-candidate]
+  verify [--skip-install] [--skip-docs] [--release-candidate]
                                        Run umbrella verification
   doctor                               Check runtime prerequisites and entrypoints
   agent <subcommand> [args]            Run the autonomous coding-agent orchestrator
   graph <subcommand> [args]            Build and query local graph projections and memory
   operator serve [args]                Serve the authenticated loopback operator console
-  orchestrate <subcommand> [args]      Run the phased orchestration package
+  orchestrate <subcommand> [args]      Run the workflow engine's staged interface
   worktree <subcommand> [args]         Run worktree-native orchestration aliases
   ralph <subcommand> [args]            Run Ralph or bootstrap its embedded template
   hygiene <tool> [args]                Run narrow maintenance tooling
@@ -217,7 +219,6 @@ run_doctor() {
   check_node_runtime || failed=1
   check_command "npm" "npm" || failed=1
   check_command "jq" "jq" || failed=1
-  check_optional_command "mkdocs" "mkdocs"
   check_command "shellcheck" "shellcheck" || failed=1
   check_optional_command "git-filter-repo" "git-filter-repo"
 
@@ -225,7 +226,7 @@ run_doctor() {
 
   check_file "umbrella-cli" "$ROOT_DIR/scripts/rae.sh" || failed=1
   check_file "verify" "$ROOT_DIR/scripts/verify.sh" || failed=1
-  check_file "orchestrate" "$ORCH_DIR/scripts/pipeline-init.sh" || failed=1
+  check_file "orchestrate" "$PIPELINE_INIT" || failed=1
   check_file "agent-runner" "$AGENT_RUNNER" || failed=1
   check_file "graph-runner" "$GRAPH_RUNNER" || failed=1
   check_file "operator-console" "$OPERATOR_SERVER" || failed=1
@@ -255,7 +256,7 @@ run_orchestration() {
   case "$subcommand" in
   help | -h | --help)
     require_node_runtime
-    (cd "$ORCH_DIR" && "$NODE_BIN" scripts/pipeline/runner.mjs --help)
+    (cd "$ENGINE_DIR" && "$NODE_BIN" "$PIPELINE_RUNNER" --help)
     ;;
   init)
     local project_root=""
@@ -264,14 +265,14 @@ run_orchestration() {
       shift
     fi
     if [[ -n "$project_root" ]]; then
-      (cd "$ORCH_DIR" && ./scripts/pipeline-init.sh "$project_root" "$@")
+      (cd "$ENGINE_DIR" && "$PIPELINE_INIT" "$project_root" "$@")
     else
-      (cd "$ORCH_DIR" && ./scripts/pipeline-init.sh "$@")
+      (cd "$ENGINE_DIR" && "$PIPELINE_INIT" "$@")
     fi
     ;;
   run-stage | start-phase | end-phase | record-artifact | record-gate | record-review-state | summarize-run | summarize-progress | doctor)
     require_node_runtime
-    (cd "$ORCH_DIR" && "$NODE_BIN" scripts/pipeline/runner.mjs "$subcommand" "$@")
+    (cd "$ENGINE_DIR" && "$NODE_BIN" "$PIPELINE_RUNNER" "$subcommand" "$@")
     ;;
   *)
     die "unknown orchestrate subcommand: $subcommand"
@@ -334,7 +335,7 @@ EOF
       project_root="$(resolve_input_path "$1")"
       shift
     fi
-    (cd "$ORCH_DIR" && ./scripts/pipeline-init.sh "$project_root" --use-worktree "$@")
+    (cd "$ENGINE_DIR" && "$PIPELINE_INIT" "$project_root" --use-worktree "$@")
     ;;
   summary | summarize)
     run_orchestration summarize-progress "$@"
@@ -348,7 +349,7 @@ EOF
     target="$(resolve_input_path "$1")"
     shift
     [[ $# -eq 0 ]] || die "worktree cleanup accepts exactly one path"
-    (cd "$ORCH_DIR" && ./scripts/pipeline-init.sh --cleanup-worktree "$target")
+    (cd "$ENGINE_DIR" && "$PIPELINE_INIT" --cleanup-worktree "$target")
     ;;
   *)
     die "unknown worktree subcommand: $subcommand"

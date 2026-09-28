@@ -10,48 +10,33 @@ evidence_links: ../reference/invariants/determinism-contracts.md
 
 RAE uses layered local checks so that fast feedback does not replace security
 or release verification. The authoritative release command remains
-`./scripts/verify.sh`; quality reports are evidence for review, not a claim of
+`npm run verify --`; quality reports are evidence for review, not a claim of
 Cloud reanalysis.
 
 ## Local tool policy
 
-- Ruff targets Python 3.11 with a 100-character line length and enables only
-  `E`, `F`, `W`, `I`, `UP`, `B`, `SIM`, `PIE`, and `RUF` families. Security
-  findings are covered by Bandit rather than Ruff's `S` family.
-- Biome covers JavaScript and TypeScript through
-  `packages/orchestration/biome.json`; it uses the recommended rule preset and
-  respects version-control ignore rules. TypeScript compilation remains
-  package-local through each package's `tsc -p tsconfig.json` command.
-- OpenGrep, ShellCheck, Hadolint, Checkov, Trivy, markdownlint, Jackson, and
-  Lizard provide language, supply-chain, IaC, container, document, JSON, and
-  complexity coverage. The full-repository local policy uses Lizard warnings at
-  CCN 12, NLOC 80, and 8 parameters; critical thresholds are 20, 150, and 12.
-  Changed code must also satisfy stricter organization standards reported by Cloud.
+- Strict TypeScript compilation checks package interfaces and validated input
+  handling. Biome 2.5.2 checks maintained source and respects version-control
+  ignore rules.
+- The TypeScript AST checker enforces function complexity 12, code lines 80,
+  and 8 parameters. It excludes test fixtures and declaration files, and
+  reports each violating function without a repository-wide waiver.
+- The separate local Codacy command runs Hadolint, markdownlint, Trivy,
+  OpenGrep and Jackson through the pinned Analysis CLI. Native Trivy
+  misconfiguration scanning replaces the Python Checkov runtime; Biome and
+  TypeScript replace Python and shell language checks for the migrated code.
+  These scanners cover different rule sets, so results must identify the tool
+  and version that produced each finding.
 
-The local Codacy configuration does not enable ESLint 9, PyLint, Prospector,
-PMD 7, Spectral, or Agentlinter. It preserves the existing narrowly scoped
-configuration exclusions and adds no broad source, documentation, or test
-exclusions.
-
-## Exact analyzer exceptions
-
-- Bandit `B404` is omitted because it reports imports rather than executable
-  sinks; Bandit `B603` remains enabled for every subprocess call site.
-- OpenGrep's Python `dangerous-subprocess-use-audit` rule is omitted because
-  Bandit `B603` covers all 23 overlapping call sites and four additional
-  sinks. Other OpenGrep command-injection rules remain enabled.
-- OpenGrep alone excludes four parser-incompatible shell files: Ralph's
-  `core.sh`, `status.sh`, and version-flag test, plus the orchestration
-  integrity checker. Each file passes `bash -n` and ShellCheck; every other
-  configured analyzer still scans them.
-
-These are concern-level deduplications, not source-tree suppressions. Any new
-exception requires an exact rule identifier, a named replacement control, and
-review evidence in the local remediation ledger.
+The checked-in Codacy configuration also records imported analyzer policies.
+The Node runner selects the applicable adapters and records native checks
+separately. This does not change Codacy Cloud settings or constitute Cloud
+reanalysis. New analyzer exceptions require an exact rule identifier, a named
+replacement control and review evidence.
 
 ## Evidence boundary
 
-Run `bash scripts/codacy-local.sh` to first inspect every configured adapter,
+Run `node scripts/dist/codacy-local.js` to check native tools and inspect the selected adapters,
 then produce a sanitized local JSON report under the ignored
 `.codacy/reports/` directory. The raw full JSON remains only under the ignored
 `.codacy/tmp/` directory; the sanitized report removes `lineContent`. The

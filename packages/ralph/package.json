@@ -1,0 +1,42 @@
+{
+  "name": "@rae/ralph",
+  "private": true,
+  "version": "0.4.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "bin": {
+    "ralph": "dist/src/cli.js",
+    "ralph-helper": "dist/src/helper-cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "INSTRUCTIONS.md",
+    "AGENTS.md",
+    "README.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "LICENSE",
+    "learnings.md",
+    "prd.json.example",
+    "prd.schema.json",
+    "skills/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node dist/src/test-cli.js"
+  },
+  "dependencies": {
+    "@rae/fs-bridge": "0.0.0",
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1"
+  }
+}

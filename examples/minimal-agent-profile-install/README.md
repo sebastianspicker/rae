@@ -7,8 +7,8 @@ This example shows the smallest public profile installation path.
 ```bash
 TARGET_DIR="$(mktemp -d)"
 mkdir -p "$TARGET_DIR/scripts"
-printf '#!/usr/bin/env bash\nexit 0\n' > "$TARGET_DIR/scripts/verify.sh"
-chmod +x "$TARGET_DIR/scripts/verify.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TARGET_DIR/scripts/src/verify.ts"
+chmod +x "$TARGET_DIR/scripts/src/verify.ts"
 bash profiles/agent-environments/installers/install-profile.sh "$TARGET_DIR"
 find "$TARGET_DIR" -type f | sort
 ```

@@ -2,29 +2,28 @@
 status: stable
 owner: orchestration
 last_reviewed: 2026-07-16
-source_of_truth: packages/orchestration
+source_of_truth: packages/engine
 evidence_links: ../reference/claims/evidence-index.md
 ---
 
 # First Pipeline
 
-This tutorial walks through the low-level artifact and gate API. It is useful
-for manual integrations and deterministic fixtures; use
+Use this tutorial to learn the low-level artifact and gate API. It suits manual
+integrations and deterministic fixtures; use
 [First Autonomous Code Change](autonomous-code-change.md) when RAE should invoke
 a coding agent and modify a target repository.
 
 ## Assumptions
 
 - you are at the repository root
-- GNU Bash 5.3+, Python 3.14.6+, Node.js `>=20.19.0 <21`,
-  `>=22.12.0 <23`, or `>=24.0.0`, and `npm` are installed
-- the orchestration package dependencies are already available via
-  `./scripts/verify.sh` or local install
+- Node.js 24 or newer and npm are installed
+- the engine workspace dependencies are already available via
+  `npm ci --ignore-scripts` followed by `npm run build`
 
 ## 1. Initialize a run
 
 ```bash
-./scripts/rae.sh orchestrate init
+npm run rae -- orchestrate init
 ```
 
 This creates a `.pipeline/` state directory and prints a `run_id`.
@@ -35,7 +34,7 @@ public alpha candidate and interfaces may change.
 ## 2. Start the first real stage
 
 ```bash
-./scripts/rae.sh orchestrate run-stage \
+npm run rae -- orchestrate run-stage \
   --run-id <run_id> \
   --phase arm \
   --config-id phased_default \
@@ -45,7 +44,7 @@ public alpha candidate and interfaces may change.
 ## 3. Summarize the run
 
 ```bash
-./scripts/rae.sh orchestrate summarize-run \
+npm run rae -- orchestrate summarize-run \
   --run-id <run_id> \
   --format markdown
 ```
@@ -53,7 +52,7 @@ public alpha candidate and interfaces may change.
 ## 4. Verify the package
 
 ```bash
-./scripts/verify.sh
+npm run verify --
 ```
 
 ## What this demonstrates
@@ -66,9 +65,9 @@ public alpha candidate and interfaces may change.
 
 ## Thesis validation
 
-This tutorial demonstrates the staged-execution thesis on a minimal path. The
-commands are local truth; the scientific support for why this structure exists
-lives in the linked science and dossier surfaces.
+This is staged execution on a minimal path: initialize a run, execute one phase,
+and summarize it. The commands are the local source of truth; the reasoning
+behind the structure lives in the linked science and dossier pages.
 
 ## Related dossiers
 

@@ -12,8 +12,8 @@ Contracts and gates are distinct control surfaces and should stay distinct.
 
 ## Claim
 
-This page supports the formal claim that structural validity and progression
-decisions should remain distinct.
+Structural validity and progression are different decisions. Keeping them
+separate is what makes a gate auditable.
 
 ## 1. Contract
 
@@ -62,9 +62,6 @@ That separation is essential for serious documentation and evaluation.
 
 RAE uses contracts to define artifact shape and interpretation, then uses gates
 to block progression or publication when evidence is still weak.
-
-## Claim dossier
-
 
 ## Interpretation limits
 

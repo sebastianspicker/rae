@@ -1,97 +1,74 @@
 # Release Status
 
-Evidence cutoff: 2026-08-04
+Evidence cutoff: 2026-09-02
 
-Verdict: LOCAL IMPLEMENTATION GATES PASS; NOT READY TO PUBLISH
+Verdict: NOT READY TO PUBLISH
 
 ## Candidate scope
 
 - Proposed version: `v0.1.0-alpha.1`
-- Distribution: reviewed source tag and optional source archive
-- Published package, container, hosted service, or stable API: none
-- Current working tree: uncommitted and unsuitable as a release artifact
+- Intended artifact: reviewed source tag and optional source archive
+- Published package, supported container, hosted service, or stable API: none
 
-The candidate scope is the local source toolkit: graph-native repository
-workflows, isolated worktrees, the loopback operator, evaluation tools, Ralph,
-and repository-maintenance utilities. The hosted-platform package and workflow
-2.2 remain experimental.
+The candidate covers the source-checkout CLI, graph-native engine, loopback
+operator, versioned contracts, Ralph, deterministic development tools,
+sanitized profiles, and repository-hygiene utilities. The hosted platform and
+workflow 2.2 remain experimental.
 
-## Implemented local surface
+## Current worktree
 
-- Workflow 2.1 supports typed nodes and edges, bounded fan-out, deterministic
-  transforms, first-success and quorum joins, checkpoints, and bounded cycles.
-- The loopback operator provides synchronized Loop, Graph, Analyze, and JSON
-  views. Five guided templates compile directly to workflow 2.1.
-- Workflow analysis reports schema and topology diagnostics, unreachable nodes,
-  writer and verification paths, bounded attempts and dynamic instances,
-  concurrency, and resolved execution routes.
-- Execution profile 3.0 maps logical tiers and optional node overrides to named
-  Codex or OpenCode routes without adding provider configuration to workflows.
-- Workflow proposals remain drafts. Preview, revision saving, validation, diff,
-  and exact-digest activation are separate operator actions. Activation affects
-  future runs only.
-- OpenCode is explicit, never selected by `auto`, and supported only through the
-  documented macOS containment backend. OpenCode writes require an isolated RAE
-  worktree and reject `--in-place`.
+The worktree contains a large uncommitted migration from the former
+`packages/orchestration/` and `packages/loops/` layout into `apps/`,
+`packages/engine/`, `packages/contracts/`, `packages/dev-tools/`,
+`packages/ralph/`, `workflows/`, and `integrations/`. Several new
+components and workflows are not yet tracked. This mutable tree is not a
+release artifact.
 
-## Verified local evidence
+The previous local gate record from 2026-08-30 predates the current
+documentation and application changes. Its test counts and pass result are
+historical evidence only; no complete current release-candidate gate is
+recorded.
 
-- `packages/orchestration/scripts/verify.sh --skip-install` passes the package
-  builds, lint and format checks, runner, operator, shared-runtime,
-  quality-gate, review, and trace-collector suites.
-- The pipeline runner passes 396 tests. The operator passes 42 tests.
-- Ruff, Pyright, Lizard, the root runtime contract,
-  profile installation, Ralph's 63 tests, and the co-author cleaner's 65 tests
-  pass in the current working tree.
-- OpenCode doctor passes locally with OpenCode 1.18.11 and verifies the exact
-  denied-by-default tool surface under macOS Seatbelt.
-- Real Seatbelt checks deny read-node writes and deny write-node access outside
-  the isolated workspace, including `.pipeline`. The verification broker runs
-  its approved Git check under a nested no-network sandbox.
-- `git diff --check` passes.
+## Verified implementation boundaries
 
-These results apply to the current mutable checkout. They are not evidence for
-an immutable tag, hosted deployment, arbitrary repository, or provider-backed
-task outcome.
+Current source and contract checks establish these boundaries:
+
+- applications import the public `@rae/engine` package surface rather than
+  engine internals
+- versioned schemas are owned by `packages/contracts/v1/`
+- the operator is loopback-only and exposes `/api/v1`
+- the experimental platform exposes `/api/v2` and `/mcp`
+- the operator remote relay and platform are not integrated because no API
+  version adapter exists
+- the platform's Compose file is a local dependency fixture, not production
+  deployment configuration
+- the operator Pages workflow builds a browser-only mock with no repository or
+  backend access
+
+These are implementation and source-review claims, not evidence of a clean
+release, hosted deployment, or provider outcome.
 
 ## Publication blockers
 
-- The root `./scripts/verify.sh --skip-install` gate remains environment-blocked
-  because `lizard` is unavailable offline. The complete orchestration verifier,
-  including builds, Biome, 19 runner-boundary tests, and 5 operator-security
-  tests, passes with installation skipped.
-- No authenticated OpenCode proposal or write run has captured a real provider
-  event stream and completed the full designer-to-activation acceptance path.
-- No final interactive documentation preview was performed. The maintained
-  checks are source, schema, link, package, runner, and operator boundaries.
-- `mkdocs.yml` supports a local documentation preview once the pinned MkDocs
-  toolchain is present. No GitHub Pages deployment workflow or publishing
-  configuration exists in this tree, so Pages feasibility is unverified.
-- The working tree contains extensive uncommitted changes. Release-candidate
-  verification requires a reviewed, committed candidate with current hosted CI
-  and security checks.
-- The project still needs a private conduct-reporting address before
-  publication.
-
-## Experimental boundaries
-
-The hosted control-plane and worker package is not deployed. Source-unit tests
-do not establish PostgreSQL migration and reconciliation, OIDC issuer
-interoperability, object-storage transfer, remote worker isolation, secret
-handling, hosted recovery, or production operations.
-
-Workflow 2.2 implements local durable waits, typed signals, and bounded context
-assembly. It has no context-efficiency result. A frozen comparison with the
-predefined threshold remains required before making such a claim.
-
-OpenRouter models are supported only through OpenCode provider configuration.
-RAE does not call the OpenRouter API directly. The OpenCode adapter is macOS
-only in this candidate.
+- Review and track the intended migration, then reproduce all evidence from a
+  clean candidate with `npm run verify -- --release-candidate`.
+- Run the hosted CI, CodeQL, Scorecard, image-build, and operator-demo workflows
+  against the exact candidate commit.
+- Capture authenticated provider acceptance for the intended Codex and
+  OpenCode release surfaces.
+- Perform an interactive browser acceptance pass for the operator and its
+  static mock.
+- Either implement and test an operator-to-platform API adapter or continue to
+  document the two HTTP surfaces as separate.
+- Define production identity, TLS, database, object-store, worker isolation,
+  backup, recovery, monitoring, and incident procedures before presenting the
+  platform as deployable.
+- Configure a private project-specific conduct-reporting address before public
+  release.
 
 ## Next gate
 
-Restore the documented local verifier tools, complete the root verification
-gate, and run the authenticated OpenCode and browser acceptance lanes. Then
-review and commit the candidate, run
-`./scripts/verify.sh --release-candidate`, and confirm the hosted checks against
-that exact commit before creating a tag or release.
+Finish reviewing the current worktree, create a clean candidate, run the full
+release procedure in [RELEASING.md](RELEASING.md), and attach every hosted and
+manual result to that exact revision. Do not tag or publish while any required
+lane is skipped, stale, or environment-blocked.

@@ -1,15 +1,14 @@
 ---
 status: stable
 owner: science
-last_reviewed: 2026-08-04
+last_reviewed: 2026-09-02
 source_of_truth: editorial
 evidence_links: evidence-index.md
 ---
 
 # Bibliography
 
-This page is the canonical documentation bibliography and cite-key registry for
-RAE.
+The canonical bibliography and cite-key registry for RAE documentation.
 
 ## Citation workflow
 
@@ -18,104 +17,104 @@ RAE.
 - `CITATION.cff` is the machine-readable citation surface for the repository as
   a whole.
 - Every new external source should be added here before it is cited elsewhere.
-- Cite keys use explicit `src-*` anchors so links remain stable even if display
-  titles change.
+- Cite-key headings use stable `SRC-*` identifiers whose generated anchors are
+  the linked `src-*` values.
 - Pages should cite bibliography anchors rather than raw external URLs so source
   maintenance remains centralized.
 
 ## Foundational methods and governance sources
 
-### SRC-DIATAXIS { #src-diataxis }
+### SRC-DIATAXIS
 
 Diátaxis. "Diátaxis." Accessed April 17, 2026.
 https://diataxis.fr/
 
-### SRC-NIST-GENAI-PROFILE { #src-nist-genai-profile }
+### SRC-NIST-GENAI-PROFILE
 
 NIST. "Artificial Intelligence Risk Management Framework: Generative Artificial
 Intelligence Profile." July 26, 2024.
 https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
 
-### SRC-IEEE-1012 { #src-ieee-1012 }
+### SRC-IEEE-1012
 
 IEEE. "IEEE Standard for System, Software, and Hardware Verification and
 Validation." IEEE Std 1012-2016.
 https://standards.ieee.org/ieee/1012/7344/
 
-### SRC-MODEL-CARDS { #src-model-cards }
+### SRC-MODEL-CARDS
 
 Mitchell et al. "Model Cards for Model Reporting." 2019.
 https://arxiv.org/abs/1810.03993
 
-### SRC-DATASHEETS { #src-datasheets }
+### SRC-DATASHEETS
 
 Gebru et al. "Datasheets for Datasets." 2018.
 https://arxiv.org/abs/1803.09010
 
-### SRC-PINEAU-REPRODUCIBILITY { #src-pineau-reproducibility }
+### SRC-PINEAU-REPRODUCIBILITY
 
 Pineau et al. "Improving Reproducibility in Machine Learning Research: A Report
 from the NeurIPS 2019 Reproducibility Program." 2021.
 https://openreview.net/forum?id=tIeHLnjs5Km
 
-### SRC-NOSEK-OPEN-RESEARCH { #src-nosek-open-research }
+### SRC-NOSEK-OPEN-RESEARCH
 
 Nosek et al. "Promoting an Open Research Culture." 2015.
 https://doi.org/10.1126/science.aab2374
 
-### SRC-SMALDINO-BAD-SCIENCE { #src-smaldino-bad-science }
+### SRC-SMALDINO-BAD-SCIENCE
 
 Smaldino and McElreath. "The Natural Selection of Bad Science." 2016.
 https://doi.org/10.1098/rspb.2015.2597
 
 ## Agent evaluation and benchmark sources
 
-### SRC-WECO-RECURSIVE-IMPROVEMENT { #src-weco-recursive-improvement }
+### SRC-WECO-RECURSIVE-IMPROVEMENT
 
 Weco. "The First Evidence of Recursive Self-Improvement." Accessed July 17,
 2026.
 https://www.weco.ai/blog/first-evidence-of-recursive-self-improvement
 
-### SRC-AGENTRQ { #src-agentrq }
+### SRC-AGENTRQ
 
 AgentRQ. "AgentRQ." Accessed July 17, 2026.
 https://agentrq.com/
 
-### SRC-ANTHROPIC-EFFECTIVE-AGENTS { #src-anthropic-effective-agents }
+### SRC-ANTHROPIC-EFFECTIVE-AGENTS
 
 Anthropic. "Building effective agents." December 19, 2024.
 https://www.anthropic.com/engineering/building-effective-agents
 
-### SRC-OPENAI-EVALS { #src-openai-evals }
+### SRC-OPENAI-EVALS
 
 OpenAI. "How evals drive the next chapter in AI for businesses." November 19,
 2025.
 https://openai.com/index/evals-drive-next-chapter-of-ai/
 
-### SRC-OPENAI-SWEBENCH-VERIFIED { #src-openai-swebench-verified }
+### SRC-OPENAI-SWEBENCH-VERIFIED
 
 OpenAI. "Why SWE-bench Verified no longer measures frontier coding
 capabilities." February 23, 2026.
 https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/
 
-### SRC-OPENAI-PAPERBENCH { #src-openai-paperbench }
+### SRC-OPENAI-PAPERBENCH
 
 OpenAI. "PaperBench: Evaluating AI's Ability to Replicate AI Research." April
 2, 2025.
 https://openai.com/index/paperbench/
 
-### SRC-G-EVAL { #src-g-eval }
+### SRC-G-EVAL
 
 Liu et al. "G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment."
 2023.
 https://arxiv.org/abs/2303.16634
 
-### SRC-COHEN-KAPPA { #src-cohen-kappa }
+### SRC-COHEN-KAPPA
 
 Cohen. "A Coefficient of Agreement for Nominal Scales." 1960.
 https://doi.org/10.1177/001316446002000104
 
-### SRC-ARTSTEIN-POESIO { #src-artstein-poesio }
+### SRC-ARTSTEIN-POESIO
 
 Artstein and Poesio. "Inter-Coder Agreement for Computational Linguistics."
 2008.
@@ -123,47 +122,47 @@ https://doi.org/10.1162/coli.07-034-R2
 
 ## Information, context, and model behavior sources
 
-### SRC-SHANNON-1948 { #src-shannon-1948 }
+### SRC-SHANNON-1948
 
 Shannon. "A Mathematical Theory of Communication." 1948.
 https://doi.org/10.1002/j.1538-7305.1948.tb01338.x
 
-### SRC-COVER-THOMAS { #src-cover-thomas }
+### SRC-COVER-THOMAS
 
 Cover and Thomas. "Elements of Information Theory." 2nd edition, 2006.
 https://onlinelibrary.wiley.com/doi/book/10.1002/047174882X
 
-### SRC-TRANSFORMER { #src-transformer }
+### SRC-TRANSFORMER
 
 Vaswani et al. "Attention Is All You Need." 2017.
 https://arxiv.org/abs/1706.03762
 
-### SRC-GPT3 { #src-gpt3 }
+### SRC-GPT3
 
 Brown et al. "Language Models are Few-Shot Learners." 2020.
 https://arxiv.org/abs/2005.14165
 
-### SRC-KAPLAN-SCALING { #src-kaplan-scaling }
+### SRC-KAPLAN-SCALING
 
 Kaplan et al. "Scaling Laws for Neural Language Models." 2020.
 https://arxiv.org/abs/2001.08361
 
-### SRC-CHINCHILLA { #src-chinchilla }
+### SRC-CHINCHILLA
 
 Hoffmann et al. "Training Compute-Optimal Large Language Models." 2022.
 https://arxiv.org/abs/2203.15556
 
-### SRC-LOST-IN-THE-MIDDLE { #src-lost-in-the-middle }
+### SRC-LOST-IN-THE-MIDDLE
 
 Liu et al. "Lost in the Middle: How Language Models Use Long Contexts." 2023.
 https://arxiv.org/abs/2307.03172
 
-### SRC-REACT { #src-react }
+### SRC-REACT
 
 Yao et al. "ReAct: Synergizing Reasoning and Acting in Language Models." 2022.
 https://arxiv.org/abs/2210.03629
 
-### SRC-TOOLFORMER { #src-toolformer }
+### SRC-TOOLFORMER
 
 Schick et al. "Toolformer: Language Models Can Teach Themselves to Use Tools."
 2023.
@@ -171,35 +170,35 @@ https://arxiv.org/abs/2302.04761
 
 ## Coordination and socio-technical systems sources
 
-### SRC-AMDAHL-1967 { #src-amdahl-1967 }
+### SRC-AMDAHL-1967
 
 Amdahl. "Validity of the Single Processor Approach to Achieving Large Scale
 Computing Capabilities." 1967.
 https://doi.org/10.1145/1465482.1465560
 
-### SRC-CONWAY-1968 { #src-conway-1968 }
+### SRC-CONWAY-1968
 
 Conway. "How Do Committees Invent?" 1968.
 https://doi.org/10.1147/sj.74.0028
 
-### SRC-BROOKS-NO-SILVER-BULLET { #src-brooks-no-silver-bullet }
+### SRC-BROOKS-NO-SILVER-BULLET
 
 Brooks. "No Silver Bullet: Essence and Accidents of Software Engineering."
 1987.
 https://doi.org/10.1109/MC.1987.1663532
 
-### SRC-OLSON-OLSON { #src-olson-olson }
+### SRC-OLSON-OLSON
 
 Olson and Olson. "Distance Matters." 2000.
 https://doi.org/10.1145/333334.333343
 
-### SRC-HERBSLEB-MOCKUS { #src-herbsleb-mockus }
+### SRC-HERBSLEB-MOCKUS
 
 Herbsleb and Mockus. "An Empirical Study of Speed and Communication in
 Globally Distributed Software Development." 2003.
 https://doi.org/10.1109/TSE.2003.1205177
 
-### SRC-CATALDO-CONGRUENCE { #src-cataldo-congruence }
+### SRC-CATALDO-CONGRUENCE
 
 Cataldo et al. "Software Dependencies, Work Dependencies, and Their Impact on
 Failures." 2008.
@@ -207,68 +206,68 @@ https://doi.org/10.1145/1414004.1414008
 
 ## Automation and human factors sources
 
-### SRC-BAINBRIDGE-AUTOMATION { #src-bainbridge-automation }
+### SRC-BAINBRIDGE-AUTOMATION
 
 Bainbridge. "Ironies of Automation." 1983.
 https://doi.org/10.1016/0005-1098(83)90046-8
 
-### SRC-PARASURAMAN-RILEY { #src-parasuraman-riley }
+### SRC-PARASURAMAN-RILEY
 
 Parasuraman and Riley. "Humans and Automation: Use, Misuse, Disuse, Abuse."
 1997.
 https://doi.org/10.1207/s15327051hci1202_4
 
-### SRC-ENDSLEY-SITUATION-AWARENESS { #src-endsley-situation-awareness }
+### SRC-ENDSLEY-SITUATION-AWARENESS
 
 Endsley. "Toward a Theory of Situation Awareness in Dynamic Systems." 1995.
 https://doi.org/10.1518/001872095779049543
 
-### SRC-KAHNEMAN-FAST-SLOW { #src-kahneman-fast-slow }
+### SRC-KAHNEMAN-FAST-SLOW
 
 Kahneman. "Thinking, Fast and Slow." 2011.
 https://us.macmillan.com/books/9780374533557/thinkingfastandslow
 
 ## Graph retrieval and memory sources
 
-### SRC-W3C-PROV-O { #src-w3c-prov-o }
+### SRC-W3C-PROV-O
 
 W3C. "PROV-O: The PROV Ontology." April 30, 2013.
 https://www.w3.org/TR/prov-o/
 
-### SRC-GRAPHRAG-BENCH { #src-graphrag-bench }
+### SRC-GRAPHRAG-BENCH
 
 GraphRAG-Bench. "GraphRAG-Bench." Accessed July 29, 2026.
 https://graphrag-bench.github.io/
 
-### SRC-CODEXGRAPH { #src-codexgraph }
+### SRC-CODEXGRAPH
 
 CodexGraph. "Bridging Large Language Models and Code Repositories via Code
 Graph Databases." NAACL 2025.
 https://aclanthology.org/2025.naacl-long.7/
 
-### SRC-REPOGRAPH { #src-repograph }
+### SRC-REPOGRAPH
 
 RepoGraph. "Enhancing AI Software Engineering with Repository-level Code
 Graph." 2024.
 https://arxiv.org/abs/2410.14684
 
-### SRC-DOES-MEMORY-NEED-GRAPHS { #src-does-memory-need-graphs }
+### SRC-DOES-MEMORY-NEED-GRAPHS
 
 "Does Memory Need Graphs?" ACL 2026.
 https://aclanthology.org/2026.acl-long.1232/
 
-### SRC-GRAPHITI { #src-graphiti }
+### SRC-GRAPHITI
 
 "Zep: A Temporal Knowledge Graph Architecture for Agent Memory." 2025.
 https://arxiv.org/abs/2501.13956
 
-### SRC-GRAPHRAG-UNDER-FIRE { #src-graphrag-under-fire }
+### SRC-GRAPHRAG-UNDER-FIRE
 
 "GraphRAG under Fire: Probing Robustness of Graph-Based Retrieval-Augmented
 Generation." 2025.
 https://arxiv.org/abs/2501.14050
 
-### SRC-LONGMEMEVAL-V2 { #src-longmemeval-v2 }
+### SRC-LONGMEMEVAL-V2
 
 "LongMemEval-V2: Benchmarking Memory-Augmented Agents in Long-Horizon
 Interactive Environments." 2026.
@@ -276,37 +275,37 @@ https://arxiv.org/abs/2605.12493
 
 ## Execution and containment sources
 
-### SRC-OPENCODE-CLI { #src-opencode-cli }
+### SRC-OPENCODE-CLI
 
 OpenCode. "CLI." Accessed August 4, 2026.
 https://dev.opencode.ai/docs/cli/
 
-### SRC-OPENCODE-CONFIG { #src-opencode-config }
+### SRC-OPENCODE-CONFIG
 
 OpenCode. "Config." Accessed August 4, 2026.
 https://dev.opencode.ai/docs/config
 
-### SRC-OPENCODE-PERMISSIONS { #src-opencode-permissions }
+### SRC-OPENCODE-PERMISSIONS
 
 OpenCode. "Permissions." Accessed August 4, 2026.
 https://dev.opencode.ai/docs/permissions/
 
-### SRC-OPENCODE-TOOLS { #src-opencode-tools }
+### SRC-OPENCODE-TOOLS
 
 OpenCode. "Tools." Accessed August 4, 2026.
 https://dev.opencode.ai/docs/tools/
 
-### SRC-OPENCODE-PROVIDERS { #src-opencode-providers }
+### SRC-OPENCODE-PROVIDERS
 
 OpenCode. "Providers." Accessed August 4, 2026.
 https://opencode.ai/docs/providers
 
-### SRC-JSON-SCHEMA-2020-12 { #src-json-schema-2020-12 }
+### SRC-JSON-SCHEMA-2020-12
 
 JSON Schema. "JSON Schema Draft 2020-12." Accessed August 4, 2026.
 https://json-schema.org/draft/2020-12
 
-### SRC-APPLE-APP-SANDBOX { #src-apple-app-sandbox }
+### SRC-APPLE-APP-SANDBOX
 
 Apple. "Accessing files from the macOS App Sandbox." Accessed August 4, 2026.
 https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox

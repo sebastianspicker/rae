@@ -12,8 +12,8 @@ Not every phase deserves the same reasoning budget, autonomy, or review burden.
 
 ## Claim
 
-This page supports the heuristic claim that cognition should be allocated as a
-budgeted control decision rather than fixed at one global maximum.
+Cognition is a budgeted control decision, not a fixed global maximum. Each phase
+gets the reasoning, autonomy, and review its risk can justify.
 
 ## 1. Tiering idea
 

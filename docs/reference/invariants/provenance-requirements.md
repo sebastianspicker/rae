@@ -37,11 +37,9 @@ but it should not be used as published evidence for a public claim.
 
 ## Thesis validation
 
-This page validates the doctrine that evidence without provenance is local
-signal, not publication-grade support.
-
-## Related dossiers
-
+Evidence without provenance is local signal, not publication-grade support.
+Reusing a result requires knowing what produced it, from which revision, and
+under which conditions.
 
 ## Interpretation limits
 
