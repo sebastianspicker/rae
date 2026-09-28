@@ -6,15 +6,9 @@
     "build": "npm run build:typescript",
     "build:typescript": "tsc -p tsconfig.json && node dist/scripts/copy-assets.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run test:typescript",
-    "test:typescript": "npm run build:typescript && node --test dist/tests/*.test.js",
-    "test:legacy": "node --test tests/*.test.mjs",
-    "build:demo": "npm run build:demo:typescript",
-    "build:demo:typescript": "npm run build:typescript && node dist/scripts/build-demo.js",
-    "build:demo:legacy": "node scripts/build-demo.mjs",
-    "start": "npm run start:typescript",
-    "start:typescript": "npm run build:typescript && node dist/server.js",
-    "start:legacy": "node server.mjs"
+    "test": "npm run build:typescript && node --test dist/tests/*.test.js",
+    "build:demo": "npm run build:typescript && node dist/scripts/build-demo.js",
+    "start": "npm run build:typescript && node dist/server.js"
   },
   "dependencies": {
     "@rae/engine": "*"
