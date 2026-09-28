@@ -172,8 +172,7 @@ export async function install(
           { manifest_version: 2, installer: manifestInstallerId, installed_files: entries },
           null,
           2,
-        ) +
-          "\n",
+        ) + "\n",
       ),
     });
     await transact(root, mutations, "install", hook);

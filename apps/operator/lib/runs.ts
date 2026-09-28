@@ -767,8 +767,7 @@ function runIdentity(
     task: runTask(request, run.id),
     status: control.status,
     needs_human_decision:
-      typeof control.waiting_checkpoint_id === "string" &&
-      control.waiting_checkpoint_id.length > 0,
+      typeof control.waiting_checkpoint_id === "string" && control.waiting_checkpoint_id.length > 0,
     stop_requested: control.stop_requested === true,
     current_phase: runPhase(run, events),
     phase_order: runPhaseOrder(run),
