@@ -1,5 +1,5 @@
 # Build from the repository root with locked dependencies and compiled TypeScript exports.
-FROM node:24.14.1-bookworm-slim@sha256:b506e7321f176aae77317f99d67a24b272c1f09f1d10f1761f2773447d8da26c AS build
+FROM node:26.10.0-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS build
 WORKDIR /workspace
 COPY . .
 RUN ["npm", "ci", "--ignore-scripts"]
@@ -8,7 +8,7 @@ RUN ["npm", "run", "build", "--workspace", "@rae/dev-tools-shared"]
 RUN ["npm", "run", "build", "--workspace", "packages/dev-tools/quality-gate"]
 RUN ["npm", "prune", "--omit=dev", "--ignore-scripts"]
 
-FROM node:24.14.1-bookworm-slim@sha256:b506e7321f176aae77317f99d67a24b272c1f09f1d10f1761f2773447d8da26c
+FROM node:26.10.0-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2
 WORKDIR /workspace/packages/dev-tools/quality-gate
 COPY --from=build /workspace/node_modules/ /workspace/node_modules/
 COPY --from=build /workspace/packages/dev-tools/shared/dist/ /workspace/packages/dev-tools/shared/dist/
