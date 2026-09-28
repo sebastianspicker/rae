@@ -19,9 +19,8 @@ evidence_links: ../../reference/claims/claims-ledger.md
 
 ## Thesis validation
 
-The decision tree is an operational compression of the broader claims about
-smallest-adequate runtime choice, bounded coordination, and explicit evidence
-production.
+The decision tree compresses three ideas into a chooser: pick the smallest
+adequate runtime, bound coordination, and produce explicit evidence.
 
 ## Related dossiers
 

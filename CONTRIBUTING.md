@@ -5,7 +5,7 @@ must not be presented as release evidence.
 
 ## Before changing code
 
-- Read `AGENTS.md`, `README.md`, and the nearest package documentation.
+- Read `README.md` and the nearest package documentation.
 - Confirm which package owns the behavior.
 - Inspect the relevant source, schema, tests, and current command output.
 - Keep runtime state, local reports, credentials, and machine-specific
@@ -17,24 +17,24 @@ dependency without maintainer authorization.
 
 ## Development setup
 
-Required versions:
+Use Node.js 24 or newer, npm, Git, CMake and a C compiler. Install the locked
+workspaces and build the native bridge and TypeScript packages:
 
-- GNU Bash 5.3 or newer
-- Python 3.14.6 or newer
-- Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`
-
-Create the Python environment and install the locked dependencies:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --require-hashes -r requirements-ci.txt
-npm --prefix packages/orchestration ci
-./scripts/rae.sh doctor
+```sh
+npm ci --ignore-scripts
+npm run build
+npm run rae -- doctor
 ```
 
-On macOS with Python 3.14, use `requirements-macos.txt`. It selects the pinned
-Watchdog source archive and requires the Xcode command-line tools.
+On macOS, install the Xcode command-line tools. On Linux, install CMake, Make
+and a C compiler.
+
+`apps/platform/` is outside the root npm workspace. When that package or the
+complete repository gate is in scope, install its lock separately:
+
+```bash
+npm ci --prefix apps/platform --ignore-scripts
+```
 
 ## Change workflow
 
@@ -46,11 +46,11 @@ Watchdog source archive and requires the Xcode command-line tools.
 6. Review `git diff --check`, the complete diff, and untracked files.
 
 Synchronized orchestration adapters must be changed through
-`packages/orchestration/adapters/templates/` and regenerated with:
+`integrations/agent-adapters/content/templates/` and regenerated with:
 
 ```bash
-python3 packages/orchestration/scripts/adapters/generate_adapters.py
-python3 packages/orchestration/scripts/adapters/generate_adapters.py --check
+npm --workspace @rae/agent-adapters run generate --
+npm --workspace @rae/agent-adapters run generate -- --check
 ```
 
 ## Verification
@@ -61,27 +61,21 @@ commands.
 For a prepared offline checkout:
 
 ```bash
-./scripts/verify.sh --skip-install
+npm run verify -- --skip-install
 ```
 
-Use `./scripts/verify.sh` when dependencies still need to be installed.
-`--skip-mkdocs` is a partial mode for environments without the pinned MkDocs
-toolchain. It does not satisfy the release gate.
+Use `npm run verify --` when dependencies still need to be installed.
+`--skip-docs` is a partial mode that omits the VitePress documentation build. It does not satisfy the release gate.
 
-Useful focused checks:
-
-```bash
-npm --prefix packages/orchestration run test:operator
-npm --prefix packages/orchestration run test:runner
-bash packages/loops/ralph/scripts/run_tests.sh
-python3 -B scripts/verify_repo.py --skip-mkdocs
-```
+Use the focused command owned by the changed component. The complete command
+matrix, including documentation-only checks and the distinction between
+`npm test` and the repository gate, is maintained in [TESTING.md](TESTING.md).
 
 Release candidates must satisfy the complete procedure in
 [RELEASING.md](RELEASING.md), including:
 
 ```bash
-./scripts/verify.sh --release-candidate
+npm run verify -- --release-candidate
 ```
 
 Report every skipped or environment-blocked check. Do not generalize a focused
@@ -98,7 +92,7 @@ test result to the complete repository.
 - Link empirical claims from `docs/reference/claims/claims-ledger.md` to their
   evidence.
 - Regenerate CLI screenshots with
-  `python3 scripts/generate_docs_screenshots.py`; verify them with the same
+  `node scripts/dist/generate-docs-screenshots.js`; verify them with the same
   command plus `--check`.
 
 Maintained executable files need a concise purpose header. Public or non-obvious

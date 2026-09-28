@@ -13,9 +13,8 @@ not automatically mean larger useful information.
 
 ## Claim
 
-This page supports the repo's heuristic claim that longer task input or larger
-shared context windows can degrade engineering performance when they increase
-noise faster than task-relevant signal.
+Longer task input or a larger shared context window can degrade performance when
+it adds noise faster than task-relevant signal.
 
 ## Definitions
 

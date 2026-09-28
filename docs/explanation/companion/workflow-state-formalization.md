@@ -10,8 +10,8 @@ evidence_links: ../../reference/claims/dossiers/clm-014-staged-separation.md
 
 ## Purpose
 
-This companion page gives the science layer a compact workflow-state model so
-the main articles can stay readable.
+This companion gives the science layer a compact workflow-state model so the
+main articles stay readable.
 
 ## State space
 

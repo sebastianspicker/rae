@@ -2,22 +2,24 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/scripts/verify.sh
+source_of_truth: apps/platform/package.json
 evidence_links: ../reference/claims/claims-ledger.md
 ---
 
 # Test the Experimental Hosted Platform
 
-RAE does not retain a platform-specific automated suite. Run the maintained
-orchestration boundary checks instead:
+Run the platform's source-level trust-boundary tests together with the engine
+and operator boundaries:
 
 ```bash
-npm --prefix packages/orchestration run test:runner
-npm --prefix packages/orchestration run test:operator
+npm run test:engine
+npm run test:operator
+npm run test:platform
 ```
 
-These checks cover runner argv, provider-event log, operator CLI, and loopback
-security boundaries. They do not establish hosted-platform behavior.
+These checks cover engine arguments and provider-event logs, operator loopback
+security, engine-facade use, artifact symlink defenses, bind policy, and worker
+address validation. They do not establish a deployed hosted platform.
 
 The focused tests do not start Docker, PostgreSQL, MinIO or another S3 service,
 an OIDC issuer, or a remote worker. They do not prove hosted deployment,

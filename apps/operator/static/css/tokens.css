@@ -1,0 +1,177 @@
+/*
+ * Instrument Record tokens. Two voices share the console: Plex Mono for what the
+ * machine recorded, Newsreader for what a person wrote. Colour is semantic only:
+ * trace (interaction and path), hold (a human is required), proof (recorded pass),
+ * fault (failure or destructive action). See apps/operator/DESIGN_BRIEF.md.
+ */
+
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/plex-mono-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/plex-mono-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/plex-mono-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/newsreader-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/newsreader-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/newsreader-400-italic.woff2") format("woff2");
+}
+
+/* Light: cool paper and the brand ink. */
+:root {
+  color-scheme: light;
+  --bg: #f2f5f6;
+  --surface: #fbfcfc;
+  --sunk: #e8edef;
+  --ink: #14232b;
+  --ink-2: #384c57;
+  --mute: #566a74;
+  --line: #cdd6db;
+  --line-strong: #768892;
+  --trace: #1d4ed8;
+  --trace-wash: #e4ebfc;
+  --hold: #9a3f1c;
+  --hold-wash: #f7eae3;
+  --proof: #0a6b58;
+  --proof-wash: #e0f0ea;
+  --fault: #b42318;
+  --fault-wash: #fbe9e7;
+  --on-accent: #fbfcfc;
+  --scrim: rgb(20 35 43 / 55%);
+  --lift: 0 1px 0 rgb(20 35 43 / 4%), 0 24px 64px -24px rgb(20 35 43 / 35%);
+}
+
+/* Dark: the mark's ink ground. Applied by stored choice or, without one, by the OS. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e171c;
+  --surface: #132028;
+  --sunk: #0a1115;
+  --ink: #ecf2f1;
+  --ink-2: #b4c3c9;
+  --mute: #8c9fa8;
+  --line: #24343d;
+  --line-strong: #5b7583;
+  --trace: #8aabff;
+  --trace-wash: #16223d;
+  --hold: #f29a74;
+  --hold-wash: #2a1c15;
+  --proof: #5ccfb1;
+  --proof-wash: #10291f;
+  --fault: #ff8f80;
+  --fault-wash: #2e1714;
+  --on-accent: #0e171c;
+  --scrim: rgb(5 10 13 / 72%);
+  --lift: 0 0 0 1px rgb(0 0 0 / 30%), 0 28px 80px -24px rgb(0 0 0 / 70%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e171c;
+    --surface: #132028;
+    --sunk: #0a1115;
+    --ink: #ecf2f1;
+    --ink-2: #b4c3c9;
+    --mute: #8c9fa8;
+    --line: #24343d;
+    --line-strong: #5b7583;
+    --trace: #8aabff;
+    --trace-wash: #16223d;
+    --hold: #f29a74;
+    --hold-wash: #2a1c15;
+    --proof: #5ccfb1;
+    --proof-wash: #10291f;
+    --fault: #ff8f80;
+    --fault-wash: #2e1714;
+    --on-accent: #0e171c;
+    --scrim: rgb(5 10 13 / 72%);
+    --lift: 0 0 0 1px rgb(0 0 0 / 30%), 0 28px 80px -24px rgb(0 0 0 / 70%);
+  }
+}
+
+:root {
+  /* Voices */
+  --mono: "Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --serif: "Newsreader", ui-serif, "New York", Georgia, "Times New Roman", serif;
+
+  /* Type scale: 1.2 ratio from 13px. */
+  --t-2xs: 0.6875rem; /* 11 */
+  --t-xs: 0.75rem; /* 12 */
+  --t-sm: 0.8125rem; /* 13 */
+  --t-md: 0.9375rem; /* 15 */
+  --t-lg: 1.125rem; /* 18 */
+  --t-xl: 1.375rem; /* 22 */
+  --t-2xl: 1.75rem; /* 28 */
+  --t-3xl: 2.25rem; /* 36 */
+  --t-4xl: 2.75rem; /* 44 */
+  --track-label: 0.08em;
+
+  /* Space: 4px base. */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+  --s8: 4rem;
+
+  /* Frame */
+  --gutter: clamp(1rem, 3.5vw, 2.5rem);
+  --measure: 88rem;
+  --topbar-h: 3.5rem;
+  --radius: 2px;
+  --hair: 1px solid var(--line);
+  --control-h: 2.25rem;
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-base: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* The trace step: vertical drop between journey levels, as in the mark. */
+  --step-drop: 0.625rem;
+  --step-mark: 0.75rem;
+}
+
+/* Names kept for the static screenshot tour page. */
+:root {
+  --t-label: var(--t-xs);
+}

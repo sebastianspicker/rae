@@ -2,15 +2,15 @@
 status: stable
 owner: orchestration
 last_reviewed: 2026-07-19
-source_of_truth: packages/orchestration/scripts/pipeline/autonomous.mjs
+source_of_truth: packages/engine/src/cli/autonomous.ts
 evidence_links: ../reference/cli/umbrella.md
 ---
 
 # First Autonomous Code Change
 
-This tutorial runs RAE as a real coding-agent orchestrator. The workflow plans,
-writes code and tests, checks documentation, validates structured artifacts,
-and leaves a reviewable change in an isolated Git worktree.
+In this tutorial you run RAE as a real coding-agent orchestrator: it plans,
+writes code and tests, checks documentation, validates structured artifacts, and
+leaves a reviewable change in an isolated Git worktree.
 
 ## Prerequisites
 
@@ -19,23 +19,23 @@ and leaves a reviewable change in an isolated Git worktree.
 - Node.js `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`, plus the
   repository's normal verification tools
 - Codex CLI is installed and authenticated
-- RAE's orchestration dependencies were prepared with `./scripts/verify.sh`
+- RAE's orchestration dependencies were prepared with `npm run verify --`
 
 Check the agent-specific runtime contract:
 
 ```bash
-./scripts/rae.sh agent doctor
+npm run rae -- agent doctor
 ```
 
 The command must report authentication, workspace sandboxing, structured
 output, JSON event streaming, and ephemeral phase sessions. The broader
-`./scripts/rae.sh doctor` intentionally does not require a model runner because
+`npm run rae -- doctor` intentionally does not require a model runner because
 deterministic tools and benchmarks can run without one.
 
 ## Run one task
 
 ```bash
-./scripts/rae.sh agent run \
+npm run rae -- agent run \
   --project-root /path/to/target-repo \
   --checkpoint-policy before-mutation-and-ship \
   --graph-memory off \
@@ -78,8 +78,9 @@ verified completed-run outcomes and quarantines model-proposed candidates. The
 default `off` mode performs no graph read or memory write. Graph context cannot
 broaden the plan's owned paths or change a gate or checkpoint.
 
-![Deterministic output from `rae.sh agent --help` showing the isolated-worktree
-default, sandbox modes, prohibited actions, and command-provider opt-in.](../assets/screenshots/rae-agent-safety.svg)
+![Deterministic output from `npm run rae -- agent --help` showing the
+isolated-worktree default, sandbox modes, prohibited actions, and
+command-provider opt-in.](../assets/screenshots/rae-agent-safety.svg)
 
 Provider-backed Codex runs also write a redacted JSONL event log for each phase
 under `agent-outputs/`. Build and quality phases must contain captured
@@ -90,7 +91,7 @@ For a visual view of the same durable run state, start the local console in a
 second terminal:
 
 ```bash
-./scripts/rae.sh operator serve --project /path/to/target-repo
+npm run rae -- operator serve --project /path/to/target-repo
 ```
 
 Open the printed loopback URL. The session token stays in browser memory, and
@@ -106,7 +107,7 @@ before resuming.
 ## Plan without changing code
 
 ```bash
-./scripts/rae.sh agent run \
+npm run rae -- agent run \
   --project-root /path/to/target-repo \
   --through plan \
   --task "Describe and plan the requested migration"
@@ -116,7 +117,7 @@ Every phase through `plan` uses a read-only agent sandbox. Resume later from
 the workspace printed by the command:
 
 ```bash
-./scripts/rae.sh agent resume \
+npm run rae -- agent resume \
   --project-root /path/from/the-workspace-output \
   --run-id <run-id>
 ```

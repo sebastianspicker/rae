@@ -8,8 +8,8 @@ evidence_links: ../../reference/claims/evidence-index.md
 
 # Threats to Validity
 
-This page supports the rule that reliability claims must be interpreted together
-with explicit validity threats.
+A reliability claim means little without the validity threats that could distort
+it. Read every such claim together with the threats below.
 
 ## Benchmark threats
 
@@ -53,9 +53,6 @@ A publishable claim should identify at least:
 
 Any strong claim about reliability should be read together with this page and
 [Limitations](limitations.md).
-
-## Claim dossier
-
 
 ## Source note
 

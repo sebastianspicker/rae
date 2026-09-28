@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-07-19
+last_reviewed: 2026-09-08
 source_of_truth: editorial
 evidence_links: bibliography.md
 ---
@@ -9,6 +9,14 @@ evidence_links: bibliography.md
 # Evidence Index
 
 ## Claim mappings
+
+### CLM-025
+
+- Measurement report: [Local performance measurements](../performance-measurements.md)
+- Raw observations: [2026-09-08 benchmark samples](../../assets/benchmarks/typescript-rewrite-2026-09-08.json)
+- Executable workloads: `scripts/src/benchmarks/operator.ts`,
+  `scripts/src/benchmarks/event-streams.ts`, and
+  `packages/engine/scripts/benchmark-graph.ts`.
 
 ### CLM-002
 
@@ -36,9 +44,9 @@ evidence_links: bibliography.md
 
 - Dossier: [CLM-008 coordination topology](dossiers/clm-008-coordination-topology.md)
 - Internal anchor: `docs/explanation/science/coordination-cost.md`
-- Internal anchor: `packages/orchestration/docs/ORCHESTRATION_POLICY.md`
+- Internal anchor: `docs/reference/engine/orchestration-policy.md`
 - Internal anchor: `docs/tutorials/graph-engineering-with-rae.md`
-- Internal anchor: `packages/orchestration/scripts/pipeline/lib/workflow-scheduler-v21.mjs`
+- Internal anchor: `packages/engine/src/workflow/workflow-scheduler-v21.ts`
 - External anchor: [Amdahl 1967](bibliography.md#src-amdahl-1967)
 - External anchor: [Conway 1968](bibliography.md#src-conway-1968)
 - External anchor: [Cataldo et al.](bibliography.md#src-cataldo-congruence)
@@ -48,8 +56,8 @@ evidence_links: bibliography.md
 - Dossier: [CLM-014 staged separation](dossiers/clm-014-staged-separation.md)
 - Internal anchor: `docs/explanation/science/problem-statement.md`
 - Internal anchor: `docs/explanation/science/drift-and-self-certification.md`
-- Internal anchor: `packages/orchestration/scripts/pipeline/runner.mjs`
-- Internal anchor: `packages/orchestration/scripts/pipeline/autonomous.mjs`
+- Internal anchor: `packages/engine/src/cli/runner.ts`
+- Internal anchor: `packages/engine/src/cli/autonomous.ts`
 - External anchor: [Anthropic effective agents](bibliography.md#src-anthropic-effective-agents)
 - External anchor: [NIST GenAI Profile](bibliography.md#src-nist-genai-profile)
 - External anchor: [PaperBench](bibliography.md#src-openai-paperbench)
@@ -59,7 +67,7 @@ evidence_links: bibliography.md
 - Dossier: [CLM-016 cognitive tiering](dossiers/clm-016-cognitive-tiering.md)
 - Internal anchor: `docs/explanation/science/cognitive-tiering.md`
 - Internal anchor: `docs/explanation/supplementary/design-axioms.md`
-- Internal anchor: `packages/orchestration/contracts/workflows/execution-profile-v1.schema.json`
+- Internal anchor: `packages/contracts/v1/schemas/workflows/execution-profile-v1.schema.json`
 - Internal anchor: `docs/tutorials/graph-engineering-with-rae.md`
 - External anchor: [Kahneman](bibliography.md#src-kahneman-fast-slow)
 - External anchor: [Bainbridge automation](bibliography.md#src-bainbridge-automation)
@@ -70,7 +78,7 @@ evidence_links: bibliography.md
 - Dossier: [CLM-017 documentation reliability](dossiers/clm-017-documentation-reliability.md)
 - Internal anchor: `docs/governance/documentation-policy.md`
 - Internal anchor: `docs/explanation/science/abstract.md`
-- Internal anchor: `scripts/verify_repo.py`
+- Internal anchor: `scripts/src/verify-repository.ts`
 - External anchor: [Diataxis](bibliography.md#src-diataxis)
 - External anchor: [Nosek open research culture](bibliography.md#src-nosek-open-research)
 - External anchor: [Pineau reproducibility report](bibliography.md#src-pineau-reproducibility)

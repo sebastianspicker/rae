@@ -18,12 +18,9 @@ Expected report families:
 
 ## Thesis validation
 
-Distinct report families prevent one artifact from pretending to satisfy every
-interpretive need at once. Structure matters because report purpose determines
-what evidence and limitations are mandatory.
-
-## Related dossiers
-
+Distinct report families stop a single artifact from pretending to serve every
+interpretive need. The report's purpose determines which evidence and
+limitations are mandatory, so the structure carries real meaning.
 
 ## Interpretation limits
 

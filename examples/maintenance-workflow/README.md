@@ -9,7 +9,7 @@ multiple co-author trailer identities.
 REPO_URL=https://github.com/example/example-repo
 REPO_PATH=/absolute/path/to/example-repo
 
-./scripts/rae.sh hygiene coauthor-cleaner \
+npm run rae -- hygiene coauthor-cleaner \
   --config examples/maintenance-workflow/coauthor-targets.json \
   --validate-only \
   "$REPO_URL" "$REPO_PATH"
@@ -18,7 +18,7 @@ REPO_PATH=/absolute/path/to/example-repo
 ## Inspect the help surface
 
 ```bash
-./scripts/rae.sh hygiene coauthor-cleaner --help
+npm run rae -- hygiene coauthor-cleaner --help
 ```
 
 The config file keeps the operation local and explicit:

@@ -1,0 +1,59 @@
+{
+  "name": "rae-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/fs-bridge",
+    "apps/operator",
+    "packages/contracts",
+    "packages/engine",
+    "packages/dev-tools/shared",
+    "packages/dev-tools/quality-gate",
+    "packages/dev-tools/multi-model-review",
+    "packages/dev-tools/trace-collector",
+    "packages/ralph",
+    "profiles/agent-environments",
+    "tools/repo-hygiene/coauthor-trailer-cleaner",
+    "integrations/agent-adapters",
+    "scripts",
+    "packages/dev-tools"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "agent": "node scripts/dist/rae.js agent",
+    "build": "npm run build --workspace @rae/fs-bridge && tsc -p scripts/tsconfig.json && node scripts/dist/build.js",
+    "test": "npm run test:engine && npm run test:operator && npm run test:platform && npm run test:ralph && npm run test:profiles && npm run test:history && npm run test:tooling && npm run test:dev-tools",
+    "test:engine": "npm --workspace @rae/engine test",
+    "test:operator": "npm --workspace @rae/operator test",
+    "test:platform": "npm --prefix apps/platform test",
+    "verify": "node scripts/dist/verify.js",
+    "rae": "node scripts/dist/rae.js",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "biome lint .",
+    "test:ralph": "npm --workspace @rae/ralph test",
+    "test:profiles": "npm --workspace @rae/agent-profiles test",
+    "test:history": "npm --workspace @rae/coauthor-trailer-cleaner test",
+    "docs:build": "vitepress build docs",
+    "docs:dev": "vitepress dev docs",
+    "docs:preview": "vitepress preview docs",
+    "test:tooling": "npm --workspace @rae/repository-tools test",
+    "test:dev-tools": "npm --workspace @rae/dev-tool-verification test",
+    "typecheck:docs": "tsc -p docs/.vitepress/tsconfig.json"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.2",
+    "typescript": "5.9.3",
+    "@types/node": "25.5.0",
+    "vitepress": "1.6.4",
+    "markdown-it-mathjax3": "4.3.2"
+  },
+  "type": "module",
+  "overrides": {
+    "fast-uri": "3.1.6",
+    "@xmldom/xmldom": "0.9.12",
+    "vitepress@1.6.4": {
+      "vite": "6.4.3"
+    }
+  }
+}

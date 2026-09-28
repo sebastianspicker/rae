@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/platform
+source_of_truth: apps/platform
 evidence_links: ../reference/claims/claims-ledger.md
 ---
 
@@ -30,7 +30,7 @@ endpoint, and optional path-style addressing.
 
 ## Start the local development stack
 
-From `packages/orchestration/platform/`, review the checked-in development-only
+From `apps/platform/`, review the checked-in development-only
 `dev/platform.toml` configuration, set `RAE_DEV_MINIO_ACCESS_KEY` and
 `RAE_DEV_MINIO_SECRET_KEY` to disposable local values, then start the
 loopback-published dependencies:

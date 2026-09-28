@@ -17,6 +17,10 @@ concurrency:
 
 permissions: {}
 
+defaults:
+  run:
+    shell: node scripts/src/ci-command.ts {0}
+
 jobs:
   analyze:
     name: Analyze
@@ -30,17 +34,27 @@ jobs:
       matrix:
         language:
           - javascript-typescript
-          - python
+          - c-cpp
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
 
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.language == 'c-cpp' && 'manual' || 'none' }}
+
+      - name: Build native filesystem bridge
+        if: matrix.language == 'c-cpp'
+        run: '[ ["npm", "ci", "--ignore-scripts"], ["npm", "--workspace", "@rae/fs-bridge", "run", "build"] ]'
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357

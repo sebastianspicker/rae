@@ -1,0 +1,12 @@
+{
+  "name": "@rae/dev-tool-verification",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.0.0" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test dist/tests/*.test.js",
+    "validate:skills": "node dist/scripts/validate-skills.js"
+  }
+}

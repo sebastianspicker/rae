@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-07-29
-source_of_truth: packages/orchestration/contracts/graph
+source_of_truth: packages/contracts/v1/schemas/graph
 evidence_links: ../claims/evidence-index.md
 ---
 
@@ -45,7 +45,7 @@ the dirty overlay. Runtime files under `.pipeline/` do not affect that overlay.
 ## Record model
 
 Node, edge, manifest, context, and memory-decision schemas live under
-`packages/orchestration/contracts/graph/`. Every node and edge records its
+`packages/contracts/v1/schemas/graph/`. Every node and edge records its
 graph family, repository and run namespace, stable logical ID,
 content-addressed version ID, source reference and digest, projector version,
 transaction time, validity interval, and trust class.
@@ -112,13 +112,13 @@ publication authority.
 ## CLI
 
 ```bash
-./scripts/rae.sh graph build --project-root /path/to/repository
-./scripts/rae.sh graph status --project-root /path/to/repository
-./scripts/rae.sh graph query --project-root /path/to/repository \
+npm run rae -- graph build --project-root /path/to/repository
+npm run rae -- graph status --project-root /path/to/repository
+npm run rae -- graph query --project-root /path/to/repository \
   --seed 'File:src/main.js'
-./scripts/rae.sh graph explain --project-root /path/to/repository \
+npm run rae -- graph explain --project-root /path/to/repository \
   --run-id <id> --node 'Requirement:REQ-001'
-./scripts/rae.sh graph memory list --project-root /path/to/repository
+npm run rae -- graph memory list --project-root /path/to/repository
 ```
 
 Use `--json` for the contract-defined representation. Human-readable key/value

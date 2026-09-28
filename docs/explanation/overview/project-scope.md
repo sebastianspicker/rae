@@ -32,7 +32,7 @@ change, and this wording does not claim a published release.
 
 ## Design stance
 
-The umbrella adds:
+RAE adds:
 
 - a shared terminology layer
 - a claim and evidence discipline
@@ -41,9 +41,9 @@ The umbrella adds:
 
 ## Thesis validation
 
-This page carries a repo-level scope claim rather than an empirical result. Its
-support comes from the package boundaries, evaluation doctrine, and the broader
-literature on verification, documentation, and reproducibility.
+Scope is a repository-level claim here, not an empirical result. It rests on the
+package boundaries, the evaluation doctrine, and the verification,
+documentation, and reproducibility literature cited below.
 
 ## Related dossiers
 

@@ -1,0 +1,29 @@
+/* RAE documentation colors and system fonts, shared with the existing brand assets. */
+:root {
+  --vp-font-family-base: var(--rae-body);
+  --vp-font-family-mono: var(--rae-display);
+  --vp-c-brand-1: #1648c7;
+  --vp-c-brand-2: #1f5eff;
+  --vp-c-brand-3: #1545bc;
+  --vp-c-bg: #f4f7f8;
+  --vp-c-bg-alt: #edf2f4;
+  --vp-c-text-1: #14232b;
+  --vp-c-text-2: #415663;
+  --vp-c-divider: #cbd5da;
+}
+.dark {
+  --vp-c-brand-1: #9bb5ff;
+  --vp-c-brand-2: #7da2ff;
+  --vp-c-brand-3: #5988ff;
+  --vp-c-bg: #0e171c;
+  --vp-c-bg-alt: #14232b;
+  --vp-c-text-1: #eef4f3;
+  --vp-c-text-2: #a8b7be;
+  --vp-c-divider: #415663;
+}
+.VPNavBarTitle .title { font-family: var(--rae-display); }
+.vp-doc table { display: block; overflow-x: auto; }
+.vp-doc mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; padding-block: .5rem; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}

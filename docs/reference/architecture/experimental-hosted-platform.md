@@ -1,16 +1,17 @@
 ---
 status: experimental
 owner: orchestration
-last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/platform
+last_reviewed: 2026-09-02
+source_of_truth: apps/platform
 evidence_links: ../claims/claims-ledger.md
 ---
 
 # Experimental Hosted Platform
 
 The hosted platform is an experimental control-plane and worker boundary under
-`packages/orchestration/platform/`. The loopback operator can proxy allowlisted
-run routes in remote mode, but it is not a production deployment.
+`apps/platform/`. It exposes `/api/v2` and `/mcp`; the loopback operator's
+remote relay allows only its own `/api/v1` contract. No translation adapter
+currently connects them. The platform is not a production deployment.
 
 ## Components
 

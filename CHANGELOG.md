@@ -23,6 +23,10 @@ packages retain their own changelogs where applicable.
 
 ### Changed
 
+- Operator console redesigned on the brand's calibration-trace mark: serif for
+  human-written text, monospace for recorded evidence, a stepped run trace,
+  full run IDs in the catalogue, and a theme that follows the OS. The console
+  self-hosts two OFL typefaces and its CSP now allows `font-src 'self'`.
 - Raised the supported runtime floor to GNU Bash 5.3 and Python 3.14.6.
 - Enforced the orchestration dependency contract at Node.js
   `>=20.19.0 <21`, `>=22.12.0 <23`, or `>=24.0.0`.

@@ -32,7 +32,7 @@ literature.
 ## Internal anchors
 
 - `docs/explanation/science/coordination-cost.md`
-- `packages/orchestration/docs/ORCHESTRATION_POLICY.md`
+- `docs/reference/engine/orchestration-policy.md`
 
 ## External anchors
 

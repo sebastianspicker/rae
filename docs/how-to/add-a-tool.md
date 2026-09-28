@@ -24,9 +24,8 @@ Put a new utility under `tools/` only when it is:
 
 ## Thesis validation
 
-This page operationalizes the design claim that maintenance utilities should
-remain narrow, explicit, and separately testable instead of being smuggled into
-the core runtime.
+Keep maintenance utilities narrow, explicit, and separately testable. Do not
+fold them into the core runtime.
 
 ## Related dossiers
 

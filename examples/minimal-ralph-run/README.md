@@ -5,16 +5,16 @@ This example shows the smallest useful Ralph path from the umbrella harness.
 ## Package-local validation
 
 ```bash
-./scripts/rae.sh ralph --validate-prd
-./scripts/rae.sh ralph --status
-./scripts/rae.sh ralph --list-stories
+npm run rae -- ralph --validate-prd
+npm run rae -- ralph --status
+npm run rae -- ralph --list-stories
 ```
 
 ## Embedded bootstrap for another repository
 
 ```bash
 mkdir -p /tmp/rae-demo-repo
-./scripts/rae.sh workflow repo-audit bootstrap /tmp/rae-demo-repo
+npm run rae -- workflow repo-audit bootstrap /tmp/rae-demo-repo
 cp /tmp/rae-demo-repo/.claude/ralph-audit/prd.json.example /tmp/rae-demo-repo/.claude/ralph-audit/prd.json
 (cd /tmp/rae-demo-repo && MODE=audit ./.claude/ralph-audit/ralph.sh --check)
 ```

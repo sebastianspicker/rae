@@ -15,47 +15,39 @@ container, hosted service, or stable API.
 - Regenerate and verify the public CLI captures:
 
 ```bash
-python3 scripts/generate_docs_screenshots.py
-python3 scripts/generate_docs_screenshots.py --check
+node scripts/dist/generate-docs-screenshots.js
+node scripts/dist/generate-docs-screenshots.js --check
 ```
 
 ## 2. Install declared dependencies
 
-Use a clean virtual environment and the hashed lock:
+Use Node.js 24 or newer with npm, Git, CMake and a C compiler. Install both
+lockfiles and compile all runtime entrypoints:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --require-hashes -r requirements-ci.txt
+```sh
+npm ci --ignore-scripts
+npm ci --prefix apps/platform --ignore-scripts
+npm run build
+npm --prefix apps/platform run build
 ```
 
-On macOS, use `requirements-macos.txt` so the pinned Watchdog source archive is
-selected for Python 3.14.
-
-Install orchestration dependencies from the lockfile:
-
-```bash
-npm --prefix packages/orchestration ci
-```
-
-The supported Node.js ranges are `>=20.19.0 <21`, `>=22.12.0 <23`, or
-`>=24.0.0`; `./scripts/rae.sh doctor` enforces this contract.
+`npm run rae -- doctor` verifies the Node baseline and compiled entrypoints.
 
 ## 3. Run release gates
 
 ```bash
-./scripts/rae.sh doctor
-./scripts/rae.sh agent doctor
-./scripts/verify.sh --release-candidate
+npm run rae -- doctor
+npm run rae -- agent doctor
+npm run verify -- --release-candidate
 git diff --check
 git status --short
 ```
 
 The release gate is green only when:
 
-- the strict MkDocs build runs;
+- the VitePress build runs;
 - the Git worktree is clean and every release-essential file is tracked;
-- all Python, orchestration, Ralph, profile, and hygiene suites pass;
+- all tooling, engine, operator, platform, Ralph, profile, and history suites pass;
 - deterministic screenshots are current;
 - the candidate worktree contains no unexpected changes;
 - GitHub CI, CodeQL, and Scorecard complete on the candidate commit.

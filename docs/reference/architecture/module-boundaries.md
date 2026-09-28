@@ -1,55 +1,68 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
-source_of_truth: editorial
+last_reviewed: 2026-09-28
+source_of_truth: scripts/src/check-architecture.ts
 evidence_links: ../claims/assumptions-register.md
 ---
 
 # Module Boundaries
 
-## Core modules
+These are the import and ownership rules the architecture check enforces. For
+the complete component and runtime model, see the
+[architecture guide](../../ARCHITECTURE.md).
 
-- `packages/orchestration/`: multi-stage delivery contracts and runtimes; imported
-- `packages/loops/ralph/`: deterministic story loop execution; imported
+## Dependency direction
 
-## Supporting modules
+```text
+scripts/src/rae.ts
+  -> applications -> @rae/engine public API
+  -> engine cli -> run/workflow -> agents -> graph -> primitives
+  -> Ralph
 
-- `profiles/agent-environments/`: sanitized public setup layer
-- `tools/`: focused maintenance utilities
+workflows -> engine
+engine -> versioned contracts
+runtime tools -> versioned contracts
+profiles and maintenance tools remain independent
+```
 
-## Boundary rule
+Inside the engine, `primitives/` imports no other engine layer, `graph/` uses
+only primitives, `agents/` uses graph and primitives, `run/` and `workflow/`
+form one layer that may import each other and everything below, and `cli/`
+may import everything except `public/`. Shared engine helpers belong in the
+lowest layer that needs them; for example path containment lives in
+`primitives/paths.ts` and compiled entrypoint paths in
+`primitives/installation-paths.ts`.
 
-No module should absorb another module's identity just to reduce directory count.
+Applications must not import engine implementation files. The engine must not
+depend on applications, Ralph, developer-tool source paths, profiles, or
+maintenance tools. Executable runtime tools are explicit package dependencies.
+Ralph is deliberately independent because its transaction model and persisted
+state are distinct from workflow runs.
 
-## Import status
+## Public and private surfaces
 
-- orchestration: imported
-- Ralph: imported
-- coauthor trailer cleaner: imported
-- public profiles: publication lane defined; sanitized payload not imported yet
+`packages/engine/src/public/index.ts` is the sole JavaScript package boundary.
+Everything else below `packages/engine/src/` is private and may be reorganized.
+Versioned schemas are public data contracts. Repository workflow files are
+operator-editable configuration, while provider adapters and schedulers are
+engine implementation.
 
-## Thesis validation
+Generated integration content under
+`integrations/agent-adapters/content/<runner>/` must be changed through its
+templates or manifest. Runtime state and generated build output are never
+source dependencies.
 
-This page validates the architectural claim that module identity should remain
-explicit because coordination cost, maintenance burden, and source-of-truth
-confusion all worsen when unrelated runtimes are collapsed artificially.
+## Enforcement
 
-## Related dossiers
-
-- [CLM-008 coordination topology](../claims/dossiers/clm-008-coordination-topology.md)
-
-## Interpretation limits
-
-- explicit module boundaries can still impose integration overhead when shared
-  contracts are weak
-
-## Source note
-
-- [Conway 1968](../claims/bibliography.md#src-conway-1968)
-- [Brooks no silver bullet](../claims/bibliography.md#src-brooks-no-silver-bullet)
-- [Olson and Olson](../claims/bibliography.md#src-olson-olson)
-- [Herbsleb and Mockus](../claims/bibliography.md#src-herbsleb-mockus)
-- [Cataldo et al.](../claims/bibliography.md#src-cataldo-congruence)
-- [Amdahl 1967](../claims/bibliography.md#src-amdahl-1967)
-- [Anthropic effective agents](../claims/bibliography.md#src-anthropic-effective-agents)
+`scripts/src/check-architecture.ts` rejects retired roots, private engine imports
+from applications, engine imports of application, Ralph, dev-tool, integration,
+profile, tool or repository-script source (resolved relative paths and package
+names), engine imports against
+the layer order above, and JavaScript, shell, Python or jq source under
+`packages/`, `apps/`, `integrations/`, `profiles/`, `tools/` and `scripts/`
+(maintained source is TypeScript). `scripts/src/test-architecture.test.ts`
+covers the rules. Package exports
+and npm workspaces reinforce the same boundary. The repository verification
+gate runs this check with tests, static analysis, adapter synchronization, and
+documentation validation.

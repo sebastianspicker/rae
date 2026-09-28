@@ -17,10 +17,10 @@ evidence_links: ../reference/claims/claims-ledger.md
 
 Primary surfaces:
 
-- `./scripts/rae.sh agent run ...` for autonomous code, tests, docs, and gates
-- `./scripts/rae.sh orchestrate ...`
-- `./scripts/rae.sh workflow long-horizon ...`
-- `./scripts/rae.sh worktree ...`
+- `npm run rae -- agent run ...` for autonomous code, tests, docs, and gates
+- `npm run rae -- orchestrate ...`
+- `npm run rae -- workflow long-horizon ...`
+- `npm run rae -- worktree ...`
 
 ## Use Ralph when
 
@@ -30,8 +30,8 @@ Primary surfaces:
 
 Primary surfaces:
 
-- `./scripts/rae.sh ralph ...`
-- `./scripts/rae.sh workflow repo-audit ...`
+- `npm run rae -- ralph ...`
+- `npm run rae -- workflow repo-audit ...`
 
 ## Use a tool under `tools/` when
 
@@ -41,7 +41,7 @@ Primary surfaces:
 
 Primary surface today:
 
-- `./scripts/rae.sh hygiene coauthor-cleaner ...`
+- `npm run rae -- hygiene coauthor-cleaner ...`
 
 ## Escalation rule
 
@@ -65,9 +65,8 @@ The full reusable-asset rubric lives in
 
 ## Thesis validation
 
-This page operationalizes the repo thesis that operators should start with the
-smallest adequate execution structure and escalate only when complexity buys
-auditability, quality, or reproducibility.
+Start with the smallest execution structure that can do the job. Escalate only
+when the added complexity buys auditability, quality, or reproducibility.
 
 ## Related dossiers
 

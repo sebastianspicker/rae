@@ -1,0 +1,117 @@
+/* Modal dialogs and the toast slip. */
+
+.app-dialog {
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-top: 2px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--lift);
+}
+
+.app-dialog[open] {
+  animation: dialog-in var(--dur-base) var(--ease);
+}
+
+.app-dialog::backdrop {
+  background: var(--scrim);
+}
+
+.app-dialog--confirm {
+  width: min(30rem, calc(100vw - 2rem));
+  border-top-color: var(--fault);
+}
+
+.app-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5) var(--s3);
+  border-bottom: var(--hair);
+}
+
+.app-dialog__head h2 {
+  margin-top: var(--s1);
+  font-size: var(--t-xl);
+  font-weight: 500;
+}
+
+.app-dialog--confirm .eyebrow {
+  color: var(--fault);
+}
+
+.app-dialog__body {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s5);
+}
+
+.app-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s2);
+  padding: var(--s3) var(--s5);
+  border-top: var(--hair);
+  background: var(--bg);
+}
+
+.dialog-message {
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.app-dialog code {
+  padding: 0 0.25em;
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+.toast {
+  position: fixed;
+  right: var(--gutter);
+  bottom: var(--s5);
+  z-index: 50;
+  max-width: min(26rem, calc(100vw - 2rem));
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--fault);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--lift);
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  animation: dialog-in var(--dur-base) var(--ease);
+}
+
+.toast[data-tone="notice"] {
+  border-left-color: var(--proof);
+}
+
+@media (max-width: 47.5rem) {
+  .app-dialog__head,
+  .app-dialog__body,
+  .app-dialog__foot {
+    padding-inline: var(--s4);
+  }
+
+  .app-dialog .field-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .toast {
+    right: var(--s4);
+    left: var(--s4);
+    bottom: var(--s4);
+  }
+}

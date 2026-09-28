@@ -2,25 +2,25 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-07-24
-source_of_truth: packages/orchestration/scripts
+source_of_truth: packages/engine/src/cli
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Orchestration CLI
 
-The orchestration package has three command surfaces:
+The workflow engine has three command surfaces:
 
 | Surface | Entrypoint | Use |
 | --- | --- | --- |
-| Autonomous workflow | `./scripts/rae.sh agent ...` | Repository planning, changes, checks, and handoff |
-| Stage runner | `./scripts/rae.sh orchestrate ...` | Explicit pipeline state, stages, artifacts, gates, and summaries |
-| Worktree lifecycle | `./scripts/rae.sh worktree ...` | Isolated run creation, inspection, resume, and cleanup |
+| Autonomous workflow | `npm run rae -- agent ...` | Repository planning, changes, checks, and handoff |
+| Stage runner | `npm run rae -- orchestrate ...` | Explicit pipeline state, stages, artifacts, gates, and summaries |
+| Worktree lifecycle | `npm run rae -- worktree ...` | Isolated run creation, inspection, resume, and cleanup |
 
 ## Autonomous workflow
 
 ```bash
-./scripts/rae.sh agent doctor
-./scripts/rae.sh agent run \
+npm run rae -- agent doctor
+npm run rae -- agent run \
   --project-root /path/to/target-repository \
   --task "Implement the change and verify it"
 ```
@@ -29,15 +29,15 @@ The default run uses `.git/rae-worktrees/<run-id>`. `--through plan` stops
 before mutation. `--checkpoint-policy before-mutation-and-ship` pauses before
 the first writable stage and before the final release decision.
 
-Run `./scripts/rae.sh agent --help` for run, resume, status, stop, checkpoint,
+Run `npm run rae -- agent --help` for run, resume, status, stop, checkpoint,
 and event options.
 
 ## Stage runner
 
 ```bash
-./scripts/rae.sh orchestrate init
-./scripts/rae.sh orchestrate run-stage --run-id <run-id> --phase arm
-./scripts/rae.sh orchestrate summarize-run --run-id <run-id> --format markdown
+npm run rae -- orchestrate init
+npm run rae -- orchestrate run-stage --run-id <run-id> --phase arm
+npm run rae -- orchestrate summarize-run --run-id <run-id> --format markdown
 ```
 
 `run-stage` is a low-level artifact and gate interface. Without an input
@@ -62,7 +62,7 @@ release-readiness
 ## Worktree lifecycle
 
 ```bash
-./scripts/rae.sh worktree --help
+npm run rae -- worktree --help
 ```
 
 Worktree mode owns the `pipeline/<run-id>` branch, isolated checkout, run
@@ -71,10 +71,10 @@ state.
 
 ## Package references
 
-- [Package README](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/README.md)
-- [Runbook](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/RUNBOOK.md)
-- [Platform support](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/PLATFORMS.md)
-- [Repository map](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/docs/REPO_MAP.md)
+- [Package README](https://github.com/sebastianspicker/rae/blob/main/packages/engine/README.md)
+- [Runbook](https://github.com/sebastianspicker/rae/blob/main/docs/how-to/engine-runbook.md)
+- [Platform support](../engine/adapter-platforms.md)
+- [Repository map](../repo-map.md)
 
 ## Source note
 

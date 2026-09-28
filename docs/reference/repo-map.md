@@ -1,75 +1,34 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-07-19
+last_reviewed: 2026-08-27
 source_of_truth: README.md
 evidence_links: claims/evidence-index.md
 ---
 
-# Repo Map
+# Repository Map
 
-## Top-level surfaces
+| Path | Ownership |
+| --- | --- |
+| `apps/operator/` | Authenticated loopback operator interface |
+| `apps/platform/` | Independently packaged experimental hosted adapter |
+| `packages/engine/` | Workflow, run, provider, graph, and evidence runtime |
+| `packages/contracts/` | Versioned cross-boundary schemas |
+| `packages/ralph/` | Independent deterministic story loop |
+| `packages/dev-tools/` | Isolated quality, review, and trace tools |
+| `workflows/` | Repository-owned workflow definitions and recipes |
+| `integrations/agent-adapters/` | Adapter templates, generated guidance, and sync tooling |
+| `profiles/agent-environments/` | Sanitized portable environment publication lane |
+| `tools/` | Narrow repository-maintenance utilities |
+| `scripts/` | Umbrella CLI and repository-wide checks |
+| `docs/` | Maintained tutorials, how-to guides, reference, and rationale |
+| `tests/` | Umbrella behavior and repository-contract tests |
 
-- `docs/`
-  Scientific, operational, research, and governance documentation.
-- `packages/orchestration/`
-  Included phased orchestration runtime, contracts, adapters, and docs.
-- `packages/loops/ralph/`
-  Included Codex-only deterministic audit/lint/fix loop runtime and tests.
-- `tools/repo-hygiene/coauthor-trailer-cleaner/`
-  Included `3.0.0` transactional history-rewrite utility.
-- `profiles/agent-environments/`
-  Public profile publication lane with manifest v2 transaction and recovery.
-- `examples/`
-  Small end-to-end examples and starter layouts.
-- `scripts/`
-  Umbrella harness, autonomous-agent dispatch, verification, and metadata validation.
+The normal operator path begins at `npm run rae --`, which dispatches to the
+engine, operator, Ralph, or a narrow tool. Engine runs record local artifacts
+under `.pipeline/`; Ralph and supporting tools retain their own explicitly
+documented state. Validators decide whether those artifacts support a claim.
 
-## Reading rule
-
-Use package-local docs for command truth and umbrella docs for:
-
-- integration logic
-- shared workflow contracts
-- claim quality
-- publication constraints
-- primary umbrella entrypoints
-
-## Maintainer data flow
-
-Most repository flows follow the same path:
-
-1. An operator enters through `./scripts/rae.sh`.
-2. The umbrella harness dispatches to orchestration, Ralph, or a narrow
-   hygiene tool.
-3. The selected runtime writes local artifacts such as `.pipeline/` state,
-   command-result transcripts, checkpoints, or progress reports.
-4. Validators in `scripts/verify_repo.py` and package-local verification
-   scripts decide whether those artifacts are usable evidence.
-5. Claim-bearing docs link to observable evidence instead of asserting behavior
-   directly.
-
-Derived or mirrored surfaces should be edited at their declared source of
-truth. In particular, orchestration adapter files under
-`packages/orchestration/adapters/<runner>/` are derived from templates, while
-package-local runtime behavior stays under the package that owns it.
-
-## Thesis validation
-
-The repo map is an implementation-reference page. Its local truth comes from the
-tree itself, while the broader rationale for separating these surfaces comes
-from documentation, verification, and socio-technical systems literature.
-
-## Interpretation limits
-
-- directory layout explains responsibility, not empirical effectiveness by itself
-
-## Source note
-
-- [Diataxis](claims/bibliography.md#src-diataxis)
-- [Conway 1968](claims/bibliography.md#src-conway-1968)
-- [Brooks no silver bullet](claims/bibliography.md#src-brooks-no-silver-bullet)
-- [Olson and Olson](claims/bibliography.md#src-olson-olson)
-- [Herbsleb and Mockus](claims/bibliography.md#src-herbsleb-mockus)
-- [NIST GenAI Profile](claims/bibliography.md#src-nist-genai-profile)
-- [IEEE 1012](claims/bibliography.md#src-ieee-1012)
+Use package-local documentation for implementation detail and command truth.
+Use umbrella documentation for execution-model selection, cross-package
+contracts, claim quality, and release constraints.

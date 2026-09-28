@@ -29,11 +29,8 @@ Those belong to different layers: contract, gate, and release policy.
 
 ## Thesis validation
 
-This page operationalizes the formal distinction between artifact contracts,
-progression gates, and release approval.
-
-## Related dossiers
-
+Keep three things separate: a contract defines the shape of an artifact, a gate
+decides whether progression is acceptable, and a human owns release approval.
 
 ## Interpretation limits
 
