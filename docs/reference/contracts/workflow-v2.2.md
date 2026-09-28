@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/contracts/workflows/workflow-v2.2.schema.json
+source_of_truth: packages/contracts/v1/schemas/workflows/workflow-v2.2.schema.json
 evidence_links: ../claims/claims-ledger.md
 ---
 

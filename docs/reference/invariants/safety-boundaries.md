@@ -33,9 +33,9 @@ evidence_links: ../claims/claims-ledger.md
 
 ## Thesis validation
 
-This page validates the claim that safety comes from explicit boundaries on
-write scope, publication semantics, and destructive operations rather than from
-informal operator caution alone.
+Safety comes from explicit boundaries on write scope, publication, and
+destructive operations, not from informal operator caution. Boundaries can be
+tested; habits cannot.
 
 ## Related dossiers
 

@@ -8,7 +8,7 @@ evidence_links: ../../reference/claims/claims-ledger.md
 
 # Design Axioms
 
-These are working axioms for the umbrella, not claims of universal optimality.
+These are working axioms for RAE, not claims of universal optimality.
 
 ## Axiom 1
 

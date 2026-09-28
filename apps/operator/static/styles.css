@@ -1,0 +1,12 @@
+/*
+ * RAE operator entry stylesheet: the Instrument Record system.
+ * Modules only; do not add rules here. Tokens first, then components in page order.
+ */
+@import url("./css/tokens.css");
+@import url("./css/base.css");
+@import url("./css/shell.css");
+@import url("./css/catalogue.css");
+@import url("./css/record.css");
+@import url("./css/appendix.css");
+@import url("./css/workflows.css");
+@import url("./css/dialogs.css");

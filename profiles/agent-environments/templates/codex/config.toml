@@ -4,7 +4,7 @@ name = "rae-public"
 mode = "safe-default"
 
 [verification]
-command = "./scripts/verify.sh"
+command = "npm run verify"
 required = true
 
 [publishing]

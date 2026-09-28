@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+- Replaced Bash, Python and git-filter-repo execution with compiled TypeScript
+  and raw Git object plumbing. Preserved commit trees, parent order, identity
+  metadata, exact ref comparisons and leased pushes.
+- Added a prepared-phase HEAD attachment guard that preserves existing Git
+  reference-transaction hooks and retains recovery refs on concurrent switches.
+- Report signatures invalidated by rewritten commits.
+
 ## [3.0.0] - 2026-07-16
 
 ### Changed

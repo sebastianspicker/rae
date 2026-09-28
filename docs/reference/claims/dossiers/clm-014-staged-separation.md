@@ -33,8 +33,8 @@ and failure-analysis literature.
 
 - `docs/explanation/science/problem-statement.md`
 - `docs/explanation/science/drift-and-self-certification.md`
-- `packages/orchestration/scripts/pipeline/runner.mjs`
-- `packages/orchestration/scripts/pipeline/autonomous.mjs`
+- `packages/engine/src/cli/runner.ts`
+- `packages/engine/src/cli/autonomous.ts`
 
 ## External anchors
 

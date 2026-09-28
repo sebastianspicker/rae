@@ -1,0 +1,3123 @@
+{
+  "measuredOn": "2026-09-08",
+  "environment": {
+    "node": "26.8.1",
+    "platform": "macOS",
+    "architecture": "arm64"
+  },
+  "limitations": [
+    "Dirty local checkout; no release revision asserted",
+    "Catalog reference and worker measurements ran in separate processes at different times",
+    "Catalog reference event-loop delay values missed synchronous blocking and are not valid comparisons",
+    "Event benchmarks compare full replay and shared subscription algorithms in process, without HTTP",
+    "RSS high-water marks span the process lifetime; samples are not isolated",
+    "Linux and Node 24 benchmark measurements were not run"
+  ],
+  "datasets": [
+    {
+      "name": "catalog-reference-node26.jsonl",
+      "sha256": "1b0333170f3ac100a0dc2455a037f4edac4d5d3e89270eb2b25e43ba048df2ea",
+      "rows": [
+        {
+          "workload": "run-list-first-100",
+          "mode": "reference",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "architecture": "arm64",
+          "size": 100,
+          "iterations": 7,
+          "resultSha256": "62a13c4bf68cb54fdf9be0c0b21f6dcd95cd2b36cfbf5463661b63e7690b5294",
+          "latency": {
+            "minimumMs": 1693.7731659999997,
+            "p50Ms": 1901.0995000000003,
+            "p95Ms": 4477.823,
+            "maximumMs": 4477.823
+          },
+          "samples": [
+            {
+              "elapsedMs": 1821.790208,
+              "rssBeforeBytes": 67698688,
+              "rssAfterBytes": 70762496,
+              "processMaxRssBytes": 70762496,
+              "eventLoopDelayP95Ms": 1.244159,
+              "eventLoopDelayMaxMs": 1.244159,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 1693.7731659999997,
+              "rssBeforeBytes": 71172096,
+              "rssAfterBytes": 80658432,
+              "processMaxRssBytes": 80658432,
+              "eventLoopDelayP95Ms": 1.422335,
+              "eventLoopDelayMaxMs": 1.422335,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 1724.7599999999998,
+              "rssBeforeBytes": 80658432,
+              "rssAfterBytes": 81149952,
+              "processMaxRssBytes": 81149952,
+              "eventLoopDelayP95Ms": 1.173503,
+              "eventLoopDelayMaxMs": 1.173503,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 1901.0995000000003,
+              "rssBeforeBytes": 81412096,
+              "rssAfterBytes": 81412096,
+              "processMaxRssBytes": 81412096,
+              "eventLoopDelayP95Ms": 1.147903,
+              "eventLoopDelayMaxMs": 1.147903,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 3655.4408750000002,
+              "rssBeforeBytes": 81805312,
+              "rssAfterBytes": 81854464,
+              "processMaxRssBytes": 81854464,
+              "eventLoopDelayP95Ms": 1.176575,
+              "eventLoopDelayMaxMs": 1.176575,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 4477.823,
+              "rssBeforeBytes": 82231296,
+              "rssAfterBytes": 83394560,
+              "processMaxRssBytes": 83394560,
+              "eventLoopDelayP95Ms": 1.146879,
+              "eventLoopDelayMaxMs": 1.146879,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 2643.2842500000006,
+              "rssBeforeBytes": 83771392,
+              "rssAfterBytes": 83886080,
+              "processMaxRssBytes": 83886080,
+              "eventLoopDelayP95Ms": 1.164287,
+              "eventLoopDelayMaxMs": 1.164287,
+              "eventLoopUtilization": 1,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            }
+          ]
+        },
+        {
+          "workload": "run-list-first-100",
+          "mode": "reference",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "architecture": "arm64",
+          "size": 1000,
+          "iterations": 7,
+          "resultSha256": "c71ebfbed7570c7122d8d74dc1315bfe8f13144e3dfafaa7479e488cb1bffef4",
+          "latency": {
+            "minimumMs": 17532.233958000004,
+            "p50Ms": 18214.311415999997,
+            "p95Ms": 19445.137583000003,
+            "maximumMs": 19445.137583000003
+          },
+          "samples": [
+            {
+              "elapsedMs": 19230.340583,
+              "rssBeforeBytes": 84230144,
+              "rssAfterBytes": 84574208,
+              "processMaxRssBytes": 84574208,
+              "eventLoopDelayP95Ms": 1.142783,
+              "eventLoopDelayMaxMs": 1.142783,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            },
+            {
+              "elapsedMs": 17637.284167000005,
+              "rssBeforeBytes": 84901888,
+              "rssAfterBytes": 86327296,
+              "processMaxRssBytes": 86327296,
+              "eventLoopDelayP95Ms": 1.162239,
+              "eventLoopDelayMaxMs": 1.162239,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            },
+            {
+              "elapsedMs": 17532.233958000004,
+              "rssBeforeBytes": 86720512,
+              "rssAfterBytes": 88178688,
+              "processMaxRssBytes": 88178688,
+              "eventLoopDelayP95Ms": 1.178623,
+              "eventLoopDelayMaxMs": 1.178623,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            },
+            {
+              "elapsedMs": 18214.311415999997,
+              "rssBeforeBytes": 88555520,
+              "rssAfterBytes": 89997312,
+              "processMaxRssBytes": 89997312,
+              "eventLoopDelayP95Ms": 1.173503,
+              "eventLoopDelayMaxMs": 1.173503,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            },
+            {
+              "elapsedMs": 17799.690958000007,
+              "rssBeforeBytes": 90374144,
+              "rssAfterBytes": 108953600,
+              "processMaxRssBytes": 108953600,
+              "eventLoopDelayP95Ms": 2.099199,
+              "eventLoopDelayMaxMs": 2.099199,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            },
+            {
+              "elapsedMs": 19445.137583000003,
+              "rssBeforeBytes": 108953600,
+              "rssAfterBytes": 108527616,
+              "processMaxRssBytes": 109051904,
+              "eventLoopDelayP95Ms": 1.163263,
+              "eventLoopDelayMaxMs": 1.163263,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            },
+            {
+              "elapsedMs": 18699.064792000005,
+              "rssBeforeBytes": 108527616,
+              "rssAfterBytes": 101072896,
+              "processMaxRssBytes": 109051904,
+              "eventLoopDelayP95Ms": 1.164287,
+              "eventLoopDelayMaxMs": 1.164287,
+              "eventLoopUtilization": 1,
+              "bytesRead": 151938,
+              "readCalls": 2001,
+              "parseCalls": 2001
+            }
+          ]
+        },
+        {
+          "workload": "run-list-first-100",
+          "mode": "reference",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "architecture": "arm64",
+          "size": 10000,
+          "iterations": 7,
+          "resultSha256": "ab01ae683a430ffd8d2013274c1ec9b0af93d8d94af051cf0020e00d5e52e954",
+          "latency": {
+            "minimumMs": 185522.23866600008,
+            "p50Ms": 188857.98129200004,
+            "p95Ms": 236588.49600000004,
+            "maximumMs": 236588.49600000004
+          },
+          "samples": [
+            {
+              "elapsedMs": 186189.467,
+              "rssBeforeBytes": 100810752,
+              "rssAfterBytes": 111935488,
+              "processMaxRssBytes": 112656384,
+              "eventLoopDelayP95Ms": 1.931263,
+              "eventLoopDelayMaxMs": 1.931263,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            },
+            {
+              "elapsedMs": 236588.49600000004,
+              "rssBeforeBytes": 111984640,
+              "rssAfterBytes": 144031744,
+              "processMaxRssBytes": 144752640,
+              "eventLoopDelayP95Ms": 1.718271,
+              "eventLoopDelayMaxMs": 1.718271,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            },
+            {
+              "elapsedMs": 231224.24004200008,
+              "rssBeforeBytes": 144031744,
+              "rssAfterBytes": 139444224,
+              "processMaxRssBytes": 144752640,
+              "eventLoopDelayP95Ms": 1.430527,
+              "eventLoopDelayMaxMs": 1.430527,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            },
+            {
+              "elapsedMs": 200540.05074999994,
+              "rssBeforeBytes": 139821056,
+              "rssAfterBytes": 143572992,
+              "processMaxRssBytes": 144752640,
+              "eventLoopDelayP95Ms": 1.485823,
+              "eventLoopDelayMaxMs": 1.485823,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            },
+            {
+              "elapsedMs": 187516.5024169999,
+              "rssBeforeBytes": 143572992,
+              "rssAfterBytes": 143425536,
+              "processMaxRssBytes": 144752640,
+              "eventLoopDelayP95Ms": 1.446911,
+              "eventLoopDelayMaxMs": 1.446911,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            },
+            {
+              "elapsedMs": 185522.23866600008,
+              "rssBeforeBytes": 143425536,
+              "rssAfterBytes": 143360000,
+              "processMaxRssBytes": 144752640,
+              "eventLoopDelayP95Ms": 1.986559,
+              "eventLoopDelayMaxMs": 1.986559,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            },
+            {
+              "elapsedMs": 188857.98129200004,
+              "rssBeforeBytes": 143360000,
+              "rssAfterBytes": 143638528,
+              "processMaxRssBytes": 144752640,
+              "eventLoopDelayP95Ms": 1.480703,
+              "eventLoopDelayMaxMs": 1.480703,
+              "eventLoopUtilization": 1,
+              "bytesRead": 1537938,
+              "readCalls": 20001,
+              "parseCalls": 20001
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "catalog-worker-node26.jsonl",
+      "sha256": "b5e1fd69cf1396e3f1acaee585ebd9890b9a6d4a7f2bccd41a3d8bb4f70364b7",
+      "rows": [
+        {
+          "workload": "run-list-first-100",
+          "mode": "compiled",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "architecture": "arm64",
+          "size": 100,
+          "iterations": 7,
+          "resultSha256": "62a13c4bf68cb54fdf9be0c0b21f6dcd95cd2b36cfbf5463661b63e7690b5294",
+          "latency": {
+            "minimumMs": 6689.038124999999,
+            "p50Ms": 6957.944791000001,
+            "p95Ms": 7311.419583,
+            "maximumMs": 7311.419583
+          },
+          "samples": [
+            {
+              "elapsedMs": 7311.419583,
+              "rssBeforeBytes": 68534272,
+              "rssAfterBytes": 109641728,
+              "processMaxRssBytes": 109641728,
+              "eventLoopDelayP95Ms": 1.160191,
+              "eventLoopDelayMaxMs": 1.911807,
+              "eventLoopUtilization": 0.014033124769548901,
+              "timerLatenessMaxMs": 0.809915999999248,
+              "bytesRead": 21428,
+              "readCalls": 301,
+              "parseCalls": 301
+            },
+            {
+              "elapsedMs": 6957.944791000001,
+              "rssBeforeBytes": 109854720,
+              "rssAfterBytes": 111886336,
+              "processMaxRssBytes": 111886336,
+              "eventLoopDelayP95Ms": 1.153023,
+              "eventLoopDelayMaxMs": 1.213439,
+              "eventLoopUtilization": 0.012521933242261774,
+              "timerLatenessMaxMs": 0.8045419999998558,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6964.727333000001,
+              "rssBeforeBytes": 111935488,
+              "rssAfterBytes": 112377856,
+              "processMaxRssBytes": 112377856,
+              "eventLoopDelayP95Ms": 1.154047,
+              "eventLoopDelayMaxMs": 1.276927,
+              "eventLoopUtilization": 0.012653841932739513,
+              "timerLatenessMaxMs": 0.8400419999998121,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6984.156332999999,
+              "rssBeforeBytes": 112771072,
+              "rssAfterBytes": 106201088,
+              "processMaxRssBytes": 112869376,
+              "eventLoopDelayP95Ms": 1.151999,
+              "eventLoopDelayMaxMs": 1.497087,
+              "eventLoopUtilization": 0.012387854507577309,
+              "timerLatenessMaxMs": 0.7983340000027965,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6775.2568329999995,
+              "rssBeforeBytes": 106463232,
+              "rssAfterBytes": 107249664,
+              "processMaxRssBytes": 112869376,
+              "eventLoopDelayP95Ms": 1.149951,
+              "eventLoopDelayMaxMs": 1.323007,
+              "eventLoopUtilization": 0.011955062806605351,
+              "timerLatenessMaxMs": 0.7774999999965075,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6743.394708,
+              "rssBeforeBytes": 107249664,
+              "rssAfterBytes": 106037248,
+              "processMaxRssBytes": 112869376,
+              "eventLoopDelayP95Ms": 1.149951,
+              "eventLoopDelayMaxMs": 1.755135,
+              "eventLoopUtilization": 0.011943175809687836,
+              "timerLatenessMaxMs": 0.8770839999997406,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6689.038124999999,
+              "rssBeforeBytes": 106037248,
+              "rssAfterBytes": 106348544,
+              "processMaxRssBytes": 112869376,
+              "eventLoopDelayP95Ms": 1.149951,
+              "eventLoopDelayMaxMs": 1.399807,
+              "eventLoopUtilization": 0.01189910454142963,
+              "timerLatenessMaxMs": 0.9073329999955604,
+              "bytesRead": 15138,
+              "readCalls": 201,
+              "parseCalls": 201
+            }
+          ]
+        },
+        {
+          "workload": "run-list-first-100",
+          "mode": "compiled",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "architecture": "arm64",
+          "size": 1000,
+          "iterations": 7,
+          "resultSha256": "c71ebfbed7570c7122d8d74dc1315bfe8f13144e3dfafaa7479e488cb1bffef4",
+          "latency": {
+            "minimumMs": 6750.535250000001,
+            "p50Ms": 6997.62004200001,
+            "p95Ms": 7923.378459,
+            "maximumMs": 7923.378459
+          },
+          "samples": [
+            {
+              "elapsedMs": 6894.609583999998,
+              "rssBeforeBytes": 101777408,
+              "rssAfterBytes": 108134400,
+              "processMaxRssBytes": 112869376,
+              "eventLoopDelayP95Ms": 1.270783,
+              "eventLoopDelayMaxMs": 2.701311,
+              "eventLoopUtilization": 0.012027140803445564,
+              "timerLatenessMaxMs": 1.151624999998603,
+              "bytesRead": 79248,
+              "readCalls": 1201,
+              "parseCalls": 1201
+            },
+            {
+              "elapsedMs": 6750.535250000001,
+              "rssBeforeBytes": 108134400,
+              "rssAfterBytes": 121044992,
+              "processMaxRssBytes": 121044992,
+              "eventLoopDelayP95Ms": 1.274879,
+              "eventLoopDelayMaxMs": 1.417215,
+              "eventLoopUtilization": 0.010970037191649237,
+              "timerLatenessMaxMs": 1.1633750000037253,
+              "bytesRead": 15358,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7282.268375,
+              "rssBeforeBytes": 121110528,
+              "rssAfterBytes": 122126336,
+              "processMaxRssBytes": 122126336,
+              "eventLoopDelayP95Ms": 1.277951,
+              "eventLoopDelayMaxMs": 2.299903,
+              "eventLoopUtilization": 0.011520058695102014,
+              "timerLatenessMaxMs": 1.1925840000039898,
+              "bytesRead": 15358,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7319.798167000001,
+              "rssBeforeBytes": 122372096,
+              "rssAfterBytes": 123256832,
+              "processMaxRssBytes": 123256832,
+              "eventLoopDelayP95Ms": 1.278975,
+              "eventLoopDelayMaxMs": 2.820095,
+              "eventLoopUtilization": 0.01199230888403178,
+              "timerLatenessMaxMs": 1.472790999992867,
+              "bytesRead": 15358,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6997.62004200001,
+              "rssBeforeBytes": 123535360,
+              "rssAfterBytes": 124682240,
+              "processMaxRssBytes": 124682240,
+              "eventLoopDelayP95Ms": 1.275903,
+              "eventLoopDelayMaxMs": 2.465791,
+              "eventLoopUtilization": 0.011163672452959643,
+              "timerLatenessMaxMs": 2.090416000006371,
+              "bytesRead": 15358,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7923.378459,
+              "rssBeforeBytes": 124682240,
+              "rssAfterBytes": 125648896,
+              "processMaxRssBytes": 125648896,
+              "eventLoopDelayP95Ms": 1.308671,
+              "eventLoopDelayMaxMs": 7.630847,
+              "eventLoopUtilization": 0.023228644125115685,
+              "timerLatenessMaxMs": 4.159792000005837,
+              "bytesRead": 15358,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6886.57720900001,
+              "rssBeforeBytes": 126271488,
+              "rssAfterBytes": 127418368,
+              "processMaxRssBytes": 127418368,
+              "eventLoopDelayP95Ms": 1.274879,
+              "eventLoopDelayMaxMs": 2.103295,
+              "eventLoopUtilization": 0.010883102831424822,
+              "timerLatenessMaxMs": 1.1992079999909038,
+              "bytesRead": 15358,
+              "readCalls": 201,
+              "parseCalls": 201
+            }
+          ]
+        },
+        {
+          "workload": "run-list-first-100",
+          "mode": "compiled",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "architecture": "arm64",
+          "size": 10000,
+          "iterations": 7,
+          "resultSha256": "ab01ae683a430ffd8d2013274c1ec9b0af93d8d94af051cf0020e00d5e52e954",
+          "latency": {
+            "minimumMs": 6986.556958000001,
+            "p50Ms": 7515.564874999996,
+            "p95Ms": 7770.426458000002,
+            "maximumMs": 7770.426458000002
+          },
+          "samples": [
+            {
+              "elapsedMs": 7515.564874999996,
+              "rssBeforeBytes": 123142144,
+              "rssAfterBytes": 163282944,
+              "processMaxRssBytes": 164151296,
+              "eventLoopDelayP95Ms": 1.276927,
+              "eventLoopDelayMaxMs": 1.495039,
+              "eventLoopUtilization": 0.011504226023823524,
+              "timerLatenessMaxMs": 1.149583000005805,
+              "bytesRead": 664448,
+              "readCalls": 10201,
+              "parseCalls": 10201
+            },
+            {
+              "elapsedMs": 7709.938666999995,
+              "rssBeforeBytes": 163561472,
+              "rssAfterBytes": 171950080,
+              "processMaxRssBytes": 172244992,
+              "eventLoopDelayP95Ms": 1.279999,
+              "eventLoopDelayMaxMs": 4.874239,
+              "eventLoopUtilization": 0.012136709078564721,
+              "timerLatenessMaxMs": 1.4762079999927664,
+              "bytesRead": 15558,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7770.426458000002,
+              "rssBeforeBytes": 172097536,
+              "rssAfterBytes": 175865856,
+              "processMaxRssBytes": 175865856,
+              "eventLoopDelayP95Ms": 1.283071,
+              "eventLoopDelayMaxMs": 1.345535,
+              "eventLoopUtilization": 0.012685777688104522,
+              "timerLatenessMaxMs": 1.2218330000032438,
+              "bytesRead": 15558,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7730.518167000002,
+              "rssBeforeBytes": 176128000,
+              "rssAfterBytes": 173359104,
+              "processMaxRssBytes": 176996352,
+              "eventLoopDelayP95Ms": 1.282047,
+              "eventLoopDelayMaxMs": 1.865727,
+              "eventLoopUtilization": 0.012471029822912476,
+              "timerLatenessMaxMs": 1.2232919999951264,
+              "bytesRead": 15558,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7052.837583000015,
+              "rssBeforeBytes": 173375488,
+              "rssAfterBytes": 171802624,
+              "processMaxRssBytes": 176996352,
+              "eventLoopDelayP95Ms": 1.274879,
+              "eventLoopDelayMaxMs": 1.323007,
+              "eventLoopUtilization": 0.01086705500741958,
+              "timerLatenessMaxMs": 1.1519169999810401,
+              "bytesRead": 15558,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 6986.556958000001,
+              "rssBeforeBytes": 171802624,
+              "rssAfterBytes": 168673280,
+              "processMaxRssBytes": 176996352,
+              "eventLoopDelayP95Ms": 1.274879,
+              "eventLoopDelayMaxMs": 1.851391,
+              "eventLoopUtilization": 0.010831461052855406,
+              "timerLatenessMaxMs": 1.2191250000032596,
+              "bytesRead": 15558,
+              "readCalls": 201,
+              "parseCalls": 201
+            },
+            {
+              "elapsedMs": 7205.9573329999985,
+              "rssBeforeBytes": 168951808,
+              "rssAfterBytes": 171147264,
+              "processMaxRssBytes": 176996352,
+              "eventLoopDelayP95Ms": 1.276927,
+              "eventLoopDelayMaxMs": 5.373951,
+              "eventLoopUtilization": 0.015130446401598814,
+              "timerLatenessMaxMs": 4.149582999991253,
+              "bytesRead": 15558,
+              "readCalls": 201,
+              "parseCalls": 201
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "event-streams-node26.jsonl",
+      "sha256": "27ec8c703d2d6741087ed7db4520f9c9b612d989787006f166397022c7ee5f1b",
+      "rows": [
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 1000,
+          "clients": 100,
+          "cohorts": 1,
+          "iterations": 7,
+          "resultSha256": "d37e6aabd6184ec4336e6ccf5b9f964c5cbc69403af90d3afca0ecb6918afa96",
+          "reference": {
+            "latency": {
+              "minimumMs": 88.04083400000002,
+              "p50Ms": 88.69283300000006,
+              "p95Ms": 91.316792,
+              "maximumMs": 91.316792
+            },
+            "samples": [
+              {
+                "elapsedMs": 91.316792,
+                "rssBeforeBytes": 67321856,
+                "rssAfterBytes": 79855616,
+                "processMaxRssBytes": 81149952,
+                "eventLoopDelayP95Ms": 2.032639,
+                "eventLoopDelayMaxMs": 2.032639,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 86.518333,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 89.45179200000001,
+                "rssBeforeBytes": 80592896,
+                "rssAfterBytes": 100220928,
+                "processMaxRssBytes": 101777408,
+                "eventLoopDelayP95Ms": 2.023423,
+                "eventLoopDelayMaxMs": 2.023423,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 84.56941699999999,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 88.04083400000002,
+                "rssBeforeBytes": 100368384,
+                "rssAfterBytes": 101662720,
+                "processMaxRssBytes": 101777408,
+                "eventLoopDelayP95Ms": 1.298431,
+                "eventLoopDelayMaxMs": 1.298431,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 83.088709,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 88.65241699999979,
+                "rssBeforeBytes": 102219776,
+                "rssAfterBytes": 103497728,
+                "processMaxRssBytes": 103497728,
+                "eventLoopDelayP95Ms": 1.289215,
+                "eventLoopDelayMaxMs": 1.289215,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 83.686917,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 88.04354200000012,
+                "rssBeforeBytes": 103989248,
+                "rssAfterBytes": 105594880,
+                "processMaxRssBytes": 105594880,
+                "eventLoopDelayP95Ms": 1.352703,
+                "eventLoopDelayMaxMs": 1.352703,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 83.12791700000002,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 88.69283300000006,
+                "rssBeforeBytes": 106135552,
+                "rssAfterBytes": 108052480,
+                "processMaxRssBytes": 108052480,
+                "eventLoopDelayP95Ms": 1.299455,
+                "eventLoopDelayMaxMs": 1.299455,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 83.71974999999998,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 89.28166599999986,
+                "rssBeforeBytes": 108625920,
+                "rssAfterBytes": 111149056,
+                "processMaxRssBytes": 111149056,
+                "eventLoopDelayP95Ms": 1.299455,
+                "eventLoopDelayMaxMs": 1.299455,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 84.30845799999997,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 253.44604200000026,
+              "p50Ms": 255.65374999999995,
+              "p95Ms": 271.103709,
+              "maximumMs": 271.103709
+            },
+            "samples": [
+              {
+                "elapsedMs": 271.103709,
+                "rssBeforeBytes": 79855616,
+                "rssAfterBytes": 80297984,
+                "processMaxRssBytes": 81149952,
+                "eventLoopDelayP95Ms": 61.243391,
+                "eventLoopDelayMaxMs": 61.243391,
+                "eventLoopUtilization": 0.9813631973418943,
+                "timerLatenessMaxMs": 57.77249999999998,
+                "bytesRead": 309780,
+                "readCalls": 2,
+                "parseCalls": 1000
+              },
+              {
+                "elapsedMs": 264.377666,
+                "rssBeforeBytes": 100220928,
+                "rssAfterBytes": 100352000,
+                "processMaxRssBytes": 101777408,
+                "eventLoopDelayP95Ms": 54.558719,
+                "eventLoopDelayMaxMs": 54.558719,
+                "eventLoopUtilization": 0.9809039334419721,
+                "timerLatenessMaxMs": 49.58829100000003,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 256.1802919999999,
+                "rssBeforeBytes": 101728256,
+                "rssAfterBytes": 101842944,
+                "processMaxRssBytes": 101842944,
+                "eventLoopDelayP95Ms": 52.592639,
+                "eventLoopDelayMaxMs": 52.592639,
+                "eventLoopUtilization": 0.9752967826073219,
+                "timerLatenessMaxMs": 49.16679199999999,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 253.63654100000008,
+                "rssBeforeBytes": 103563264,
+                "rssAfterBytes": 103612416,
+                "processMaxRssBytes": 103612416,
+                "eventLoopDelayP95Ms": 52.559871,
+                "eventLoopDelayMaxMs": 52.559871,
+                "eventLoopUtilization": 0.9800704978414474,
+                "timerLatenessMaxMs": 47.66662500000007,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 255.65374999999995,
+                "rssBeforeBytes": 105660416,
+                "rssAfterBytes": 105758720,
+                "processMaxRssBytes": 105758720,
+                "eventLoopDelayP95Ms": 53.084159,
+                "eventLoopDelayMaxMs": 53.084159,
+                "eventLoopUtilization": 0.9752103344840529,
+                "timerLatenessMaxMs": 49.48979200000008,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 253.44604200000026,
+                "rssBeforeBytes": 108118016,
+                "rssAfterBytes": 108249088,
+                "processMaxRssBytes": 108249088,
+                "eventLoopDelayP95Ms": 51.675135,
+                "eventLoopDelayMaxMs": 51.675135,
+                "eventLoopUtilization": 0.9750685257114147,
+                "timerLatenessMaxMs": 48.094334000000345,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 253.7667080000001,
+                "rssBeforeBytes": 111214592,
+                "rssAfterBytes": 111247360,
+                "processMaxRssBytes": 111247360,
+                "eventLoopDelayP95Ms": 51.314687,
+                "eventLoopDelayMaxMs": 51.314687,
+                "eventLoopUtilization": 0.980012046795705,
+                "timerLatenessMaxMs": 48.87912499999993,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        },
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 1000,
+          "clients": 100,
+          "cohorts": 10,
+          "iterations": 7,
+          "resultSha256": "2c5cfdb1306fac9b8c3cad356bdbe56d34324bd8b2a3460b9a81f0bfeefd4adb",
+          "reference": {
+            "latency": {
+              "minimumMs": 73.10245799999939,
+              "p50Ms": 73.53533299999981,
+              "p95Ms": 75.61912500000017,
+              "maximumMs": 75.61912500000017
+            },
+            "samples": [
+              {
+                "elapsedMs": 74.9258749999999,
+                "rssBeforeBytes": 111689728,
+                "rssAfterBytes": 144834560,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.906687,
+                "eventLoopDelayMaxMs": 1.906687,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.04470900000024,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 74.35604200000034,
+                "rssBeforeBytes": 144932864,
+                "rssAfterBytes": 145555456,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.300479,
+                "eventLoopDelayMaxMs": 1.300479,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 69.38979199999994,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 75.61912500000017,
+                "rssBeforeBytes": 145571840,
+                "rssAfterBytes": 145883136,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.386495,
+                "eventLoopDelayMaxMs": 1.386495,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.73641599999974,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 73.19695799999954,
+                "rssBeforeBytes": 147062784,
+                "rssAfterBytes": 147390464,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.364991,
+                "eventLoopDelayMaxMs": 1.364991,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 68.29516599999988,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 73.10245799999939,
+                "rssBeforeBytes": 147406848,
+                "rssAfterBytes": 147406848,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.370111,
+                "eventLoopDelayMaxMs": 1.370111,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 68.20341699999881,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 73.53533299999981,
+                "rssBeforeBytes": 147488768,
+                "rssAfterBytes": 147800064,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.368063,
+                "eventLoopDelayMaxMs": 1.368063,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 68.6344169999993,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 73.41204100000141,
+                "rssBeforeBytes": 147947520,
+                "rssAfterBytes": 148570112,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 1.367039,
+                "eventLoopDelayMaxMs": 1.367039,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 68.50833299999977,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 1377.0857910000004,
+              "p50Ms": 1384.1895409999997,
+              "p95Ms": 1400.848833,
+              "maximumMs": 1400.848833
+            },
+            "samples": [
+              {
+                "elapsedMs": 1377.0857910000004,
+                "rssBeforeBytes": 144834560,
+                "rssAfterBytes": 144932864,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 459.276287,
+                "eventLoopDelayMaxMs": 459.276287,
+                "eventLoopUtilization": 0.9954214258039392,
+                "timerLatenessMaxMs": 455.71637499999997,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 1379.4384579999996,
+                "rssBeforeBytes": 145555456,
+                "rssAfterBytes": 145571840,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 462.946303,
+                "eventLoopDelayMaxMs": 462.946303,
+                "eventLoopUtilization": 0.9954222147192047,
+                "timerLatenessMaxMs": 459.3035,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 1383.3583749999998,
+                "rssBeforeBytes": 145883136,
+                "rssAfterBytes": 147062784,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 461.111295,
+                "eventLoopDelayMaxMs": 461.111295,
+                "eventLoopUtilization": 0.9954245844918715,
+                "timerLatenessMaxMs": 458.6845000000003,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 1384.1895409999997,
+                "rssBeforeBytes": 147390464,
+                "rssAfterBytes": 147406848,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 461.373439,
+                "eventLoopDelayMaxMs": 461.373439,
+                "eventLoopUtilization": 0.9954248729768959,
+                "timerLatenessMaxMs": 457.54212499999994,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 1385.0881659999995,
+                "rssBeforeBytes": 147406848,
+                "rssAfterBytes": 147423232,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 461.897727,
+                "eventLoopDelayMaxMs": 461.897727,
+                "eventLoopUtilization": 0.9963453775807267,
+                "timerLatenessMaxMs": 458.0393330000006,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 1391.589,
+                "rssBeforeBytes": 147800064,
+                "rssAfterBytes": 147881984,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 462.946303,
+                "eventLoopDelayMaxMs": 462.946303,
+                "eventLoopUtilization": 0.9954632441465044,
+                "timerLatenessMaxMs": 459.2893749999985,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 1400.848833,
+                "rssBeforeBytes": 148570112,
+                "rssAfterBytes": 137707520,
+                "processMaxRssBytes": 152616960,
+                "eventLoopDelayP95Ms": 466.354175,
+                "eventLoopDelayMaxMs": 466.354175,
+                "eventLoopUtilization": 0.9954777059065393,
+                "timerLatenessMaxMs": 462.7534579999992,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        },
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 10000,
+          "clients": 100,
+          "cohorts": 1,
+          "iterations": 7,
+          "resultSha256": "c5365bc9bf4950f46dc963b3cbcbfdff9efd8d6b4ca97266782dd04da21c8681",
+          "reference": {
+            "latency": {
+              "minimumMs": 930.0587080000005,
+              "p50Ms": 934.0403750000005,
+              "p95Ms": 937.9399170000033,
+              "maximumMs": 937.9399170000033
+            },
+            "samples": [
+              {
+                "elapsedMs": 930.6668750000008,
+                "rssBeforeBytes": 137822208,
+                "rssAfterBytes": 186695680,
+                "processMaxRssBytes": 186990592,
+                "eventLoopDelayP95Ms": 1.315839,
+                "eventLoopDelayMaxMs": 1.315839,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 925.7168750000001,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 930.0587080000005,
+                "rssBeforeBytes": 190496768,
+                "rssAfterBytes": 194084864,
+                "processMaxRssBytes": 194084864,
+                "eventLoopDelayP95Ms": 1.317887,
+                "eventLoopDelayMaxMs": 1.317887,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 925.1054579999982,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 935.5888330000016,
+                "rssBeforeBytes": 194150400,
+                "rssAfterBytes": 197689344,
+                "processMaxRssBytes": 197689344,
+                "eventLoopDelayP95Ms": 1.638399,
+                "eventLoopDelayMaxMs": 1.638399,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 930.9588750000003,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 934.0403750000005,
+                "rssBeforeBytes": 197705728,
+                "rssAfterBytes": 196575232,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 1.289215,
+                "eventLoopDelayMaxMs": 1.289215,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 929.4746250000026,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 937.9399170000033,
+                "rssBeforeBytes": 196608000,
+                "rssAfterBytes": 196608000,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 1.642495,
+                "eventLoopDelayMaxMs": 1.642495,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 933.3082500000019,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 934.3812079999989,
+                "rssBeforeBytes": 196608000,
+                "rssAfterBytes": 196608000,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 1.645567,
+                "eventLoopDelayMaxMs": 1.645567,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 929.7546250000014,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 932.6813750000001,
+                "rssBeforeBytes": 196624384,
+                "rssAfterBytes": 197410816,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 1.624063,
+                "eventLoopDelayMaxMs": 1.624063,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 928.0331669999941,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 2734.8312079999996,
+              "p50Ms": 2756.2056249999987,
+              "p95Ms": 2777.396499999999,
+              "maximumMs": 2777.396499999999
+            },
+            "samples": [
+              {
+                "elapsedMs": 2748.175666000001,
+                "rssBeforeBytes": 187072512,
+                "rssAfterBytes": 190382080,
+                "processMaxRssBytes": 190382080,
+                "eventLoopDelayP95Ms": 56.131583,
+                "eventLoopDelayMaxMs": 71.499775,
+                "eventLoopUtilization": 0.9792680529916938,
+                "timerLatenessMaxMs": 67.22125000000051,
+                "bytesRead": 3117780,
+                "readCalls": 2,
+                "parseCalls": 10000
+              },
+              {
+                "elapsedMs": 2734.8312079999996,
+                "rssBeforeBytes": 194084864,
+                "rssAfterBytes": 194150400,
+                "processMaxRssBytes": 194150400,
+                "eventLoopDelayP95Ms": 55.607295,
+                "eventLoopDelayMaxMs": 58.425343,
+                "eventLoopUtilization": 0.9778047162030219,
+                "timerLatenessMaxMs": 53.89420799999789,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 2741.679458999999,
+                "rssBeforeBytes": 197689344,
+                "rssAfterBytes": 197705728,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 56.295423,
+                "eventLoopDelayMaxMs": 58.064895,
+                "eventLoopUtilization": 0.9787913499405361,
+                "timerLatenessMaxMs": 54.42329199999949,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 2777.396499999999,
+                "rssBeforeBytes": 196575232,
+                "rssAfterBytes": 196608000,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 58.327039,
+                "eventLoopDelayMaxMs": 61.997055,
+                "eventLoopUtilization": 0.9781329622142184,
+                "timerLatenessMaxMs": 57.45799999999872,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 2756.2056249999987,
+                "rssBeforeBytes": 196608000,
+                "rssAfterBytes": 196608000,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 56.754175,
+                "eventLoopDelayMaxMs": 57.442303,
+                "eventLoopUtilization": 0.9784342715390821,
+                "timerLatenessMaxMs": 55.01049999999668,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 2757.7448330000043,
+                "rssBeforeBytes": 196608000,
+                "rssAfterBytes": 196624384,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 56.721407,
+                "eventLoopDelayMaxMs": 59.244543,
+                "eventLoopUtilization": 0.9798195836176332,
+                "timerLatenessMaxMs": 55.639250000000175,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 2765.313291999999,
+                "rssBeforeBytes": 197410816,
+                "rssAfterBytes": 189939712,
+                "processMaxRssBytes": 197705728,
+                "eventLoopDelayP95Ms": 56.459263,
+                "eventLoopDelayMaxMs": 57.999359,
+                "eventLoopUtilization": 0.9784936673493988,
+                "timerLatenessMaxMs": 55.63270800000464,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        },
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 10000,
+          "clients": 100,
+          "cohorts": 10,
+          "iterations": 7,
+          "resultSha256": "69339b77409f7ec087dd88ee3c3513603d297735b74386f3891c8edbea25806b",
+          "reference": {
+            "latency": {
+              "minimumMs": 773.6627910000025,
+              "p50Ms": 779.6252080000122,
+              "p95Ms": 781.1006250000064,
+              "maximumMs": 781.1006250000064
+            },
+            "samples": [
+              {
+                "elapsedMs": 773.6627910000025,
+                "rssBeforeBytes": 190070784,
+                "rssAfterBytes": 215056384,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.691647,
+                "eventLoopDelayMaxMs": 1.691647,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 768.7953330000018,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 774.4515000000029,
+                "rssBeforeBytes": 186204160,
+                "rssAfterBytes": 204095488,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.319935,
+                "eventLoopDelayMaxMs": 1.319935,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 769.4910000000018,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 779.8902079999971,
+                "rssBeforeBytes": 199213056,
+                "rssAfterBytes": 203669504,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.191935,
+                "eventLoopDelayMaxMs": 1.191935,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 774.932667000001,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 779.6252080000122,
+                "rssBeforeBytes": 174505984,
+                "rssAfterBytes": 204455936,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.188863,
+                "eventLoopDelayMaxMs": 1.188863,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 774.6676660000085,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 781.1006250000064,
+                "rssBeforeBytes": 199770112,
+                "rssAfterBytes": 203964416,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.190911,
+                "eventLoopDelayMaxMs": 1.190911,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 776.143333,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 777.5357919999951,
+                "rssBeforeBytes": 174997504,
+                "rssAfterBytes": 201261056,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.228799,
+                "eventLoopDelayMaxMs": 1.228799,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 772.6719589999993,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 779.8347500000091,
+                "rssBeforeBytes": 195493888,
+                "rssAfterBytes": 200736768,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 1.197055,
+                "eventLoopDelayMaxMs": 1.197055,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 774.9584160000086,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 13129.362207999999,
+              "p50Ms": 13768.793250000002,
+              "p95Ms": 14210.895124999995,
+              "maximumMs": 14210.895124999995
+            },
+            "samples": [
+              {
+                "elapsedMs": 13129.362207999999,
+                "rssBeforeBytes": 215056384,
+                "rssAfterBytes": 186204160,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 476.053503,
+                "eventLoopDelayMaxMs": 484.179967,
+                "eventLoopUtilization": 0.9956655962114034,
+                "timerLatenessMaxMs": 480.5821250000008,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 13486.123709000007,
+                "rssBeforeBytes": 204095488,
+                "rssAfterBytes": 199213056,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 484.179967,
+                "eventLoopDelayMaxMs": 500.695039,
+                "eventLoopUtilization": 0.9960070984655196,
+                "timerLatenessMaxMs": 494.8507909999971,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 13768.793250000002,
+                "rssBeforeBytes": 203669504,
+                "rssAfterBytes": 174505984,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 505.413631,
+                "eventLoopDelayMaxMs": 511.705087,
+                "eventLoopUtilization": 0.9961891982643105,
+                "timerLatenessMaxMs": 507.99041700000816,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 13910.412874999995,
+                "rssBeforeBytes": 204455936,
+                "rssAfterBytes": 199770112,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 498.597887,
+                "eventLoopDelayMaxMs": 524.550143,
+                "eventLoopUtilization": 0.9960686454902933,
+                "timerLatenessMaxMs": 519.3729580000072,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 13495.361708000011,
+                "rssBeforeBytes": 203964416,
+                "rssAfterBytes": 174997504,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 490.209279,
+                "eventLoopDelayMaxMs": 498.597887,
+                "eventLoopUtilization": 0.9959550881199798,
+                "timerLatenessMaxMs": 494.73245800001314,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 14210.895124999995,
+                "rssBeforeBytes": 201261056,
+                "rssAfterBytes": 195493888,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 490.471423,
+                "eventLoopDelayMaxMs": 538.968063,
+                "eventLoopUtilization": 0.9960765626129291,
+                "timerLatenessMaxMs": 533.8814580000035,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 14019.728667000018,
+                "rssBeforeBytes": 200736768,
+                "rssAfterBytes": 194707456,
+                "processMaxRssBytes": 215056384,
+                "eventLoopDelayP95Ms": 499.384319,
+                "eventLoopDelayMaxMs": 507.510783,
+                "eventLoopUtilization": 0.9960179240367498,
+                "timerLatenessMaxMs": 502.29945900000166,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "event-streams-batched-node26.jsonl",
+      "sha256": "da4a9421afcaba9a348ba448cd69fa58100f770dac88e50d0f4958ba3e6e705b",
+      "rows": [
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 1000,
+          "clients": 100,
+          "cohorts": 1,
+          "iterations": 7,
+          "resultSha256": "d37e6aabd6184ec4336e6ccf5b9f964c5cbc69403af90d3afca0ecb6918afa96",
+          "reference": {
+            "latency": {
+              "minimumMs": 89.99812500000002,
+              "p50Ms": 91.39558299999999,
+              "p95Ms": 95.39658299999999,
+              "maximumMs": 95.39658299999999
+            },
+            "samples": [
+              {
+                "elapsedMs": 95.39658299999999,
+                "rssBeforeBytes": 67289088,
+                "rssAfterBytes": 79495168,
+                "processMaxRssBytes": 81969152,
+                "eventLoopDelayP95Ms": 1.313791,
+                "eventLoopDelayMaxMs": 1.313791,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 90.60300000000001,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 93.36375000000004,
+                "rssBeforeBytes": 97452032,
+                "rssAfterBytes": 100909056,
+                "processMaxRssBytes": 100909056,
+                "eventLoopDelayP95Ms": 1.186815,
+                "eventLoopDelayMaxMs": 1.186815,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 88.416,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 89.99812500000002,
+                "rssBeforeBytes": 101728256,
+                "rssAfterBytes": 103366656,
+                "processMaxRssBytes": 103366656,
+                "eventLoopDelayP95Ms": 1.175551,
+                "eventLoopDelayMaxMs": 1.175551,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 85.05258399999997,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 91.05570799999998,
+                "rssBeforeBytes": 104153088,
+                "rssAfterBytes": 105775104,
+                "processMaxRssBytes": 105775104,
+                "eventLoopDelayP95Ms": 1.177599,
+                "eventLoopDelayMaxMs": 1.177599,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 86.09424999999999,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 91.39558299999999,
+                "rssBeforeBytes": 106545152,
+                "rssAfterBytes": 108150784,
+                "processMaxRssBytes": 108150784,
+                "eventLoopDelayP95Ms": 1.184767,
+                "eventLoopDelayMaxMs": 1.184767,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 86.43279099999995,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 90.96349999999984,
+                "rssBeforeBytes": 108969984,
+                "rssAfterBytes": 110559232,
+                "processMaxRssBytes": 110559232,
+                "eventLoopDelayP95Ms": 1.175551,
+                "eventLoopDelayMaxMs": 1.175551,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 85.99749999999995,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 94.03562499999998,
+                "rssBeforeBytes": 111378432,
+                "rssAfterBytes": 142934016,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.437695,
+                "eventLoopDelayMaxMs": 1.437695,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 89.15708299999983,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 71.10358299999996,
+              "p50Ms": 72.32508400000006,
+              "p95Ms": 81.06979200000004,
+              "maximumMs": 81.06979200000004
+            },
+            "samples": [
+              {
+                "elapsedMs": 81.06979200000004,
+                "rssBeforeBytes": 79560704,
+                "rssAfterBytes": 97157120,
+                "processMaxRssBytes": 97157120,
+                "eventLoopDelayP95Ms": 80.871423,
+                "eventLoopDelayMaxMs": 80.871423,
+                "eventLoopUtilization": 0.9859473188768519,
+                "timerLatenessMaxMs": 76.10604200000003,
+                "bytesRead": 154890,
+                "readCalls": 2,
+                "parseCalls": 1000
+              },
+              {
+                "elapsedMs": 73.19712499999997,
+                "rssBeforeBytes": 101285888,
+                "rssAfterBytes": 101351424,
+                "processMaxRssBytes": 101351424,
+                "eventLoopDelayP95Ms": 73.138175,
+                "eventLoopDelayMaxMs": 73.138175,
+                "eventLoopUtilization": 0.9844541703901708,
+                "timerLatenessMaxMs": 68.217333,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 72.32508400000006,
+                "rssBeforeBytes": 103743488,
+                "rssAfterBytes": 103759872,
+                "processMaxRssBytes": 103759872,
+                "eventLoopDelayP95Ms": 72.220671,
+                "eventLoopDelayMaxMs": 72.220671,
+                "eventLoopUtilization": 0.984202612140631,
+                "timerLatenessMaxMs": 67.35141700000008,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 71.10358299999996,
+                "rssBeforeBytes": 106151936,
+                "rssAfterBytes": 106168320,
+                "processMaxRssBytes": 106168320,
+                "eventLoopDelayP95Ms": 71.041023,
+                "eventLoopDelayMaxMs": 71.041023,
+                "eventLoopUtilization": 0.9839648900218446,
+                "timerLatenessMaxMs": 66.12450000000001,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 72.13824999999997,
+                "rssBeforeBytes": 108527616,
+                "rssAfterBytes": 108593152,
+                "processMaxRssBytes": 108593152,
+                "eventLoopDelayP95Ms": 72.089599,
+                "eventLoopDelayMaxMs": 72.089599,
+                "eventLoopUtilization": 0.9842888940708951,
+                "timerLatenessMaxMs": 67.15995799999996,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 72.27387499999986,
+                "rssBeforeBytes": 110936064,
+                "rssAfterBytes": 111001600,
+                "processMaxRssBytes": 111001600,
+                "eventLoopDelayP95Ms": 72.220671,
+                "eventLoopDelayMaxMs": 72.220671,
+                "eventLoopUtilization": 0.984208935143989,
+                "timerLatenessMaxMs": 67.29362500000002,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 73.15254200000004,
+                "rssBeforeBytes": 143310848,
+                "rssAfterBytes": 143392768,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 73.072639,
+                "eventLoopDelayMaxMs": 73.072639,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 68.171875,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        },
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 1000,
+          "clients": 100,
+          "cohorts": 10,
+          "iterations": 7,
+          "resultSha256": "2c5cfdb1306fac9b8c3cad356bdbe56d34324bd8b2a3460b9a81f0bfeefd4adb",
+          "reference": {
+            "latency": {
+              "minimumMs": 75.00912500000004,
+              "p50Ms": 75.60516699999971,
+              "p95Ms": 77.33654200000001,
+              "maximumMs": 77.33654200000001
+            },
+            "samples": [
+              {
+                "elapsedMs": 77.33654200000001,
+                "rssBeforeBytes": 143818752,
+                "rssAfterBytes": 146522112,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.182719,
+                "eventLoopDelayMaxMs": 1.182719,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 72.37766699999997,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 76.28800000000001,
+                "rssBeforeBytes": 146898944,
+                "rssAfterBytes": 148471808,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.173503,
+                "eventLoopDelayMaxMs": 1.173503,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 71.32625000000007,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 75.81762499999991,
+                "rssBeforeBytes": 148652032,
+                "rssAfterBytes": 149585920,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.181695,
+                "eventLoopDelayMaxMs": 1.181695,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.84941600000002,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 75.243833,
+                "rssBeforeBytes": 149585920,
+                "rssAfterBytes": 149913600,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.172479,
+                "eventLoopDelayMaxMs": 1.172479,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.27883299999985,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 75.10854199999994,
+                "rssBeforeBytes": 149913600,
+                "rssAfterBytes": 149913600,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.268735,
+                "eventLoopDelayMaxMs": 1.268735,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.23670900000025,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 75.60516699999971,
+                "rssBeforeBytes": 149913600,
+                "rssAfterBytes": 150536192,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.171455,
+                "eventLoopDelayMaxMs": 1.171455,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.6423749999999,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              },
+              {
+                "elapsedMs": 75.00912500000004,
+                "rssBeforeBytes": 150536192,
+                "rssAfterBytes": 150863872,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 1.274879,
+                "eventLoopDelayMaxMs": 1.274879,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 70.1366250000001,
+                "bytesRead": 15489000,
+                "readCalls": 100,
+                "parseCalls": 100000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 61.613292,
+              "p50Ms": 62.65983299999971,
+              "p95Ms": 67.83945800000015,
+              "maximumMs": 67.83945800000015
+            },
+            "samples": [
+              {
+                "elapsedMs": 67.83945800000015,
+                "rssBeforeBytes": 146522112,
+                "rssAfterBytes": 146522112,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 67.829759,
+                "eventLoopDelayMaxMs": 67.829759,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 62.87179100000003,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 64.03899999999999,
+                "rssBeforeBytes": 148471808,
+                "rssAfterBytes": 148586496,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 62.816255,
+                "eventLoopDelayMaxMs": 62.816255,
+                "eventLoopUtilization": 0.9822051225607679,
+                "timerLatenessMaxMs": 59.055250000000115,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 62.68366600000013,
+                "rssBeforeBytes": 149585920,
+                "rssAfterBytes": 149585920,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 62.586879,
+                "eventLoopDelayMaxMs": 62.586879,
+                "eventLoopUtilization": 0.9820150384454237,
+                "timerLatenessMaxMs": 57.71395800000005,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 61.613292,
+                "rssBeforeBytes": 149913600,
+                "rssAfterBytes": 149913600,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 61.538303,
+                "eventLoopDelayMaxMs": 61.538303,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 56.631167000000005,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 62.65983299999971,
+                "rssBeforeBytes": 149913600,
+                "rssAfterBytes": 149913600,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 62.554111,
+                "eventLoopDelayMaxMs": 62.554111,
+                "eventLoopUtilization": 0.9818484889309446,
+                "timerLatenessMaxMs": 57.692625000000135,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 62.500290999999834,
+                "rssBeforeBytes": 150536192,
+                "rssAfterBytes": 150536192,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 62.455807,
+                "eventLoopDelayMaxMs": 62.455807,
+                "eventLoopUtilization": 0.9817164515002507,
+                "timerLatenessMaxMs": 57.517875000000004,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 61.96275000000014,
+                "rssBeforeBytes": 150863872,
+                "rssAfterBytes": 150863872,
+                "processMaxRssBytes": 151339008,
+                "eventLoopDelayP95Ms": 61.931519,
+                "eventLoopDelayMaxMs": 61.931519,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 56.992541000000074,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        },
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 10000,
+          "clients": 100,
+          "cohorts": 1,
+          "iterations": 7,
+          "resultSha256": "c5365bc9bf4950f46dc963b3cbcbfdff9efd8d6b4ca97266782dd04da21c8681",
+          "reference": {
+            "latency": {
+              "minimumMs": 944.7300829999995,
+              "p50Ms": 947.2745420000001,
+              "p95Ms": 954.920666,
+              "maximumMs": 954.920666
+            },
+            "samples": [
+              {
+                "elapsedMs": 948.0808749999997,
+                "rssBeforeBytes": 150962176,
+                "rssAfterBytes": 195985408,
+                "processMaxRssBytes": 196509696,
+                "eventLoopDelayP95Ms": 1.415167,
+                "eventLoopDelayMaxMs": 1.415167,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 943.222291,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 947.2745420000001,
+                "rssBeforeBytes": 198868992,
+                "rssAfterBytes": 201621504,
+                "processMaxRssBytes": 201621504,
+                "eventLoopDelayP95Ms": 1.534975,
+                "eventLoopDelayMaxMs": 1.534975,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 942.6686669999999,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 944.7300829999995,
+                "rssBeforeBytes": 202162176,
+                "rssAfterBytes": 202162176,
+                "processMaxRssBytes": 202162176,
+                "eventLoopDelayP95Ms": 1.174527,
+                "eventLoopDelayMaxMs": 1.174527,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 940.1505419999994,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 946.5484170000009,
+                "rssBeforeBytes": 202670080,
+                "rssAfterBytes": 202670080,
+                "processMaxRssBytes": 202670080,
+                "eventLoopDelayP95Ms": 1.179647,
+                "eventLoopDelayMaxMs": 1.179647,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 941.9597920000006,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 954.920666,
+                "rssBeforeBytes": 202670080,
+                "rssAfterBytes": 202702848,
+                "processMaxRssBytes": 202702848,
+                "eventLoopDelayP95Ms": 1.557503,
+                "eventLoopDelayMaxMs": 1.557503,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 950.3451659999992,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 945.2391250000001,
+                "rssBeforeBytes": 202719232,
+                "rssAfterBytes": 208764928,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 1.522687,
+                "eventLoopDelayMaxMs": 1.522687,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 940.3861250000009,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 949.9690420000006,
+                "rssBeforeBytes": 193839104,
+                "rssAfterBytes": 196280320,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 1.197055,
+                "eventLoopDelayMaxMs": 1.197055,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 945.0158330000013,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 719.2141659999998,
+              "p50Ms": 721.3342499999999,
+              "p95Ms": 745.1488750000003,
+              "maximumMs": 745.1488750000003
+            },
+            "samples": [
+              {
+                "elapsedMs": 745.1488750000003,
+                "rssBeforeBytes": 195985408,
+                "rssAfterBytes": 198868992,
+                "processMaxRssBytes": 198868992,
+                "eventLoopDelayP95Ms": 79.364095,
+                "eventLoopDelayMaxMs": 93.454335,
+                "eventLoopUtilization": 0.9847240309351608,
+                "timerLatenessMaxMs": 89.70295799999985,
+                "bytesRead": 1558890,
+                "readCalls": 2,
+                "parseCalls": 10000
+              },
+              {
+                "elapsedMs": 721.3342499999999,
+                "rssBeforeBytes": 201621504,
+                "rssAfterBytes": 202162176,
+                "processMaxRssBytes": 202162176,
+                "eventLoopDelayP95Ms": 73.859071,
+                "eventLoopDelayMaxMs": 74.383359,
+                "eventLoopUtilization": 0.9857910860756401,
+                "timerLatenessMaxMs": 69.93370800000048,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 723.5637079999997,
+                "rssBeforeBytes": 202162176,
+                "rssAfterBytes": 202653696,
+                "processMaxRssBytes": 202653696,
+                "eventLoopDelayP95Ms": 73.269247,
+                "eventLoopDelayMaxMs": 73.727999,
+                "eventLoopUtilization": 0.9873791720529355,
+                "timerLatenessMaxMs": 68.69550000000072,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 719.2141659999998,
+                "rssBeforeBytes": 202670080,
+                "rssAfterBytes": 202670080,
+                "processMaxRssBytes": 202670080,
+                "eventLoopDelayP95Ms": 73.203711,
+                "eventLoopDelayMaxMs": 74.907647,
+                "eventLoopUtilization": 0.98573864450983,
+                "timerLatenessMaxMs": 68.69800000000032,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 720.3772090000002,
+                "rssBeforeBytes": 202702848,
+                "rssAfterBytes": 202702848,
+                "processMaxRssBytes": 202702848,
+                "eventLoopDelayP95Ms": 73.531391,
+                "eventLoopDelayMaxMs": 73.662463,
+                "eventLoopUtilization": 0.9857860710052642,
+                "timerLatenessMaxMs": 70.15533399999913,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 719.9747079999997,
+                "rssBeforeBytes": 208764928,
+                "rssAfterBytes": 193839104,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 72.679423,
+                "eventLoopDelayMaxMs": 73.334783,
+                "eventLoopUtilization": 0.9858213901083269,
+                "timerLatenessMaxMs": 69.53816600000027,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 744.607082999999,
+                "rssBeforeBytes": 196280320,
+                "rssAfterBytes": 196329472,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 79.167487,
+                "eventLoopDelayMaxMs": 82.706431,
+                "eventLoopUtilization": 0.9862449022088736,
+                "timerLatenessMaxMs": 76.51058300000113,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        },
+        {
+          "workload": "concurrent-event-replay",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "size": 10000,
+          "clients": 100,
+          "cohorts": 10,
+          "iterations": 7,
+          "resultSha256": "69339b77409f7ec087dd88ee3c3513603d297735b74386f3891c8edbea25806b",
+          "reference": {
+            "latency": {
+              "minimumMs": 782.0147079999988,
+              "p50Ms": 784.1419999999998,
+              "p95Ms": 801.1931670000013,
+              "maximumMs": 801.1931670000013
+            },
+            "samples": [
+              {
+                "elapsedMs": 784.1419999999998,
+                "rssBeforeBytes": 196476928,
+                "rssAfterBytes": 199229440,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 1.193983,
+                "eventLoopDelayMaxMs": 1.193983,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 779.1996250000011,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 782.0147079999988,
+                "rssBeforeBytes": 199786496,
+                "rssAfterBytes": 200114176,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 1.189887,
+                "eventLoopDelayMaxMs": 1.189887,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 777.0647910000007,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 788.1150000000016,
+                "rssBeforeBytes": 200130560,
+                "rssAfterBytes": 200130560,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 1.182719,
+                "eventLoopDelayMaxMs": 1.182719,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 783.1675000000032,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 801.1931670000013,
+                "rssBeforeBytes": 200146944,
+                "rssAfterBytes": 212221952,
+                "processMaxRssBytes": 212221952,
+                "eventLoopDelayP95Ms": 1.788927,
+                "eventLoopDelayMaxMs": 1.788927,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 796.3306669999984,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 793.5982089999998,
+                "rssBeforeBytes": 212877312,
+                "rssAfterBytes": 212877312,
+                "processMaxRssBytes": 212877312,
+                "eventLoopDelayP95Ms": 1.544191,
+                "eventLoopDelayMaxMs": 1.544191,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 788.7463749999988,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 783.7845829999969,
+                "rssBeforeBytes": 212877312,
+                "rssAfterBytes": 213401600,
+                "processMaxRssBytes": 213401600,
+                "eventLoopDelayP95Ms": 2.117631,
+                "eventLoopDelayMaxMs": 2.117631,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 778.9276250000003,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              },
+              {
+                "elapsedMs": 782.6035419999971,
+                "rssBeforeBytes": 213401600,
+                "rssAfterBytes": 208683008,
+                "processMaxRssBytes": 213401600,
+                "eventLoopDelayP95Ms": 2.026495,
+                "eventLoopDelayMaxMs": 2.026495,
+                "eventLoopUtilization": 1,
+                "timerLatenessMaxMs": 777.7520420000001,
+                "bytesRead": 155889000,
+                "readCalls": 100,
+                "parseCalls": 1000000
+              }
+            ]
+          },
+          "shared": {
+            "latency": {
+              "minimumMs": 628.2191249999996,
+              "p50Ms": 646.4873329999973,
+              "p95Ms": 748.3949160000011,
+              "maximumMs": 748.3949160000011
+            },
+            "samples": [
+              {
+                "elapsedMs": 628.2191249999996,
+                "rssBeforeBytes": 199229440,
+                "rssAfterBytes": 199786496,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 71.761919,
+                "eventLoopDelayMaxMs": 73.990143,
+                "eventLoopUtilization": 0.9836563831918356,
+                "timerLatenessMaxMs": 70.24387500000012,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 630.2876250000008,
+                "rssBeforeBytes": 200114176,
+                "rssAfterBytes": 200114176,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 70.385663,
+                "eventLoopDelayMaxMs": 73.924607,
+                "eventLoopUtilization": 0.9819291878743547,
+                "timerLatenessMaxMs": 70.1795839999977,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 748.3949160000011,
+                "rssBeforeBytes": 200130560,
+                "rssAfterBytes": 200146944,
+                "processMaxRssBytes": 208764928,
+                "eventLoopDelayP95Ms": 80.609279,
+                "eventLoopDelayMaxMs": 81.395711,
+                "eventLoopUtilization": 0.9879243862604032,
+                "timerLatenessMaxMs": 77.25366600000052,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 706.7874579999989,
+                "rssBeforeBytes": 212221952,
+                "rssAfterBytes": 212877312,
+                "processMaxRssBytes": 212877312,
+                "eventLoopDelayP95Ms": 79.233023,
+                "eventLoopDelayMaxMs": 85.590015,
+                "eventLoopUtilization": 0.983977863880977,
+                "timerLatenessMaxMs": 81.83066600000166,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 646.4873329999973,
+                "rssBeforeBytes": 212877312,
+                "rssAfterBytes": 212877312,
+                "processMaxRssBytes": 212877312,
+                "eventLoopDelayP95Ms": 75.300863,
+                "eventLoopDelayMaxMs": 77.135871,
+                "eventLoopUtilization": 0.9823731505875581,
+                "timerLatenessMaxMs": 73.39812499999971,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 637.3207919999986,
+                "rssBeforeBytes": 213401600,
+                "rssAfterBytes": 213401600,
+                "processMaxRssBytes": 213401600,
+                "eventLoopDelayP95Ms": 72.941567,
+                "eventLoopDelayMaxMs": 73.531391,
+                "eventLoopUtilization": 0.9821356681291414,
+                "timerLatenessMaxMs": 71.01866700000028,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              },
+              {
+                "elapsedMs": 694.8182500000003,
+                "rssBeforeBytes": 208683008,
+                "rssAfterBytes": 208699392,
+                "processMaxRssBytes": 213401600,
+                "eventLoopDelayP95Ms": 73.203711,
+                "eventLoopDelayMaxMs": 75.366399,
+                "eventLoopUtilization": 0.9837275461591442,
+                "timerLatenessMaxMs": 71.65412500000093,
+                "bytesRead": 0,
+                "readCalls": 0,
+                "parseCalls": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "graph-node26.jsonl",
+      "sha256": "dfd7ce98f78ee2abacbbc19d07d5dd2ed5aa9a532a47b1db45ce5d00faa5ccbc",
+      "rows": [
+        {
+          "workload": "validated-graph-queries",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "shape": "deep",
+          "files": 512,
+          "queriesPerSample": 9,
+          "iterations": 7,
+          "resultSha256": "103b3d041754e3da2d232cc8c0bd1386734f4c090c63f658758c85272c7cef81",
+          "compiled": {
+            "latency": {
+              "minimumMs": 350.69429200000013,
+              "p50Ms": 354.50599999999986,
+              "p95Ms": 365.79550000000006,
+              "maximumMs": 365.79550000000006
+            },
+            "samples": [
+              {
+                "elapsedMs": 365.79550000000006,
+                "rssBeforeBytes": 86605824,
+                "rssAfterBytes": 106840064,
+                "processMaxRssBytes": 106840064,
+                "timerLatenessMaxMs": 361.347625,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.792332999999985,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 356.90429199999994,
+                "rssBeforeBytes": 106905600,
+                "rssAfterBytes": 107413504,
+                "processMaxRssBytes": 107413504,
+                "timerLatenessMaxMs": 353.175917,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.5829999999998563,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 354.50599999999986,
+                "rssBeforeBytes": 126926848,
+                "rssAfterBytes": 144982016,
+                "processMaxRssBytes": 144982016,
+                "timerLatenessMaxMs": 349.5592919999999,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.5105419999999867,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 357.22212500000023,
+                "rssBeforeBytes": 145031168,
+                "rssAfterBytes": 145211392,
+                "processMaxRssBytes": 145211392,
+                "timerLatenessMaxMs": 352.2704160000003,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4310420000001614,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 353.76491699999997,
+                "rssBeforeBytes": 146817024,
+                "rssAfterBytes": 148455424,
+                "processMaxRssBytes": 148455424,
+                "timerLatenessMaxMs": 349.98875,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4480419999999867,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 353.80412499999966,
+                "rssBeforeBytes": 150454272,
+                "rssAfterBytes": 150454272,
+                "processMaxRssBytes": 150454272,
+                "timerLatenessMaxMs": 350.0243329999994,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4229169999998703,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 350.69429200000013,
+                "rssBeforeBytes": 150454272,
+                "rssAfterBytes": 150487040,
+                "processMaxRssBytes": 150487040,
+                "timerLatenessMaxMs": 346.9009580000002,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4441670000005615,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6180,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1523137,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              }
+            ]
+          },
+          "reference": {
+            "latency": {
+              "minimumMs": 351.275083,
+              "p50Ms": 358.1075000000001,
+              "p95Ms": 403.87575000000004,
+              "maximumMs": 403.87575000000004
+            },
+            "samples": [
+              {
+                "elapsedMs": 403.87575000000004,
+                "rssBeforeBytes": 73973760,
+                "rssAfterBytes": 86605824,
+                "processMaxRssBytes": 86605824,
+                "timerLatenessMaxMs": 398.991083,
+                "eventLoopUtilization": 0,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 2.076999999999998,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 358.64933399999995,
+                "rssBeforeBytes": 106840064,
+                "rssAfterBytes": 106905600,
+                "processMaxRssBytes": 106905600,
+                "timerLatenessMaxMs": 353.69724999999994,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.6015409999999974,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 358.1075000000001,
+                "rssBeforeBytes": 107413504,
+                "rssAfterBytes": 126926848,
+                "processMaxRssBytes": 126926848,
+                "timerLatenessMaxMs": 353.80745799999977,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4192090000001372,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 360.8803750000002,
+                "rssBeforeBytes": 144982016,
+                "rssAfterBytes": 145031168,
+                "processMaxRssBytes": 145031168,
+                "timerLatenessMaxMs": 357.10283400000026,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4380420000002232,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 351.275083,
+                "rssBeforeBytes": 145211392,
+                "rssAfterBytes": 146817024,
+                "processMaxRssBytes": 146817024,
+                "timerLatenessMaxMs": 347.47962499999994,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.418333999999959,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 352.9135839999999,
+                "rssBeforeBytes": 148455424,
+                "rssAfterBytes": 150454272,
+                "processMaxRssBytes": 150454272,
+                "timerLatenessMaxMs": 348.0264590000006,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4083749999999782,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 354.69216700000015,
+                "rssBeforeBytes": 150454272,
+                "rssAfterBytes": 150454272,
+                "processMaxRssBytes": 150454272,
+                "timerLatenessMaxMs": 349.72512499999993,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9411741,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4471659999999247,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1341429,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              }
+            ]
+          }
+        },
+        {
+          "workload": "validated-graph-queries",
+          "node": "v26.8.1",
+          "platform": "darwin",
+          "shape": "wide",
+          "files": 513,
+          "queriesPerSample": 9,
+          "iterations": 7,
+          "resultSha256": "11a79c4a8e91677818d21b601959d6edc464a3058dcd75ff5ce114565272687a",
+          "compiled": {
+            "latency": {
+              "minimumMs": 350.0559169999997,
+              "p50Ms": 354.09812500000044,
+              "p95Ms": 366.82045800000014,
+              "maximumMs": 366.82045800000014
+            },
+            "samples": [
+              {
+                "elapsedMs": 366.82045800000014,
+                "rssBeforeBytes": 153583616,
+                "rssAfterBytes": 153632768,
+                "processMaxRssBytes": 153632768,
+                "timerLatenessMaxMs": 362.5142080000005,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4502080000002024,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 350.0559169999997,
+                "rssBeforeBytes": 153649152,
+                "rssAfterBytes": 153665536,
+                "processMaxRssBytes": 153665536,
+                "timerLatenessMaxMs": 345.09029199999986,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4676669999998921,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 354.09812500000044,
+                "rssBeforeBytes": 153665536,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 349.13045799999963,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.47333400000025,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 354.1111660000006,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 349.1401659999992,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4784579999995913,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 351.96237499999916,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 348.1720000000005,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.5024169999996957,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 359.4925839999996,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 355.7100420000006,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.5127080000002024,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 353.594959,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 349.8048340000005,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4547500000007858,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "lexical_builds": 1,
+                  "lexical_reuses": 6192,
+                  "lexical_bypasses": 0,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1526546,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              }
+            ]
+          },
+          "reference": {
+            "latency": {
+              "minimumMs": 354.1971249999988,
+              "p50Ms": 357.08700000000044,
+              "p95Ms": 411.468167,
+              "maximumMs": 411.468167
+            },
+            "samples": [
+              {
+                "elapsedMs": 411.468167,
+                "rssBeforeBytes": 152305664,
+                "rssAfterBytes": 153583616,
+                "processMaxRssBytes": 153583616,
+                "timerLatenessMaxMs": 406.5895840000003,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.507582999999613,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 357.08700000000044,
+                "rssBeforeBytes": 153632768,
+                "rssAfterBytes": 153649152,
+                "processMaxRssBytes": 153649152,
+                "timerLatenessMaxMs": 352.29741600000034,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4309579999999187,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 364.2856249999995,
+                "rssBeforeBytes": 153665536,
+                "rssAfterBytes": 153665536,
+                "processMaxRssBytes": 153665536,
+                "timerLatenessMaxMs": 360.49762499999997,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4203330000000278,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 354.1971249999988,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 349.56195899999875,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4675829999996495,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 356.7317089999997,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 352.93804199999977,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4514999999992142,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 354.6632090000003,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 349.8052919999991,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4519170000003214,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              },
+              {
+                "elapsedMs": 357.25487500000054,
+                "rssBeforeBytes": 153681920,
+                "rssAfterBytes": 153681920,
+                "processMaxRssBytes": 153681920,
+                "timerLatenessMaxMs": 353.4705840000006,
+                "eventLoopUtilization": 1,
+                "graphMetrics": {
+                  "adjacency_builds": 1,
+                  "adjacency_reuses": 8,
+                  "cache_bypasses": 0,
+                  "content_read_bytes": 9433053,
+                  "content_digest_checks": 18,
+                  "parse_duration_ms": 1.4839580000007118,
+                  "parsed_loads": 1,
+                  "parsed_reuses": 8,
+                  "source_digest_reads": 0,
+                  "cache_entries": 1,
+                  "cache_bytes": 1344373,
+                  "max_entry_bytes": 8388608,
+                  "max_total_bytes": 33554432
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

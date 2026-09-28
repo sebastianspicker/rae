@@ -8,7 +8,7 @@ evidence_links: ../reference/repo-map.md
 
 # Case Study: Repo Hygiene Tools
 
-Focused maintenance tools belong in the umbrella when they stay narrow, explicit
+Focused maintenance tools belong in the umbrella when they stay narrow, explicit,
 and separately testable.
 
 ## Current example
@@ -21,14 +21,14 @@ concurrent changes, and uses compare-and-swap checks with atomic cleanup.
 
 ## Why this case matters
 
-The umbrella should not confuse core task execution with one-off maintenance
-operations. This tool remains outside the main runtime architecture while still
-benefiting from the umbrella’s docs and verification discipline.
+Keep core task execution separate from one-off maintenance. This tool lives
+outside the main runtime, but it still follows the umbrella's documentation and
+verification rules.
 
 ## Thesis validation
 
-This case study validates the claim that narrow maintenance tooling should stay
-explicitly outside the conceptual center of the runtime.
+Maintenance tooling should stay outside the conceptual center of the runtime,
+even when the same repository ships it.
 
 ## Related dossiers
 

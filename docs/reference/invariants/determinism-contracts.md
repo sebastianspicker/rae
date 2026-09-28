@@ -2,7 +2,7 @@
 status: stable
 owner: loops
 last_reviewed: 2026-04-12
-source_of_truth: packages/loops/ralph
+source_of_truth: packages/ralph
 evidence_links: ../claims/claims-ledger.md
 ---
 
@@ -28,11 +28,9 @@ because it is hard to inspect.
 
 ## Thesis validation
 
-This page validates the narrower determinism claim used by RAE: not identical
-semantic outputs, but explicit and auditable control flow around execution.
-
-## Related dossiers
-
+RAE does not claim identical semantic outputs. It claims explicit, auditable
+control flow around execution: the same inputs follow the same recorded path,
+ordering, and gates.
 
 ## Interpretation limits
 

@@ -31,9 +31,9 @@ and governance literature.
 ## Internal anchors
 
 - `docs/governance/documentation-policy.md`
-- `scripts/verify_repo.py`
+- `scripts/src/verify-repository.ts`
 - `docs/INDEX.md`
-- `packages/orchestration/scripts/pipeline/autonomous.mjs`
+- `packages/engine/src/cli/autonomous.ts`
 
 ## External anchors
 
@@ -47,7 +47,7 @@ and governance literature.
 
 ## Benchmark artifacts
 
-Documentation review is enforced via `scripts/verify_repo.py`, autonomous
+Documentation review is enforced via `scripts/src/verify-repository.ts`, autonomous
 post-build instructions, emitted `documentation-report.json`, and release
 review checklists. No retained end-to-end fixture establishes that a target doc
 change is surfaced in a run report, and no frozen benchmark isolates the effect

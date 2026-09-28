@@ -10,8 +10,8 @@ evidence_links: ../claims/evidence-index.md
 
 ## Included surface
 
-- `tools/repo-hygiene/coauthor-trailer-cleaner/coauthor-trailer-cleaner.sh`
-- umbrella wrapper: `./scripts/rae.sh hygiene coauthor-cleaner ...`
+- `tools/repo-hygiene/coauthor-trailer-cleaner/src/cli.ts`
+- umbrella wrapper: `npm run rae -- hygiene coauthor-cleaner ...`
 
 ## Purpose
 
@@ -34,14 +34,13 @@ final atomic cleanup. Push is opt-in; default operation is local-only.
 ## Verification smoke path
 
 ```bash
-./scripts/rae.sh hygiene coauthor-cleaner --help
+npm run rae -- hygiene coauthor-cleaner --help
 ```
 
 ## Thesis validation
 
-This page documents a narrow destructive utility while validating the design
-principle that maintenance-only tools should stay explicit and separate from the
-core runtime architecture.
+This is a narrow destructive utility, documented on purpose. Maintenance-only
+tools should stay explicit and separate from the core runtime architecture.
 
 ## Related dossiers
 

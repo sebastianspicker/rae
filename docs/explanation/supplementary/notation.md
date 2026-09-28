@@ -8,8 +8,8 @@ evidence_links: ../../reference/claims/claims-ledger.md
 
 # Notation
 
-This page fixes the symbols used across the science layer so the surrounding
-arguments remain precise.
+These are the symbols used across the science layer. Fixing them in one place
+keeps the surrounding arguments precise.
 
 ## Editorial contract
 

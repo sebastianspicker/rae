@@ -1,0 +1,20 @@
+# Experimental development dependencies only: all published ports are loopback-bound.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment: { POSTGRES_USER: rae, POSTGRES_PASSWORD: rae-dev-only, POSTGRES_DB: rae_platform }
+    ports: ["127.0.0.1:5432:5432"]
+    tmpfs: [/tmp]
+  minio:
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: server /data --console-address :9001
+    environment: { MINIO_ROOT_USER: "${RAE_DEV_MINIO_ACCESS_KEY:?set RAE_DEV_MINIO_ACCESS_KEY}", MINIO_ROOT_PASSWORD: "${RAE_DEV_MINIO_SECRET_KEY:?set RAE_DEV_MINIO_SECRET_KEY}" }
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+  minio-init:
+    build:
+      context: ../..
+      dockerfile: apps/platform/Dockerfile
+    entrypoint: ["node", "apps/platform/dist/bin/initialize-storage.js"]
+    command: []
+    environment: { MINIO_ROOT_USER: "${RAE_DEV_MINIO_ACCESS_KEY:?set RAE_DEV_MINIO_ACCESS_KEY}", MINIO_ROOT_PASSWORD: "${RAE_DEV_MINIO_SECRET_KEY:?set RAE_DEV_MINIO_SECRET_KEY}" }
+    depends_on: [minio]

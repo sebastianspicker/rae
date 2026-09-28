@@ -5,7 +5,7 @@ guaranteed support.
 
 Before opening an issue:
 
-1. Run `./scripts/rae.sh doctor`.
+1. Run `npm run rae -- doctor`.
 2. Check the relevant package README and [documentation index](docs/INDEX.md).
 3. Search existing issues.
 4. Remove secrets, credentials, and private machine paths from logs.

@@ -8,7 +8,7 @@ evidence_links: ../reference/repo-map.md
 
 # Case Study: Phased Orchestration
 
-The orchestration package supplies the umbrella's staged workflow model.
+The engine implements RAE's staged workflow model.
 
 ## What it contributes
 
@@ -20,13 +20,14 @@ The orchestration package supplies the umbrella's staged workflow model.
 
 ## Why it matters to the umbrella
 
-It provides the long-horizon control structure that the benchmark and
+It gives long-horizon runs a control structure that the benchmark and
 documentation layers can reason about.
 
 ## Thesis validation
 
-This case study validates the architectural role of phased orchestration as the
-umbrella's long-horizon control surface.
+Phased orchestration keeps long-horizon work bounded and inspectable: each phase
+produces a typed artifact, a gate decides whether to continue, and the run state
+records both. Without that structure, long runs are hard to audit or resume.
 
 ## Related dossiers
 

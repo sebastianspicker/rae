@@ -16,7 +16,7 @@ for the current evidence boundary.
 
 A public release is not complete unless all of the following are true:
 
-- `./scripts/verify.sh --release-candidate` passes from a clean Git worktree
+- `npm run verify -- --release-candidate` passes from a clean Git worktree
 - every release-essential file is tracked in the candidate commit
 - included module verification passes
 - claim-bearing docs were reviewed for drift
@@ -26,9 +26,9 @@ A public release is not complete unless all of the following are true:
 
 ## Thesis validation
 
-This page operationalizes the governance claim that publication requires more
-than successful execution. The release surface combines verification,
-provenance, and documentation review.
+Passing the tests is not enough to publish. A release also needs provenance and
+documentation review, because execution success alone says nothing about whether
+an artifact is safe to ship.
 
 ## Interpretation limits
 

@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/contracts/workflows/workflow-v2.1.schema.json
+source_of_truth: packages/contracts/v1/schemas/workflows/workflow-v2.1.schema.json
 evidence_links: ../reference/claims/evidence-index.md
 ---
 
@@ -143,7 +143,7 @@ Start the loopback operator to use the synchronized Loop, Graph, Analyze, and
 JSON views:
 
 ```bash
-./scripts/rae.sh operator serve \
+npm run rae -- operator serve \
   --project /path/to/target-repository \
   --execution-profile /absolute/path/to/execution-profile.json
 ```
@@ -157,7 +157,7 @@ operable; JSON remains available for existing workflow 2.0 and experimental
 Analyze a workflow file without saving it:
 
 ```bash
-./scripts/rae.sh graph workflow analyze \
+npm run rae -- graph workflow analyze \
   --workflow-file /absolute/path/to/workflow.json \
   --execution-profile /absolute/path/to/execution-profile.json
 ```
@@ -170,7 +170,7 @@ estimate when provider usage data is unavailable.
 Generate a validated candidate without saving it:
 
 ```bash
-./scripts/rae.sh graph workflow propose \
+npm run rae -- graph workflow propose \
   --project-root /path/to/target-repository \
   --task "Design a bounded review topology for this repository" \
   --base-workflow graph-native-default \
@@ -188,15 +188,15 @@ mode activates or executes the result.
 Review and activate an exact revision:
 
 ```bash
-./scripts/rae.sh graph workflow validate \
+npm run rae -- graph workflow validate \
   --project-root /path/to/target-repository \
   --workflow graph-native-default --revision 2
 
-./scripts/rae.sh graph workflow diff \
+npm run rae -- graph workflow diff \
   --project-root /path/to/target-repository \
   --workflow graph-native-default --from 1 --to 2
 
-./scripts/rae.sh graph workflow activate \
+npm run rae -- graph workflow activate \
   --project-root /path/to/target-repository \
   --workflow graph-native-default --revision 2 \
   --digest <digest-returned-by-validation> \
@@ -210,7 +210,7 @@ Activation affects future runs only. Existing runs keep their immutable 2.0 or
 ## Six topology recipes
 
 The maintained recipe files are under
-`packages/orchestration/workflows/recipes/`. Validate a recipe before using it,
+`workflows/recipes/`. Validate a recipe before using it,
 then pass the same file to `agent run`.
 
 ### Route auditing
@@ -219,10 +219,10 @@ then pass the same file to `agent run`.
 checks, and joins all results before verification.
 
 ```bash
-./scripts/rae.sh graph workflow validate --project-root "$PWD" \
-  --workflow-file packages/orchestration/workflows/recipes/route-audit.workflow.json
-./scripts/rae.sh agent run --project-root /path/to/target \
-  --workflow "$PWD/packages/orchestration/workflows/recipes/route-audit.workflow.json" \
+npm run rae -- graph workflow validate --project-root "$PWD" \
+  --workflow-file workflows/recipes/route-audit.workflow.json
+npm run rae -- agent run --project-root /path/to/target \
+  --workflow "$PWD/workflows/recipes/route-audit.workflow.json" \
   --task "Audit declared routes against handlers, authorization, and tests"
 ```
 
@@ -232,8 +232,8 @@ checks, and joins all results before verification.
 quorum synthesis. Citations remain payload data, not executable references.
 
 ```bash
-./scripts/rae.sh agent run --project-root /path/to/target \
-  --workflow "$PWD/packages/orchestration/workflows/recipes/cited-research.workflow.json" \
+npm run rae -- agent run --project-root /path/to/target \
+  --workflow "$PWD/workflows/recipes/cited-research.workflow.json" \
   --execution-profile /absolute/path/to/operator-profile.json \
   --task "Research the requested change and return source-backed constraints"
 ```
@@ -244,8 +244,8 @@ quorum synthesis. Citations remain payload data, not executable references.
 ownership plan, crosses a mutation checkpoint, and uses one serialized writer.
 
 ```bash
-./scripts/rae.sh agent run --project-root /path/to/target \
-  --workflow "$PWD/packages/orchestration/workflows/recipes/module-migration.workflow.json" \
+npm run rae -- agent run --project-root /path/to/target \
+  --workflow "$PWD/workflows/recipes/module-migration.workflow.json" \
   --checkpoint-policy before-mutation \
   --task "Migrate the selected modules while preserving their public contracts"
 ```
@@ -256,8 +256,8 @@ ownership plan, crosses a mutation checkpoint, and uses one serialized writer.
 scope lenses with a three-of-four quorum.
 
 ```bash
-./scripts/rae.sh agent run --project-root /path/to/target \
-  --workflow "$PWD/packages/orchestration/workflows/recipes/adversarial-review.workflow.json" \
+npm run rae -- agent run --project-root /path/to/target \
+  --workflow "$PWD/workflows/recipes/adversarial-review.workflow.json" \
   --task "Review the proposed design for blocking risks"
 ```
 
@@ -268,8 +268,8 @@ deterministic deduplication before verification. Scheduling belongs to the
 operator's local scheduler; RAE itself does not install a timer.
 
 ```bash
-./scripts/rae.sh agent run --project-root /path/to/target \
-  --workflow "$PWD/packages/orchestration/workflows/recipes/ecosystem-scan.workflow.json" \
+npm run rae -- agent run --project-root /path/to/target \
+  --workflow "$PWD/workflows/recipes/ecosystem-scan.workflow.json" \
   --task "Scan the declared ecosystem snapshot for actionable compatibility changes"
 ```
 
@@ -279,8 +279,8 @@ operator's local scheduler; RAE itself does not install a timer.
 round bound and five-round ceiling.
 
 ```bash
-./scripts/rae.sh agent run --project-root /path/to/target \
-  --workflow "$PWD/packages/orchestration/workflows/recipes/unknown-size-discovery.workflow.json" \
+npm run rae -- agent run --project-root /path/to/target \
+  --workflow "$PWD/workflows/recipes/unknown-size-discovery.workflow.json" \
   --task "Discover and inspect all previously unseen integration points"
 ```
 

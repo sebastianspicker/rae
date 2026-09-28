@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-08-04
-source_of_truth: packages/orchestration/scripts/pipeline/lib/workflow-v22-reducer.mjs
+source_of_truth: packages/engine/src/workflow/workflow-v22-reducer.ts
 evidence_links: ../reference/claims/claims-ledger.md
 ---
 
@@ -16,7 +16,7 @@ does not recover a hosted worker, PostgreSQL lease, or object-store transfer.
 2. Use the original run ID, workspace root, wait-node name, signal name, and
    idempotency key when retrying a signal. Replaying the same node and key is a
    no-op.
-3. Resume the run with `./scripts/rae.sh agent resume --project-root <workspace>
+3. Resume the run with `npm run rae -- agent resume --project-root <workspace>
    --run-id <run-id>`.
 4. Inspect the wait state and immutable node envelopes before another signal or
    a retry. The scheduler only consumes accepted signals recorded on or before

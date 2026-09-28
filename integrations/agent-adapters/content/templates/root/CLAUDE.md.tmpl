@@ -1,0 +1,123 @@
+# {{RUNNER_TITLE}} Adapter Entry
+
+Use this repository with the {{RUNNER_TITLE}} adapter pipeline:
+
+1. Read `AGENTS.md` for repository rules and verification expectations.
+2. Use `{{ADAPTER_ROOT}}/orchestration-pipeline/SKILL.md` as the orchestration entrypoint.
+3. Run `npm run verify --` before proposing completion.
+
+## Claude Code Native Features
+
+Claude Code users get additional native integrations beyond the standard adapter. These integrations apply only to that runner.
+
+### Slash Commands (Skills)
+
+| Command | Description |
+|---------|-------------|
+| `/pipeline` | Run the full orchestration pipeline |
+| `/arm` | Brief formation: convert raw idea to structured requirements |
+| `/design` | Design from validated brief |
+| `/ar` | Adversarial review with parallel reviewers |
+| `/plan` | Implementation planning with task groups |
+| `/pmatch` | Plan-vs-implementation drift check |
+| `/build` | Coordinated parallel build with isolated subagents |
+| `/verify` | Run repository verification suite |
+| `/status` | Report current pipeline state |
+
+### Convenience Commands
+
+| Command | Description |
+|---------|-------------|
+| `/verify` | `npm run verify --` with optional flags |
+| `/init-pipeline` | Initialize a new pipeline run |
+| `/regen-adapters` | Regenerate adapter files from templates |
+| `/pipeline-status` | Read and report pipeline state |
+
+### Path-Specific Rules
+
+Rules auto-load when you touch matching files:
+- `packages/contracts/**`: schema validation and backward-compatibility warnings
+- `integrations/agent-adapters/content/templates/**`: template editing workflow reminders
+- `integrations/agent-adapters/content/<runner>/**`: synchronized files; edit their templates instead
+- `packages/dev-tools/**`: build/test workflow and workspace conventions
+- `.pipeline/**`, `packages/engine/**`: pipeline state and engine guidance
+- `docs/**`, `AGENTS.md`: link validation reminders
+
+## Architecture Overview
+
+This repository implements a phased orchestration pipeline with 10 delivery stages:
+
+```
+arm -> design -> adversarial-review -> plan -> pmatch -> build -> quality-static -> quality-tests -> post-build -> release-readiness
+```
+
+Two layers:
+- Orchestration adapters (`integrations/agent-adapters/content/<runner>/skills/`): runner guidance for Codex, Cursor, Claude, Gemini, and Kilo, synchronized from templates by `integrations/agent-adapters/src/generate-adapters.ts`.
+- Runtime skills (`packages/dev-tools/`): Node.js packages that perform validation, review, and trace collection at runtime.
+
+## Key Locations
+
+| What | Where |
+|------|-------|
+| Adapter manifest (source of truth) | `integrations/agent-adapters/content/spec/adapter-manifest.json` |
+| Adapter templates | `integrations/agent-adapters/content/templates/` |
+| Artifact schemas | `packages/contracts/v1/schemas/artifacts/*.schema.json` |
+| Quality gate schema | `packages/contracts/v1/schemas/quality-gate.schema.json` |
+| Pipeline runner CLI | `packages/engine/src/cli/runner.ts` |
+| Engine modules | `packages/engine/src/{run,workflow,agents,graph}/` |
+| Shared TS package | `packages/dev-tools/shared/` |
+| Quality gate skill | `packages/dev-tools/quality-gate/` |
+| Multi-model review skill | `packages/dev-tools/multi-model-review/` |
+| Trace collector skill | `packages/dev-tools/trace-collector/` |
+| Pipeline constants | `packages/engine/src/run/constants.ts` |
+| Config IDs | `baseline_single_agent`, `phased_default`, `phased_with_context_budgets`, `phased_dual_extractor_drift` |
+| Model tier mapping (Claude) | `.claude/rules/model-tier-selection.md` |
+
+## Verification
+
+```bash
+# Full verification (always run before completion)
+npm run verify --
+
+# Fast mode (only changed packages)
+npm run test:engine
+
+# Adapter sync check
+npm --workspace @rae/agent-adapters run generate -- --check
+
+# Pipeline smoke test
+./packages/engine/scripts/pipeline-init.ts
+npm run rae -- orchestrate run-stage --run-id test --phase arm --config-id phased_default
+```
+
+## Common Tasks
+
+### Add or modify an artifact schema
+1. Edit/create the schema in `packages/contracts/v1/schemas/artifacts/`.
+2. Update `DEFAULT_SCHEMA_BY_PHASE` in `packages/engine/src/run/artifacts.ts` if adding a new phase mapping.
+3. Run `npm run verify --`.
+
+### Add or modify a stage adapter
+1. Edit the template in `integrations/agent-adapters/content/templates/`.
+2. Regenerate: `npm --workspace @rae/agent-adapters run generate --`.
+3. Verify sync: `npm --workspace @rae/agent-adapters run generate -- --check`.
+
+### Modify a runtime skill package
+1. Edit source in `packages/dev-tools/<package>/src/`.
+2. Build: `cd packages/dev-tools/<package> && npm run build`.
+3. Test: `npm test`.
+4. Full verify: `npm run verify --`.
+
+### Work with the pipeline runner
+The runner CLI at `packages/engine/src/cli/runner.ts` supports these commands:
+- `run-stage`: execute a full pipeline stage (artifact + gate)
+- `start-phase` / `end-phase`: manual phase lifecycle events
+- `record-artifact` / `record-gate`: manual trace entries
+- `summarize-run`: generate run summary (json/text/markdown)
+
+## npm Workspaces
+
+Root `package.json` defines the engine, operator, contracts, and developer-tool workspaces. Install all dependencies from the root:
+```bash
+npm ci
+```

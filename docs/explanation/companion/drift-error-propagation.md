@@ -10,8 +10,8 @@ evidence_links: ../../reference/claims/dossiers/clm-020-layered-failure-model.md
 
 ## Purpose
 
-This companion page expands the science-layer intuition that defects propagate
-when they survive multiple stages without interception.
+This companion expands the science-layer intuition that defects propagate when
+they survive several stages without interception.
 
 ## Approximate survival model
 

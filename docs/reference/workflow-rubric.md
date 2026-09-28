@@ -2,13 +2,13 @@
 status: experimental
 owner: core
 last_reviewed: 2026-04-17
-source_of_truth: scripts/rae.sh
+source_of_truth: scripts/src/rae.ts
 evidence_links: claims/evidence-index.md
 ---
 
 # Workflow Rubric
 
-This page defines the umbrella operating model for reusable workflow assets.
+How reusable workflow assets are named, bounded, verified, and evidenced.
 
 ## Canonical verbs
 
@@ -77,9 +77,9 @@ evidence policy, release criteria, and claims about the system as a whole.
 
 ## Thesis validation
 
-This rubric validates the workflow thesis that reusable assets should declare
-boundary, verification, guard, and evidence up front instead of relying on oral
-tradition.
+A reusable workflow should declare its boundary, verification, guards, and
+evidence up front. Relying on unwritten convention makes the workflow hard to
+review and unsafe to reuse.
 
 ## Related dossiers
 

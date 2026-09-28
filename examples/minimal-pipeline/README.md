@@ -10,13 +10,13 @@ result.
 ## Commands
 
 ```bash
-./scripts/rae.sh orchestrate init
-./scripts/rae.sh orchestrate run-stage \
+npm run rae -- orchestrate init
+npm run rae -- orchestrate run-stage \
   --run-id <run_id> \
   --phase arm \
   --config-id phased_default \
   --taskset examples/minimal-pipeline/taskset.json
-./scripts/rae.sh orchestrate summarize-run --run-id <run_id> --format markdown
+npm run rae -- orchestrate summarize-run --run-id <run_id> --format markdown
 ```
 
 ## Expected artifacts

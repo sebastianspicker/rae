@@ -14,9 +14,8 @@ also acts as the only verifier.
 
 ## Claim
 
-This page supports the claim that staged separation reduces correlated error and
-that layered failure analysis is more useful than a single undifferentiated
-"agent failed" label.
+Staged separation reduces correlated error. Layered failure analysis tells you
+more than a single undifferentiated "agent failed" label.
 
 ## 1. Drift as constraint violation
 
@@ -56,7 +55,7 @@ That increases the chance of:
 
 ## 3. Repo implication
 
-The umbrella counters this with:
+RAE counters this with:
 
 - staged artifacts
 - adversarial review

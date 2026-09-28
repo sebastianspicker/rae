@@ -8,7 +8,7 @@ evidence_links: ../reference/repo-map.md
 
 # Case Study: Ralph Loop
 
-Ralph `0.3.0` supplies the umbrella's Codex-only deterministic execution loop.
+Ralph `0.3.0` is a Codex-only deterministic loop for bounded, story-scoped work.
 
 ## What it contributes
 
@@ -21,16 +21,14 @@ Ralph `0.3.0` supplies the umbrella's Codex-only deterministic execution loop.
 
 ## Why it matters to the umbrella
 
-It shows how agent work can remain reproducible and bounded even without a large
+It shows that agent work can stay reproducible and bounded without a large
 multi-stage orchestration graph.
 
 ## Thesis validation
 
-This case study validates the role of Ralph as the bounded deterministic-loop
-surface inside the umbrella.
-
-## Related dossiers
-
+Ralph is the bounded deterministic-loop surface: it selects a story, confines
+the change to approved paths, journals each transaction, and recovers from a
+crash without relying on a multi-stage graph.
 
 ## Interpretation limits
 

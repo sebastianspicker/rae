@@ -152,10 +152,11 @@ Do not publish:
 
 ### Experimental hosted platform
 
-- `packages/orchestration/platform/` is not a deployed service. The loopback
-  operator can proxy only allowlisted remote routes and keeps the upstream
-  token out of browser code. Insecure authentication and cleartext HTTP require
-  explicit development flags.
+- `apps/platform/` is not a deployed service. It exposes `/api/v2` and
+  `/mcp`; the loopback operator's fixed remote relay exposes only its
+  `/api/v1` contract. No translation adapter currently connects them.
+  Insecure authentication and cleartext HTTP require explicit development
+  flags.
 - Hosted configuration requires OIDC validation of exact issuer, audience,
   JWKS URL, token type, bounded issue time, allowed asymmetric signing
   algorithms, subject, and unexpired expiration. Route scopes and

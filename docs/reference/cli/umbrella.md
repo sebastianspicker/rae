@@ -2,21 +2,21 @@
 status: stable
 owner: core
 last_reviewed: 2026-08-04
-source_of_truth: scripts/rae.sh
+source_of_truth: scripts/src/rae.ts
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Umbrella CLI
 
-`./scripts/rae.sh` is the repository entrypoint. It validates the runtime
+`npm run rae --` is the repository entrypoint. It validates the runtime
 before dispatching to the package that owns each command.
 
 ## Command ownership
 
 | Command | Owner | Purpose |
 | --- | --- | --- |
-| `verify` | `scripts/verify.sh` | Run repository verification |
-| `doctor` | `scripts/rae.sh` | Check runtime versions, tools, and entrypoints |
+| `verify` | `scripts/src/verify.ts` | Run repository verification |
+| `doctor` | `scripts/src/rae.ts` | Check runtime versions, tools, and entrypoints |
 | `agent` | orchestration autonomous CLI | Run, inspect, stop, or resume an autonomous workflow |
 | `graph` | orchestration graph CLI | Build and query local projections or manage cross-run memory |
 | `operator serve` | orchestration operator console | Serve the loopback console for allowlisted repositories |
@@ -29,39 +29,34 @@ before dispatching to the package that owns each command.
 Run:
 
 ```bash
-./scripts/rae.sh --help
+npm run rae -- --help
 ```
 
 Subcommand options are owned by the selected runtime:
 
 ```bash
-./scripts/rae.sh agent --help
-./scripts/rae.sh graph --help
-./scripts/rae.sh orchestrate --help
-./scripts/rae.sh ralph --help
+npm run rae -- agent --help
+npm run rae -- graph --help
+npm run rae -- orchestrate --help
+npm run rae -- ralph --help
 ```
 
 ## Diagnostics
 
 ```bash
-./scripts/rae.sh doctor
+npm run rae -- doctor
 ```
 
 The command enforces:
 
-- GNU Bash 5.3 or newer
-- Python 3.14.6 or newer
-- a supported Node.js version
-- `git`, `rg`, `jq`, and `shellcheck`
-- runnable package entrypoints
-
-Optional documentation and maintenance tools are reported without failing the
-core diagnostic.
+- Node.js 24 or newer
+- Git and the native filesystem bridge
+- compiled package entrypoints
 
 Provider-backed autonomous work has a separate diagnostic:
 
 ```bash
-./scripts/rae.sh agent doctor
+npm run rae -- agent doctor
 ```
 
 Without provider options, the command checks Codex authentication, workspace
@@ -73,7 +68,7 @@ and macOS containment backend.
 ## Autonomous run
 
 ```bash
-./scripts/rae.sh agent run \
+npm run rae -- agent run \
   --project-root /path/to/target-repository \
   --task "Implement the change, add regression tests, and update the documentation"
 ```
@@ -86,7 +81,7 @@ operator decisions at protected boundaries.
 Resume after correcting an environmental failure:
 
 ```bash
-./scripts/rae.sh agent resume \
+npm run rae -- agent resume \
   --project-root /path/from/the-run-output \
   --run-id <run-id>
 ```
@@ -103,7 +98,7 @@ Use an operator-owned execution profile when workflow nodes declare logical
 tiers:
 
 ```bash
-./scripts/rae.sh agent run \
+npm run rae -- agent run \
   --project-root /path/to/target-repository \
   --execution-profile /absolute/path/to/execution-profile.json \
   --task "Implement and verify the requested change"
@@ -119,11 +114,11 @@ resume.
 OpenCode is explicit:
 
 ```bash
-./scripts/rae.sh agent doctor \
+npm run rae -- agent doctor \
   --provider opencode \
   --model opencode/example-model
 
-./scripts/rae.sh agent run \
+npm run rae -- agent run \
   --project-root /path/to/target-repository \
   --provider opencode \
   --model openrouter/example-model \
@@ -136,9 +131,9 @@ OpenCode writes require the isolated macOS worktree backend and reject
 ## Local graph and memory
 
 ```bash
-./scripts/rae.sh graph build --project-root /path/to/target-repository
-./scripts/rae.sh graph status --project-root /path/to/target-repository
-./scripts/rae.sh graph query --project-root /path/to/target-repository \
+npm run rae -- graph build --project-root /path/to/target-repository
+npm run rae -- graph status --project-root /path/to/target-repository
+npm run rae -- graph query --project-root /path/to/target-repository \
   --seed 'File:src/main.js'
 ```
 
@@ -149,13 +144,13 @@ ownership. See the [graph and memory contract](../contracts/graph-memory.md).
 Workflow revisions use the same graph command family:
 
 ```bash
-./scripts/rae.sh graph workflow list --project-root /path/to/target-repository
-./scripts/rae.sh graph workflow validate --project-root /path/to/target-repository \
+npm run rae -- graph workflow list --project-root /path/to/target-repository
+npm run rae -- graph workflow validate --project-root /path/to/target-repository \
   --workflow-file /absolute/path/to/workflow.json
-./scripts/rae.sh graph workflow analyze \
+npm run rae -- graph workflow analyze \
   --workflow-file /absolute/path/to/workflow.json \
   --execution-profile /absolute/path/to/execution-profile.json
-./scripts/rae.sh graph workflow propose --project-root /path/to/target-repository \
+npm run rae -- graph workflow propose --project-root /path/to/target-repository \
   --task "Design a bounded topology" --base-workflow graph-native-default \
   --actor "operator-name" --rationale "Draft for review" \
   --execution-profile /absolute/path/to/execution-profile.json --preview
@@ -175,7 +170,7 @@ executes the result.
 ## Operator console
 
 ```bash
-./scripts/rae.sh operator serve \
+npm run rae -- operator serve \
   --project /canonical/path/to/target-repository \
   --execution-profile /absolute/path/to/execution-profile.json
 ```
@@ -197,17 +192,17 @@ source of truth.
 
 ## Exit behavior
 
-`rae.sh` rejects unknown command families and propagates the selected runtime's
-exit status. A command that cannot establish its required safety boundary fails
-closed.
+`npm run rae --` rejects unknown command families and propagates the selected
+runtime's exit status. A command that cannot establish its required safety
+boundary fails closed.
 
 ## Related documentation
 
 - [Orchestration CLI](orchestration.md)
 - [Ralph CLI](ralph.md)
 - [Repository hygiene CLI](repo-hygiene.md)
-- [Orchestration package](https://github.com/sebastianspicker/rae/blob/main/packages/orchestration/README.md)
-- [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/loops/ralph/README.md)
+- [Orchestration package](https://github.com/sebastianspicker/rae/blob/main/packages/engine/README.md)
+- [Ralph package](https://github.com/sebastianspicker/rae/blob/main/packages/ralph/README.md)
 
 ## Source note
 

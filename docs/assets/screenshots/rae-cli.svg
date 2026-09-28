@@ -1,51 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="971" height="902" viewBox="0 0 971 902" role="img" aria-labelledby="title description">
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="462" viewBox="0 0 960 462" role="img" aria-labelledby="title description">
   <title id="title">RAE command map</title>
   <desc id="description">Deterministic terminal capture generated from the live RAE CLI.</desc>
   <style>
     .line { fill: #e6edf3; font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .chrome { fill: #8b949e; font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   </style>
-  <rect width="971" height="902" rx="14" fill="#0d1117"/>
-  <rect width="971" height="44" rx="14" fill="#161b22"/>
+  <rect width="960" height="462" rx="14" fill="#0d1117"/>
+  <rect width="960" height="44" rx="14" fill="#161b22"/>
   <circle cx="24" cy="22" r="6" fill="#ff5f56"/>
   <circle cx="44" cy="22" r="6" fill="#ffbd2e"/>
   <circle cx="64" cy="22" r="6" fill="#27c93f"/>
   <text x="88" y="27" class="chrome">RAE command map</text>
-    <text x="32" y="76" class="line">$ ./scripts/rae.sh --help</text>
+    <text x="32" y="76" class="line">$ npm run rae -- --help</text>
     <text x="32" y="98" class="line"></text>
-    <text x="32" y="120" class="line">Usage: ./scripts/rae.sh &lt;command&gt; [args]</text>
+    <text x="32" y="120" class="line">Usage: npm run rae -- &lt;command&gt; [args]</text>
     <text x="32" y="142" class="line"></text>
-    <text x="32" y="164" class="line">RAE umbrella CLI.</text>
-    <text x="32" y="186" class="line"></text>
-    <text x="32" y="208" class="line">Commands:</text>
-    <text x="32" y="230" class="line">  verify [--skip-install] [--skip-mkdocs] [--release-candidate]</text>
-    <text x="32" y="252" class="line">                                       Run umbrella verification</text>
-    <text x="32" y="274" class="line">  doctor                               Check runtime prerequisites and entrypoints</text>
-    <text x="32" y="296" class="line">  agent &lt;subcommand&gt; [args]            Run the autonomous coding-agent orchestrator</text>
-    <text x="32" y="318" class="line">  graph &lt;subcommand&gt; [args]            Build and query local graph projections and memory</text>
-    <text x="32" y="340" class="line">  operator serve [args]                Serve the authenticated loopback operator console</text>
-    <text x="32" y="362" class="line">  orchestrate &lt;subcommand&gt; [args]      Run the phased orchestration package</text>
-    <text x="32" y="384" class="line">  worktree &lt;subcommand&gt; [args]         Run worktree-native orchestration aliases</text>
-    <text x="32" y="406" class="line">  ralph &lt;subcommand&gt; [args]            Run Ralph or bootstrap its embedded template</text>
-    <text x="32" y="428" class="line">  hygiene &lt;tool&gt; [args]                Run narrow maintenance tooling</text>
-    <text x="32" y="450" class="line">  workflow &lt;family&gt; [args]             Run umbrella workflow aliases</text>
-    <text x="32" y="472" class="line">  help                                 Show this help</text>
-    <text x="32" y="494" class="line"></text>
-    <text x="32" y="516" class="line">Examples:</text>
-    <text x="32" y="538" class="line">  ./scripts/rae.sh doctor</text>
-    <text x="32" y="560" class="line">  ./scripts/rae.sh agent doctor</text>
-    <text x="32" y="582" class="line">  ./scripts/rae.sh agent run --task &quot;Add a tested health endpoint and document it&quot;</text>
-    <text x="32" y="604" class="line">  ./scripts/rae.sh graph build --project-root /absolute/path/to/repository</text>
-    <text x="32" y="626" class="line">  ./scripts/rae.sh operator serve --project /absolute/path/to/repository</text>
-    <text x="32" y="648" class="line">  ./scripts/rae.sh orchestrate init</text>
-    <text x="32" y="670" class="line">  ./scripts/rae.sh orchestrate run-stage --run-id &lt;id&gt; --phase arm</text>
-    <text x="32" y="692" class="line">  ./scripts/rae.sh orchestrate record-review-state --run-id &lt;id&gt; --state explain --status completed</text>
-    <text x="32" y="714" class="line">  ./scripts/rae.sh orchestrate summarize-progress --run-id &lt;id&gt;</text>
-    <text x="32" y="736" class="line">  ./scripts/rae.sh ralph --status</text>
-    <text x="32" y="758" class="line">  ./scripts/rae.sh ralph bootstrap-template /tmp/demo-repo</text>
-    <text x="32" y="780" class="line">  ./scripts/rae.sh hygiene coauthor-cleaner --help</text>
-    <text x="32" y="802" class="line">  ./scripts/rae.sh worktree init .</text>
-    <text x="32" y="824" class="line">  ./scripts/rae.sh worktree summary --run-id &lt;id&gt;</text>
-    <text x="32" y="846" class="line">  ./scripts/rae.sh workflow repo-audit bootstrap /tmp/demo-repo</text>
-    <text x="32" y="868" class="line">  ./scripts/rae.sh workflow long-horizon init</text>
+    <text x="32" y="164" class="line">Commands:</text>
+    <text x="32" y="186" class="line">  verify [options]                  Run repository verification</text>
+    <text x="32" y="208" class="line">  doctor                            Check Node and compiled package entrypoints</text>
+    <text x="32" y="230" class="line">  agent &lt;subcommand&gt; [args]         Autonomous coding-agent orchestrator</text>
+    <text x="32" y="252" class="line">  graph &lt;subcommand&gt; [args]         Repository graph projections and memory</text>
+    <text x="32" y="274" class="line">  operator serve [args]             Authenticated loopback operator console</text>
+    <text x="32" y="296" class="line">  orchestrate &lt;subcommand&gt; [args]   Staged workflow interface</text>
+    <text x="32" y="318" class="line">  worktree &lt;subcommand&gt; [args]      Worktree orchestration aliases</text>
+    <text x="32" y="340" class="line">  ralph [args]                      Ralph story loop and embedded bootstrap</text>
+    <text x="32" y="362" class="line">  hygiene coauthor-cleaner [args]   Narrow history maintenance</text>
+    <text x="32" y="384" class="line">  profile &lt;install|uninstall&gt; [args]  Agent profile transactions</text>
+    <text x="32" y="406" class="line">  workflow &lt;family&gt; [args]          Autonomous, repo-audit and long-horizon aliases</text>
+    <text x="32" y="428" class="line">  help                              Show this help</text>
 </svg>

@@ -2,13 +2,13 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-04-12
-source_of_truth: packages/orchestration/contracts
+source_of_truth: packages/contracts/v1/schemas
 evidence_links: ../claims/evidence-index.md
 ---
 
 # Artifact Schemas
 
-Artifact schemas live under `packages/orchestration/contracts/`.
+Artifact schemas live under `packages/contracts/v1/schemas/`.
 
 Public rule:
 
@@ -38,7 +38,12 @@ Version 2.1 adds bounded maps, item streams, allowlisted transforms, threshold
 joins, typed failure collection, until-dry convergence, and immutable instance
 identity. Version 2.0 remains a separate accepted contract for existing run
 snapshots and locally activated revisions. RAE does not rewrite private
-registries or migrate stored runs automatically.
+registries or stored runs on disk.
+
+Run artifacts created before the contract package was versioned may contain a
+`contracts/...` schema reference. The engine maps only those known schema
+paths to `packages/contracts/v1/schemas/...`; arbitrary repository-local
+schema references retain their original meaning.
 
 Version 2.2 adds local durable wait nodes, typed signal contracts, bounded
 context manifests, and immutable references for predecessor records that do

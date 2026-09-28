@@ -1,0 +1,7 @@
+{
+  "name": "@rae/agent-adapters",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=24.0.0"},
+  "scripts": {"build": "tsc -p tsconfig.json", "generate": "node dist/generate-adapters.js", "check": "node dist/generate-adapters.js --check", "typecheck": "tsc -p tsconfig.json --noEmit"}
+}

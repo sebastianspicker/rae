@@ -2,39 +2,39 @@
 status: stable
 owner: loops
 last_reviewed: 2026-07-16
-source_of_truth: packages/loops/ralph
+source_of_truth: packages/ralph
 evidence_links: ../reference/claims/evidence-index.md
 ---
 
 # First Ralph Run
 
-This tutorial walks through the minimum local Ralph `0.3.0` path. Ralph is
-Codex-only: its `audit` and `linting` modes are read-only, while `fixing` uses a
-story-scoped filesystem transaction with recovery.
+This is the minimum local Ralph `0.4.0` path. Ralph is Codex-only: `audit` and
+`linting` are read-only, while `fixing` applies one story through a recoverable
+filesystem transaction.
 
 ## Assumptions
 
 - you are at the repository root
-- GNU Bash 5.3+, Python 3.14.6+, `jq`, and the Codex CLI are available
+- Node.js 24+, the compiled RAE packages, and the Codex CLI are available
 - you only want to validate the loop surface first
 
 ## 1. Validate the PRD
 
 ```bash
-./scripts/rae.sh ralph --validate-prd
+npm run rae -- ralph --validate-prd
 ```
 
 ## 2. Inspect current state
 
 ```bash
-./scripts/rae.sh ralph --status
-./scripts/rae.sh ralph --list-stories
+npm run rae -- ralph --status
+npm run rae -- ralph --list-stories
 ```
 
 ## 3. Run a small audit batch
 
 ```bash
-MODE=audit ./scripts/rae.sh ralph 1
+MODE=audit npm run rae -- ralph 1
 ```
 
 Codex execution uses a positive deadline, a 15-second graceful shutdown, and
@@ -44,14 +44,14 @@ only after reviewing the selected story and transaction boundary.
 ## 4. Run package verification
 
 ```bash
-./scripts/rae.sh ralph tests
+npm run rae -- ralph tests
 ```
 
 ## 5. Bootstrap the embedded template into another repo
 
 ```bash
 mkdir -p /tmp/rae-demo-repo
-./scripts/rae.sh workflow repo-audit bootstrap /tmp/rae-demo-repo
+npm run rae -- workflow repo-audit bootstrap /tmp/rae-demo-repo
 ```
 
 ## What this demonstrates
@@ -63,11 +63,8 @@ mkdir -p /tmp/rae-demo-repo
 
 ## Thesis validation
 
-This tutorial demonstrates the bounded deterministic-loop thesis on a minimal
-operator path.
-
-## Related dossiers
-
+This is the smallest useful Ralph loop: one bounded story, selected
+deterministically and confined to an approved path.
 
 ## Interpretation limits
 

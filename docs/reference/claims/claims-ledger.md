@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-04-12
+last_reviewed: 2026-09-08
 source_of_truth: editorial
 evidence_links: evidence-index.md
 ---
@@ -32,7 +32,8 @@ evidence_links: evidence-index.md
 | CLM-016 | Reasoning budget, autonomy, and review intensity should be tiered by ambiguity, consequence of error, and checkability rather than maximized uniformly. | engineering_heuristic | adopted | [Evidence Index](evidence-index.md#clm-016) | [Dossier](dossiers/clm-016-cognitive-tiering.md) |
 | CLM-017 | Documentation quality affects operator behavior and therefore belongs inside the reliability model rather than outside it. | engineering_heuristic | adopted | [Evidence Index](evidence-index.md#clm-017) | [Dossier](dossiers/clm-017-documentation-reliability.md) |
 | CLM-020 | Failure analysis is more diagnostic when representation, inference, coordination, and governance failures are separated instead of collapsed into one label. | engineering_heuristic | adopted | [Evidence Index](evidence-index.md#clm-020) | [Dossier](dossiers/clm-020-layered-failure-model.md) |
-| CLM-024 | Workflow 2.1 remains provider-neutral while execution profile 3.0 resolves explicit Codex and OpenCode routes locally; OpenCode mutation requires an isolated worktree, an exact denied-by-default tool surface, and the macOS containment backend. | implementation_reference | provisional | `packages/orchestration/contracts/workflows/execution-profile-v3.schema.json`, `packages/orchestration/scripts/pipeline/lib/opencode-adapter.mjs` | [Execution Profile 3.0](../contracts/execution-profile-v3.md) |
+| CLM-024 | Workflow 2.1 remains provider-neutral while execution profile 3.0 resolves explicit Codex and OpenCode routes locally; OpenCode mutation requires an isolated worktree, an exact denied-by-default tool surface, and the macOS containment backend. | implementation_reference | provisional | `packages/contracts/v1/schemas/workflows/execution-profile-v3.schema.json`, `packages/engine/src/agents/opencode-adapter.ts` | [Execution Profile 3.0](../contracts/execution-profile-v3.md) |
+| CLM-025 | In the 2026-09-08 macOS Node 26 fixtures, catalog pages and shared event replay preserved reference results while bounding repeated parsing work. | implementation_reference | provisional | [Evidence mapping](evidence-index.md#clm-025) | [Measurements and limitations](../performance-measurements.md) |
 
 ## Status meanings
 

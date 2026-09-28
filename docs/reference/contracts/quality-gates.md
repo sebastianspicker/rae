@@ -2,7 +2,7 @@
 status: experimental
 owner: orchestration
 last_reviewed: 2026-04-12
-source_of_truth: packages/orchestration/contracts
+source_of_truth: packages/contracts/v1/schemas
 evidence_links: ../claims/claims-ledger.md
 ---
 
@@ -56,12 +56,9 @@ missing artifact.
 
 ## Thesis validation
 
-This page validates the claim that gate logic should remain separate from
-artifact structure and that progression decisions must name their evidence and
-failure semantics explicitly.
-
-## Related dossiers
-
+Gate logic stays separate from artifact structure, and every progression
+decision names its evidence and its failure semantics. Mixing the two makes a
+gate impossible to audit.
 
 ## Interpretation limits
 

@@ -6,38 +6,22 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: npm
-    directory: /packages/orchestration
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/orchestration/skills/dev-tools/_shared
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/orchestration/skills/dev-tools/multi-model-review
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/orchestration/skills/dev-tools/quality-gate
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/orchestration/skills/dev-tools/trace-collector
-    schedule:
-      interval: weekly
-  - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
-  - package-ecosystem: docker
-    directory: /packages/orchestration/skills/dev-tools/multi-model-review/sandbox
+  - package-ecosystem: npm
+    directory: /apps/platform
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directory: /packages/orchestration/skills/dev-tools/quality-gate/sandbox
+    directory: /packages/dev-tools/multi-model-review/sandbox
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directory: /packages/orchestration/skills/dev-tools/trace-collector/sandbox
+    directory: /packages/dev-tools/quality-gate/sandbox
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /packages/dev-tools/trace-collector/sandbox
     schedule:
       interval: weekly
