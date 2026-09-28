@@ -52,6 +52,7 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   ".svg": "image/svg+xml",
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".woff2": "font/woff2",
 };
 const STATIC_ROOT_FILES = new Map<string, string>([
   ["/", "index.html"],
@@ -100,7 +101,7 @@ function securityHeaders(): Record<string, string> {
   return {
     "cache-control": "no-store",
     "content-security-policy":
-      "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     "cross-origin-opener-policy": "same-origin",
     "cross-origin-resource-policy": "same-origin",
     "referrer-policy": "no-referrer",
@@ -185,7 +186,7 @@ function resolveStaticPath(pathname: string): string | null {
   if (pathname.includes("\0") || pathname.includes("\\")) return null;
   const relative = pathname.replace(/^\/+/, "");
   if (!relative || relative.includes("..")) return null;
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9./_-]*\.(css|js|html)$/.test(relative)) return null;
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9./_-]*\.(css|js|html|woff2)$/.test(relative)) return null;
   const candidate = resolve(staticRoot, relative);
   if (candidate !== staticRoot && !candidate.startsWith(`${staticRoot}/`)) return null;
   return candidate;

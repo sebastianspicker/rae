@@ -100,3 +100,24 @@ test("tail writes advance through the accepted chunk and resume only after drain
   (drain as () => void)();
   assert.equal(resumes, 1);
 });
+
+test("static serving exposes self-hosted fonts but not their licence texts", async (t) => {
+  const project = projectFixture(t);
+  const instance = createOperatorServer({ projects: [project], token: "test-token" });
+  await new Promise<void>((resolveListen, reject) => {
+    instance.server.once("error", reject);
+    instance.server.listen(0, "127.0.0.1", () => resolveListen());
+  });
+  t.after(() => new Promise<void>((resolveClose) => instance.server.close(() => resolveClose())));
+  const address = instance.server.address();
+  assert.ok(address && typeof address !== "string");
+  const origin = `http://127.0.0.1:${address.port}`;
+  const font = await fetch(`${origin}/fonts/plex-mono-400.woff2`);
+  assert.equal(font.status, 200);
+  assert.equal(font.headers.get("content-type"), "font/woff2");
+  assert.match(font.headers.get("content-security-policy") ?? "", /font-src 'self'/u);
+  await font.arrayBuffer();
+  const licence = await fetch(`${origin}/fonts/OFL-IBMPlexMono.txt`);
+  assert.equal(licence.status, 404);
+  await licence.arrayBuffer();
+});

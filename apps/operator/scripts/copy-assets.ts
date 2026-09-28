@@ -13,5 +13,9 @@ cpSync(resolve(sourceRoot, "static", "css"), resolve(outputRoot, "static", "css"
   recursive: true,
 });
 
+// Self-hosted OFL typefaces and their licences.
+cpSync(resolve(sourceRoot, "static", "fonts"), resolve(outputRoot, "static", "fonts"), {
+  recursive: true,
+});
 cpSync(resolve(sourceRoot, "static", "favicon.svg"), resolve(outputRoot, "static", "favicon.svg"));
 cpSync(resolve(sourceRoot, "demo", "tour.html"), resolve(outputRoot, "demo", "tour.html"));
