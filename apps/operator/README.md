@@ -204,7 +204,6 @@ Start defaults to checkpoints before both mutation and release.
 
 ```bash
 npm --workspace @rae/operator test
-npm --workspace @rae/operator run test:legacy
 ```
 
 ## Summary discovery and event replay

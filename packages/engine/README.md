@@ -6,7 +6,7 @@ executes immutable workflow snapshots, coordinates provider processes, and
 records local run evidence.
 
 The repository distributes source rather than a stable library release.
-`src/public/index.mjs` is nevertheless the only supported import boundary for
+`src/public/index.ts` is nevertheless the only supported import boundary for
 applications in this monorepo; all other files under `src/` are private.
 
 ## Install and verify
@@ -166,7 +166,7 @@ work:
 npm run rae -- orchestrate --help
 ```
 
-Add `--use-worktree` to `pipeline-init.sh` for its separate low-level
+Add `--use-worktree` to `pipeline-init.ts` for its separate low-level
 worktree lifecycle. This interface can initialize state, run deterministic
 stages, record gates and review state, summarize progress, and clean up an
 owned worktree. Without an input artifact, the stage runner writes development
