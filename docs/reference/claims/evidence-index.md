@@ -78,7 +78,6 @@ evidence_links: bibliography.md
 - Dossier: [CLM-017 documentation reliability](dossiers/clm-017-documentation-reliability.md)
 - Internal anchor: `docs/governance/documentation-policy.md`
 - Internal anchor: `docs/explanation/science/abstract.md`
-- Internal anchor: `scripts/src/verify-repository.ts`
 - External anchor: [Diataxis](bibliography.md#src-diataxis)
 - External anchor: [Nosek open research culture](bibliography.md#src-nosek-open-research)
 - External anchor: [Pineau reproducibility report](bibliography.md#src-pineau-reproducibility)

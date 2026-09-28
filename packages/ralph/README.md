@@ -38,8 +38,7 @@ node dist/src/helper-cli.js bootstrap /path/to/target-repository
 
 The canonical embedded path is `.claude/ralph-audit/`. The bootstrap command
 copies a self-contained Node runtime and native bridge, refuses symlinked or
-invalid destination parents, and verifies the copied payload. Add
-`--with-tests` to include the compiled Node suite.
+invalid destination parents, and verifies the copied payload.
 
 ## Usage
 
@@ -200,15 +199,9 @@ rejected in decoded JSON strings, including characters written as JSON escapes.
 SIGINT and SIGTERM use the same awaited cleanup before releasing the run lock;
 they stop retries and story promotion, then exit with status `130` or `143`.
 
-## Testing
+## Verification
 
-Run the package suite:
-
-```bash
-npm test
-```
-
-The repository umbrella gate also runs this package:
+Run the repository verifier:
 
 ```bash
 npm --prefix ../.. run verify -- --skip-install
@@ -243,6 +236,5 @@ the repository [`SECURITY.md`](../../SECURITY.md).
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for package checks and the repository
-[`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the full contribution
-workflow.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for package guidance and the repository
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) for the full contribution workflow.

@@ -63,7 +63,6 @@ See `prd.json.example` for a compact, schema-valid starter PRD.
 - `node dist/src/helper-cli.js sync-agents`: sync the latest `- Note:` into `AGENTS.md`.
 - `node dist/src/helper-cli.js archive`: snapshot current run state into `archive/<timestamp>-<label>/`.
 - `node dist/src/helper-cli.js bootstrap <target>`: create the self-contained embedded Node runtime.
-- `npm test [-- filter]`: build and run the compiled Node suite with an optional filename filter.
 
 - Optional strict modes:
   - `RALPH_MODEL_PREFLIGHT=true`

@@ -17,6 +17,19 @@ DerivedData/
 xcuserdata/
 
 # Test, coverage, and generated analysis output
+**/test/
+**/tests/
+**/__tests__/
+**/fixtures/
+**/__snapshots__/
+*.test.ts
+*.test.mjs
+*.spec.ts
+*.spec.mjs
+vitest.config.*
+jest.config.*
+pytest.ini
+conftest.py
 coverage/
 htmlcov/
 .coverage
@@ -40,6 +53,8 @@ __pycache__/
 /.pipeline/
 /.runtime/
 /.worktrees/
+**/.worktrees/
+**/worktrees/
 /archive/
 /scratch/
 /tmp/
@@ -120,13 +135,19 @@ id_ed25519.*
 # Local analysis and repository tooling
 .repowise/
 /.codegraph/
+/.codacy/
 /.mcp.json
-/.codacy/cli-config.yaml
-/.codacy/cli.sh
-/.codacy/generated/
-/.codacy/logs/
-/.codacy/reports/
-/.codacy/tmp/
+
+# Local helper scripts and generated captures
+/scripts/src/check-*.ts
+/scripts/src/test-*.ts
+/scripts/src/codacy-local.ts
+/scripts/src/provision-codacy-tools.ts
+/scripts/src/clean-local.ts
+/scripts/src/install-hooks.ts
+/scripts/src/hooks/
+/apps/operator/scripts/capture-*.ts
+/packages/ralph/src/test-cli.ts
 /.codacy/tools-configs/
 
 # Development-assistant state and generated guidance
@@ -143,6 +164,11 @@ id_ed25519.*
 /.claude/
 /.codex/
 /.cursor/
+/.continue/
+/.windsurf/
+/.impeccable/
+/.history/
+/.aider*/
 /.gemini/
 /.kilo/
 /.cursorrules
@@ -166,7 +192,10 @@ id_ed25519.*
 /PLAN*.md
 /REMEDIATION*.md
 /STATUS*.md
-!/RELEASE_STATUS.md
+/RELEASE_STATUS.md
+/RELEASE_NOTES.md
+/RELEASING.md
+/TESTING.md
 /*-ledger.md
 /*_ledger.md
 /plan.md
@@ -177,6 +206,10 @@ id_ed25519.*
 /scratchpad*
 /docs/agent/
 /docs/archive/
+/docs/migration/
+/docs/how-to/test-experimental-hosted-platform.md
+/apps/operator/DESIGN_BRIEF.md
+/apps/operator/design-preview/
 /docs/*-audit.md
 /docs/*-ledger.md
 /docs/*-plan.md

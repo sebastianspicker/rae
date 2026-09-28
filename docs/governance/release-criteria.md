@@ -8,11 +8,7 @@ evidence_links: ../reference/invariants/provenance-requirements.md
 
 # Release Criteria
 
-`v0.1.0-alpha.1` is a proposed public alpha candidate. Interfaces may change;
-the current dirty, untagged checkout is not a published release. See the root
-[Release Status](https://github.com/sebastianspicker/rae/blob/main/RELEASE_STATUS.md)
-and [Releasing](https://github.com/sebastianspicker/rae/blob/main/RELEASING.md)
-for the current evidence boundary.
+Interfaces may change between alpha releases.
 
 A public release is not complete unless all of the following are true:
 
@@ -26,7 +22,7 @@ A public release is not complete unless all of the following are true:
 
 ## Thesis validation
 
-Passing the tests is not enough to publish. A release also needs provenance and
+Passing verification is not enough to publish. A release also needs provenance and
 documentation review, because execution success alone says nothing about whether
 an artifact is safe to ship.
 

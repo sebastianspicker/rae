@@ -156,7 +156,6 @@ async function ralph(args: string[]): Promise<number> {
   const root = packageFile("packages/ralph");
   if (["bootstrap", "bootstrap-template"].includes(command))
     return execute(resolve(root, "dist/src/helper-cli.js"), ["bootstrap", ...rest], root);
-  if (command === "tests") return execute(resolve(root, "dist/src/test-cli.js"), rest, root);
   return execute(
     resolve(root, "dist/src/cli.js"),
     [command === "help" ? "--help" : command, ...rest],

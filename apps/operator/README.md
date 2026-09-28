@@ -73,25 +73,6 @@ evidence from a real run:
 
 ![Workflow editor mobile fixture](docs/screenshots/evidence-dossier-mobile.png)
 
-Regenerate both captures from the current operator UI and the sanitized graph
-fixture:
-
-```bash
-npm --workspace @rae/operator run build
-node apps/operator/dist/scripts/capture-docs-screenshots.js
-```
-
-The capture script requires a local Chrome or Chromium installation. It starts
-an ephemeral loopback fixture server and does not read repository run state.
-Each capture uses an isolated browser profile and
-[explicit viewport dimensions](https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setDeviceMetricsOverride).
-The script verifies the connected Graph view, browser errors, viewport size,
-and page overflow before saving each PNG. It awaits browser process-group
-cleanup and retains the temporary profile if containment cannot be confirmed.
-Use `node apps/operator/dist/scripts/capture-docs-screenshots.js --check` to
-verify both viewports with temporary images. The root verification gate uses
-this mode so it does not change the maintained screenshots.
-
 Start it with one or more canonical Git roots:
 
 ```bash
@@ -212,7 +193,7 @@ Start defaults to checkpoints before both mutation and release.
 ## Verification
 
 ```bash
-npm --workspace @rae/operator test
+npm --workspace @rae/operator run build
 ```
 
 ## Summary discovery and event replay

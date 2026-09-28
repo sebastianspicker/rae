@@ -50,8 +50,4 @@ docker run --rm rae-trace-collector --healthcheck
 
 The image compiles the shared package and this tool with the root workspace
 lockfile, includes the versioned schemas, and runs as the existing non-root
-`skill` user. From a prepared checkout, `node --test
-packages/dev-tools/tests/protocol.test.ts` exercises all three compiled tools
-and their supported runner exports. CI runs the same protocol fixtures against
-all three container images. These are deterministic local evaluations without
-provider calls.
+`skill` user.

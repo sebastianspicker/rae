@@ -2,13 +2,13 @@
 status: stable
 owner: core
 last_reviewed: 2026-09-28
-source_of_truth: scripts/src/check-architecture.ts
+source_of_truth: packages/engine/src/public/index.ts
 evidence_links: ../claims/assumptions-register.md
 ---
 
 # Module Boundaries
 
-These are the import and ownership rules the architecture check enforces. For
+These are the import and ownership rules of the source layout. For
 the complete component and runtime model, see the
 [architecture guide](../../ARCHITECTURE.md).
 
@@ -53,16 +53,4 @@ Generated integration content under
 templates or manifest. Runtime state and generated build output are never
 source dependencies.
 
-## Enforcement
-
-`scripts/src/check-architecture.ts` rejects retired roots, private engine imports
-from applications, engine imports of application, Ralph, dev-tool, integration,
-profile, tool or repository-script source (resolved relative paths and package
-names), engine imports against
-the layer order above, and JavaScript, shell, Python or jq source under
-`packages/`, `apps/`, `integrations/`, `profiles/`, `tools/` and `scripts/`
-(maintained source is TypeScript). `scripts/src/test-architecture.test.ts`
-covers the rules. Package exports
-and npm workspaces reinforce the same boundary. The repository verification
-gate runs this check with tests, static analysis, adapter synchronization, and
-documentation validation.
+Package exports and npm workspaces reinforce these boundaries.

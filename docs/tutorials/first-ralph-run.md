@@ -41,10 +41,10 @@ Codex execution uses a positive deadline, a 15-second graceful shutdown, and
 bounded output (16 MiB raw output and 2 MiB final report). Try `MODE=fixing`
 only after reviewing the selected story and transaction boundary.
 
-## 4. Run package verification
+## 4. Run repository verification
 
 ```bash
-npm run rae -- ralph tests
+npm run verify -- --skip-install
 ```
 
 ## 5. Bootstrap the embedded template into another repo

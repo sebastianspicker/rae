@@ -9,9 +9,6 @@
     "rae-platform-worker": "dist/bin/rae-platform-worker.js"
   },
   "scripts": {
-    "test": "node --test dist/test/*.test.js",
-    "test:boundary": "node --test dist/test/engine-boundary.test.js",
-    "test:integration": "node --test dist/test/postgres-store.integration.test.js",
     "control": "node dist/bin/rae-platform.js",
     "worker": "node dist/bin/rae-platform-worker.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

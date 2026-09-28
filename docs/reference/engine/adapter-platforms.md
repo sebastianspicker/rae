@@ -45,7 +45,6 @@ silently auto-detected as code-writing backends.
 ## Verification modes
 
 - Full verification: `npm run verify --`
-- Markdown integrity check (also part of verify): `node scripts/dist/check-markdown-links.js --root "$(pwd)" --allowed-root "$(pwd)/../.." --strict`
 
 ## Minimum platform capabilities
 

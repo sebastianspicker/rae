@@ -68,5 +68,3 @@ packages retain their own changelogs where applicable.
 ### Notes
 
 - This is a public alpha candidate, not a stable API commitment.
-- The candidate remains local, dirty, untagged, and unpublished; see
-  [RELEASE_STATUS.md](RELEASE_STATUS.md) for exact evidence and blockers.

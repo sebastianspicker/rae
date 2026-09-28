@@ -146,15 +146,6 @@ npm run rae -- hygiene coauthor-cleaner --help
 
 MIT. See [LICENSE](LICENSE).
 
-Run the disposable transaction fixtures from the repository root:
-
-```bash
-npm --prefix tools/repo-hygiene/coauthor-trailer-cleaner test
-```
-
-The repository gate includes these fixtures. They do not mutate personal
-repositories; simulated remote Git operations use a local bare repository.
-
 Identity deduplication uses the vendored Unicode 16 full case-folding table to
 preserve the former Python 3.14 behavior. The first spelling of each identity
 still controls raw-byte trailer matching. The table and its license are in

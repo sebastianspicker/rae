@@ -33,20 +33,17 @@ Optional but useful:
 
 ## CI
 
-On push and pull requests, GitHub Actions runs the full repository verification gate, which includes this package's test suite. See [../../.github/workflows/ci.yml](../../.github/workflows/ci.yml).
+On push and pull requests, GitHub Actions runs the repository verification gate. See [../../.github/workflows/ci.yml](../../.github/workflows/ci.yml).
 
-## Testing Requirements
+## Verification Requirements
 
 Before opening a PR:
 
-1. Run the compiled TypeScript checks:
+Run the compiled TypeScript checks before opening a PR:
 
 ```bash
-npm test
 npm run typecheck
 ```
-
-2. If behavior changes, add or update tests in `tests/`.
 
 ## Documentation Requirements
 

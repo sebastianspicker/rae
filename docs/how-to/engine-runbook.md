@@ -10,8 +10,7 @@ evidence_links: ../reference/claims/evidence-index.md
 
 This runbook covers local engine preflight, run control, recovery, and the
 low-level staged interface. Use the engine guide (`packages/engine/README.md` at the repository root)
-for concepts and configuration, and Testing (`TESTING.md` at the repository root) for verification
-commands.
+for concepts and configuration.
 
 ## Preflight
 
@@ -159,8 +158,5 @@ Cleanup is explicit and accepts only a clean pipeline-owned worktree:
   or missing tool, then resume from the printed worktree.
 - Uncertain interruption: inspect the workspace and provider activity before
   starting another run.
-- Verification failure: use the focused command in Testing (`TESTING.md` at the repository root);
+- Verification failure: use `npm run verify --` from a prepared checkout;
   do not generalize a partial result to the complete repository.
-
-Do not use `scripts/src/clean-local.ts` as recovery for an active or failed run. It
-removes ignored local caches, not engine-owned transactional state.

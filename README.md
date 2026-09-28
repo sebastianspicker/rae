@@ -7,7 +7,6 @@
 </p>
 
 [![ci](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sebastianspicker/rae/actions/workflows/ci.yml)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/138a23bb9a53432d899877961b8d2ab2)](https://app.codacy.com/gh/sebastianspicker/rae/dashboard)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13179/badge)](https://www.bestpractices.dev/projects/13179)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/sebastianspicker/rae/badge)](https://scorecard.dev/viewer/?uri=github.com/sebastianspicker/rae)
 [![License: MIT](https://img.shields.io/github/license/sebastianspicker/rae)](LICENSE)
@@ -16,11 +15,9 @@ RAE is a local-first toolkit for controlled repository changes. It combines
 versioned graph workflows, isolated Git worktrees, schema-validated artifacts,
 human checkpoints, verification gates, and durable local run evidence.
 
-The repository is preparing its first public alpha. It currently distributes
-source only: there is no published package, supported container, deployed
-service, or stable API. The hosted control-plane code and workflow 2.2 are
-experimental. See [Release Status](RELEASE_STATUS.md) for current evidence and
-blockers.
+The repository distributes source only: there is no published package,
+supported container, deployed service, or stable API. The hosted control-plane
+code and workflow 2.2 are experimental.
 
 ## What RAE provides
 
@@ -179,21 +176,18 @@ transmit selected task and context data to the configured provider.
 
 ## Development and verification
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing behavior and
-[TESTING.md](TESTING.md) for the authoritative test matrix. The prepared-checkout
-gate is:
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing behavior. The
+prepared-checkout verification command is:
 
 ```bash
 npm run verify -- --skip-install
 ```
 
-`npm test` runs the package suites. The complete gate also checks documentation,
-contracts and bootstrap commands. `npm run build` covers root workspaces; build
-the platform separately. `npm run lint` and `npm run typecheck` check maintained
-TypeScript.
+The command builds the source, checks maintained TypeScript and documentation,
+and exercises the runtime entry points. `npm run build` covers root workspaces;
+build the platform separately.
 
-Release candidates must follow [RELEASING.md](RELEASING.md) and run the
-non-partial gate:
+For a complete verification run:
 
 ```bash
 npm run verify -- --release-candidate

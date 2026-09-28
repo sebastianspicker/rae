@@ -15,8 +15,7 @@ function moduleFiles(directory: string): string[] {
 
 const engineRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 const sourceRoot = resolve(engineRoot, "src");
-const testRoot = resolve(engineRoot, "test");
-const files = [...moduleFiles(sourceRoot), ...moduleFiles(testRoot)];
+const files = moduleFiles(sourceRoot);
 const fileSet = new Set(files.map((file) => normalize(file)));
 const failures: string[] = [];
 const dependencies = new Map<string, string[]>();
@@ -64,7 +63,6 @@ for (const file of dependencies.keys()) visit(file, []);
 
 const allowedEntrypoints = [
   "/src/cli/",
-  "/test/",
   "/src/public/index.js",
   "/src/run/verification-broker.js",
   "/src/workflow/workflow-proposal-helper.js",

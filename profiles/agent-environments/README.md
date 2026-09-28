@@ -52,15 +52,6 @@ prevents a guarded rollback, it leaves the competing edit untouched and retains
 the original material in `.rae-profile-recovery-*/RECOVERY.json` for manual,
 reviewed recovery.
 
-Run the disposable transaction fixtures from the repository root:
-
-```bash
-npm run test:profiles
-```
-
-The repository gate includes these fixtures. They do not mutate personal
-repositories; simulated remote Git operations use a local bare repository.
-
 New installs require `scripts/src/verify.ts` or `scripts/dist/verify.js` and a
 package verification command. Uninstall still accepts legacy verifier layouts
 so existing manifest-v2 receipts remain recoverable. The historical installer

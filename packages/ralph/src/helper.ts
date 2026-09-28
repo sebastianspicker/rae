@@ -77,7 +77,7 @@ function canonicalDestination(path: string): string {
   return join(realpathSync.native(cursor), ...missing);
 }
 
-export function bootstrap(target: string, force = false, withTests = false): string {
+export function bootstrap(target: string, force = false): string {
   const targetRoot = existingDirectory(target, "target repo");
   const sourceRoot = packageRoot();
   const claude = join(targetRoot, ".claude");
@@ -101,10 +101,6 @@ export function bootstrap(target: string, force = false, withTests = false): str
   if (!existsSync(join(compiled, "cli.js")))
     throw new RalphError("compiled Ralph runtime is missing; run npm run build first");
   cpSync(compiled, join(destination, "dist", "src"), { recursive: true });
-  if (withTests)
-    cpSync(join(sourceRoot, "dist", "tests"), join(destination, "dist", "tests"), {
-      recursive: true,
-    });
   const bridgeRoot = resolve(sourceRoot, "../fs-bridge");
   for (const item of ["package.json", "dist", "build"])
     cpSync(join(bridgeRoot, item), join(destination, "node_modules", "@rae", "fs-bridge", item), {
@@ -128,14 +124,7 @@ export function bootstrap(target: string, force = false, withTests = false): str
         type: "module",
         engines: { node: ">=24.0.0" },
         bin: { ralph: "dist/src/cli.js", "ralph-helper": "dist/src/helper-cli.js" },
-        scripts: {
-          ralph: "node ./dist/src/cli.js",
-          ...(withTests
-            ? {
-                test: "node --test ./dist/tests/branch.test.js ./dist/tests/config.test.js ./dist/tests/contracts.test.js ./dist/tests/lock.test.js ./dist/tests/preflight.test.js ./dist/tests/runner.test.js ./dist/tests/safe-fs.test.js ./dist/tests/state.test.js ./dist/tests/supervisor.test.js ./dist/tests/transaction.test.js",
-              }
-            : {}),
-        },
+        scripts: { ralph: "node ./dist/src/cli.js" },
       },
       null,
       2,

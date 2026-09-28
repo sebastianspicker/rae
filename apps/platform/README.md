@@ -118,31 +118,6 @@ RAE_PLATFORM_CONFIG="$PWD/dev/platform.toml" npm run control -- serve
 Production deployments require HTTPS and must not use this development compose
 file or its development credentials.
 
-After `npm run build` and `npm --prefix apps/platform run build`, run compiled
-tests from the repository root:
-
-```bash
-npm --prefix apps/platform test
-```
-
-The same command includes deterministic in-memory concurrency and event-stream
-coverage. PostgreSQL integration tests create and remove an isolated schema in
-an explicitly supplied disposable database. They skip when the variable is
-unset:
-
-```bash
-RAE_PLATFORM_DATABASE_URL="postgres://rae:rae@127.0.0.1:5432/rae_platform_test" \
-  npm --prefix apps/platform run test:integration
-```
-
-The database role must be allowed to create and drop schemas in that disposable
-database. The integration suite covers concurrent completion, mixed outcomes,
-cancellation races, duplicate reports, lease fencing, notification races,
-reconciliation wakes, timeout idempotency, and waiter cleanup.
-
-The tests do not prove PostgreSQL migrations, container startup, OIDC-provider
-interoperability, S3 compatibility, remote execution, backup, recovery,
-monitoring, or incident handling. See the [platform architecture
+See the [platform architecture
 reference](../../docs/reference/architecture/experimental-hosted-platform.md),
-[local deployment experiment](../../docs/how-to/deploy-experimental-platform.md),
-and [testing boundary](../../docs/how-to/test-experimental-hosted-platform.md).
+and [local deployment experiment](../../docs/how-to/deploy-experimental-platform.md).

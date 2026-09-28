@@ -15,12 +15,10 @@ From the repository root:
 
 ```bash
 npm ci
-npm run test:engine
 npm --workspace @rae/engine run build
 ```
 
-The complete repository gate is `npm run verify -- --skip-install`. See
-[Testing](../../TESTING.md) for the full matrix.
+The repository verification command is `npm run verify -- --skip-install`.
 
 ## Public package surface
 
@@ -201,13 +199,11 @@ See [Security](../../SECURITY.md) for the complete trust model and the
 | `src/primitives/` | Engine-local runtime and path primitives |
 | `src/public/` | Sole application import boundary |
 | `policies/` | Validated runtime policy data |
-| `test/` | The single `node --test` suite, including retained v1 compatibility tests |
 
 Internal imports flow one way: `cli/` depends on `run/` and `workflow/`
 (which may import each other); those depend on `agents/` and `graph/`; and all
 of them depend on `primitives/`. `public/` may import anything. This ordering
-is mechanically enforced by `scripts/dist/check-architecture.js`, which every
-`npm run verify` invocation runs.
+is reflected in the package exports and workspace dependency direction.
 
 The complete dependency and state model is in
 [Architecture](../../docs/ARCHITECTURE.md). Operator HTTP behavior is in the

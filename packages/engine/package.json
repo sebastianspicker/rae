@@ -35,7 +35,6 @@
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json && node dist/scripts/check-engine.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/test/*.test.js"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

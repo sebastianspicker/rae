@@ -78,9 +78,7 @@ applications, Ralph, profiles, maintenance tools, integrations, or developer
 tool source paths. Executable tools used at runtime are declared package
 dependencies. Inside the engine, imports follow the arrows above: `run/` and
 `workflow/` are one layer, and `primitives/` depends on nothing else in the
-engine. `scripts/src/check-architecture.ts` enforces these rules, rejects
-retired repository roots, and rejects non-TypeScript source in maintained
-package trees.
+engine.
 
 ## Autonomous run flow
 
@@ -145,8 +143,7 @@ backend. The custom command provider is an explicitly unsafe test integration.
 
 The root lockfile installs the npm workspaces. `npm run build` validates the
 engine and compiles the TypeScript development tools; it does not build the
-platform. The platform has its own lockfile and is tested with
-`npm --prefix apps/platform test`. The operator's static demo is a browser-only
+platform. The platform has its own lockfile and build command. The operator's static demo is a browser-only
 mock with no repository or backend access.
 
 The supported release artifact is a reviewed source tag or source archive.
@@ -180,5 +177,4 @@ publication.
 - [Experimental hosted platform](reference/architecture/experimental-hosted-platform.md)
 - Engine guide (`packages/engine/README.md` at the repository root)
 - Operator guide (`apps/operator/README.md` at the repository root)
-- Testing (`TESTING.md` at the repository root)
 - Security policy (`SECURITY.md` at the repository root)

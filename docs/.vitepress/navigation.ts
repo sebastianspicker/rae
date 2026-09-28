@@ -69,10 +69,6 @@ export const navigation: DefaultTheme.SidebarItem[] = [
         text: "Recover a Workflow 2.2 Wait",
         link: "/how-to/recover-workflow-v2.2-wait",
       },
-      {
-        text: "Test the Experimental Hosted Platform",
-        link: "/how-to/test-experimental-hosted-platform",
-      },
     ],
   },
   {

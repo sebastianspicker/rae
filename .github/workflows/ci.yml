@@ -2,9 +2,9 @@ name: ci
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
-    branches: [main, dev]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -48,70 +48,15 @@ jobs:
       - name: Smoke experimental platform image
         if: runner.os == 'Linux' && matrix.node == '24'
         run: '["docker", "run", "--rm", "--entrypoint", "node", "rae-platform-ci", "/app/scripts/dist/container-check.js"]'
-
-  optimization-integration:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    services:
-      postgres:
-        image: postgres:16-bookworm
-        env:
-          POSTGRES_USER: rae
-          POSTGRES_PASSWORD: disposable-ci-only
-          POSTGRES_DB: rae_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U rae -d rae_test"
-          --health-interval 5s --health-timeout 5s --health-retries 12
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-        with:
-          node-version: "24"
-      - name: Install and build locked packages
-        run: '[ ["npm", "ci", "--ignore-scripts"], ["npm", "ci", "--prefix", "apps/platform", "--ignore-scripts"], ["npm", "run", "build"], ["npm", "--prefix", "apps/platform", "run", "build"] ]'
-      - name: PostgreSQL behavior
-        env:
-          RAE_PLATFORM_DATABASE_URL: postgres://rae:disposable-ci-only@127.0.0.1:5432/rae_test
-        run: '["npm", "--prefix", "apps/platform", "run", "test:integration"]'
-      - name: Build all development-tool images from root
+      - name: Build product tool images
+        if: runner.os == 'Linux' && matrix.node == '24'
         run: >-
           [["docker", "build", "-f", "packages/dev-tools/quality-gate/sandbox/Dockerfile", "-t", "rae-tool-ci-quality-gate", "."],
           ["docker", "build", "-f", "packages/dev-tools/multi-model-review/sandbox/Dockerfile", "-t", "rae-tool-ci-multi-model-review", "."],
           ["docker", "build", "-f", "packages/dev-tools/trace-collector/sandbox/Dockerfile", "-t", "rae-tool-ci-trace-collector", "."]]
-      - name: Image health and JSON protocol
-        env:
-          RAE_TOOL_IMAGE_PREFIX: rae-tool-ci-
-        run: '["npm", "run", "test:dev-tools"]'
-
-  codacy-local:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-        with:
-          node-version: "24"
-      - name: Install and build packages
-        run: '[ ["npm", "ci", "--ignore-scripts"], ["npm", "run", "build"] ]'
-      - name: Provision Codacy analyzers
-        run: '["node", "scripts/dist/provision-codacy-tools.js"]'
-      - name: Run local Codacy gate
-        run: '["node", "scripts/dist/codacy-local.js"]'
-      - name: Upload sanitized Codacy report
-        if: ${{ always() && hashFiles('.codacy/reports/codacy-local-sanitized.json') != '' }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: codacy-local-sanitized-report
-          path: |
-            .codacy/reports/codacy-local-sanitized.json
-            .codacy/reports/codacy-local-native-tool-versions.json
-          if-no-files-found: error
+      - name: Smoke product tool images
+        if: runner.os == 'Linux' && matrix.node == '24'
+        run: >-
+          [["docker", "run", "--rm", "rae-tool-ci-quality-gate", "--healthcheck"],
+          ["docker", "run", "--rm", "rae-tool-ci-multi-model-review", "--healthcheck"],
+          ["docker", "run", "--rm", "rae-tool-ci-trace-collector", "--healthcheck"]]

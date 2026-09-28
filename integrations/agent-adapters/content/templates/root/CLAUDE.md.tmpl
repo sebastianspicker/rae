@@ -2,7 +2,7 @@
 
 Use this repository with the {{RUNNER_TITLE}} adapter pipeline:
 
-1. Read `AGENTS.md` for repository rules and verification expectations.
+1. Read `README.md` and `CONTRIBUTING.md` for setup and verification expectations.
 2. Use `{{ADAPTER_ROOT}}/orchestration-pipeline/SKILL.md` as the orchestration entrypoint.
 3. Run `npm run verify --` before proposing completion.
 
@@ -39,9 +39,9 @@ Rules auto-load when you touch matching files:
 - `packages/contracts/**`: schema validation and backward-compatibility warnings
 - `integrations/agent-adapters/content/templates/**`: template editing workflow reminders
 - `integrations/agent-adapters/content/<runner>/**`: synchronized files; edit their templates instead
-- `packages/dev-tools/**`: build/test workflow and workspace conventions
+- `packages/dev-tools/**`: build workflow and workspace conventions
 - `.pipeline/**`, `packages/engine/**`: pipeline state and engine guidance
-- `docs/**`, `AGENTS.md`: link validation reminders
+- `docs/**`: link validation reminders
 
 ## Architecture Overview
 
@@ -71,7 +71,6 @@ Two layers:
 | Trace collector skill | `packages/dev-tools/trace-collector/` |
 | Pipeline constants | `packages/engine/src/run/constants.ts` |
 | Config IDs | `baseline_single_agent`, `phased_default`, `phased_with_context_budgets`, `phased_dual_extractor_drift` |
-| Model tier mapping (Claude) | `.claude/rules/model-tier-selection.md` |
 
 ## Verification
 
@@ -79,15 +78,11 @@ Two layers:
 # Full verification (always run before completion)
 npm run verify --
 
-# Fast mode (only changed packages)
-npm run test:engine
-
 # Adapter sync check
 npm --workspace @rae/agent-adapters run generate -- --check
 
-# Pipeline smoke test
-./packages/engine/scripts/pipeline-init.ts
-npm run rae -- orchestrate run-stage --run-id test --phase arm --config-id phased_default
+# Pipeline entrypoint
+npm run rae -- orchestrate --help
 ```
 
 ## Common Tasks
@@ -105,8 +100,7 @@ npm run rae -- orchestrate run-stage --run-id test --phase arm --config-id phase
 ### Modify a runtime skill package
 1. Edit source in `packages/dev-tools/<package>/src/`.
 2. Build: `cd packages/dev-tools/<package> && npm run build`.
-3. Test: `npm test`.
-4. Full verify: `npm run verify --`.
+3. Full verify: `npm run verify --`.
 
 ### Work with the pipeline runner
 The runner CLI at `packages/engine/src/cli/runner.ts` supports these commands:

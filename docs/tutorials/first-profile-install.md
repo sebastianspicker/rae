@@ -10,7 +10,6 @@ evidence_links: ../reference/repo-map.md
 
 Build RAE, then install the sanitized profile into a canonical RAE checkout
 that defines `npm run verify` and contains its TypeScript or compiled verifier.
-For a disposable demonstration, use the profile transaction test suite.
 
 ## Install into a prepared target
 
@@ -36,7 +35,7 @@ npm run rae -- profile uninstall /canonical/path/to/rae-checkout
 
 ## Verification rule
 
-The shipped regression test is:
+Run the public verifier from a prepared checkout:
 
 ```bash
 npm run verify -- --skip-install

@@ -10,8 +10,6 @@
 site
 **/build
 **/tools-dist
-.codacy/reports
-.codacy/tmp
 **/.pipeline
 **/.runtime
 **/.characterization

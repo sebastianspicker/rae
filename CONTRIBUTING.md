@@ -7,7 +7,7 @@ must not be presented as release evidence.
 
 - Read `README.md` and the nearest package documentation.
 - Confirm which package owns the behavior.
-- Inspect the relevant source, schema, tests, and current command output.
+- Inspect the relevant source, schema, and current command output.
 - Keep runtime state, local reports, credentials, and machine-specific
   files out of the public tree.
 - Preserve unrelated working-tree changes.
@@ -40,10 +40,9 @@ npm ci --prefix apps/platform --ignore-scripts
 
 1. Reproduce the issue or establish the current behavior.
 2. Make the smallest change that fixes the owning source.
-3. Add or update tests for externally visible behavior and safety boundaries.
-4. Run the narrowest relevant package check.
-5. Run the repository verifier.
-6. Review `git diff --check`, the complete diff, and untracked files.
+3. Run the narrowest relevant package check.
+4. Run the repository verifier.
+5. Review `git diff --check`, the complete diff, and untracked files.
 
 Synchronized orchestration adapters must be changed through
 `integrations/agent-adapters/content/templates/` and regenerated with:
@@ -55,9 +54,6 @@ npm --workspace @rae/agent-adapters run generate -- --check
 
 ## Verification
 
-See [TESTING.md](TESTING.md) for suite ownership, classifications, and focused
-commands.
-
 For a prepared offline checkout:
 
 ```bash
@@ -67,19 +63,13 @@ npm run verify -- --skip-install
 Use `npm run verify --` when dependencies still need to be installed.
 `--skip-docs` is a partial mode that omits the VitePress documentation build. It does not satisfy the release gate.
 
-Use the focused command owned by the changed component. The complete command
-matrix, including documentation-only checks and the distinction between
-`npm test` and the repository gate, is maintained in [TESTING.md](TESTING.md).
-
-Release candidates must satisfy the complete procedure in
-[RELEASING.md](RELEASING.md), including:
+Release candidates must run:
 
 ```bash
 npm run verify -- --release-candidate
 ```
 
-Report every skipped or environment-blocked check. Do not generalize a focused
-test result to the complete repository.
+Report every skipped or environment-blocked check.
 
 ## Documentation
 
@@ -91,9 +81,6 @@ test result to the complete repository.
 - Remove obsolete instructions instead of preserving them in maintained pages.
 - Link empirical claims from `docs/reference/claims/claims-ledger.md` to their
   evidence.
-- Regenerate CLI screenshots with
-  `node scripts/dist/generate-docs-screenshots.js`; verify them with the same
-  command plus `--check`.
 
 Maintained executable files need a concise purpose header. Public or non-obvious
 functions should document policy, safety, or lifecycle intent.
@@ -103,7 +90,6 @@ functions should document policy, safety, or lifecycle intent.
 A change is ready for review when:
 
 - its scope and user-visible effect are clear
-- tests cover the changed contract
 - verification results and skipped checks are listed
 - documentation and examples match the implementation
 - synchronized files match their source templates

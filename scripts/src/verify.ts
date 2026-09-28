@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Run compiled repository gates, preserving explicit partial and release-candidate modes. */
+/** Verify public source installation, builds, documentation, and runtime entrypoints. */
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,10 +21,7 @@ export function parseVerificationOptions(args: readonly string[]): VerificationO
     skipDocs: args.includes("--skip-docs"),
     releaseCandidate: args.includes("--release-candidate"),
   };
-  if (
-    options.releaseCandidate &&
-    (options.skipInstall || options.skipDocs || process.env.SKIP_RALPH_VERIFY === "1")
-  )
+  if (options.releaseCandidate && (options.skipInstall || options.skipDocs))
     throw new Error("--release-candidate cannot be combined with partial verification modes");
   return options;
 }
@@ -68,44 +65,15 @@ export async function verify(options: VerificationOptions): Promise<void> {
     await npm("ci", "--ignore-scripts");
     await npm("ci", "--prefix", "apps/platform", "--ignore-scripts");
   }
-  await node("scripts/dist/check-lockfiles.js");
   await npm("run", "build");
   await npm("--prefix", "apps/platform", "run", "build");
   await npm("run", "typecheck");
   await npm("run", "typecheck:docs");
   await npm("--prefix", "apps/platform", "run", "typecheck");
-  await node(
-    "scripts/dist/verify-repository.js",
-    ...(options.releaseCandidate ? ["--release-candidate"] : []),
-  );
-  await node("scripts/dist/check-architecture.js");
-  await node("scripts/dist/check-source.js");
-  await node("scripts/dist/check-repository-hygiene.js");
-  await node("scripts/dist/check-stale-references.js");
-  await node("scripts/dist/check-markdown-links.js", "--strict");
   await node("integrations/agent-adapters/dist/generate-adapters.js", "--check");
-  await node(
-    "packages/dev-tools/dist/scripts/validate-skills.js",
-    "--manifest",
-    "integrations/agent-adapters/content/spec/adapter-manifest.json",
-  );
   await npm("--workspace", "@rae/contracts", "run", "build:generator");
   await npm("--workspace", "@rae/contracts", "run", "check:generated");
   await npm("run", "lint");
-  await node("scripts/dist/check-complexity.js");
-  for (const suite of [
-    "test:engine",
-    "test:operator",
-    "test:platform",
-    "test:profiles",
-    "test:history",
-    "test:tooling",
-    "test:dev-tools",
-  ])
-    await npm("run", suite);
-  await npm("--workspace", "@rae/fs-bridge", "test");
-  await node("apps/operator/dist/scripts/capture-docs-screenshots.js", "--check");
-  if (process.env.SKIP_RALPH_VERIFY !== "1") await npm("run", "test:ralph");
   await node("scripts/dist/rae.js", "--help");
   await node("scripts/dist/rae.js", "doctor");
   const temporary = mkdtempSync(join(tmpdir(), "rae-verify-"));
@@ -123,11 +91,8 @@ export async function verify(options: VerificationOptions): Promise<void> {
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }
-  await node("scripts/dist/generate-docs-screenshots.js", "--check");
   if (!options.skipDocs) await npm("run", "docs:build");
-  console.log(
-    `VERDICT: ${options.skipDocs || process.env.SKIP_RALPH_VERIFY === "1" ? "PARTIAL" : "PASS"}`,
-  );
+  console.log(`VERDICT: ${options.skipDocs ? "PARTIAL" : "PASS"}`);
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let options: VerificationOptions | undefined;

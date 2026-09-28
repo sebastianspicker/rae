@@ -60,16 +60,8 @@ network, identity, database, object-store, and operational controls.
 
 ## Evidence status
 
-Source-unit tests cover canonical revision digests, request idempotency and the
-256 KiB run-envelope bound, reader and writer exclusion, fenced completion,
-authorization failure, traceparent construction, worker URL validation, and
-the two-failed-heartbeat stop rule. They do not prove PostgreSQL migrations,
-container startup, OIDC issuer interoperability, S3 compatibility, worker
-execution, or a complete hosted recovery path.
-
 See [Hosted API](../../how-to/hosted-api.md),
-[experimental deployment](../../how-to/deploy-experimental-platform.md), and
-[experimental platform testing](../../how-to/test-experimental-hosted-platform.md).
+[experimental deployment](../../how-to/deploy-experimental-platform.md).
 
 ## Source note
 

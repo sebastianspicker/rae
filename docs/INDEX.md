@@ -75,13 +75,12 @@ Package-owned command details:
 - [Release criteria](governance/release-criteria.md)
 - [Review checklists](governance/review-checklists.md)
 
-Repository-level contribution, security, support, governance, and release
-procedures are in
+Repository-level contribution, security, support, and governance information
+is in
 [CONTRIBUTING.md](https://github.com/sebastianspicker/rae/blob/main/CONTRIBUTING.md),
 [SECURITY.md](https://github.com/sebastianspicker/rae/blob/main/SECURITY.md),
-[SUPPORT.md](https://github.com/sebastianspicker/rae/blob/main/SUPPORT.md),
-[GOVERNANCE.md](https://github.com/sebastianspicker/rae/blob/main/GOVERNANCE.md), and
-[RELEASING.md](https://github.com/sebastianspicker/rae/blob/main/RELEASING.md).
+[SUPPORT.md](https://github.com/sebastianspicker/rae/blob/main/SUPPORT.md), and
+[GOVERNANCE.md](https://github.com/sebastianspicker/rae/blob/main/GOVERNANCE.md).
 
 ## Source note
 

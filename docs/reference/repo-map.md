@@ -22,7 +22,6 @@ evidence_links: claims/evidence-index.md
 | `tools/` | Narrow repository-maintenance utilities |
 | `scripts/` | Umbrella CLI and repository-wide checks |
 | `docs/` | Maintained tutorials, how-to guides, reference, and rationale |
-| `tests/` | Umbrella behavior and repository-contract tests |
 
 The normal operator path begins at `npm run rae --`, which dispatches to the
 engine, operator, Ralph, or a narrow tool. Engine runs record local artifacts

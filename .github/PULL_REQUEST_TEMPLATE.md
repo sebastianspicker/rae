@@ -5,9 +5,7 @@ Describe the user-visible behavior and why this is the smallest correct change.
 ## Verification
 
 - [ ] I ran the relevant documented checks, or explained what was skipped.
-- [ ] I updated documentation and `CHANGELOG.md` when public behavior changed,
-      and updated `RELEASE_NOTES.md` when the change belongs in the current
-      release candidate.
+- [ ] I updated documentation and `CHANGELOG.md` when public behavior changed.
 - [ ] I added or refreshed reproducible screenshots for visible UI/CLI changes,
       or marked the browser evidence as not run.
 - [ ] I did not include secrets, credentials, or private machine artifacts.

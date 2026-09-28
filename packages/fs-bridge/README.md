@@ -9,7 +9,6 @@ a C compiler:
 
 ```text
 npm --workspace @rae/fs-bridge run build
-npm --workspace @rae/fs-bridge test
 ```
 
 CMake.js builds the C Node-API module without a Python build dependency. The

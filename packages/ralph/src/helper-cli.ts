@@ -15,7 +15,7 @@ import { MODES, type Mode } from "./types.js";
 const USAGE = `Usage: ralph-helper <command> [options]
 
 Commands:
-  bootstrap [--force] [--with-tests] <target-repo>
+  bootstrap [--force] <target-repo>
   generate-progress [prd-file] [output-file]
   append-progress-entry --story <id> --mode <mode> --title <title> --report <path> [--out <path>] [--root <dir>]
   record-learning --story <id> --note <text> [--files <csv>] [--out <path>] [--root <dir>]
@@ -45,11 +45,10 @@ function assertNoExtra(args: string[]): void {
 
 function bootstrapCommand(args: string[]): number {
   const force = flag(args, "--force");
-  const withTests = flag(args, "--with-tests");
   const target = args.shift();
   if (!target) throw new Error("missing required argument: <target-repo>");
   assertNoExtra(args);
-  process.stdout.write(`Bootstrapped template to ${bootstrap(target, force, withTests)}\n`);
+  process.stdout.write(`Bootstrapped template to ${bootstrap(target, force)}\n`);
   return 0;
 }
 
