@@ -56,7 +56,9 @@ source dependencies.
 ## Enforcement
 
 `scripts/src/check-architecture.ts` rejects retired roots, private engine imports
-from applications, reverse dependencies from the engine, engine imports against
+from applications, engine imports of application, Ralph, dev-tool, integration,
+profile, tool or repository-script source (resolved relative paths and package
+names), engine imports against
 the layer order above, and JavaScript, shell, Python or jq source under
 `packages/`, `apps/`, `integrations/`, `profiles/`, `tools/` and `scripts/`
 (maintained source is TypeScript). `scripts/src/test-architecture.test.ts`

@@ -1,6 +1,6 @@
 /** Enforce public package boundaries and repository ownership during source checks. */
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { repositoryFiles, repositoryRoot } from "./repository-files.js";
 
@@ -60,6 +60,36 @@ export function engineLayerViolations(files: ReadonlyMap<string, string>): strin
   return errors;
 }
 
+const OUTER_SOURCE_ROOTS = [
+  "apps/",
+  "packages/ralph/",
+  "packages/dev-tools/",
+  "integrations/",
+  "profiles/",
+  "tools/",
+  "scripts/",
+];
+const OUTER_PACKAGES = new Set([
+  "@rae/operator",
+  "@rae/ralph",
+  "@rae/dev-tools-shared",
+  "@rae/dev-tool-verification",
+  "@rae/agent-adapters",
+  "@rae/agent-profiles",
+  "@rae/coauthor-trailer-cleaner",
+  "@rae/repository-tools",
+]);
+
+/** True when an engine module imports application, Ralph, dev-tool, integration, profile, tool or script source. */
+export function importsOuterSource(path: string, source: string): boolean {
+  return [...source.matchAll(/(?:from\s+|import\s*(?:\(\s*)?)["']([^"']+)["']/g)].some((match) => {
+    const target = match[1] ?? "";
+    if (!target.startsWith(".")) return OUTER_PACKAGES.has(target.split("/").slice(0, 2).join("/"));
+    const resolved = posix.normalize(posix.join(posix.dirname(path), target));
+    return OUTER_SOURCE_ROOTS.some((root) => resolved.startsWith(root));
+  });
+}
+
 export function architectureViolations(): string[] {
   const files = repositoryFiles();
   const errors: string[] = [];
@@ -74,14 +104,7 @@ export function architectureViolations(): string[] {
       errors.push(`App bypasses @rae/engine public export: ${path}`);
     if (!path.startsWith("packages/engine/")) continue;
     if (ENGINE_FILE_PATTERN.test(path)) engineFiles.set(path, source);
-    const imports = [...source.matchAll(/(?:from\s+|import\s*(?:\(\s*)?)["']([^"']+)["']/g)].map(
-      (match) => match[1],
-    );
-    if (
-      imports.some((target) =>
-        /(?:^|\/)(?:apps|packages\/ralph|packages\/dev-tools|integrations)\//.test(target),
-      )
-    )
+    if (importsOuterSource(path, source))
       errors.push(`Engine imports outer application/tool source: ${path}`);
   }
   errors.push(...engineLayerViolations(engineFiles));

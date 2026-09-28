@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { engineLayerViolations, nonTypescriptSourceViolations } from "./check-architecture.js";
+import {
+  engineLayerViolations,
+  importsOuterSource,
+  nonTypescriptSourceViolations,
+} from "./check-architecture.js";
 import { repositoryFiles, repositoryRoot } from "./repository-files.js";
 
 /** Builds an engine source path without embedding a literal internal-import string. */
@@ -73,4 +77,26 @@ test("nonTypescriptSourceViolations rejects non-TypeScript source under maintain
 
 test("nonTypescriptSourceViolations ignores trees outside maintained source", () => {
   assert.deepEqual(nonTypescriptSourceViolations(["docs/example.mjs", "README.md"]), []);
+});
+
+test("importsOuterSource rejects engine imports of applications, Ralph, tools and profiles", () => {
+  const from = enginePath("run", "example.ts");
+  for (const target of [
+    "../../../../apps/operator/lib/runs.js",
+    "../../../ralph/src/cli.js",
+    "../../../dev-tools/shared/src/index.js",
+    "../../../../integrations/agent-adapters/src/generate-adapters.js",
+    "../../../../profiles/agent-environments/src/profile.js",
+    "../../../../tools/repo-hygiene/coauthor-trailer-cleaner/src/git.js",
+    "../../../../scripts/src/verify.js",
+    "@rae/ralph",
+    "@rae/dev-tools-shared/dist/index.js",
+  ])
+    assert.equal(importsOuterSource(from, `import { x } from "${target}";\n`), true, target);
+  for (const target of [
+    "../primitives/paths.js",
+    "../../scripts/pipeline-init.js",
+    "@rae/contracts",
+  ])
+    assert.equal(importsOuterSource(from, `import { x } from "${target}";\n`), false, target);
 });
