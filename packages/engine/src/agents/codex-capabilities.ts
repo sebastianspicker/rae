@@ -1,10 +1,24 @@
-/** Builds and verifies the exact per-attempt Codex capability surface. */
+/** Owns the Codex capability model and builds and verifies the exact per-attempt surface. */
+import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import type { CapabilitySet } from "../workflow/execution-profile.js";
 
 const require = createRequire(import.meta.url);
+
+export interface CapabilityServer {
+  name: string;
+  transport: "streamable-http";
+  url: string;
+  enabled_tools: string[];
+  token_env_var: string;
+}
+
+export interface CapabilitySet {
+  web_search: "disabled";
+  mcp_servers: CapabilityServer[];
+  credential_env_vars: string[];
+}
 
 const MAX_PROJECT_CONFIG_BYTES = 64 * 1024;
 const FORBIDDEN_CAPABILITY_KEYS = [
@@ -237,4 +251,22 @@ export function capabilitySurface(
       "web-search",
     ],
   };
+}
+
+/** Records credential provenance without persisting credential values. */
+export function credentialDigestManifest(
+  capabilitySet: Pick<CapabilitySet, "credential_env_vars"> | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): Array<Readonly<{ name: string; digest: string }>> {
+  if (!capabilitySet) return [];
+  return capabilitySet.credential_env_vars.map((name) => {
+    const value = env[name];
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error(`declared credential environment variable ${name} is missing`);
+    }
+    return Object.freeze({
+      name,
+      digest: createHash("sha256").update(`credential-env:${name}`).digest("hex"),
+    });
+  });
 }

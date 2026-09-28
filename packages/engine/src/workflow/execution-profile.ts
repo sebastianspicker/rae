@@ -15,6 +15,8 @@ import type {
 } from "@rae/contracts";
 import { canonicalJson } from "./workflow-contract.js";
 import { contractsRoot } from "../primitives/installation-paths.js";
+import type { CapabilityServer, CapabilitySet } from "../agents/codex-capabilities.js";
+export { credentialDigestManifest, type CapabilitySet } from "../agents/codex-capabilities.js";
 
 const SCHEMA_PATHS = new Map([
   ["1.0.0", resolve(contractsRoot, "workflows/execution-profile-v1.schema.json")],
@@ -26,20 +28,6 @@ const ajv = new Ajv2020({ allErrors: true, strict: true });
 const require = createRequire(import.meta.url);
 const addFormats = require("ajv-formats") as (instance: Ajv2020) => void;
 addFormats(ajv);
-interface CapabilityServer {
-  name: string;
-  transport: "streamable-http";
-  url: string;
-  enabled_tools: string[];
-  token_env_var: string;
-}
-
-export interface CapabilitySet {
-  web_search: "disabled";
-  mcp_servers: CapabilityServer[];
-  credential_env_vars: string[];
-}
-
 interface CodexRoute {
   executor: "codex";
   model: string;
@@ -294,22 +282,4 @@ export function executionProfileExecutors(
   if (!profile) return [];
   if (profile.schema_version !== "3.0.0") return ["codex"];
   return [...new Set(Object.values(profile.routes).map((route) => route.executor))].sort();
-}
-
-/** Records credential provenance without persisting credential values. */
-export function credentialDigestManifest(
-  capabilitySet: Pick<CapabilitySet, "credential_env_vars"> | null | undefined,
-  env: NodeJS.ProcessEnv = process.env,
-): Array<Readonly<{ name: string; digest: string }>> {
-  if (!capabilitySet) return [];
-  return capabilitySet.credential_env_vars.map((name) => {
-    const value = env[name];
-    if (typeof value !== "string" || value.length === 0) {
-      throw new Error(`declared credential environment variable ${name} is missing`);
-    }
-    return Object.freeze({
-      name,
-      digest: createHash("sha256").update(`credential-env:${name}`).digest("hex"),
-    });
-  });
 }

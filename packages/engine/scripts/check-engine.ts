@@ -2,7 +2,7 @@
 /** Parses every private engine module as a dependency-free build check. */
 import { readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { dirname, join, normalize, resolve } from "node:path";
+import { dirname, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 function moduleFiles(directory: string): string[] {
@@ -13,8 +13,10 @@ function moduleFiles(directory: string): string[] {
   });
 }
 
-const sourceRoot = fileURLToPath(new URL("../src", import.meta.url));
-const files = moduleFiles(sourceRoot);
+const engineRoot = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
+const sourceRoot = resolve(engineRoot, "src");
+const testRoot = resolve(engineRoot, "test");
+const files = [...moduleFiles(sourceRoot), ...moduleFiles(testRoot)];
 const fileSet = new Set(files.map((file) => normalize(file)));
 const failures: string[] = [];
 const dependencies = new Map<string, string[]>();
@@ -46,7 +48,7 @@ function visit(file: string, trail: string[]): void {
   if (visiting.has(file)) {
     const cycleStart = trail.indexOf(file);
     const cycle = [...trail.slice(cycleStart), file]
-      .map((entry) => entry.slice(sourceRoot.length + 1))
+      .map((entry) => relative(engineRoot, entry))
       .join(" -> ");
     failures.push(`engine import cycle: ${cycle}`);
     return;
@@ -61,14 +63,14 @@ function visit(file: string, trail: string[]): void {
 for (const file of dependencies.keys()) visit(file, []);
 
 const allowedEntrypoints = [
-  "/cli/",
-  "/tests/",
-  "/public/index.js",
-  "/run/verification-broker.js",
-  "/workflow/workflow-proposal-helper.js",
+  "/src/cli/",
+  "/test/",
+  "/src/public/index.js",
+  "/src/run/verification-broker.js",
+  "/src/workflow/workflow-proposal-helper.js",
 ];
 for (const [file, count] of incoming) {
-  const relativePath = file.slice(sourceRoot.length);
+  const relativePath = `/${relative(engineRoot, file)}`;
   if (count === 0 && !allowedEntrypoints.some((entrypoint) => relativePath.includes(entrypoint))) {
     failures.push(`orphan engine module: ${relativePath.slice(1)}`);
   }

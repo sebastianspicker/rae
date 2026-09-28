@@ -18,12 +18,13 @@ import {
 import { createHash, randomUUID } from "node:crypto";
 import type { BinaryLike } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ValidateFunction } from "ajv";
 import type { GraphGraphEdge, GraphGraphNode } from "@rae/contracts";
-import { contractsRoot } from "../../primitives/installation-paths.js";
+import { contractsRoot } from "../primitives/installation-paths.js";
+import { isWithinRoot } from "../primitives/paths.js";
 
 export const GRAPH_PROJECTOR = "rae-local-graph-v1";
 export const GRAPH_LIMITS = Object.freeze({
@@ -322,8 +323,7 @@ export function writePrivateUtf8File(path: string, body: string): void {
 export function projectSourcePath(projectRoot: string, sourcePath: string): string {
   const canonicalRoot = realpathSync(projectRoot);
   const canonicalSource = realpathSync(resolve(canonicalRoot, sourcePath));
-  const relation = relative(canonicalRoot, canonicalSource);
-  if (relation === ".." || relation.startsWith(`..${sep}`))
+  if (!isWithinRoot(canonicalRoot, canonicalSource))
     throw new Error(`graph source escapes the project root: ${sourcePath}`);
   return canonicalSource;
 }

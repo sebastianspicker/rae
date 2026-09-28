@@ -21,8 +21,9 @@ import {
   capabilitySurface,
   codexCapabilityArgs,
   codexCapabilityOverrides,
+  credentialDigestManifest,
+  type CapabilitySet,
 } from "./codex-capabilities.js";
-import { credentialDigestManifest, type CapabilitySet } from "../workflow/execution-profile.js";
 
 const CODEX_USAGE_FIELDS = [
   "input_tokens",

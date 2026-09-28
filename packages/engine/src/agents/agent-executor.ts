@@ -21,7 +21,7 @@ import {
   runOpenCodePhase,
   type OpenCodePhaseOptions,
 } from "./opencode-adapter.js";
-import type { CapabilitySet } from "../workflow/execution-profile.js";
+import type { CapabilitySet } from "./codex-capabilities.js";
 
 export { minimalChildEnvironment, signalProcessGroup } from "./agent-provider-runtime.js";
 

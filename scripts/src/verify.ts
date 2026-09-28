@@ -95,7 +95,6 @@ export async function verify(options: VerificationOptions): Promise<void> {
   await node("scripts/dist/check-complexity.js");
   for (const suite of [
     "test:engine",
-    "test:engine-legacy",
     "test:operator",
     "test:platform",
     "test:profiles",
