@@ -1,7 +1,7 @@
 /**
  * Validates quality-gate input and rejects unsupported criteria before evaluation.
  */
-import { badInput } from "@coding-agents-space/shared";
+import { badInput } from "@rae/dev-tools-shared";
 import type { Input } from "../types.js";
 import { isGatePhase } from "./phases.js";
 

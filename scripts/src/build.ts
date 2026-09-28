@@ -6,12 +6,12 @@ import { repositoryRoot } from "./repository-files.js";
 import { assertNodeRuntime } from "./node-runtime.js";
 const packages = [
   ["@rae/contracts", "build"],
-  ["@coding-agents-space/shared", "build"],
+  ["@rae/dev-tools-shared", "build"],
   ["quality-gate-skill", "build"],
   ["multi-model-review-skill", "build"],
   ["trace-collector-skill", "build"],
   ["@rae/engine", "build"],
-  ["@rae/operator", "build:typescript"],
+  ["@rae/operator", "build"],
   ["@rae/ralph", "build"],
   ["@rae/agent-profiles", "build"],
   ["@rae/coauthor-trailer-cleaner", "build"],

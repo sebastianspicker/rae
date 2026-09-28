@@ -1,5 +1,5 @@
 {
-  "name": "@coding-agents-space/shared",
+  "name": "@rae/dev-tools-shared",
   "private": true,
   "type": "module",
   "main": "dist/index.js",

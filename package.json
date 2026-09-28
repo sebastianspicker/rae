@@ -6,7 +6,7 @@
     "apps/operator",
     "packages/contracts",
     "packages/engine",
-    "packages/dev-tools/_shared",
+    "packages/dev-tools/shared",
     "packages/dev-tools/quality-gate",
     "packages/dev-tools/multi-model-review",
     "packages/dev-tools/trace-collector",
@@ -39,9 +39,7 @@
     "docs:preview": "vitepress preview docs",
     "test:tooling": "npm --workspace @rae/repository-tools test",
     "test:dev-tools": "npm --workspace @rae/dev-tool-verification test",
-    "verify:typescript": "node scripts/dist/verify.js",
-    "typecheck:docs": "tsc -p docs/.vitepress/tsconfig.json",
-    "build:typescript": "npm run build --workspace @rae/fs-bridge && tsc -p scripts/tsconfig.json && node scripts/dist/build.js"
+    "typecheck:docs": "tsc -p docs/.vitepress/tsconfig.json"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.2",

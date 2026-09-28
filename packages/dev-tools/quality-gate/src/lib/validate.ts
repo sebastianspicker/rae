@@ -2,7 +2,7 @@
  * Validates gate artifacts against workspace-contained schemas using shared AJV loading.
  */
 import { readFileSync } from "node:fs";
-import { createAjvInstance } from "@coding-agents-space/shared";
+import { createAjvInstance } from "@rae/dev-tools-shared";
 import type { SchemaValidationResult } from "../types.js";
 
 /**

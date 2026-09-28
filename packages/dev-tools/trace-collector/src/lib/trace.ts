@@ -2,7 +2,7 @@
  * Loads, schema-validates, and summarizes pipeline traces within workspace boundaries.
  */
 import { readFileSync } from "node:fs";
-import { createAjvInstance, resolveWithinWorkspace } from "@coding-agents-space/shared";
+import { createAjvInstance, resolveWithinWorkspace } from "@rae/dev-tools-shared";
 import type { Input, TraceEvent, TraceResult, TraceSummary } from "../types.js";
 
 interface TraceOptions {

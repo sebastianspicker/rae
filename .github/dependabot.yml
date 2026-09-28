@@ -10,22 +10,6 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: npm
-    directory: /packages/dev-tools/_shared
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/dev-tools/multi-model-review
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/dev-tools/quality-gate
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
-    directory: /packages/dev-tools/trace-collector
-    schedule:
-      interval: weekly
-  - package-ecosystem: npm
     directory: /apps/platform
     schedule:
       interval: weekly

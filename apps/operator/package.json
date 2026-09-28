@@ -3,12 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build:typescript",
-    "build:typescript": "tsc -p tsconfig.json && node dist/scripts/copy-assets.js",
+    "build": "tsc -p tsconfig.json && node dist/scripts/copy-assets.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build:typescript && node --test dist/tests/*.test.js",
-    "build:demo": "npm run build:typescript && node dist/scripts/build-demo.js",
-    "start": "npm run build:typescript && node dist/server.js"
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "build:demo": "npm run build && node dist/scripts/build-demo.js",
+    "start": "npm run build && node dist/server.js"
   },
   "dependencies": {
     "@rae/engine": "*"

@@ -2,7 +2,7 @@
  * Coordinates validated artifacts, schemas, and criteria into a deterministic gate result.
  */
 import { randomUUID } from "node:crypto";
-import { resolveWithinWorkspace } from "@coding-agents-space/shared";
+import { resolveWithinWorkspace } from "@rae/dev-tools-shared";
 import type {
   CriterionResult,
   GateResult,

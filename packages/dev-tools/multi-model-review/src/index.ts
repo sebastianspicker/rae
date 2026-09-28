@@ -4,7 +4,7 @@
 import type { DriftData, Input, ReviewData } from "./types.js";
 import { runDriftDetect, runReview } from "./lib/engine.js";
 import { validateInput } from "./lib/input.js";
-import { runTool } from "@coding-agents-space/shared";
+import { runTool } from "@rae/dev-tools-shared";
 
 const TOOL_VERSION = "0.2.0";
 

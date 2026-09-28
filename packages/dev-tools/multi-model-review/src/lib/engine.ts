@@ -14,7 +14,7 @@ import type {
   ReviewData,
   ReviewerSummary,
 } from "../types.js";
-import { resolveWithinWorkspace } from "@coding-agents-space/shared";
+import { resolveWithinWorkspace } from "@rae/dev-tools-shared";
 import type { ReviewerFindings } from "./models/types.js";
 import { deduplicateFindings, type TaggedFinding } from "./dedup.js";
 import { analyzeCostBenefit } from "./cost-benefit.js";

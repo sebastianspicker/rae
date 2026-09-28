@@ -14,10 +14,7 @@
     "test:integration": "node --test dist/test/postgres-store.integration.test.js",
     "control": "node dist/bin/rae-platform.js",
     "worker": "node dist/bin/rae-platform-worker.js",
-    "build:typescript": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:typescript": "node --test dist/test/*.test.js",
-    "control:typescript": "node dist/bin/rae-platform.js",
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
@@ -27,8 +24,6 @@
     "@aws-sdk/s3-request-presigner": "3.1102.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@openai/codex": "0.146.0",
-    "ajv": "8.18.0",
-    "ajv-formats": "3.0.1",
     "jose": "6.2.8",
     "pg": "8.22.0",
     "smol-toml": "1.7.1",

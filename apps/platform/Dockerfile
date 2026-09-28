@@ -7,8 +7,8 @@ RUN ["rm", "-rf", "/var/lib/apt/lists"]
 COPY . .
 RUN ["npm", "ci", "--ignore-scripts"]
 RUN ["npm", "ci", "--prefix", "apps/platform", "--ignore-scripts"]
-RUN ["npm", "run", "build:typescript"]
-RUN ["npm", "--prefix", "apps/platform", "run", "build:typescript"]
+RUN ["npm", "run", "build"]
+RUN ["npm", "--prefix", "apps/platform", "run", "build"]
 RUN ["npm", "prune", "--omit=dev", "--ignore-scripts"]
 RUN ["npm", "--prefix", "apps/platform", "prune", "--omit=dev", "--ignore-scripts"]
 

@@ -1,7 +1,7 @@
 /**
  * Validates trace-collector input before paths or event data are processed.
  */
-import { badInput } from "@coding-agents-space/shared";
+import { badInput } from "@rae/dev-tools-shared";
 import type { Input } from "../types.js";
 
 /**

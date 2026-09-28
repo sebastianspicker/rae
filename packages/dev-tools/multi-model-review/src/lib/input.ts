@@ -2,7 +2,7 @@
  * Validates multi-model review input strictly before it reaches file or scoring logic.
  */
 import path from "node:path";
-import { badInput } from "@coding-agents-space/shared";
+import { badInput } from "@rae/dev-tools-shared";
 import type { DriftMode, Input } from "../types.js";
 
 const REVIEW_SEVERITIES = new Set(["critical", "high", "medium", "low", "info"]);

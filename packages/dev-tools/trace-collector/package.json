@@ -15,7 +15,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@coding-agents-space/shared": "file:../_shared"
+    "@rae/dev-tools-shared": "file:../shared"
   },
   "devDependencies": {
     "@types/node": "25.5.0",
