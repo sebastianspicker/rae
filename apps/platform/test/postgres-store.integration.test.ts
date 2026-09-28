@@ -66,13 +66,16 @@ test("PostgreSQL store concurrency and notification lifecycle", {
       idempotencyKey: `run-${sequence}`,
     });
   }
-  async function claim(key: string, longPollSeconds = 0) {
-    const result = await store.claim({
+  function claimMaybe(key: string, longPollSeconds = 0) {
+    return store.claim({
       workerId: WORKER,
       projects: [PROJECT],
       longPollSeconds,
       idempotencyKey: key,
     });
+  }
+  async function claim(key: string, longPollSeconds = 0) {
+    const result = await claimMaybe(key, longPollSeconds);
     assert.ok(result);
     return result;
   }
@@ -99,7 +102,7 @@ test("PostgreSQL store concurrency and notification lifecycle", {
     ]);
     assert.equal((await store.getRun(run.id))?.state, RUN_STATE.FAILED);
     const terminal = await pool.query(
-      "SELECT (SELECT count(*) FROM events WHERE run_id=$1 AND type='run.failed')::int AS events, (SELECT count(*) FROM outbox WHERE topic='run.failed' AND payload->>'runId'=$1)::int AS outbox",
+      "SELECT (SELECT count(*) FROM events WHERE run_id=$1::uuid AND type='run.failed')::int AS events, (SELECT count(*) FROM outbox WHERE topic='run.failed' AND payload->>'runId'=$1::text)::int AS outbox",
       [run.id],
     );
     assert.deepEqual(terminal.rows[0], { events: 1, outbox: 1 });
@@ -263,7 +266,7 @@ test("PostgreSQL store concurrency and notification lifecycle", {
     const readers = [];
     for (let index = 0; index < 4; index += 1) readers.push(await claim(`reader-claim-${index}`));
     assert.ok(readers.every((reader) => reader.runId === readerRun.id));
-    assert.equal(await claim("reader-cap"), null);
+    assert.equal(await claimMaybe("reader-cap"), null);
 
     const writerRun = await createRun([
       { key: "writer", access: "write" },
@@ -279,7 +282,7 @@ test("PostgreSQL store concurrency and notification lifecycle", {
     const writer = await claim("writer-claim");
     assert.equal(writer.runId, writerRun.id);
     assert.equal(writer.access, "write");
-    assert.equal(await claim("writer-exclusive"), null);
+    assert.equal(await claimMaybe("writer-exclusive"), null);
     await store.cancelRun({ runId: readerRun.id, idempotencyKey: "cancel-readers" });
     await store.cancelRun({ runId: writerRun.id, idempotencyKey: "cancel-writer" });
   });
