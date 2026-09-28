@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:benchmarks": "tsc -p tsconfig.benchmarks.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.benchmarks.json --noEmit",
     "check:architecture": "node dist/check-architecture.js",
     "check:source": "node dist/check-source.js",
     "test": "node --test dist/*.test.js"

@@ -17,6 +17,8 @@ const packages = [
   ["@rae/coauthor-trailer-cleaner", "build"],
   ["@rae/agent-adapters", "build"],
   ["@rae/dev-tool-verification", "build"],
+  // Benchmarks import @rae/engine, so they compile after the engine rather than with the repository tools.
+  ["@rae/repository-tools", "build:benchmarks"],
 ] as const;
 export function buildPackages(): void {
   assertNodeRuntime();
