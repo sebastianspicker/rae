@@ -36,7 +36,13 @@ export function tone(status: unknown): string {
 }
 
 export function runTone(run: OperatorRun | null | undefined): string {
-  if (run?.checkpoints?.some((item) => item.status === "pending")) return "blocked";
+  if (
+    run?.needs_human_decision === true ||
+    run?.checkpoints?.some((item) => item.status === "pending")
+  )
+    return "blocked";
+  // A graph wait with no checkpoint is live workflow state, not a human hold.
+  if (run?.status === "waiting") return "active";
   const statusTone = tone(run?.status);
   if (statusTone === "pass") return "proof";
   if (statusTone === "active") return "active";

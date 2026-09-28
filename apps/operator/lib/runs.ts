@@ -766,6 +766,9 @@ function runIdentity(
   return {
     task: runTask(request, run.id),
     status: control.status,
+    needs_human_decision:
+      typeof control.waiting_checkpoint_id === "string" &&
+      control.waiting_checkpoint_id.length > 0,
     stop_requested: control.stop_requested === true,
     current_phase: runPhase(run, events),
     phase_order: runPhaseOrder(run),
@@ -805,6 +808,7 @@ export function publicRun(
   );
   return {
     ...value,
+    needs_human_decision: pendingCheckpoint || run.needs_human_decision === true,
     controls: {
       stop: !run.guarded && ["running", "waiting"].includes(run.status ?? ""),
       interrupt: run.id === ownedRunId,

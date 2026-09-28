@@ -85,10 +85,12 @@ export function visibleRuns(): OperatorRun[] {
 }
 
 function runRowState(run: OperatorRun): { state: string; word: string } {
-  if (run.checkpoints?.some((item) => item.status === "pending"))
+  if (
+    run.needs_human_decision === true ||
+    run.checkpoints?.some((item) => item.status === "pending")
+  )
     return { state: "hold", word: "Needs decision" };
-  // Summaries omit checkpoints; the engine records "waiting" when it pauses for a human.
-  if (run.status === "waiting") return { state: "hold", word: "Waiting" };
+  if (run.status === "waiting") return { state: "active", word: "Waiting" };
   return { state: tone(run.status), word: humanize(run.status || "unknown") };
 }
 
@@ -128,13 +130,16 @@ export function renderRuns(): void {
   const visible = visibleRuns();
   elements["runs-empty"].hidden = visible.length !== 0;
   if (!visible.length) {
+    const hasCatalogRuns = state.runs.length > 0;
     const heading = elements["runs-empty"].querySelector("strong");
     const copy = elements["runs-empty"].querySelector("span");
-    if (heading) heading.textContent = state.runs.length ? "No matching runs" : "No runs yet";
+    const action = elements["runs-empty"].querySelector<HTMLButtonElement>("[data-new-run]");
+    if (heading) heading.textContent = hasCatalogRuns ? "No matching runs" : "No runs yet";
     if (copy)
-      copy.textContent = state.runs.length
+      copy.textContent = hasCatalogRuns
         ? "Clear the search or change the state filter."
         : "Start a bounded run for this project.";
+    if (action) action.hidden = hasCatalogRuns;
   }
   elements["runs-list"].replaceChildren(...visible.map(runRow));
   elements["runs-load-more"].hidden = !state.runsHasMore;

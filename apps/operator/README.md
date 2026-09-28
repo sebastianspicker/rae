@@ -218,8 +218,10 @@ npm --workspace @rae/operator test
 ## Summary discovery and event replay
 
 `GET /api/v1/projects/:projectId/runs?view=summary` returns identity, workspace
-labels, status, phase and timing fields without gates, attempts, checkpoints or
-graph-health projection. The default response remains the full run projection.
+labels, status, phase, timing and a `needs_human_decision` boolean without
+gates, attempts, checkpoint identities or graph-health projection. This keeps
+human checkpoint holds distinct from workflow timer waits. The default
+response remains the full run projection.
 Run pages use opaque timestamp-and-ID keyset cursors, with pagination applied
 before detail loading. The browser initially loads 100 summaries and offers
 further pages without discarding the selected run. Legacy runs whose only start

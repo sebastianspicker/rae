@@ -72,6 +72,41 @@ test("summaries exclude expensive evidence and private workspace data; details s
   assert.equal(paginatedEvents(locateRun(project, "run-2", { view: "summary" })).events.length, 1);
 });
 
+test("summaries distinguish checkpoint holds from timed workflow waits", (t) => {
+  const project = fixture(t);
+  const controls = [
+    {
+      runId: "run-1",
+      waiting_checkpoint_id: "checkpoint-human-review",
+    },
+    {
+      runId: "run-2",
+      waiting_node_id: "wait-for-window",
+      waiting_deadline_at: "2026-09-03T00:00:00Z",
+    },
+  ];
+  for (const { runId, ...waiting } of controls) {
+    writeFileSync(
+      join(project.root, `.pipeline/runs/${runId}/operator-control.json`),
+      JSON.stringify({
+        schema_version: "1.0.0",
+        run_id: runId,
+        status: "waiting",
+        stop_requested: false,
+        updated_at: "2026-09-02T00:00:00Z",
+        ...waiting,
+      }),
+    );
+  }
+  const summaries = discoverRuns(project, { view: "summary" }).map(publicRunSummary);
+  const humanHold = summaries.find((run) => run.id === "run-1");
+  const timedWait = summaries.find((run) => run.id === "run-2");
+  assert.equal(humanHold?.needs_human_decision, true);
+  assert.equal(timedWait?.needs_human_decision, false);
+  assert.equal("waiting_checkpoint_id" in (humanHold ?? {}), false);
+  assert.equal("waiting_node_id" in (timedWait ?? {}), false);
+});
+
 test("unselected corrupt traces do not interfere with summary listing or selected detail", (t) => {
   const project = fixture(t);
   writeFileSync(join(project.root, ".pipeline/runs/run-1/trace.jsonl"), "corrupt\n");

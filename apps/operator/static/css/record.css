@@ -287,7 +287,7 @@
   align-items: center;
   justify-self: start;
   gap: var(--s2);
-  color: var(--proof);
+  color: var(--mute);
   font-size: var(--t-2xs);
   font-weight: 600;
   letter-spacing: var(--track-label);
@@ -295,19 +295,30 @@
 }
 
 .record-status::before {
+  box-sizing: border-box;
   width: 0.5625rem;
   height: 0.5625rem;
-  background: currentColor;
+  border: 1.5px solid currentColor;
+  background: transparent;
   content: "";
+}
+
+.record-status[data-tone="proof"] {
+  color: var(--proof);
+}
+
+.record-status[data-tone="proof"]::before,
+.record-status[data-tone="error"]::before {
+  border-color: transparent;
+  background: currentColor;
+}
+
+.record-status[data-tone="active"] {
+  color: var(--trace);
 }
 
 .record-status[data-tone="pending"] {
   color: var(--hold);
-}
-
-.record-status[data-tone="pending"]::before {
-  border: 1.5px solid currentColor;
-  background: transparent;
 }
 
 .record-status[data-tone="error"] {

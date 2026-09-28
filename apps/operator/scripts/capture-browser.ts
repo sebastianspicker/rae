@@ -182,7 +182,7 @@ async function waitForReady(protocol: Protocol, width: number, height: number): 
       returnByValue: true,
     });
     const state = object(object(evaluation.result).value);
-    if (state.error) throw new Error("Operator fixture reported a browser error");
+    if (state.error) throw new Error(`Operator fixture reported a browser error: ${state.error}`);
     if (state.ready) {
       if (state.width !== width || state.height !== height)
         throw new Error("Chromium viewport did not match requested dimensions");

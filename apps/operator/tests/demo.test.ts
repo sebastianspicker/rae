@@ -16,6 +16,17 @@ test("mock transport routes data and retains mutations in browser memory", async
   const original = (await transport.request("/projects/demo-project/runs?limit=100")) as {
     runs: OperatorRun[];
   };
+  const summaries = (await transport.request(
+    "/projects/demo-project/runs?view=summary&limit=100",
+  )) as { runs: OperatorRun[] };
+  assert.equal(
+    summaries.runs.find((run) => run.id === "run-demo-hold")?.needs_human_decision,
+    true,
+  );
+  assert.equal(
+    summaries.runs.find((run) => run.id === "run-demo-active")?.needs_human_decision,
+    false,
+  );
   await transport.request("/projects/demo-project/runs", {
     method: "POST",
     body: JSON.stringify({ task: "Create mock evidence" }),

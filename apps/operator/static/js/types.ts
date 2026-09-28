@@ -67,6 +67,7 @@ export interface OperatorRun {
   task?: string;
   branch?: string;
   status?: string;
+  needs_human_decision?: boolean;
   current_phase?: string;
   started_at?: string | null;
   updated_at?: string | null;

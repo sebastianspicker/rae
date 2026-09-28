@@ -172,9 +172,12 @@ function evidenceCopy(
     ];
   return ["Execution evidence", "Recorded run state updates as the workflow progresses."];
 }
-function evidenceTone(run: OperatorRun, pending: boolean): string {
-  if (pending || run.controls?.resume) return "pending";
-  return ["failed", "interrupted"].includes(run.status ?? "") ? "error" : "recorded";
+export function evidenceTone(run: OperatorRun, pending: boolean): string {
+  if (pending || run.needs_human_decision === true || run.controls?.resume) return "pending";
+  if (run.status === "completed") return "proof";
+  if (["running", "waiting", "stop-requested"].includes(run.status ?? "")) return "active";
+  if (["failed", "blocked", "interrupted"].includes(run.status ?? "")) return "error";
+  return "muted";
 }
 function renderEvidence(run: OperatorRun): void {
   const target = document.getElementById("task-evidence");

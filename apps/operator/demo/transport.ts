@@ -160,6 +160,7 @@ function decideDemoCheckpoint(run: OperatorRun, body: JsonRecord): void {
     at,
     rationale: body.rationale,
   };
+  run.needs_human_decision = false;
   run.status = outcome === "approved" ? "running" : "blocked";
   run.controls = {
     stop: outcome === "approved",

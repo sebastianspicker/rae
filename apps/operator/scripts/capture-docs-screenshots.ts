@@ -81,6 +81,22 @@ const RUN = Object.freeze({
     ],
   },
 });
+const HUMAN_WAIT_SUMMARY = Object.freeze({
+  ...RUN,
+  id: "run-2026-08-05-human-hold",
+  task: "Review a recorded release checkpoint.",
+  status: "waiting",
+  needs_human_decision: true,
+  runtime_active: false,
+});
+const TIMER_WAIT_SUMMARY = Object.freeze({
+  ...RUN,
+  id: "run-2026-08-05-timer-wait",
+  task: "Wait for the scheduled verification window.",
+  status: "waiting",
+  needs_human_decision: false,
+  runtime_active: false,
+});
 
 const EVENTS = Object.freeze([
   event(1, "plan", "artifact_validated", "pass", "plan.json"),
@@ -98,28 +114,85 @@ const CAPTURE_STYLE = `
   </style>
 `;
 function installCaptureProbe(): void {
+  function failCapture(message: string): void {
+    document.documentElement.dataset.captureError = message;
+  }
+
+  function visibleRunIds(): Array<string | undefined> {
+    return [...document.querySelectorAll<HTMLElement>("#runs-list [data-run-id]")].map(
+      (row) => row.dataset.runId,
+    );
+  }
+
+  function graphLabelsClear(): boolean {
+    const nodeBounds = [
+      ...document.querySelectorAll<SVGGraphicsElement>("#workflow-graph-content .workflow-node"),
+    ].map((node) => node.getBBox());
+    return [
+      ...document.querySelectorAll<SVGGraphicsElement>(
+        "#workflow-graph-content .workflow-edge-label",
+      ),
+    ].every((label) => {
+      const bounds = label.getBBox();
+      return nodeBounds.every(
+        (node) =>
+          bounds.x + bounds.width <= node.x ||
+          bounds.x >= node.x + node.width ||
+          bounds.y + bounds.height <= node.y ||
+          bounds.y >= node.y + node.height,
+      );
+    });
+  }
+
+  async function captureWhenReady(): Promise<void> {
+    await document.fonts.ready;
+    const section = document.getElementById("workflow-section") as HTMLDetailsElement | null;
+    if (section) section.open = true;
+    document.getElementById("workflow-view-loop")?.click();
+    document.getElementById("workflow-view-graph")?.click();
+    const connected = document.getElementById("connection-status")?.dataset.state === "connected";
+    const nodes = document.querySelectorAll("#workflow-graph-content .workflow-node").length;
+    const selected = document.getElementById("workflow-view-graph")?.getAttribute("aria-selected");
+    const filter = document.getElementById("cycle-filter") as HTMLButtonElement | null;
+    if (!filter) {
+      failCapture("run filter is missing");
+      return;
+    }
+    filter.click();
+    const activeRunIds = visibleRunIds();
+    const timedWaitIsActive =
+      activeRunIds.length === 1 && activeRunIds[0] === "run-2026-08-05-timer-wait";
+    filter.click();
+    filter.click();
+    const blockedRunIds = visibleRunIds();
+    const humanWaitIsBlocked =
+      blockedRunIds.length === 1 && blockedRunIds[0] === "run-2026-08-05-human-hold";
+    filter.click();
+    const filtersCorrect = timedWaitIsActive && humanWaitIsBlocked;
+    const completedTone = document.querySelector<HTMLElement>(".record-status")?.dataset.tone;
+    const labelsClear = graphLabelsClear();
+    if (!filtersCorrect) failCapture("run filters do not distinguish human holds from timed waits");
+    if (completedTone !== "proof") failCapture("completed run does not use proof tone");
+    if (!labelsClear) failCapture("workflow edge label overlaps a node");
+    document.documentElement.dataset.captureReady = String(
+      [
+        connected,
+        nodes > 0,
+        selected === "true",
+        filtersCorrect,
+        completedTone === "proof",
+        labelsClear,
+      ].every(Boolean),
+    );
+  }
+
   window.addEventListener("error", (event) => {
-    document.documentElement.dataset.captureError = event.message || "browser error";
+    failCapture(event.message || "browser error");
   });
   window.addEventListener("unhandledrejection", (event) => {
-    document.documentElement.dataset.captureError = event.reason?.message || "unhandled rejection";
+    failCapture(event.reason?.message || "unhandled rejection");
   });
-  window.addEventListener("load", () =>
-    window.setTimeout(() => {
-      const section = document.getElementById("workflow-section") as HTMLDetailsElement | null;
-      if (section) section.open = true;
-      document.getElementById("workflow-view-loop")?.click();
-      document.getElementById("workflow-view-graph")?.click();
-      const connected = document.getElementById("connection-status")?.dataset.state === "connected";
-      const nodes = document.querySelectorAll("#workflow-graph-content .workflow-node").length;
-      const selected = document
-        .getElementById("workflow-view-graph")
-        ?.getAttribute("aria-selected");
-      document.documentElement.dataset.captureReady = String(
-        connected && nodes > 0 && selected === "true",
-      );
-    }, 100),
-  );
+  window.addEventListener("load", () => window.setTimeout(captureWhenReady, 100));
 }
 const CAPTURE_PROBE = `<script>(${installCaptureProbe.toString()})()</script>`;
 
@@ -213,7 +286,8 @@ function apiResponse(pathname: string): unknown {
       ],
     };
   }
-  if (pathname === `/api/v1/projects/${PROJECT_ID}/runs`) return { runs: [RUN] };
+  if (pathname === `/api/v1/projects/${PROJECT_ID}/runs`)
+    return { runs: [RUN, HUMAN_WAIT_SUMMARY, TIMER_WAIT_SUMMARY] };
   if (pathname.endsWith(`/runs/${RUN.id}`)) return { run: RUN };
   if (pathname.endsWith(`/runs/${RUN.id}/events`)) {
     return { events: EVENTS, next_after: EVENTS.at(-1)!.seq };
