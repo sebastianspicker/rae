@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-09-02
+last_reviewed: 2026-09-28
 source_of_truth: implementation
 evidence_links: reference/claims/evidence-index.md
 ---
@@ -61,6 +61,10 @@ flowchart TD
   Workflow --> Agents
   Workflow --> Graph
   Workflow --> Primitives
+  Run <--> Workflow
+  Agents --> Graph
+  Agents --> Primitives
+  Graph --> Primitives
   Engine[engine] --> Contracts[versioned contracts]
   Operator[operator] --> Public["@rae/engine"]
   Platform[experimental platform] --> Public
@@ -72,8 +76,11 @@ surface. Everything else below `packages/engine/src/` is private. Applications
 must not import engine source paths, and the engine must not depend on
 applications, Ralph, profiles, maintenance tools, integrations, or developer
 tool source paths. Executable tools used at runtime are declared package
-dependencies. `scripts/src/check-architecture.ts` enforces these rules and rejects
-retired repository roots.
+dependencies. Inside the engine, imports follow the arrows above: `run/` and
+`workflow/` are one layer, and `primitives/` depends on nothing else in the
+engine. `scripts/src/check-architecture.ts` enforces these rules, rejects
+retired repository roots, and rejects non-TypeScript source in maintained
+package trees.
 
 ## Autonomous run flow
 
@@ -157,6 +164,10 @@ fixtures, not evidence of a deployed service.
 - Keep graph context advisory and activation or publication human-owned.
 - Keep applications, Ralph, profiles, and maintenance tools outside the engine
   dependency direction.
+- Put shared engine helpers in the lowest engine layer that needs them rather
+  than copying them; a new shared concept gets one module.
+- Write maintained code in TypeScript; package scripts run compiled `dist/`
+  output.
 
 RAE does not claim provider-independent performance, production hosted
 readiness, globally atomic multi-path Ralph promotion, or automatic Git

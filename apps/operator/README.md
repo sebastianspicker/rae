@@ -226,7 +226,7 @@ cursor, and animation-frame batches append stable rows while
 retaining complete history, keyboard focus and expanded details. The static
 demo uses the same summary/detail and replay flow.
 
-Run `node scripts/benchmarks/operator.mjs` for three repetitions of the
+Run `node scripts/dist/benchmarks/operator.js` (after `npm run build`) for three repetitions of the
 100/1,000-run and 1,000/10,000-event workloads. It checks equivalent projections
 and reports elapsed milliseconds, RSS changes, bytes read and parse/read counts
 using disposable repositories. Timing is diagnostic, not a pass threshold.

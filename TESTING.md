@@ -30,8 +30,7 @@ and mobile viewport sizes. Browser verification uses temporary screenshots.
 
 | Scope | Command | Contract covered |
 | --- | --- | --- |
-| Engine public and workflow boundaries | `npm run test:engine` | Package exports, scheduler ordering, reader/writer exclusion, retries and crash recovery, bounded context, graph freshness and deep traversal, trace cursor integrity |
-| Retained v1 engine behavior | `npm run test:engine-legacy` | Argument safety, provider event logs, operator CLI behavior |
+| Engine public and workflow boundaries | `npm run test:engine` | Package exports, scheduler ordering, reader/writer exclusion, retries and crash recovery, bounded context, graph freshness and deep traversal, trace cursor integrity, path containment, argument safety, provider event logs, operator CLI behavior |
 | Loopback operator | `npm run test:operator` | Host, origin, bearer, route and process boundaries, summary pagination, static demo, incremental event rendering and focus preservation |
 | Operator browser | `node apps/operator/dist/scripts/capture-docs-screenshots.js --check` | Connected Graph view, browser errors, exact desktop/mobile viewport sizes, page overflow and browser cleanup |
 | Experimental platform | `npm run test:platform` | Hosted API and authorization, MemoryStore completion and fencing, paged streams, disconnects, long polls and listener shutdown |
@@ -40,7 +39,7 @@ and mobile viewport sizes. Browser verification uses temporary screenshots.
 | History transactions | `npm run test:history` | Isolated Git rewrite, exact leased local-bare push, rejected-push rollback, dirty preflight |
 | PostgreSQL integration | `npm --prefix apps/platform run test:integration` | Requires disposable `RAE_PLATFORM_DATABASE_URL`; concurrent terminal reports, cancellation, lease contention and expiry, notifications and timeout replay |
 | Ralph | `npm run test:ralph` | PRD, state, scope, process, and filesystem-transaction contracts |
-| Package architecture | `node scripts/dist/check-architecture.js` | Workspace roots, import direction, public engine boundary |
+| Package architecture | `node scripts/dist/check-architecture.js` | Workspace roots, public engine boundary, engine layer direction, TypeScript-only maintained source |
 | Adapter derivation | `npm --workspace @rae/agent-adapters run generate -- --check` | Manifest/template output synchronization |
 | Maintained Markdown links | `node scripts/dist/check-markdown-links.js --root . --strict` | Relative targets and heading anchors |
 | Repository documentation contract | `node scripts/dist/verify-repository.js` | Frontmatter, links, public files, assets, and source headers |

@@ -1,7 +1,7 @@
 ---
 status: stable
 owner: core
-last_reviewed: 2026-09-02
+last_reviewed: 2026-09-28
 source_of_truth: scripts/src/check-architecture.ts
 evidence_links: ../claims/assumptions-register.md
 ---
@@ -17,7 +17,7 @@ the complete component and runtime model, see the
 ```text
 scripts/src/rae.ts
   -> applications -> @rae/engine public API
-  -> engine CLI   -> run/workflow -> agents/graph/primitives
+  -> engine cli -> run/workflow -> agents -> graph -> primitives
   -> Ralph
 
 workflows -> engine
@@ -25,6 +25,14 @@ engine -> versioned contracts
 runtime tools -> versioned contracts
 profiles and maintenance tools remain independent
 ```
+
+Inside the engine, `primitives/` imports no other engine layer, `graph/` uses
+only primitives, `agents/` uses graph and primitives, `run/` and `workflow/`
+form one layer that may import each other and everything below, and `cli/`
+may import everything except `public/`. Shared engine helpers belong in the
+lowest layer that needs them; for example path containment lives in
+`primitives/paths.ts` and compiled entrypoint paths in
+`primitives/installation-paths.ts`.
 
 Applications must not import engine implementation files. The engine must not
 depend on applications, Ralph, developer-tool source paths, profiles, or
@@ -48,7 +56,11 @@ source dependencies.
 ## Enforcement
 
 `scripts/src/check-architecture.ts` rejects retired roots, private engine imports
-from applications, and reverse dependencies from the engine. Package exports
+from applications, reverse dependencies from the engine, engine imports against
+the layer order above, and JavaScript, shell, Python or jq source under
+`packages/`, `apps/`, `integrations/`, `profiles/`, `tools/` and `scripts/`
+(maintained source is TypeScript). `scripts/src/test-architecture.test.ts`
+covers the rules. Package exports
 and npm workspaces reinforce the same boundary. The repository verification
 gate runs this check with tests, static analysis, adapter synchronization, and
 documentation validation.

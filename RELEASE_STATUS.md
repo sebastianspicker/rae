@@ -1,6 +1,6 @@
 # Release Status
 
-Evidence cutoff: 2026-09-02
+Evidence cutoff: 2026-09-28
 
 Verdict: NOT READY TO PUBLISH
 
@@ -17,12 +17,15 @@ workflow 2.2 remain experimental.
 
 ## Current worktree
 
-The worktree contains a large uncommitted migration from the former
-`packages/orchestration/` and `packages/loops/` layout into `apps/`,
-`packages/engine/`, `packages/contracts/`, `packages/dev-tools/`,
-`packages/ralph/`, `workflows/`, and `integrations/`. Several new
-components and workflows are not yet tracked. This mutable tree is not a
-release artifact.
+The migration from the former `packages/orchestration/` and
+`packages/loops/` layout into `apps/`, `packages/engine/`,
+`packages/contracts/`, `packages/dev-tools/`, `packages/ralph/`,
+`workflows/`, and `integrations/`, and the cutover to TypeScript-only
+maintained source, are committed on the `reconstruct/engine-architecture`
+branch and not yet merged. A local run on 2026-09-28 (macOS, Node 26, Git
+2.55) passed every `npm run verify` step individually except
+`check-complexity`, which reports 90 pre-existing functions over the
+maintainability limits; the aggregate gate therefore still fails.
 
 The previous local gate record from 2026-08-30 predates the current
 documentation and application changes. Its test counts and pass result are
@@ -50,7 +53,9 @@ release, hosted deployment, or provider outcome.
 
 ## Publication blockers
 
-- Review and track the intended migration, then reproduce all evidence from a
+- Bring the 90 functions reported by `check-complexity` within the limits (or
+  record an explicit policy decision); the aggregate gate cannot pass before.
+- Review and merge the migration branch, then reproduce all evidence from a
   clean candidate with `npm run verify -- --release-candidate`.
 - Run the hosted CI, CodeQL, Scorecard, image-build, and operator-demo workflows
   against the exact candidate commit.

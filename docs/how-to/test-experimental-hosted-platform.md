@@ -12,7 +12,7 @@ Run the platform's source-level trust-boundary tests together with the engine
 and operator boundaries:
 
 ```bash
-npm run test:engine-legacy
+npm run test:engine
 npm run test:operator
 npm run test:platform
 ```
