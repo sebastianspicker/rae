@@ -1,67 +1,149 @@
-/* Shared forensic-ledger tokens and accessible element defaults. */
+/*
+ * Instrument Record tokens. Two voices share the console: Plex Mono for what the
+ * machine recorded, Newsreader for what a person wrote. Colour is semantic only:
+ * trace (interaction and path), hold (a human is required), proof (recorded pass),
+ * fault (failure or destructive action). See apps/operator/DESIGN_BRIEF.md.
+ */
 
-:root,
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #eef1f3;
-  --surface: #fff;
-  --surface-2: #f7f9fa;
-  --surface-3: #eef2f4;
-  --ink: #152228;
-  --ink-soft: #3d4f58;
-  --mute: #63757e;
-  --faint: #8b9aa2;
-  --line: #d8dfe3;
-  --line-soft: #e6ebed;
-  --line-hard: #b9c4ca;
-  --trace: #1d55e0;
-  --trace-ink: #1743b4;
-  --trace-soft: #e8eefc;
-  --proof: #0a7059;
-  --proof-soft: #e2f0ec;
-  --hold: #9a4a1f;
-  --hold-soft: #f8ece4;
-  --danger: #b03225;
-  --danger-soft: #f9e9e6;
-  --shadow-1: 0 1px 2px rgb(21 34 40 / 6%), 0 4px 16px -4px rgb(21 34 40 / 10%);
-  --shadow-2: 0 2px 6px rgb(21 34 40 / 8%), 0 12px 40px -8px rgb(21 34 40 / 18%);
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/plex-mono-400.woff2") format("woff2");
 }
 
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/plex-mono-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Plex Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/plex-mono-600.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/newsreader-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/newsreader-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Newsreader";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/newsreader-400-italic.woff2") format("woff2");
+}
+
+/* Light: cool paper and the brand ink. */
+:root {
+  color-scheme: light;
+  --bg: #f2f5f6;
+  --surface: #fbfcfc;
+  --sunk: #e8edef;
+  --ink: #14232b;
+  --ink-2: #384c57;
+  --mute: #566a74;
+  --line: #cdd6db;
+  --line-strong: #768892;
+  --trace: #1d4ed8;
+  --trace-wash: #e4ebfc;
+  --hold: #9a3f1c;
+  --hold-wash: #f7eae3;
+  --proof: #0a6b58;
+  --proof-wash: #e0f0ea;
+  --fault: #b42318;
+  --fault-wash: #fbe9e7;
+  --on-accent: #fbfcfc;
+  --scrim: rgb(20 35 43 / 55%);
+  --lift: 0 1px 0 rgb(20 35 43 / 4%), 0 24px 64px -24px rgb(20 35 43 / 35%);
+}
+
+/* Dark: the mark's ink ground. Applied by stored choice or, without one, by the OS. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0c1114;
-  --surface: #131a1f;
-  --surface-2: #182127;
-  --surface-3: #1e2930;
-  --ink: #e4ebee;
-  --ink-soft: #b8c5cb;
-  --mute: #8b9ba3;
-  --faint: #63747d;
-  --line: #27333b;
-  --line-soft: #1f2a31;
-  --line-hard: #3a4a54;
-  --trace: #6f93f5;
-  --trace-ink: #93affa;
-  --trace-soft: #1a2740;
-  --proof: #4cb89a;
-  --proof-soft: #12302a;
-  --hold: #d98a5c;
-  --hold-soft: #332216;
-  --danger: #e0755f;
-  --danger-soft: #381d18;
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%), 0 4px 16px -4px rgb(0 0 0 / 50%);
-  --shadow-2: 0 2px 6px rgb(0 0 0 / 50%), 0 16px 48px -8px rgb(0 0 0 / 60%);
+  --bg: #0e171c;
+  --surface: #132028;
+  --sunk: #0a1115;
+  --ink: #ecf2f1;
+  --ink-2: #b4c3c9;
+  --mute: #8c9fa8;
+  --line: #24343d;
+  --line-strong: #5b7583;
+  --trace: #8aabff;
+  --trace-wash: #16223d;
+  --hold: #f29a74;
+  --hold-wash: #2a1c15;
+  --proof: #5ccfb1;
+  --proof-wash: #10291f;
+  --fault: #ff8f80;
+  --fault-wash: #2e1714;
+  --on-accent: #0e171c;
+  --scrim: rgb(5 10 13 / 72%);
+  --lift: 0 0 0 1px rgb(0 0 0 / 30%), 0 28px 80px -24px rgb(0 0 0 / 70%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e171c;
+    --surface: #132028;
+    --sunk: #0a1115;
+    --ink: #ecf2f1;
+    --ink-2: #b4c3c9;
+    --mute: #8c9fa8;
+    --line: #24343d;
+    --line-strong: #5b7583;
+    --trace: #8aabff;
+    --trace-wash: #16223d;
+    --hold: #f29a74;
+    --hold-wash: #2a1c15;
+    --proof: #5ccfb1;
+    --proof-wash: #10291f;
+    --fault: #ff8f80;
+    --fault-wash: #2e1714;
+    --on-accent: #0e171c;
+    --scrim: rgb(5 10 13 / 72%);
+    --lift: 0 0 0 1px rgb(0 0 0 / 30%), 0 28px 80px -24px rgb(0 0 0 / 70%);
+  }
 }
 
 :root {
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
-  --t-micro: 0.6875rem;
-  --t-label: 0.75rem;
-  --t-body: 0.8125rem;
-  --t-text: 0.9375rem;
-  --t-h3: 1.0625rem;
-  --t-h1: 1.375rem;
+  /* Voices */
+  --mono: "Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --serif: "Newsreader", ui-serif, "New York", Georgia, "Times New Roman", serif;
+
+  /* Type scale: 1.2 ratio from 13px. */
+  --t-2xs: 0.6875rem; /* 11 */
+  --t-xs: 0.75rem; /* 12 */
+  --t-sm: 0.8125rem; /* 13 */
+  --t-md: 0.9375rem; /* 15 */
+  --t-lg: 1.125rem; /* 18 */
+  --t-xl: 1.375rem; /* 22 */
+  --t-2xl: 1.75rem; /* 28 */
+  --t-3xl: 2.25rem; /* 36 */
+  --t-4xl: 2.75rem; /* 44 */
+  --track-label: 0.08em;
+
+  /* Space: 4px base. */
   --s1: 0.25rem;
   --s2: 0.5rem;
   --s3: 0.75rem;
@@ -69,147 +151,27 @@
   --s5: 1.5rem;
   --s6: 2rem;
   --s7: 3rem;
-  --topbar-height: 3rem;
-  --index-w: 17rem;
-  --radius: 4px;
-  --pad: clamp(1rem, 3vw, 2rem);
+  --s8: 4rem;
 
-  /* Compatibility aliases used by the existing concept-owned modules. */
-  --paper: var(--bg);
-  --sheet: var(--surface);
-  --panel: var(--surface);
-  --rule: var(--line);
-  --rule-soft: var(--line-soft);
+  /* Frame */
+  --gutter: clamp(1rem, 3.5vw, 2.5rem);
+  --measure: 88rem;
+  --topbar-h: 3.5rem;
+  --radius: 2px;
+  --hair: 1px solid var(--line);
+  --control-h: 2.25rem;
 
-  font-family: var(--sans);
-  font-size: 16px;
-  line-height: 1.5;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur-base: 160ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* The trace step: vertical drop between journey levels, as in the mark. */
+  --step-drop: 0.625rem;
+  --step-mark: 0.75rem;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html {
-  min-width: 320px;
-  min-height: 100%;
-  background: var(--bg);
-}
-
-body {
-  min-height: 100vh;
-  margin: 0;
-  color: var(--ink);
-  background: var(--bg);
-  font-size: var(--t-body);
-}
-
-button,
-input,
-textarea,
-select {
-  color: inherit;
-  font: inherit;
-}
-
-button {
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-button:disabled,
-input:disabled,
-select:disabled,
-textarea:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-button,
-[role="option"] {
-  -webkit-tap-highlight-color: transparent;
-}
-
-:focus-visible {
-  position: relative;
-  z-index: 3;
-  outline: 2px solid var(--trace);
-  outline-offset: 2px;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: 2px solid var(--trace);
-  outline-offset: 0;
-  border-color: var(--trace);
-}
-
-[hidden] {
-  display: none !important;
-}
-
-svg {
-  width: 1.25rem;
-  height: 1.25rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: square;
-  stroke-linejoin: miter;
-  stroke-width: 1.65;
-}
-
-code,
-.mono {
-  font-family: var(--mono);
-  font-feature-settings: "tnum" 1;
-  letter-spacing: -0.01em;
-}
-
-.icon-sprite,
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.eyebrow {
-  margin: 0 0 var(--s2);
-  color: var(--faint);
-  font: 550 var(--t-micro) / 1 var(--mono);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.skip {
-  position: fixed;
-  top: 0.5rem;
-  left: 0.5rem;
-  z-index: 40;
-  padding: 0.45rem 0.65rem;
-  border: 1px solid var(--line-hard);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
-  transform: translateY(calc(-100% - 0.75rem));
-}
-
-.skip:focus-visible {
-  transform: translateY(0);
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* Names kept for the static screenshot tour page. */
+:root {
+  --t-label: var(--t-xs);
 }
