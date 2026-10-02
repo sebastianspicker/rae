@@ -22,7 +22,7 @@
     "@modelcontextprotocol/sdk": "1.30.0",
     "@openai/codex": "0.146.0",
     "jose": "6.2.8",
-    "pg": "8.22.0",
+    "pg": "8.23.0",
     "smol-toml": "1.7.1",
     "zod": "4.4.3",
     "@rae/fs-bridge": "file:../../packages/fs-bridge"
